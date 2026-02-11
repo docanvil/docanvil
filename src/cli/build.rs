@@ -5,6 +5,7 @@ use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::pipeline;
+use crate::nav;
 use crate::project::{self, PageInventory};
 use crate::render::assets;
 use crate::render::templates::{PageContext, TemplateRenderer};
@@ -73,7 +74,14 @@ fn build_site(
 
     // Build page inventory for wiki-link resolution and navigation
     let inventory = PageInventory::scan(&content_dir)?;
-    let nav_tree = inventory.nav_tree();
+    let nav_config = nav::load_nav(project_root)?;
+    let nav_tree = match nav_config {
+        Some(entries) => {
+            nav::validate(&entries, &inventory);
+            nav::nav_tree_from_config(&entries, &inventory)
+        }
+        None => inventory.nav_tree(),
+    };
     let registry = ComponentRegistry::with_builtins();
 
     // Ensure output directory exists

@@ -75,6 +75,9 @@
         group.style.display = visibleChildren.length || !query ? '' : 'none';
         if (query) group.classList.add('open');
       });
+      document.querySelectorAll('.sidebar .nav-separator').forEach(sep => {
+        sep.style.display = query ? 'none' : '';
+      });
     });
   })();
 

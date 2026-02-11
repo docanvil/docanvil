@@ -169,7 +169,17 @@ fn title_from_slug(slug: &str) -> String {
         .join(" ")
 }
 
-/// Render a navigation tree as nested HTML `<ul>` lists.
+/// Check if a nav section contains the active page.
+fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
+    if let Some(slug) = &node.slug {
+        return slug == current_slug;
+    }
+    node.children
+        .iter()
+        .any(|child| section_contains_active(child, current_slug))
+}
+
+/// Render a navigation tree as nested HTML `<ul>` lists with collapsible groups.
 pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
     if nodes.is_empty() {
         return String::new();
@@ -179,22 +189,62 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
     for node in nodes {
         if let Some(slug) = &node.slug {
             let href = format!("/{}.html", slug);
-            let active = if slug == current_slug {
-                " class=\"active\""
+            let class = if slug == current_slug {
+                "nav-item active"
             } else {
-                ""
+                "nav-item"
             };
             html.push_str(&format!(
-                "  <li{active}><a href=\"{href}\">{}</a></li>\n",
+                "  <li class=\"{class}\"><a href=\"{href}\">{}</a></li>\n",
                 node.label
             ));
         } else {
-            html.push_str(&format!("  <li><span>{}</span>\n", node.label));
-            html.push_str(&render_nav(&node.children, current_slug));
-            html.push_str("  </li>\n");
+            let is_open = section_contains_active(node, current_slug);
+            let open_class = if is_open { " open" } else { "" };
+            let aria = if is_open { "true" } else { "false" };
+            html.push_str(&format!(
+                "  <li class=\"nav-group{open_class}\">\n    <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n      <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n      {}\n    </button>\n",
+                node.label
+            ));
+            html.push_str("    <ul class=\"nav-group-children\">\n");
+            for child in &node.children {
+                html.push_str(&render_nav_item(child, current_slug));
+            }
+            html.push_str("    </ul>\n  </li>\n");
         }
     }
     html.push_str("</ul>\n");
+    html
+}
+
+/// Render a single nav item (leaf or nested group) within a group's children.
+fn render_nav_item(node: &NavNode, current_slug: &str) -> String {
+    let mut html = String::new();
+    if let Some(slug) = &node.slug {
+        let href = format!("/{}.html", slug);
+        let class = if slug == current_slug {
+            "nav-item active"
+        } else {
+            "nav-item"
+        };
+        html.push_str(&format!(
+            "      <li class=\"{class}\"><a href=\"{href}\">{}</a></li>\n",
+            node.label
+        ));
+    } else {
+        let is_open = section_contains_active(node, current_slug);
+        let open_class = if is_open { " open" } else { "" };
+        let aria = if is_open { "true" } else { "false" };
+        html.push_str(&format!(
+            "      <li class=\"nav-group{open_class}\">\n        <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n          <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n          {}\n        </button>\n",
+            node.label
+        ));
+        html.push_str("        <ul class=\"nav-group-children\">\n");
+        for child in &node.children {
+            html.push_str(&render_nav_item(child, current_slug));
+        }
+        html.push_str("        </ul>\n      </li>\n");
+    }
     html
 }
 
@@ -242,5 +292,31 @@ mod tests {
 
         // Should have "Guides" directory node and "Home" page node
         assert!(tree.len() >= 2);
+    }
+
+    #[test]
+    fn render_nav_collapsible_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(docs.join("guides")).unwrap();
+        fs::write(docs.join("index.md"), "# Home").unwrap();
+        fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
+        fs::write(docs.join("guides/config.md"), "# Config").unwrap();
+
+        let inv = PageInventory::scan(&docs).unwrap();
+        let tree = inv.nav_tree();
+
+        // When viewing a page outside the group, group should be collapsed
+        let html = render_nav(&tree, "index");
+        assert!(html.contains("nav-group-toggle"));
+        assert!(html.contains("nav-chevron"));
+        assert!(html.contains("aria-expanded=\"false\""));
+        assert!(html.contains("nav-group-children"));
+        assert!(html.contains("class=\"nav-item active\""));
+
+        // When viewing a page inside the group, group should be open
+        let html_active = render_nav(&tree, "guides/setup");
+        assert!(html_active.contains("nav-group open"));
+        assert!(html_active.contains("aria-expanded=\"true\""));
     }
 }

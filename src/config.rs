@@ -36,7 +36,6 @@ pub struct ThemeConfig {
     pub variables: HashMap<String, String>,
 }
 
-
 impl Default for ProjectConfig {
     fn default() -> Self {
         Self {
@@ -53,7 +52,6 @@ impl Default for BuildConfig {
         }
     }
 }
-
 
 impl Config {
     /// Load config from a `docanvil.toml` file in the given directory.

@@ -46,6 +46,11 @@
   /* --color-sidebar-hover: #eef2ff; */
   /* --color-sidebar-active-bg: #eef2ff; */
   /* --color-sidebar-active-text: #4f46e5; */
+
+  /* Nav filter & groups */
+  /* --nav-filter-bg: #ffffff; */
+  /* --nav-filter-border: var(--color-border); */
+  /* --nav-group-toggle-hover: rgba(99, 102, 241, 0.06); */
 }
    ----------------------------------------------------------------- */
 

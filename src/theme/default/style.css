@@ -47,6 +47,11 @@
 
   /* Focus */
   --color-focus-ring: rgba(99, 102, 241, 0.4);
+
+  /* Nav filter & groups */
+  --nav-filter-bg: #ffffff;
+  --nav-filter-border: var(--color-border);
+  --nav-group-toggle-hover: rgba(99, 102, 241, 0.06);
 }
 
 /* ----------------------------------------------------------------
@@ -138,15 +143,78 @@ body {
   margin-bottom: 0.15rem;
 }
 
-.sidebar li > span {
-  display: block;
-  padding: 0.35rem 0.5rem;
+/* Filter input */
+.nav-filter-wrapper {
+  padding: 0 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.nav-filter {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--nav-filter-border);
+  border-radius: var(--radius-sm);
+  background: var(--nav-filter-bg);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.nav-filter:focus {
+  border-color: var(--color-primary);
+}
+
+.nav-filter::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Collapsible nav groups */
+.nav-group {
+  margin-top: 0.5rem;
+}
+
+.nav-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
-  margin-top: 0.75rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.nav-group-toggle:hover {
+  color: var(--color-text);
+  background: var(--nav-group-toggle-hover);
+}
+
+.nav-chevron {
+  flex-shrink: 0;
+  transition: transform var(--transition-normal);
+}
+
+.nav-group.open > .nav-group-toggle .nav-chevron {
+  transform: rotate(90deg);
+}
+
+.nav-group-children {
+  display: none;
+  padding-left: 0.5rem;
+}
+
+.nav-group.open > .nav-group-children {
+  display: block;
 }
 
 .sidebar a {
@@ -165,7 +233,7 @@ body {
   color: var(--color-primary);
 }
 
-.sidebar li.active > a {
+.sidebar .nav-item.active > a {
   background: var(--color-sidebar-active-bg);
   color: var(--color-sidebar-active-text);
   font-weight: 500;

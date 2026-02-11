@@ -15,7 +15,7 @@ pub fn run(name: &str) -> Result<()> {
     }
 
     // Create project structure
-    std::fs::create_dir_all(project_dir.join("docs"))?;
+    std::fs::create_dir_all(project_dir.join("docs/guides"))?;
     std::fs::create_dir_all(project_dir.join("theme"))?;
 
     // Write docanvil.toml
@@ -46,6 +46,10 @@ This is your new documentation site, powered by [DocAnvil](https://github.com/do
 ## Getting Started
 
 Edit this file at `docs/index.md` to start writing your documentation.
+Check out the guides to learn more:
+
+- [[getting-started]] — install and run your first site
+- [[configuration]] — customize your project settings
 
 ### Features
 
@@ -78,6 +82,103 @@ font-body = "Georgia, serif"
 "##
     );
     std::fs::write(project_dir.join("docs/index.md"), index)?;
+
+    // Write guides/getting-started.md
+    let getting_started = format!(
+        r##"# Getting Started
+
+Welcome to {name}! This guide walks you through setup and first steps.
+
+## Installation
+
+Install DocAnvil using Cargo:
+
+```bash
+cargo install docanvil
+```
+
+## Create a New Project
+
+```bash
+docanvil init {name}
+cd {name}
+```
+
+## Start the Dev Server
+
+```bash
+docanvil serve
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. Changes to
+any `.md` file will reload the page automatically.
+
+## Build for Production
+
+```bash
+docanvil build
+```
+
+Static HTML is written to the `dist/` directory — deploy it anywhere.
+
+See [[configuration]] for details on customizing your project, or head
+back to the [[index|home page]].
+"##
+    );
+    std::fs::write(
+        project_dir.join("docs/guides/getting-started.md"),
+        getting_started,
+    )?;
+
+    // Write guides/configuration.md
+    let configuration = format!(
+        r##"# Configuration
+
+{name} is configured through `docanvil.toml` in the project root.
+
+## Config Sections
+
+```toml
+[project]
+name = "{name}"
+content_dir = "docs"
+
+[build]
+output_dir = "dist"
+
+[theme]
+custom_css = "theme/custom.css"
+
+[theme.variables]
+color-primary = "#6366f1"
+```
+
+## Project
+
+| Key           | Description                | Default  |
+|---------------|----------------------------|----------|
+| `name`        | Site title in the sidebar  | required |
+| `content_dir` | Markdown source directory  | `"docs"` |
+
+## Theme Variables
+
+Override any CSS variable under `[theme.variables]`. Common options:
+
+- `color-primary` — accent color used for links and highlights
+- `font-body` — base font stack
+- `sidebar-width` — sidebar width (e.g. `"280px"`)
+
+:::note{{title="Tip"}}
+You can also add custom CSS rules in `theme/custom.css` for full control.
+:::
+
+See [[getting-started]] for installation steps.
+"##
+    );
+    std::fs::write(
+        project_dir.join("docs/guides/configuration.md"),
+        configuration,
+    )?;
 
     // Write custom.css starter template
     let custom_css = include_str!("../theme/starter_custom.css");

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
   <title>{{ page_title }} — {{ project_name }}</title>
-  <style>{{ default_css }}</style>
+  <style>{{ default_css | safe }}</style>
   {% if css_overrides %}
   <style>:root { {{ css_overrides }} }</style>
   {% endif %}
@@ -18,6 +18,9 @@
   {% block sidebar %}
   <nav class="sidebar">
     <div class="project-name">{{ project_name }}</div>
+    <div class="nav-filter-wrapper">
+      <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
+    </div>
     {{ nav_html | safe }}
   </nav>
   {% endblock %}
@@ -47,6 +50,33 @@
       container.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
     });
   });
+
+  // Sidebar collapse/expand
+  document.querySelectorAll('.nav-group-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.closest('.nav-group');
+      const expanded = group.classList.toggle('open');
+      btn.setAttribute('aria-expanded', expanded);
+    });
+  });
+
+  // Sidebar filter
+  (function() {
+    const filterInput = document.querySelector('.nav-filter');
+    if (!filterInput) return;
+    filterInput.addEventListener('input', () => {
+      const query = filterInput.value.toLowerCase().trim();
+      document.querySelectorAll('.sidebar .nav-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(query) || !query ? '' : 'none';
+      });
+      document.querySelectorAll('.sidebar .nav-group').forEach(group => {
+        const visibleChildren = group.querySelectorAll('.nav-item:not([style*="display: none"])');
+        group.style.display = visibleChildren.length || !query ? '' : 'none';
+        if (query) group.classList.add('open');
+      });
+    });
+  })();
   </script>
   {% endblock %}
 

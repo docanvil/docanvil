@@ -39,7 +39,12 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install tool
-        run: cargo install docanvil   # 👈 replace with actual crate name
+        run: |
+          if ! command -v docanvil >/dev/null 2>&1; then 
+            cargo install docanvil
+          else 
+            echo "docanvil already installed"
+          fi
 
       - name: Run tool
         working-directory: ./docs

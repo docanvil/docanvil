@@ -77,6 +77,40 @@
       });
     });
   })();
+
+  // Popover edge-avoidance
+  document.querySelectorAll('.popover-trigger').forEach(trigger => {
+    const popover = trigger.querySelector('.popover-content');
+    if (!popover) return;
+
+    function reposition() {
+      // Reset positioning classes
+      popover.classList.remove('popover-flipped');
+      popover.style.left = '';
+      popover.style.transform = '';
+
+      const triggerRect = trigger.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+
+      // Flip below if overflowing top
+      if (popoverRect.top < 0) {
+        popover.classList.add('popover-flipped');
+      }
+
+      // Shift horizontally if overflowing edges
+      const updated = popover.getBoundingClientRect();
+      if (updated.left < 8) {
+        const shift = 8 - updated.left;
+        popover.style.left = `calc(50% + ${shift}px)`;
+      } else if (updated.right > window.innerWidth - 8) {
+        const shift = updated.right - (window.innerWidth - 8);
+        popover.style.left = `calc(50% - ${shift}px)`;
+      }
+    }
+
+    trigger.addEventListener('mouseenter', reposition);
+    trigger.addEventListener('focusin', reposition);
+  });
   </script>
   {% endblock %}
 

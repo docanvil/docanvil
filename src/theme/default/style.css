@@ -559,11 +559,9 @@ body {
 
 .broken-link {
   color: #dc2626;
-  border-bottom: 1px dashed #dc2626;
   background: rgba(220, 38, 38, 0.06);
   padding: 0 0.15em;
   border-radius: 2px;
-  cursor: help;
 }
 
 .directive-error {
@@ -575,6 +573,104 @@ body {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: #9a3412;
+}
+
+/* ----------------------------------------------------------------
+   Popovers
+   ---------------------------------------------------------------- */
+
+.popover-trigger {
+  position: relative;
+  border-bottom: 1px dotted var(--color-text-muted);
+  cursor: help;
+}
+
+.popover-indicator::after {
+  content: "";
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-left: 0.15em;
+  vertical-align: -0.05em;
+  background: currentColor;
+  opacity: 0.5;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z' clip-rule='evenodd'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z' clip-rule='evenodd'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.popover-content {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 300px;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  z-index: 100;
+  cursor: default;
+  text-align: left;
+}
+
+/* Arrow pointing down toward trigger */
+.popover-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--color-border);
+}
+
+.popover-trigger:hover > .popover-content,
+.popover-trigger:focus-within > .popover-content,
+.popover-trigger:focus > .popover-content {
+  display: block;
+}
+
+/* Flipped state: popover below trigger */
+.popover-content.popover-flipped {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.popover-content.popover-flipped::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: var(--color-border);
+}
+
+/* Error variant for broken links */
+.popover-error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.popover-error::after {
+  border-top-color: #fca5a5;
+}
+
+.popover-error.popover-flipped::after {
+  border-top-color: transparent;
+  border-bottom-color: #fca5a5;
+}
+
+/* Broken links: use dashed red underline instead of default dotted */
+.broken-link.popover-trigger {
+  border-bottom-style: dashed;
+  border-bottom-color: #dc2626;
 }
 
 /* ----------------------------------------------------------------

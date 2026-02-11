@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6366f1">
+  <title>{{ page_title }} — {{ project_name }}</title>
+  <style>{{ default_css }}</style>
+  {% if css_overrides %}
+  <style>:root { {{ css_overrides }} }</style>
+  {% endif %}
+  {% if custom_css_path %}
+  <link rel="stylesheet" href="/{{ custom_css_path }}">
+  {% endif %}
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block sidebar %}
+  <nav class="sidebar">
+    <div class="project-name">{{ project_name }}</div>
+    {{ nav_html | safe }}
+  </nav>
+  {% endblock %}
+
+  <main class="content">
+    {% block content %}
+    {{ content | safe }}
+    {% endblock %}
+
+    {% block footer %}
+    <div class="footer">
+      Built with <a href="https://github.com/docanvil/docanvil">DocAnvil</a>
+    </div>
+    {% endblock %}
+  </main>
+
+  {% block scripts %}
+  <script>
+  // Tab switching
+  document.querySelectorAll('.tab-header').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const container = btn.closest('.tabs, .code-group');
+      const tab = btn.dataset.tab;
+      container.querySelectorAll('.tab-header').forEach(b => b.classList.remove('active'));
+      container.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      container.querySelector(`.tab-content[data-tab="${tab}"]`).classList.add('active');
+    });
+  });
+  </script>
+  {% endblock %}
+
+  {% if live_reload %}
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
+  {% endif %}
+</body>
+</html>

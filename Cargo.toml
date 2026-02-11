@@ -1,0 +1,32 @@
+[package]
+name = "docanvil"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust-based static documentation generator that converts Markdown into HTML sites"
+license = "MIT"
+
+[[bin]]
+name = "docanvil"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+comrak = "0.36"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "2"
+walkdir = "2"
+slug = "0.1"
+regex = "1"
+tera = "1"
+rust-embed = "8"
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["fs"] }
+notify = "8"
+notify-debouncer-mini = "0.6"
+miette = { version = "7", features = ["fancy"] }
+owo-colors = "4"
+
+[dev-dependencies]
+tempfile = "3"

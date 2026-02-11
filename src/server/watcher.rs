@@ -12,7 +12,7 @@ pub fn watch(tx: broadcast::Sender<()>, output_dir: &Path) -> crate::error::Resu
         .map_err(|e| crate::error::Error::Render(format!("watcher setup failed: {e}")))?;
 
     // Watch the docs/ and theme/ directories
-    let watch_dirs = ["docs", "theme", "docanvil.toml"];
+    let watch_dirs = ["docs", "theme", "docanvil.toml", "nav.toml"];
     for dir in &watch_dirs {
         let path = Path::new(dir);
         if path.exists() {

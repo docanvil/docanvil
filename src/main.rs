@@ -3,6 +3,7 @@ mod components;
 mod config;
 mod diagnostics;
 mod error;
+mod nav;
 mod pipeline;
 mod project;
 mod render;

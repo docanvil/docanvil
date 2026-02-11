@@ -180,6 +180,47 @@ See [[getting-started]] for installation steps.
         configuration,
     )?;
 
+    // Write nav.toml
+    let nav_toml = r##"# Navigation configuration — controls sidebar ordering and structure.
+# Remove this file to fall back to auto-discovery (alphabetical order).
+
+[[nav]]
+page = "index"
+
+[[nav]]
+separator = "Guides"
+
+[[nav]]
+page = "guides/getting-started"
+
+[[nav]]
+page = "guides/configuration"
+
+# Examples of other nav features:
+#
+# Unlabeled separator (horizontal line):
+# [[nav]]
+# separator = true
+#
+# Collapsible group:
+# [[nav]]
+# label = "API Reference"
+# group = [
+#   { page = "api/overview" },
+#   { page = "api/endpoints", label = "REST Endpoints" },
+# ]
+#
+# Group with a linked header:
+# [[nav]]
+# label = "Advanced"
+# page = "advanced/index"
+# group = [
+#   { page = "advanced/plugins" },
+#   { page = "advanced/deployment" },
+# ]
+"##;
+    std::fs::write(project_dir.join("nav.toml"), nav_toml)?;
+
     // Write custom.css starter template
     let custom_css = include_str!("../theme/starter_custom.css");
     std::fs::write(project_dir.join("theme/custom.css"), custom_css)?;

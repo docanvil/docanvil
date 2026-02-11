@@ -29,10 +29,19 @@ pub struct PageInventory {
 
 /// A node in the navigation tree.
 #[derive(Debug, Clone)]
-pub struct NavNode {
-    pub label: String,
-    pub slug: Option<String>,
-    pub children: Vec<NavNode>,
+pub enum NavNode {
+    Page {
+        label: String,
+        slug: String,
+    },
+    Group {
+        label: String,
+        slug: Option<String>,
+        children: Vec<NavNode>,
+    },
+    Separator {
+        label: Option<String>,
+    },
 }
 
 impl PageInventory {
@@ -122,34 +131,33 @@ fn insert_nav_node(nodes: &mut Vec<NavNode>, parts: &[&str], info: &PageInfo) {
 
     if parts.len() == 1 {
         // Leaf page
-        nodes.push(NavNode {
+        nodes.push(NavNode::Page {
             label: info.title.clone(),
-            slug: Some(info.slug.clone()),
-            children: Vec::new(),
+            slug: info.slug.clone(),
         });
     } else {
         // Find or create directory node
         let dir_label = title_from_slug(parts[0]);
-        let dir_node = nodes
-            .iter_mut()
-            .find(|n| n.label == dir_label && n.slug.is_none());
+        let dir_node = nodes.iter_mut().find(|n| {
+            matches!(n, NavNode::Group { label, slug: None, .. } if label == &dir_label)
+        });
 
-        if let Some(node) = dir_node {
-            insert_nav_node(&mut node.children, &parts[1..], info);
+        if let Some(NavNode::Group { children, .. }) = dir_node {
+            insert_nav_node(children, &parts[1..], info);
         } else {
-            let mut new_node = NavNode {
+            let mut children = Vec::new();
+            insert_nav_node(&mut children, &parts[1..], info);
+            nodes.push(NavNode::Group {
                 label: dir_label,
                 slug: None,
-                children: Vec::new(),
-            };
-            insert_nav_node(&mut new_node.children, &parts[1..], info);
-            nodes.push(new_node);
+                children,
+            });
         }
     }
 }
 
 /// Convert a slug segment to a human-readable title.
-fn title_from_slug(slug: &str) -> String {
+pub(crate) fn title_from_slug(slug: &str) -> String {
     let base = slug.rsplit('/').next().unwrap_or(slug);
     if base == "index" {
         return "Home".to_string();
@@ -171,12 +179,18 @@ fn title_from_slug(slug: &str) -> String {
 
 /// Check if a nav section contains the active page.
 fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
-    if let Some(slug) = &node.slug {
-        return slug == current_slug;
+    match node {
+        NavNode::Page { slug, .. } => slug == current_slug,
+        NavNode::Group {
+            slug, children, ..
+        } => {
+            slug.as_deref() == Some(current_slug)
+                || children
+                    .iter()
+                    .any(|child| section_contains_active(child, current_slug))
+        }
+        NavNode::Separator { .. } => false,
     }
-    node.children
-        .iter()
-        .any(|child| section_contains_active(child, current_slug))
 }
 
 /// Render a navigation tree as nested HTML `<ul>` lists with collapsible groups.
@@ -187,30 +201,51 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
 
     let mut html = String::from("<ul>\n");
     for node in nodes {
-        if let Some(slug) = &node.slug {
-            let href = format!("/{}.html", slug);
-            let class = if slug == current_slug {
-                "nav-item active"
-            } else {
-                "nav-item"
-            };
-            html.push_str(&format!(
-                "  <li class=\"{class}\"><a href=\"{href}\">{}</a></li>\n",
-                node.label
-            ));
-        } else {
-            let is_open = section_contains_active(node, current_slug);
-            let open_class = if is_open { " open" } else { "" };
-            let aria = if is_open { "true" } else { "false" };
-            html.push_str(&format!(
-                "  <li class=\"nav-group{open_class}\">\n    <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n      <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n      {}\n    </button>\n",
-                node.label
-            ));
-            html.push_str("    <ul class=\"nav-group-children\">\n");
-            for child in &node.children {
-                html.push_str(&render_nav_item(child, current_slug));
+        match node {
+            NavNode::Page { label, slug } => {
+                let href = format!("/{}.html", slug);
+                let class = if slug == current_slug {
+                    "nav-item active"
+                } else {
+                    "nav-item"
+                };
+                html.push_str(&format!(
+                    "  <li class=\"{class}\"><a href=\"{href}\">{label}</a></li>\n",
+                ));
             }
-            html.push_str("    </ul>\n  </li>\n");
+            NavNode::Group {
+                label,
+                slug,
+                children,
+            } => {
+                let is_open = section_contains_active(node, current_slug);
+                let open_class = if is_open { " open" } else { "" };
+                let aria = if is_open { "true" } else { "false" };
+                let header_html = if let Some(s) = slug {
+                    let href = format!("/{}.html", s);
+                    let link_class = if s == current_slug { " active" } else { "" };
+                    format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
+                } else {
+                    label.clone()
+                };
+                html.push_str(&format!(
+                    "  <li class=\"nav-group{open_class}\">\n    <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n      <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n      {header_html}\n    </button>\n",
+                ));
+                html.push_str("    <ul class=\"nav-group-children\">\n");
+                for child in children {
+                    html.push_str(&render_nav_item(child, current_slug));
+                }
+                html.push_str("    </ul>\n  </li>\n");
+            }
+            NavNode::Separator { label } => {
+                if let Some(text) = label {
+                    html.push_str(&format!(
+                        "  <li class=\"nav-separator nav-separator-labeled\">{text}</li>\n"
+                    ));
+                } else {
+                    html.push_str("  <li class=\"nav-separator\"><hr></li>\n");
+                }
+            }
         }
     }
     html.push_str("</ul>\n");
@@ -220,30 +255,51 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
 /// Render a single nav item (leaf or nested group) within a group's children.
 fn render_nav_item(node: &NavNode, current_slug: &str) -> String {
     let mut html = String::new();
-    if let Some(slug) = &node.slug {
-        let href = format!("/{}.html", slug);
-        let class = if slug == current_slug {
-            "nav-item active"
-        } else {
-            "nav-item"
-        };
-        html.push_str(&format!(
-            "      <li class=\"{class}\"><a href=\"{href}\">{}</a></li>\n",
-            node.label
-        ));
-    } else {
-        let is_open = section_contains_active(node, current_slug);
-        let open_class = if is_open { " open" } else { "" };
-        let aria = if is_open { "true" } else { "false" };
-        html.push_str(&format!(
-            "      <li class=\"nav-group{open_class}\">\n        <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n          <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n          {}\n        </button>\n",
-            node.label
-        ));
-        html.push_str("        <ul class=\"nav-group-children\">\n");
-        for child in &node.children {
-            html.push_str(&render_nav_item(child, current_slug));
+    match node {
+        NavNode::Page { label, slug } => {
+            let href = format!("/{}.html", slug);
+            let class = if slug == current_slug {
+                "nav-item active"
+            } else {
+                "nav-item"
+            };
+            html.push_str(&format!(
+                "      <li class=\"{class}\"><a href=\"{href}\">{label}</a></li>\n",
+            ));
         }
-        html.push_str("        </ul>\n      </li>\n");
+        NavNode::Group {
+            label,
+            slug,
+            children,
+        } => {
+            let is_open = section_contains_active(node, current_slug);
+            let open_class = if is_open { " open" } else { "" };
+            let aria = if is_open { "true" } else { "false" };
+            let header_html = if let Some(s) = slug {
+                let href = format!("/{}.html", s);
+                let link_class = if s == current_slug { " active" } else { "" };
+                format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
+            } else {
+                label.clone()
+            };
+            html.push_str(&format!(
+                "      <li class=\"nav-group{open_class}\">\n        <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n          <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n          {header_html}\n        </button>\n",
+            ));
+            html.push_str("        <ul class=\"nav-group-children\">\n");
+            for child in children {
+                html.push_str(&render_nav_item(child, current_slug));
+            }
+            html.push_str("        </ul>\n      </li>\n");
+        }
+        NavNode::Separator { label } => {
+            if let Some(text) = label {
+                html.push_str(&format!(
+                    "      <li class=\"nav-separator nav-separator-labeled\">{text}</li>\n"
+                ));
+            } else {
+                html.push_str("      <li class=\"nav-separator\"><hr></li>\n");
+            }
+        }
     }
     html
 }

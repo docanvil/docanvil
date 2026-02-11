@@ -12,6 +12,15 @@ pub fn warn_broken_link(source_file: &Path, link_target: &str) {
     );
 }
 
+/// Emit a warning about a nav.toml entry referencing a page that doesn't exist.
+pub fn warn_nav_missing_page(slug: &str) {
+    eprintln!(
+        "{}: nav.toml references page '{}' which does not exist",
+        "warning".yellow().bold(),
+        slug
+    );
+}
+
 /// Emit a warning about an unclosed directive.
 pub fn warn_unclosed_directive(source_file: &Path, directive_name: &str, line_number: usize) {
     eprintln!(

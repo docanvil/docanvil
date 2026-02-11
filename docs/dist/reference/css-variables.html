@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Endpoints — docs</title>
+  <title>Css Variables — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -771,43 +771,37 @@ body {
 <body>
   
   <nav class="sidebar">
-    <div class="project-name">docs</div>
+    <div class="project-name">DocAnvil</div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item"><a href="/guides/getting-started.html">Getting Started</a></li>
+  <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
   <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
-  <li class="nav-group open">
-    <button class="nav-group-toggle" aria-expanded="true">
-      <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/api/overview.html" class="nav-group-link">API Reference</a>
-    </button>
-    <ul class="nav-group-children">
-      <li class="nav-separator nav-separator-labeled">Core</li>
-      <li class="nav-item active"><a href="/api/endpoints.html">REST Endpoints</a></li>
-      <li class="nav-item"><a href="/api/authentication.html">Authentication</a></li>
-    </ul>
-  </li>
   <li class="nav-group">
     <button class="nav-group-toggle" aria-expanded="false">
+      <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <a href="/writing/markdown.html" class="nav-group-link">Writing Content</a>
+    </button>
+    <ul class="nav-group-children">
+      <li class="nav-item"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
+    </ul>
+  </li>
+  <li class="nav-group open">
+    <button class="nav-group-toggle" aria-expanded="true">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/components.html">Components</a></li>
-      <li class="nav-group">
-        <button class="nav-group-toggle" aria-expanded="false">
-          <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Writing
-        </button>
-        <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/markdown.html">Markdown</a></li>
-        </ul>
-      </li>
+      <li class="nav-item"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-separator nav-separator-labeled">Project</li>
+      <li class="nav-item"><a href="/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item active"><a href="/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -817,53 +811,329 @@ body {
 
   <main class="content">
     
-    <h1>REST Endpoints</h1>
-<p>Below is an example endpoint reference. Replace these with your own API routes.</p>
-<h2>Endpoints</h2>
+    <h1>CSS Variables</h1>
+<p>DocAnvil's default theme is built entirely on CSS custom properties (variables). Override any of them to customize the look of your site without writing complex CSS.</p>
+<h2>How to Override</h2>
+<div class="tabs">
+<div class="tab-headers">
+  <button class="tab-header active" data-tab="0">docanvil.toml</button>
+  <button class="tab-header" data-tab="1">custom.css</button>
+</div>
+<div class="tab-content active" data-tab="0">
+<p>Set variables in the <code>[theme.variables]</code> section. Omit the <code>--</code> prefix:</p>
+<pre><code class="language-toml">[theme.variables]
+color-primary = &quot;#059669&quot;
+font-body = &quot;Georgia, serif&quot;
+content-max-width = &quot;960px&quot;
+</code></pre>
+</div>
+<div class="tab-content" data-tab="1">
+<p>Override variables in a <code>:root</code> block in your custom CSS file:</p>
+<pre><code class="language-css">:root {
+  --color-primary: #059669;
+  --font-body: Georgia, serif;
+  --content-max-width: 960px;
+}
+</code></pre>
+</div>
+</div>
+<h2>Colors</h2>
 <table>
 <thead>
 <tr>
-<th>Method</th>
-<th>Path</th>
+<th>Variable</th>
+<th>Default</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>GET</td>
-<td><code>/v1/users</code></td>
-<td>List all users</td>
+<td><code>--color-primary</code></td>
+<td><code>#6366f1</code></td>
+<td>Primary accent color (links, active states, borders)</td>
 </tr>
 <tr>
-<td>POST</td>
-<td><code>/v1/users</code></td>
-<td>Create a new user</td>
+<td><code>--color-primary-light</code></td>
+<td><code>#818cf8</code></td>
+<td>Lighter primary variant (h1 border, blockquote border)</td>
 </tr>
 <tr>
-<td>GET</td>
-<td><code>/v1/users/:id</code></td>
-<td>Get user by ID</td>
+<td><code>--color-bg</code></td>
+<td><code>#ffffff</code></td>
+<td>Page background</td>
 </tr>
 <tr>
-<td>DELETE</td>
-<td><code>/v1/users/:id</code></td>
-<td>Delete a user</td>
+<td><code>--color-bg-secondary</code></td>
+<td><code>#f8fafc</code></td>
+<td>Secondary background (sidebar, table headers, blockquotes)</td>
+</tr>
+<tr>
+<td><code>--color-text</code></td>
+<td><code>#1e293b</code></td>
+<td>Main text color</td>
+</tr>
+<tr>
+<td><code>--color-text-muted</code></td>
+<td><code>#64748b</code></td>
+<td>Muted text (headings h4, separators, footer)</td>
+</tr>
+<tr>
+<td><code>--color-border</code></td>
+<td><code>#e2e8f0</code></td>
+<td>Border color used throughout</td>
+</tr>
+<tr>
+<td><code>--color-link</code></td>
+<td><code>#6366f1</code></td>
+<td>Link text color</td>
+</tr>
+<tr>
+<td><code>--color-link-hover</code></td>
+<td><code>#4f46e5</code></td>
+<td>Link hover color</td>
+</tr>
+<tr>
+<td><code>--color-code-bg</code></td>
+<td><code>#f1f5f9</code></td>
+<td>Background for inline code and code blocks</td>
+</tr>
+<tr>
+<td><code>--color-note-bg</code></td>
+<td><code>#eef2ff</code></td>
+<td>Note admonition background</td>
+</tr>
+<tr>
+<td><code>--color-note-border</code></td>
+<td><code>#818cf8</code></td>
+<td>Note admonition left border</td>
+</tr>
+<tr>
+<td><code>--color-warning-bg</code></td>
+<td><code>#fff7ed</code></td>
+<td>Warning admonition background</td>
+</tr>
+<tr>
+<td><code>--color-warning-border</code></td>
+<td><code>#f97316</code></td>
+<td>Warning admonition left border</td>
 </tr>
 </tbody>
 </table>
-<h2>Example Request</h2>
-<pre><code class="language-bash">curl https://api.example.com/v1/users
-</code></pre>
-<h2>Example Response</h2>
-<pre><code class="language-json">{
-  &quot;users&quot;: [
-    { &quot;id&quot;: 1, &quot;name&quot;: &quot;Alice&quot; },
-    { &quot;id&quot;: 2, &quot;name&quot;: &quot;Bob&quot; }
-  ]
-}
-</code></pre>
-<p>All requests require a valid token — see <a href="/api/authentication.html">authentication</a> for details.
-For an overview of the API, visit <a href="/api/overview.html">API Overview</a>.</p>
+<h2>Typography</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--font-body</code></td>
+<td><code>system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif</code></td>
+<td>Body font stack</td>
+</tr>
+<tr>
+<td><code>--font-mono</code></td>
+<td><code>&quot;SF Mono&quot;, Consolas, &quot;Liberation Mono&quot;, Menlo, monospace</code></td>
+<td>Monospace font for code</td>
+</tr>
+<tr>
+<td><code>--font-size-base</code></td>
+<td><code>16px</code></td>
+<td>Base font size</td>
+</tr>
+<tr>
+<td><code>--font-size-sm</code></td>
+<td><code>0.875rem</code></td>
+<td>Small font size (table headers, footnotes)</td>
+</tr>
+<tr>
+<td><code>--line-height-tight</code></td>
+<td><code>1.3</code></td>
+<td>Tight line height for headings</td>
+</tr>
+<tr>
+<td><code>--heading-letter-spacing</code></td>
+<td><code>-0.02em</code></td>
+<td>Letter spacing for headings</td>
+</tr>
+</tbody>
+</table>
+<h2>Layout</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--sidebar-width</code></td>
+<td><code>260px</code></td>
+<td>Width of the navigation sidebar</td>
+</tr>
+<tr>
+<td><code>--content-max-width</code></td>
+<td><code>800px</code></td>
+<td>Maximum width of the content area</td>
+</tr>
+</tbody>
+</table>
+<h2>Sidebar</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--color-sidebar-hover</code></td>
+<td><code>#eef2ff</code></td>
+<td>Background on sidebar link hover</td>
+</tr>
+<tr>
+<td><code>--color-sidebar-active-bg</code></td>
+<td><code>#eef2ff</code></td>
+<td>Background of the active sidebar link</td>
+</tr>
+<tr>
+<td><code>--color-sidebar-active-text</code></td>
+<td><code>#4f46e5</code></td>
+<td>Text color of the active sidebar link</td>
+</tr>
+</tbody>
+</table>
+<h2>Navigation</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--nav-filter-bg</code></td>
+<td><code>#ffffff</code></td>
+<td>Background of the filter input</td>
+</tr>
+<tr>
+<td><code>--nav-filter-border</code></td>
+<td><code>var(--color-border)</code></td>
+<td>Border color of the filter input</td>
+</tr>
+<tr>
+<td><code>--nav-group-toggle-hover</code></td>
+<td><code>rgba(99, 102, 241, 0.06)</code></td>
+<td>Background on group toggle hover</td>
+</tr>
+</tbody>
+</table>
+<h2>Shadows</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--shadow-sm</code></td>
+<td><code>0 1px 2px rgba(0, 0, 0, 0.05)</code></td>
+<td>Small shadow (code blocks, admonitions)</td>
+</tr>
+<tr>
+<td><code>--shadow-md</code></td>
+<td><code>0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05)</code></td>
+<td>Medium shadow (popovers, images)</td>
+</tr>
+</tbody>
+</table>
+<h2>Border Radius</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--radius-sm</code></td>
+<td><code>4px</code></td>
+<td>Small radius (inline code, nav items, filter input)</td>
+</tr>
+<tr>
+<td><code>--radius-md</code></td>
+<td><code>6px</code></td>
+<td>Medium radius (code blocks, tables, popovers)</td>
+</tr>
+<tr>
+<td><code>--radius-lg</code></td>
+<td><code>8px</code></td>
+<td>Large radius (admonitions)</td>
+</tr>
+</tbody>
+</table>
+<h2>Transitions</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--transition-fast</code></td>
+<td><code>150ms ease</code></td>
+<td>Fast transitions (hover states)</td>
+</tr>
+<tr>
+<td><code>--transition-normal</code></td>
+<td><code>200ms ease</code></td>
+<td>Normal transitions (chevron rotation)</td>
+</tr>
+</tbody>
+</table>
+<h2>Focus</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--color-focus-ring</code></td>
+<td><code>rgba(99, 102, 241, 0.4)</code></td>
+<td>Focus ring color for keyboard navigation</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>All color values use hex or rgba notation. Font stacks use standard CSS syntax with fallbacks. Sizes accept any CSS length unit (px, rem, em).</p>
+</div>
+<h2>Related Pages</h2>
+<ul>
+<li><a href="/guides/theming.html">Theming</a> — how to apply variable overrides and custom CSS</li>
+<li><a href="/guides/configuration.html">Configuration</a> — <code>docanvil.toml</code> reference</li>
+</ul>
 
     
 
@@ -954,6 +1224,14 @@ For an overview of the API, visit <a href="/api/overview.html">API Overview</a>.
   </script>
   
 
+  
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
   
 </body>
 </html>

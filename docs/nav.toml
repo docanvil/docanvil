@@ -1,40 +1,35 @@
-# Navigation configuration — controls sidebar ordering and structure.
-# Remove this file to fall back to auto-discovery (alphabetical order).
-
-# Simple page link
 [[nav]]
 page = "index"
 
-# Labeled separator — renders as a section heading
 [[nav]]
 separator = "Guides"
 
 [[nav]]
 page = "guides/getting-started"
+label = "Installation"
 
 [[nav]]
 page = "guides/configuration"
 
-# Unlabeled separator — renders as a horizontal line
+[[nav]]
+page = "guides/theming"
+
 [[nav]]
 separator = true
 
-# Collapsible group with a linked header (clicking the label navigates to api/overview)
 [[nav]]
-label = "API Reference"
-page = "api/overview"
+label = "Writing Content"
+page = "writing/markdown"
 group = [
-  { separator = "Core" },
-  { page = "api/endpoints", label = "REST Endpoints" },
-  { page = "api/authentication" },
+  { page = "writing/wiki-links", label = "Links & Popovers" },
+  { page = "writing/components" },
 ]
 
-# Collapsible group (no linked header) containing a nested child group
 [[nav]]
 label = "Reference"
 group = [
-  { page = "reference/components" },
-  { label = "Writing", group = [
-    { page = "reference/markdown" },
-  ]},
+  { page = "reference/cli", label = "CLI Commands" },
+  { separator = "Project" },
+  { page = "reference/project-structure" },
+  { page = "reference/css-variables", label = "CSS Variables" },
 ]

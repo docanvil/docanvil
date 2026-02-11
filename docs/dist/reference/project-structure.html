@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Authentication — docs</title>
+  <title>Project Structure — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -771,43 +771,37 @@ body {
 <body>
   
   <nav class="sidebar">
-    <div class="project-name">docs</div>
+    <div class="project-name">DocAnvil</div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item"><a href="/guides/getting-started.html">Getting Started</a></li>
+  <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
   <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
-  <li class="nav-group open">
-    <button class="nav-group-toggle" aria-expanded="true">
-      <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/api/overview.html" class="nav-group-link">API Reference</a>
-    </button>
-    <ul class="nav-group-children">
-      <li class="nav-separator nav-separator-labeled">Core</li>
-      <li class="nav-item"><a href="/api/endpoints.html">REST Endpoints</a></li>
-      <li class="nav-item active"><a href="/api/authentication.html">Authentication</a></li>
-    </ul>
-  </li>
   <li class="nav-group">
     <button class="nav-group-toggle" aria-expanded="false">
+      <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <a href="/writing/markdown.html" class="nav-group-link">Writing Content</a>
+    </button>
+    <ul class="nav-group-children">
+      <li class="nav-item"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
+    </ul>
+  </li>
+  <li class="nav-group open">
+    <button class="nav-group-toggle" aria-expanded="true">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/components.html">Components</a></li>
-      <li class="nav-group">
-        <button class="nav-group-toggle" aria-expanded="false">
-          <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Writing
-        </button>
-        <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/markdown.html">Markdown</a></li>
-        </ul>
-      </li>
+      <li class="nav-item"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-separator nav-separator-labeled">Project</li>
+      <li class="nav-item active"><a href="/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item"><a href="/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -817,30 +811,111 @@ body {
 
   <main class="content">
     
-    <h1>Authentication</h1>
-<p>All API requests must include a bearer token in the <code>Authorization</code> header.</p>
-<h2>Obtaining a Token</h2>
-<pre><code class="language-bash">curl -X POST https://api.example.com/v1/auth/token \
-  -d '{&quot;username&quot;: &quot;alice&quot;, &quot;password&quot;: &quot;secret&quot;}'
+    <h1>Project Structure</h1>
+<p>A DocAnvil project has a simple directory layout. Here's the complete structure:</p>
+<pre><code>my-project/
+  docanvil.toml           # Project configuration
+  nav.toml                # Navigation structure (optional)
+  docs/                   # Content directory (configurable)
+    index.md              # Home page
+    guides/
+      getting-started.md
+      configuration.md
+    reference/
+      cli.md
+  theme/                  # Theme customization
+    custom.css            # Custom stylesheet
+    templates/            # Template overrides (optional)
+      layout.html
+  dist/                   # Build output (generated)
+    index.html
+    guides/
+      getting-started.html
+    theme/
+      custom.css
 </code></pre>
-<p>Response:</p>
-<pre><code class="language-json">{
-  &quot;token&quot;: &quot;eyJhbGciOiJIUzI1NiIs...&quot;,
-  &quot;expires_in&quot;: 3600
-}
-</code></pre>
-<h2>Using the Token</h2>
-<p>Include the token in every request:</p>
-<pre><code class="language-bash">curl -H &quot;Authorization: Bearer eyJhbGciOiJIUzI1NiIs...&quot; \
-  https://api.example.com/v1/users
-</code></pre>
-<div class="admonition warning">
-<p class="admonition-title">Security</p>
-<p>Never commit tokens to version control. Use environment variables or a secrets
-manager instead.</p>
+<h2>Files and Directories</h2>
+<h3><code>docanvil.toml</code></h3>
+<p>The main configuration file. Contains project name, content directory path, build output path, and theme settings. See <a href="/guides/configuration.html">Configuration</a> for the full reference.</p>
+<h3><code>nav.toml</code></h3>
+<p>Controls the sidebar navigation structure. Defines page order, separators, groups, and label overrides. If this file is absent, DocAnvil auto-discovers pages from the content directory and builds navigation alphabetically.</p>
+<h3>Content Directory</h3>
+<p>The <code>docs/</code> directory (configurable via <code>content_dir</code> in <code>docanvil.toml</code>) contains all your Markdown source files. Any <code>.md</code> file placed here becomes a page in the documentation.</p>
+<p>Subdirectories create URL path segments. The directory structure maps directly to the output structure.</p>
+<h3>Theme Directory</h3>
+<p>The <code>theme/</code> directory holds customization files:</p>
+<ul>
+<li><code>custom.css</code> — your CSS overrides, loaded after the default theme</li>
+<li><code>templates/layout.html</code> — optional full template override using Tera</li>
+</ul>
+<h3>Output Directory</h3>
+<p>The <code>dist/</code> directory (configurable via <code>output_dir</code>) is generated by <code>docanvil build</code>. It contains the complete static site ready for deployment. Use <code>--clean</code> to remove it before rebuilding.</p>
+<h2>Page Discovery</h2>
+<p>DocAnvil discovers pages by walking the content directory recursively and collecting all <code>.md</code> files. Each file becomes a page with a slug, title, and output path.</p>
+<h3>Slug Derivation</h3>
+<p>The slug is the file path relative to the content directory, with the <code>.md</code> extension removed and backslashes normalized to forward slashes:</p>
+<table>
+<thead>
+<tr>
+<th>Source File</th>
+<th>Slug</th>
+<th>Output File</th>
+<th>Title</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/index.md</code></td>
+<td><code>index</code></td>
+<td><code>index.html</code></td>
+<td>Home</td>
+</tr>
+<tr>
+<td><code>docs/guides/getting-started.md</code></td>
+<td><code>guides/getting-started</code></td>
+<td><code>guides/getting-started.html</code></td>
+<td>Getting Started</td>
+</tr>
+<tr>
+<td><code>docs/reference/cli.md</code></td>
+<td><code>reference/cli</code></td>
+<td><code>reference/cli.html</code></td>
+<td>Cli</td>
+</tr>
+<tr>
+<td><code>docs/writing/wiki-links.md</code></td>
+<td><code>writing/wiki-links</code></td>
+<td><code>writing/wiki-links.html</code></td>
+<td>Wiki Links</td>
+</tr>
+</tbody>
+</table>
+<h3>Title Generation</h3>
+<p>Titles are derived from the slug's last path component:</p>
+<ul>
+<li><code>index</code> becomes &quot;Home&quot;</li>
+<li>Hyphens and underscores become spaces</li>
+<li>Each word is capitalized (<code>getting-started</code> → &quot;Getting Started&quot;)</li>
+</ul>
+<p>Titles appear in the sidebar navigation (unless overridden by <code>label</code> in <code>nav.toml</code>) and in the page's <code>&lt;title&gt;</code> tag.</p>
+<h3>Auto-Discovery Navigation</h3>
+<p>When <code>nav.toml</code> is absent, the navigation tree is built from the directory structure:</p>
+<ul>
+<li>Top-level <code>.md</code> files become root nav items</li>
+<li>Subdirectories become collapsible groups, labeled with the directory name in title case</li>
+<li>Files within directories become children of their group</li>
+<li>Everything is sorted alphabetically</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Files are sorted by path during discovery, ensuring deterministic navigation order regardless of filesystem ordering.</p>
 </div>
-<p>See <a href="/api/endpoints.html">REST Endpoints</a> for the available routes, or head back to the
-<a href="/api/overview.html">API Overview</a>.</p>
+<h2>Related Pages</h2>
+<ul>
+<li><a href="/guides/configuration.html">Configuration</a> — <code>docanvil.toml</code> and <code>nav.toml</code> options</li>
+<li><a href="/guides/theming.html">Theming</a> — CSS variables, custom CSS, and template overrides</li>
+<li><a href="/guides/getting-started.html">Installation</a> — creating your first project</li>
+</ul>
 
     
 
@@ -931,6 +1006,14 @@ manager instead.</p>
   </script>
   
 
+  
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
   
 </body>
 </html>

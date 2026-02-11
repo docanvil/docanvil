@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Components — docs</title>
+  <title>Wiki Links — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -771,43 +771,37 @@ body {
 <body>
   
   <nav class="sidebar">
-    <div class="project-name">docs</div>
+    <div class="project-name">DocAnvil</div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item"><a href="/guides/getting-started.html">Getting Started</a></li>
+  <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
   <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
-  <li class="nav-group">
-    <button class="nav-group-toggle" aria-expanded="false">
-      <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/api/overview.html" class="nav-group-link">API Reference</a>
-    </button>
-    <ul class="nav-group-children">
-      <li class="nav-separator nav-separator-labeled">Core</li>
-      <li class="nav-item"><a href="/api/endpoints.html">REST Endpoints</a></li>
-      <li class="nav-item"><a href="/api/authentication.html">Authentication</a></li>
-    </ul>
-  </li>
   <li class="nav-group open">
     <button class="nav-group-toggle" aria-expanded="true">
+      <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <a href="/writing/markdown.html" class="nav-group-link">Writing Content</a>
+    </button>
+    <ul class="nav-group-children">
+      <li class="nav-item active"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
+    </ul>
+  </li>
+  <li class="nav-group">
+    <button class="nav-group-toggle" aria-expanded="false">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item active"><a href="/reference/components.html">Components</a></li>
-      <li class="nav-group">
-        <button class="nav-group-toggle" aria-expanded="false">
-          <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Writing
-        </button>
-        <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/markdown.html">Markdown</a></li>
-        </ul>
-      </li>
+      <li class="nav-item"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-separator nav-separator-labeled">Project</li>
+      <li class="nav-item"><a href="/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item"><a href="/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -817,33 +811,96 @@ body {
 
   <main class="content">
     
-    <h1>Components</h1>
-<p>DocAnvil includes several built-in components you can use in your Markdown files
-with the <code>:::name{attrs}</code> directive syntax.</p>
-<h2>Note</h2>
-<div class="admonition note">
-<p class="admonition-title">Information</p>
-<p>This is a note component. Use it to highlight important information.</p>
-</div>
-<h2>Warning</h2>
+    <h1>Links &amp; Popovers</h1>
+<p>DocAnvil provides two special inline syntaxes beyond standard Markdown: <strong>wiki-links</strong> for linking between pages and <strong>popovers</strong> for inline tooltips.</p>
+<h2>Wiki-Links</h2>
+<h3>Basic Syntax</h3>
+<p>Link to another page using double brackets:</p>
+<pre><code>See &#91;[guides/getting-started]] for installation steps.</code></pre>
+<p>This resolves to an HTML link pointing at the target page. The display text defaults to the link target.</p>
+<h3>Custom Display Text</h3>
+<p>Use a pipe to set custom link text:</p>
+<pre><code>Check the &#91;[guides/getting-started|installation guide]] to get started.</code></pre>
+<h3>Live Examples</h3>
+<p>Here are working wiki-links to pages in this documentation:</p>
+<ul>
+<li><a href="/index.html">index</a> — the home page</li>
+<li><a href="/guides/configuration.html">Configuration guide</a> — customizing your project</li>
+<li><a href="/reference/cli.html">CLI reference</a> — all commands and flags</li>
+<li><a href="/writing/markdown.html">Markdown features</a> — supported syntax</li>
+</ul>
+<h3>Resolution Rules</h3>
+<p>DocAnvil resolves wiki-links against the page inventory in two steps:</p>
+<ol>
+<li><strong>Exact match</strong> — the target is compared to page slugs directly (<code>guides/getting-started</code> matches <code>guides/getting-started</code>)</li>
+<li><strong>Basename match</strong> — if no exact match, the last path component is tried (<code>getting-started</code> matches <code>guides/getting-started</code>)</li>
+</ol>
+<p>Basename matching means you can use short names when the page name is unique:</p>
+<pre><code>&#91;[getting-started]]     resolves to → guides/getting-started
+&#91;[configuration]]       resolves to → guides/configuration</code></pre>
+<h3>Slug Derivation</h3>
+<p>Slugs are derived from the file path relative to the content directory, with the <code>.md</code> extension removed:</p>
+<table>
+<thead>
+<tr>
+<th>File Path</th>
+<th>Slug</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/index.md</code></td>
+<td><code>index</code></td>
+</tr>
+<tr>
+<td><code>docs/guides/getting-started.md</code></td>
+<td><code>guides/getting-started</code></td>
+</tr>
+<tr>
+<td><code>docs/reference/cli.md</code></td>
+<td><code>reference/cli</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Broken Links</h3>
+<p>When a wiki-link target doesn't match any page, it renders as a red highlighted span with an error popover. Here is a deliberate example:</p>
+<p><span class="broken-link popover-trigger" tabindex="0">nonexistent-page<span class="popover-content popover-error" role="tooltip"><strong>Page not foud</strong><br />
+                     The linked page doesn't exist: <code>nonexistent-page</code></span></span></p>
+<p>The build process also logs a warning for each broken link, so you can find and fix them.</p>
 <div class="admonition warning">
-<p class="admonition-title">Caution</p>
-<p>This is a warning component. Use it to call out potential issues.</p>
+<p class="admonition-title">Broken links are visible</p>
+<p>Broken wiki-links are styled in red with a dashed underline and an error tooltip. They're easy to spot both in the browser and in build output.</p>
 </div>
-<h2>Tabs</h2>
-<div class="tabs">
-<div class="tab-headers">
-</div>
-</div>
-<h2>Usage</h2>
-<p>Directives use fenced syntax:</p>
-<pre><code class="language-markdown">&lt;div class=&quot;admonition note&quot;&gt;
-&lt;p class=&quot;admonition-title&quot;&gt;My Title&lt;/p&gt;
-&lt;p&gt;Content goes here.&lt;/p&gt;
-&lt;/div&gt;
+<h2>Popovers</h2>
+<p>Popovers add inline tooltip content that appears on hover or focus.</p>
+<h3>Syntax</h3>
+<p>Use <code>^[content]</code> to create a popover:</p>
+<pre><code class="language-markdown">DocAnvil uses comrak^[A fast, GFM-compatible Markdown parser written in Rust] for rendering.
 </code></pre>
-<p>See <a href="/reference/markdown.html">Markdown Features</a> for more syntax, or check the
-<a href="/guides/configuration.html">configuration</a> page for theme customization options.</p>
+<h3>Live Examples</h3>
+<p>DocAnvil uses comrak<span class="popover-trigger" tabindex="0" aria-describedby="popover-0"><span class="popover-indicator"></span><span class="popover-content" id="popover-0" role="tooltip">A fast, GFM-compatible Markdown parser written in Rust</span></span> for rendering Markdown.</p>
+<p>The default theme uses an indigo<span class="popover-trigger" tabindex="0" aria-describedby="popover-1"><span class="popover-indicator"></span><span class="popover-content" id="popover-1" role="tooltip">Specifically #6366f1, a balanced purple-blue</span></span> accent color.</p>
+<p>Popovers appear above the trigger text by default, but flip below<span class="popover-trigger" tabindex="0" aria-describedby="popover-2"><span class="popover-indicator"></span><span class="popover-content" id="popover-2" role="tooltip">This automatic repositioning prevents popovers from being clipped at the top of the viewport</span></span> when near the top of the viewport.</p>
+<h3>Behavior</h3>
+<ul>
+<li>Popovers appear on <strong>hover</strong> and <strong>keyboard focus</strong></li>
+<li>They automatically reposition to avoid overflowing viewport edges</li>
+<li>Content inside backticks (<code>`</code>) and fenced code blocks is not processed</li>
+<li>HTML in popover content is escaped for safety</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Accessibility</p>
+<p>Each popover uses <code>role=&quot;tooltip&quot;</code> and <code>aria-describedby</code> to connect the trigger to its content, making them accessible to screen readers. The trigger element has <code>tabindex=&quot;0&quot;</code> for keyboard navigation.</p>
+</div>
+<h3>Skipped in Code</h3>
+<p>Popover syntax inside inline code (<code>^[like this]</code>) and fenced code blocks is left as-is:</p>
+<pre><code>This ^[popover syntax] is not processed inside code blocks.
+</code></pre>
+<h2>Related Pages</h2>
+<ul>
+<li><a href="/writing/markdown.html">Markdown</a> — all supported Markdown and GFM features</li>
+<li><a href="/writing/components.html">Components</a> — directive blocks for richer content</li>
+</ul>
 
     
 
@@ -934,6 +991,14 @@ with the <code>:::name{attrs}</code> directive syntax.</p>
   </script>
   
 
+  
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
   
 </body>
 </html>

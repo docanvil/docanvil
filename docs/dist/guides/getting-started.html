@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Getting Started — docs</title>
+  <title>Getting Started — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -771,25 +771,25 @@ body {
 <body>
   
   <nav class="sidebar">
-    <div class="project-name">docs</div>
+    <div class="project-name">DocAnvil</div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item active"><a href="/guides/getting-started.html">Getting Started</a></li>
+  <li class="nav-item active"><a href="/guides/getting-started.html">Installation</a></li>
   <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
   <li class="nav-group">
     <button class="nav-group-toggle" aria-expanded="false">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/api/overview.html" class="nav-group-link">API Reference</a>
+      <a href="/writing/markdown.html" class="nav-group-link">Writing Content</a>
     </button>
     <ul class="nav-group-children">
-      <li class="nav-separator nav-separator-labeled">Core</li>
-      <li class="nav-item"><a href="/api/endpoints.html">REST Endpoints</a></li>
-      <li class="nav-item"><a href="/api/authentication.html">Authentication</a></li>
+      <li class="nav-item"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
     </ul>
   </li>
   <li class="nav-group">
@@ -798,16 +798,10 @@ body {
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/components.html">Components</a></li>
-      <li class="nav-group">
-        <button class="nav-group-toggle" aria-expanded="false">
-          <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Writing
-        </button>
-        <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/markdown.html">Markdown</a></li>
-        </ul>
-      </li>
+      <li class="nav-item"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-separator nav-separator-labeled">Project</li>
+      <li class="nav-item"><a href="/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item"><a href="/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -817,27 +811,84 @@ body {
 
   <main class="content">
     
-    <h1>Getting Started</h1>
-<p>Welcome to docs! This guide walks you through setup and first steps.</p>
-<h2>Installation</h2>
-<p>Install DocAnvil using Cargo:</p>
-<pre><code class="language-bash">cargo install docanvil
+    <h1>Installation</h1>
+<p>Get DocAnvil running and create your first documentation site.</p>
+<h2>Install DocAnvil</h2>
+<div class="code-group">
+<div class="tab-headers">
+  <button class="tab-header active" data-tab="0">bash</button>
+  <button class="tab-header" data-tab="1">bash</button>
+</div>
+<div class="tab-content active" data-tab="0"><pre><code class="language-bash"># Install from crates.io (when published)
+cargo install docanvil</code></pre></div>
+<div class="tab-content" data-tab="1"><pre><code class="language-bash"># Build from source
+git clone https://github.com/docanvil/docanvil.git
+cd docanvil
+cargo install --path .</code></pre></div>
+</div>
+<p>Verify the installation:</p>
+<pre><code class="language-bash">docanvil --help
 </code></pre>
-<h2>Create a New Project</h2>
-<pre><code class="language-bash">docanvil init docs
-cd docs
+<h2>Create a Project</h2>
+<p>Scaffold a new documentation project with <code>docanvil init</code>:</p>
+<pre><code class="language-bash">docanvil init my-docs
+</code></pre>
+<p>This creates the following structure:</p>
+<pre><code>my-docs/
+  docanvil.toml        # Project configuration
+  nav.toml             # Navigation structure
+  docs/                # Your Markdown content
+    index.md           # Home page
+    guides/
+      getting-started.md
+      configuration.md
+  theme/
+    custom.css         # Your CSS overrides
 </code></pre>
 <h2>Start the Dev Server</h2>
-<pre><code class="language-bash">docanvil serve
+<pre><code class="language-bash">cd my-docs
+docanvil serve
 </code></pre>
-<p>Open <a href="http://localhost:3000">http://localhost:3000</a> in your browser. Changes to
-any <code>.md</code> file will reload the page automatically.</p>
+<p>The dev server starts at <a href="http://localhost:3000">http://localhost:3000</a> by default. You can change the host and port:</p>
+<pre><code class="language-bash">docanvil serve --host 0.0.0.0 --port 8080
+</code></pre>
+<h2>Write Your First Page</h2>
+<p>Create a new Markdown file anywhere in the <code>docs/</code> directory:</p>
+<pre><code class="language-markdown"># My New Page
+
+Welcome to my documentation!
+
+- Supports **bold**, *italic*, and ~~strikethrough~~
+- Add <a href="/index.html">links to other pages</a> with wiki-link syntax
+</code></pre>
+<p>Save the file and your browser will reload automatically. The page is discovered and added to the navigation.</p>
 <h2>Build for Production</h2>
+<p>When you're ready to deploy, generate the static site:</p>
 <pre><code class="language-bash">docanvil build
 </code></pre>
-<p>Static HTML is written to the <code>dist/</code> directory — deploy it anywhere.</p>
-<p>See <a href="/guides/configuration.html">configuration</a> for details on customizing your project, or head
-back to the <a href="/index.html">home page</a>.</p>
+<p>The output goes to the <code>dist/</code> directory by default. Upload it to any static host — GitHub Pages, Netlify, Vercel, S3, or just a plain web server.</p>
+<p>Use <code>--clean</code> to remove the output directory before building:</p>
+<pre><code class="language-bash">docanvil build --clean
+</code></pre>
+<h2>Checklist</h2>
+<ul>
+<li><input type="checkbox" checked="" disabled="" /> Install DocAnvil</li>
+<li><input type="checkbox" checked="" disabled="" /> Run <code>docanvil init</code> to scaffold a project</li>
+<li><input type="checkbox" checked="" disabled="" /> Start the dev server with <code>docanvil serve</code></li>
+<li><input type="checkbox" disabled="" /> Write your pages in Markdown</li>
+<li><input type="checkbox" disabled="" /> Customize the theme</li>
+<li><input type="checkbox" disabled="" /> Build and deploy with <code>docanvil build</code></li>
+</ul>
+<h2>Next Steps</h2>
+<ul>
+<li><a href="/guides/configuration.html">Configure</a> your project and navigation</li>
+<li>Learn about <a href="/writing/markdown.html">Markdown features</a> and <a href="/writing/components.html">components</a></li>
+<li><a href="/guides/theming.html">Customize the theme</a> to match your brand</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>DocAnvil watches all files in your project directory. Changes to Markdown, config files, CSS, and templates all trigger a live reload.</p>
+</div>
 
     
 
@@ -928,6 +979,14 @@ back to the <a href="/index.html">home page</a>.</p>
   </script>
   
 
+  
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
   
 </body>
 </html>

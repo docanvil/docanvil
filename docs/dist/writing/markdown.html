@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Overview — docs</title>
+  <title>Markdown — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -771,25 +771,25 @@ body {
 <body>
   
   <nav class="sidebar">
-    <div class="project-name">docs</div>
+    <div class="project-name">DocAnvil</div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item"><a href="/guides/getting-started.html">Getting Started</a></li>
+  <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
   <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
   <li class="nav-group open">
     <button class="nav-group-toggle" aria-expanded="true">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/api/overview.html" class="nav-group-link active">API Reference</a>
+      <a href="/writing/markdown.html" class="nav-group-link active">Writing Content</a>
     </button>
     <ul class="nav-group-children">
-      <li class="nav-separator nav-separator-labeled">Core</li>
-      <li class="nav-item"><a href="/api/endpoints.html">REST Endpoints</a></li>
-      <li class="nav-item"><a href="/api/authentication.html">Authentication</a></li>
+      <li class="nav-item"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
     </ul>
   </li>
   <li class="nav-group">
@@ -798,16 +798,10 @@ body {
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/components.html">Components</a></li>
-      <li class="nav-group">
-        <button class="nav-group-toggle" aria-expanded="false">
-          <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Writing
-        </button>
-        <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/markdown.html">Markdown</a></li>
-        </ul>
-      </li>
+      <li class="nav-item"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-separator nav-separator-labeled">Project</li>
+      <li class="nav-item"><a href="/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item"><a href="/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -817,23 +811,176 @@ body {
 
   <main class="content">
     
-    <h1>API Overview</h1>
-<p>This section documents the REST API. Use these pages as a starting point for
-writing your own API reference.</p>
-<h2>Sections</h2>
+    <h1>Markdown</h1>
+<p>DocAnvil renders Markdown using comrak with GitHub Flavored Markdown (GFM) extensions enabled. Everything you'd expect from standard Markdown works, plus tables, task lists, strikethrough, footnotes, and front matter.</p>
+<h2>Text Formatting</h2>
+<p><strong>Bold text</strong> is wrapped in double asterisks: <code>**bold**</code></p>
+<p><em>Italic text</em> uses single asterisks: <code>*italic*</code></p>
+<p><del>Strikethrough</del> uses double tildes: <code>~~strikethrough~~</code></p>
+<p>You can combine them: <em><strong>bold and italic</strong></em>, <del><strong>bold strikethrough</strong></del></p>
+<h2>Headings</h2>
+<pre><code class="language-markdown"># Heading 1
+## Heading 2
+### Heading 3
+#### Heading 4
+</code></pre>
+<p>Heading 1 gets a colored bottom border. Heading 2 gets a subtle separator line. Headings 3 and 4 are unstyled dividers.</p>
+<h2>Links and Images</h2>
+<p>Standard Markdown links: <code>[text](url)</code></p>
+<p>Images: <code>![alt text](image-url)</code></p>
+<p>For linking between documentation pages, use <a href="/writing/wiki-links.html">wiki-links</a> instead — they resolve automatically and warn on broken references.</p>
+<h2>Lists</h2>
+<h3>Unordered</h3>
 <ul>
-<li><a href="/api/endpoints.html">REST Endpoints</a> — available routes and methods</li>
-<li><a href="/api/authentication.html">authentication</a> — how to authenticate requests</li>
+<li>First item</li>
+<li>Second item
+<ul>
+<li>Nested item</li>
+<li>Another nested item</li>
+</ul>
+</li>
+<li>Third item</li>
+</ul>
+<h3>Ordered</h3>
+<ol>
+<li>Step one</li>
+<li>Step two</li>
+<li>Step three
+<ol>
+<li>Sub-step</li>
+<li>Another sub-step</li>
+</ol>
+</li>
+</ol>
+<h3>Task Lists</h3>
+<ul>
+<li><input type="checkbox" checked="" disabled="" /> Write the documentation</li>
+<li><input type="checkbox" checked="" disabled="" /> Add code examples</li>
+<li><input type="checkbox" disabled="" /> Review and publish</li>
+<li><input type="checkbox" disabled="" /> Celebrate</li>
+</ul>
+<p>Task lists render as checkboxes. Use <code>- [x]</code> for checked and <code>- [ ]</code> for unchecked items.</p>
+<h2>Tables</h2>
+<table>
+<thead>
+<tr>
+<th align="left">Feature</th>
+<th align="center">Syntax</th>
+<th>Rendered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">Bold</td>
+<td align="center"><code>**text**</code></td>
+<td><strong>text</strong></td>
+</tr>
+<tr>
+<td align="left">Italic</td>
+<td align="center"><code>*text*</code></td>
+<td><em>text</em></td>
+</tr>
+<tr>
+<td align="left">Code</td>
+<td align="center"><code>`code`</code></td>
+<td><code>code</code></td>
+</tr>
+<tr>
+<td align="left">Strikethrough</td>
+<td align="center"><code>~~text~~</code></td>
+<td><del>text</del></td>
+</tr>
+</tbody>
+</table>
+<p>Tables support column alignment with colons in the separator row:</p>
+<pre><code class="language-markdown">| Left | Center | Right |
+|:-----|:------:|------:|
+| a    |   b    |     c |
+</code></pre>
+<h2>Code Blocks</h2>
+<p>Inline code uses single backticks: <code>let x = 42;</code></p>
+<p>Fenced code blocks use triple backticks with an optional language identifier:</p>
+<pre><code class="language-rust">fn main() {
+    println!(&quot;Hello from DocAnvil!&quot;);
+}
+</code></pre>
+<pre><code class="language-javascript">const greet = (name) =&gt; {
+  console.log(`Hello, ${name}!`);
+};
+</code></pre>
+<h2>Blockquotes</h2>
+<blockquote>
+<p>Blockquotes are rendered with a colored left border and a subtle background.</p>
+<p>They can span multiple paragraphs.</p>
+</blockquote>
+<p>Use <code>&gt;</code> at the start of each line.</p>
+<h2>Footnotes</h2>
+<p>DocAnvil supports footnotes<sup class="footnote-ref"><a href="#fn-1" id="fnref-1" data-footnote-ref>1</a></sup> using the standard syntax. Reference them inline with <code>[^name]</code> and define them anywhere in the document.</p>
+<p>Here's another example with a longer footnote<sup class="footnote-ref"><a href="#fn-details" id="fnref-details" data-footnote-ref>2</a></sup>.</p>
+<h2>Front Matter</h2>
+<p>Pages can include YAML front matter between <code>---</code> delimiters at the top of the file:</p>
+<pre><code class="language-markdown">---
+title: My Page Title
+author: Jane Doe
+---
+
+# Page Content
+</code></pre>
+<p>Front matter is stripped from the output. It's available for future use with template variables.</p>
+<h2>Horizontal Rules</h2>
+<p>Three or more hyphens, asterisks, or underscores create a horizontal rule:</p>
+<hr />
+<pre><code class="language-markdown">---
+</code></pre>
+<h2>Inline Attributes</h2>
+<p>DocAnvil supports a post-processing pass for inline attributes. Place <code>{.class #id}</code> on the line immediately after an element to inject HTML attributes:</p>
+<pre><code class="language-markdown">## My Section
+{#custom-id .highlighted}
+</code></pre>
+<p>This renders as <code>&lt;h2 id=&quot;custom-id&quot; class=&quot;highlighted&quot;&gt;My Section&lt;/h2&gt;</code>.</p>
+<p>Supported shorthand:</p>
+<table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.classname</code></td>
+<td><code>class=&quot;classname&quot;</code></td>
+</tr>
+<tr>
+<td><code>#idname</code></td>
+<td><code>id=&quot;idname&quot;</code></td>
+</tr>
+<tr>
+<td><code>key=&quot;value&quot;</code></td>
+<td><code>key=&quot;value&quot;</code></td>
+</tr>
+</tbody>
+</table>
+<p>Multiple classes can be combined: <code>{.first .second #my-id}</code></p>
+<h2>Related Pages</h2>
+<ul>
+<li><a href="/writing/wiki-links.html">Wiki-links</a> — double-bracket links and inline popovers</li>
+<li><a href="/writing/components.html">Components</a> — notes, warnings, tabs, and code groups</li>
 </ul>
 <div class="admonition note">
-<p class="admonition-title">Tip</p>
-<p>API documentation works great with tables and code blocks — see
-<a href="/reference/markdown.html">Markdown Features</a> for the full list of supported syntax.</p>
+<p class="admonition-title">Powered by comrak</p>
+<p>DocAnvil uses comrak for Markdown rendering with <code>unsafe</code> mode enabled, so raw HTML in your Markdown is passed through to the output.</p>
 </div>
-<h2>Quick Example</h2>
-<pre><code class="language-bash">curl -H &quot;Authorization: Bearer TOKEN&quot; https://api.example.com/v1/users
-</code></pre>
-<p>See <a href="/guides/getting-started.html">getting-started</a> for project setup instructions.</p>
+<section class="footnotes" data-footnotes>
+<ol>
+<li id="fn-1">
+<p>This is a footnote. It appears at the bottom of the page in a dedicated section. <a href="#fnref-1" class="footnote-backref" data-footnote-backref data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
+</li>
+<li id="fn-details">
+<p>Footnotes can contain multiple sentences. They're collected and rendered at the bottom of the page with a horizontal separator and back-references. <a href="#fnref-details" class="footnote-backref" data-footnote-backref data-footnote-backref-idx="2" aria-label="Back to reference 2">↩</a></p>
+</li>
+</ol>
+</section>
 
     
 
@@ -924,6 +1071,14 @@ writing your own API reference.</p>
   </script>
   
 
+  
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
   
 </body>
 </html>

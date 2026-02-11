@@ -764,7 +764,7 @@ body {
 </style>
   
   
-  <link rel="stylesheet" href="/theme&#x2F;custom.css">
+  <link rel="stylesheet" href="&#x2F;docanvil&#x2F;theme&#x2F;custom.css">
   
   
 </head>
@@ -776,20 +776,20 @@ body {
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
-  <li class="nav-item"><a href="/index.html">Home</a></li>
+  <li class="nav-item"><a href="/docanvil/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
-  <li class="nav-item active"><a href="/guides/configuration.html">Configuration</a></li>
-  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
+  <li class="nav-item"><a href="/docanvil/guides/getting-started.html">Installation</a></li>
+  <li class="nav-item active"><a href="/docanvil/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/docanvil/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
   <li class="nav-group">
     <button class="nav-group-toggle" aria-expanded="false">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/writing/markdown.html" class="nav-group-link">Writing Content</a>
+      <a href="/docanvil/writing/markdown.html" class="nav-group-link">Writing Content</a>
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
-      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
+      <li class="nav-item"><a href="/docanvil/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/docanvil/writing/components.html">Components</a></li>
     </ul>
   </li>
   <li class="nav-group">
@@ -798,10 +798,10 @@ body {
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-item"><a href="/docanvil/reference/cli.html">CLI Commands</a></li>
       <li class="nav-separator nav-separator-labeled">Project</li>
-      <li class="nav-item"><a href="/reference/project-structure.html">Project Structure</a></li>
-      <li class="nav-item"><a href="/reference/css-variables.html">CSS Variables</a></li>
+      <li class="nav-item"><a href="/docanvil/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item"><a href="/docanvil/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -829,7 +829,8 @@ name = &quot;My Docs&quot;
 name = &quot;My Docs&quot;
 content_dir = &quot;docs&quot;
 <p>[build]
-output_dir = &quot;dist&quot;</p>
+output_dir = &quot;dist&quot;
+base_url = &quot;/my-project/&quot;</p>
 <p>[theme]
 custom_css = &quot;theme/custom.css&quot;</p>
 <p>[theme.variables]
@@ -879,6 +880,11 @@ font-body = &quot;Georgia, serif&quot;
 <td><code>&quot;dist&quot;</code></td>
 <td>Directory where the static site is generated</td>
 </tr>
+<tr>
+<td><code>base_url</code></td>
+<td><code>&quot;/&quot;</code></td>
+<td>URL path prefix for subfolder deployments (e.g. <code>&quot;/my-project/&quot;</code>)</td>
+</tr>
 </tbody>
 </table>
 <h3><code>[theme]</code> Section</h3>
@@ -915,7 +921,7 @@ color-bg = &quot;#fafafa&quot;
 font-body = &quot;Inter, sans-serif&quot;
 content-max-width = &quot;960px&quot;
 </code></pre>
-<p>See <a href="/reference/css-variables.html">CSS Variables</a> for the complete list of available variables.</p>
+<p>See <a href="/docanvil/reference/css-variables.html">CSS Variables</a> for the complete list of available variables.</p>
 <h2>nav.toml</h2>
 <p>The navigation file controls the sidebar structure. It uses TOML's array-of-tables syntax and supports pages, separators, and groups.</p>
 <h3>Page Entries</h3>
@@ -977,8 +983,8 @@ group = [
 <p>If <code>nav.toml</code> is absent, DocAnvil auto-discovers all <code>.md</code> files in the content directory and builds the navigation from the directory structure. Files are sorted alphabetically, and directory names become group labels.</p>
 <h2>Related Pages</h2>
 <ul>
-<li><a href="/guides/theming.html">Theming</a> — CSS variables, custom CSS, and template overrides</li>
-<li><a href="/reference/project-structure.html">Project Structure</a> — how files map to pages and slugs</li>
+<li><a href="/docanvil/guides/theming.html">Theming</a> — CSS variables, custom CSS, and template overrides</li>
+<li><a href="/docanvil/reference/project-structure.html">Project Structure</a> — how files map to pages and slugs</li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1074,14 +1080,6 @@ group = [
   </script>
   
 
-  
-  <script>
-  (function() {
-    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
-    ws.onmessage = () => location.reload();
-    ws.onclose = () => setTimeout(() => location.reload(), 1000);
-  })();
-  </script>
   
 </body>
 </html>

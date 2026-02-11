@@ -4,6 +4,7 @@ content_dir = "docs"
 
 [build]
 output_dir = "dist"
+base_url = "/docanvil/"
 
 [theme]
 custom_css = "theme/custom.css"

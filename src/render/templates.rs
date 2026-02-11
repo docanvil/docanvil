@@ -27,6 +27,7 @@ impl TemplateRenderer {
         context.insert("default_css", &ctx.default_css);
         context.insert("css_overrides", &ctx.css_overrides);
         context.insert("custom_css_path", &ctx.custom_css_path);
+        context.insert("base_url", &ctx.base_url);
         context.insert("live_reload", &ctx.live_reload);
 
         self.tera
@@ -44,5 +45,6 @@ pub struct PageContext {
     pub default_css: String,
     pub css_overrides: Option<String>,
     pub custom_css_path: Option<String>,
+    pub base_url: String,
     pub live_reload: bool,
 }

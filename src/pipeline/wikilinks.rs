@@ -5,7 +5,7 @@ use crate::project::PageInventory;
 
 /// Process wiki-links in rendered HTML.
 /// Replaces `[[target]]` and `[[target|display text]]` with proper HTML links.
-pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path) -> String {
+pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path, base_url: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let mut remaining = html;
 
@@ -25,7 +25,7 @@ pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path) -> Str
             let display = display.trim();
 
             if let Some(page) = inventory.resolve_link(target) {
-                let href = format!("/{}", page.output_path.display());
+                let href = format!("{}{}", base_url, page.output_path.display());
                 result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
             } else {
                 diagnostics::warn_broken_link(source_file, target);
@@ -33,7 +33,7 @@ pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path) -> Str
                     "<span class=\"broken-link popover-trigger\" tabindex=\"0\">\
                      {display}\
                      <span class=\"popover-content popover-error\" role=\"tooltip\">\
-                     <strong>Page not foud</strong><br />
+                     <strong>Page not found</strong><br />
                      The linked page doesn't exist: <code>{target}</code></span>\
                      </span>"
                 ));
@@ -71,7 +71,7 @@ mod tests {
     fn resolve_simple_link() {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[setup]] for details.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"));
+        let result = resolve(html, &inv, Path::new("test.md"), "/");
         assert!(result.contains("<a href=\"/setup.html\">setup</a>"));
     }
 
@@ -79,7 +79,7 @@ mod tests {
     fn resolve_link_with_display_text() {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[setup|the setup guide]] for details.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"));
+        let result = resolve(html, &inv, Path::new("test.md"), "/");
         assert!(result.contains("<a href=\"/setup.html\">the setup guide</a>"));
     }
 
@@ -87,18 +87,18 @@ mod tests {
     fn broken_link_gets_class() {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[nonexistent]] page.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"));
+        let result = resolve(html, &inv, Path::new("test.md"), "/");
         assert!(result.contains("class=\"broken-link popover-trigger\""));
         assert!(result.contains("popover-error"));
         assert!(result.contains("<code>nonexistent</code>"));
-        assert!(result.contains("Page not found:"));
+        assert!(result.contains("Page not found"));
     }
 
     #[test]
     fn unclosed_brackets_preserved() {
         let (_dir, inv) = test_inventory();
         let html = "<p>This [[ is unclosed.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"));
+        let result = resolve(html, &inv, Path::new("test.md"), "/");
         assert!(result.contains("[["));
     }
 }

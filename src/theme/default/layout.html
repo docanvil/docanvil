@@ -10,7 +10,7 @@
   <style>:root { {{ css_overrides }} }</style>
   {% endif %}
   {% if custom_css_path %}
-  <link rel="stylesheet" href="/{{ custom_css_path }}">
+  <link rel="stylesheet" href="{{ base_url }}{{ custom_css_path }}">
   {% endif %}
   {% block head %}{% endblock %}
 </head>

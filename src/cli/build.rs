@@ -84,6 +84,12 @@ fn build_site(
     };
     let registry = ComponentRegistry::with_builtins();
 
+    // Dev server always uses "/" — base_url only applies to static builds
+    let base_url = if live_reload {
+        "/".to_string()
+    } else {
+        config.base_url()
+    };
     // Ensure output directory exists
     std::fs::create_dir_all(output_dir)?;
 
@@ -92,9 +98,10 @@ fn build_site(
         let page = &inventory.pages[slug];
         let source = std::fs::read_to_string(&page.source_path)?;
 
-        let html_body = pipeline::process(&source, &inventory, &page.source_path, &registry)?;
+        let html_body =
+            pipeline::process(&source, &inventory, &page.source_path, &registry, &base_url)?;
 
-        let nav_html = project::render_nav(&nav_tree, slug);
+        let nav_html = project::render_nav(&nav_tree, slug, &base_url);
 
         let out_path = output_dir.join(&page.output_path);
         if let Some(parent) = out_path.parent() {
@@ -109,6 +116,7 @@ fn build_site(
             default_css: theme.default_css.clone(),
             css_overrides: theme.css_overrides.clone(),
             custom_css_path: theme.custom_css_path.clone(),
+            base_url: base_url.clone(),
             live_reload,
         };
 

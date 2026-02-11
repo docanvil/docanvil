@@ -1,6 +1,6 @@
 # Welcome to docs
 
-This is your new documentation site, powered by [DocAnvil](https://github.com/docanvil/docanvil).
+Simple change to the docs to check the pipeline runs properly.
 
 ## Getting Started
 

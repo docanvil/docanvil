@@ -33,7 +33,8 @@ pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path) -> Str
                     "<span class=\"broken-link popover-trigger\" tabindex=\"0\">\
                      {display}\
                      <span class=\"popover-content popover-error\" role=\"tooltip\">\
-                     Page not found: <code>{target}</code></span>\
+                     <strong>Page not foud</strong><br />
+                     The linked page doesn't exist: <code>{target}</code></span>\
                      </span>"
                 ));
             }

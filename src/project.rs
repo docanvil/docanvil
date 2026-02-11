@@ -194,7 +194,7 @@ fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
 }
 
 /// Render a navigation tree as nested HTML `<ul>` lists with collapsible groups.
-pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
+pub fn render_nav(nodes: &[NavNode], current_slug: &str, base_url: &str) -> String {
     if nodes.is_empty() {
         return String::new();
     }
@@ -203,7 +203,7 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
     for node in nodes {
         match node {
             NavNode::Page { label, slug } => {
-                let href = format!("/{}.html", slug);
+                let href = format!("{}{}.html", base_url, slug);
                 let class = if slug == current_slug {
                     "nav-item active"
                 } else {
@@ -222,7 +222,7 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
                 let open_class = if is_open { " open" } else { "" };
                 let aria = if is_open { "true" } else { "false" };
                 let header_html = if let Some(s) = slug {
-                    let href = format!("/{}.html", s);
+                    let href = format!("{}{}.html", base_url, s);
                     let link_class = if s == current_slug { " active" } else { "" };
                     format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
                 } else {
@@ -233,7 +233,7 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
                 ));
                 html.push_str("    <ul class=\"nav-group-children\">\n");
                 for child in children {
-                    html.push_str(&render_nav_item(child, current_slug));
+                    html.push_str(&render_nav_item(child, current_slug, base_url));
                 }
                 html.push_str("    </ul>\n  </li>\n");
             }
@@ -253,11 +253,11 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str) -> String {
 }
 
 /// Render a single nav item (leaf or nested group) within a group's children.
-fn render_nav_item(node: &NavNode, current_slug: &str) -> String {
+fn render_nav_item(node: &NavNode, current_slug: &str, base_url: &str) -> String {
     let mut html = String::new();
     match node {
         NavNode::Page { label, slug } => {
-            let href = format!("/{}.html", slug);
+            let href = format!("{}{}.html", base_url, slug);
             let class = if slug == current_slug {
                 "nav-item active"
             } else {
@@ -276,7 +276,7 @@ fn render_nav_item(node: &NavNode, current_slug: &str) -> String {
             let open_class = if is_open { " open" } else { "" };
             let aria = if is_open { "true" } else { "false" };
             let header_html = if let Some(s) = slug {
-                let href = format!("/{}.html", s);
+                let href = format!("{}{}.html", base_url, s);
                 let link_class = if s == current_slug { " active" } else { "" };
                 format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
             } else {
@@ -287,7 +287,7 @@ fn render_nav_item(node: &NavNode, current_slug: &str) -> String {
             ));
             html.push_str("        <ul class=\"nav-group-children\">\n");
             for child in children {
-                html.push_str(&render_nav_item(child, current_slug));
+                html.push_str(&render_nav_item(child, current_slug, base_url));
             }
             html.push_str("        </ul>\n      </li>\n");
         }
@@ -363,7 +363,7 @@ mod tests {
         let tree = inv.nav_tree();
 
         // When viewing a page outside the group, group should be collapsed
-        let html = render_nav(&tree, "index");
+        let html = render_nav(&tree, "index", "/");
         assert!(html.contains("nav-group-toggle"));
         assert!(html.contains("nav-chevron"));
         assert!(html.contains("aria-expanded=\"false\""));
@@ -371,7 +371,7 @@ mod tests {
         assert!(html.contains("class=\"nav-item active\""));
 
         // When viewing a page inside the group, group should be open
-        let html_active = render_nav(&tree, "guides/setup");
+        let html_active = render_nav(&tree, "guides/setup", "/");
         assert!(html_active.contains("nav-group open"));
         assert!(html_active.contains("aria-expanded=\"true\""));
     }

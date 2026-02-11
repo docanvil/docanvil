@@ -19,6 +19,7 @@ content_dir = "docs"
 
 [build]
 output_dir = "dist"
+base_url = "/my-project/"
 
 [theme]
 custom_css = "theme/custom.css"
@@ -46,6 +47,7 @@ The `name` field under `[project]` is required. DocAnvil will fail to load witho
 | Key | Default | Description |
 |-----|---------|-------------|
 | `output_dir` | `"dist"` | Directory where the static site is generated |
+| `base_url` | `"/"` | URL path prefix for subfolder deployments (e.g. `"/my-project/"`) |
 
 ### `[theme]` Section
 

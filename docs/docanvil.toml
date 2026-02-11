@@ -1,0 +1,13 @@
+[project]
+name = "docs"
+content_dir = "docs"
+
+[build]
+output_dir = "dist"
+
+[theme]
+custom_css = "theme/custom.css"
+# Set CSS variables to customize the theme:
+# [theme.variables]
+# color-primary = "#6366f1"
+# font-body = "Georgia, serif"

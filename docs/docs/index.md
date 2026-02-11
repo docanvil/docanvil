@@ -1,46 +1,46 @@
-# Welcome to docs
+# DocAnvil
 
-Simple change to the docs to check the pipeline runs properly.
+A static documentation generator that turns Markdown into beautiful HTML sites.
 
-## Getting Started
+## Quick Start
 
-Edit this file at `docs/index.md` to start writing your documentation.
-Check out the guides to learn more:
+```bash
+# Install
+cargo install --path .
 
-- [[getting-started]] — install and run your first site
-- [[configuration]] — customize your project settings
+# Create a new docs project
+docanvil init my-docs
 
-## Explore
-
-- [[overview|API Reference]] — browse the API docs
-- [[components]] — see the built-in components in action
-- [[markdown]] — learn about supported Markdown features
-
-### Features
-
-- **Markdown** with GFM extensions (tables, task lists, footnotes)
-- **Wiki-style links**: Link to other pages with `[[page-name]]`
-- **Custom components**: Use `:::note`, `:::warning`, `:::tabs` directives
-- **Theming**: Customize with CSS variables in `docanvil.toml`
-- **Live reload**: Run `docanvil serve` for instant preview
-
-:::note{title="Tip"}
-Run `docanvil serve` in this directory to see your docs with live reloading!
-:::
-
-## Customizing the Theme
-
-Edit `theme/custom.css` to override any CSS variable or add your own styles.
-You can also set variables directly in `docanvil.toml`:
-
-```toml
-[theme.variables]
-color-primary = "#10b981"
-font-body = "Georgia, serif"
+# Start the dev server with live reload
+cd my-docs
+docanvil serve
 ```
 
-## Next Steps
+Open [http://localhost:3000](http://localhost:3000) in your browser and start writing.
 
-- Add more `.md` files to the `docs/` directory
-- Customize your theme in `docanvil.toml` or `theme/custom.css`
-- Run `docanvil build` to generate a static site
+## Features
+
+- **Markdown with GFM** — tables, task lists, strikethrough, footnotes, and front matter via comrak
+- **Wiki-links** — connect pages with double-bracket links
+- **Components** — notes, warnings, tabs, and code groups using `:::directive` blocks
+- **Theming** — CSS variables, custom stylesheets, and full template overrides with Tera
+- **Live reload** — edit a file and your browser refreshes automatically
+- **Static output** — build to plain HTML and deploy anywhere
+
+## Explore the Docs
+
+| Section | What You'll Learn |
+|---------|-------------------|
+| [[guides/getting-started\|Installation]] | Install DocAnvil and create your first project |
+| [[guides/configuration\|Configuration]] | Customize `docanvil.toml` and `nav.toml` |
+| [[guides/theming\|Theming]] | CSS variables, custom CSS, and template overrides |
+| [[writing/markdown\|Markdown]] | All supported Markdown and GFM features |
+| [[writing/wiki-links\|Links & Popovers]] | Wiki-link syntax and inline popovers |
+| [[writing/components\|Components]] | Notes, warnings, tabs, and code groups |
+| [[reference/cli\|CLI Commands]] | Every command, flag, and option |
+| [[reference/project-structure\|Project Structure]] | Directory layout and page discovery |
+| [[reference/css-variables\|CSS Variables]] | Complete variable reference with defaults |
+
+:::note{title="Getting started?"}
+Run `docanvil serve` in your project directory and open your browser — every change you save will appear instantly.
+:::

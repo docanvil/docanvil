@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Configuration — DocAnvil</title>
+  <title>Theming — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -779,8 +779,8 @@ body {
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
   <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
-  <li class="nav-item active"><a href="/guides/configuration.html">Configuration</a></li>
-  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
+  <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item active"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
   <li class="nav-group">
     <button class="nav-group-toggle" aria-expanded="false">
@@ -811,179 +811,201 @@ body {
 
   <main class="content">
     
-    <h1>Configuration</h1>
-<p>DocAnvil uses two configuration files at the root of your project: <code>docanvil.toml</code> for project settings and <code>nav.toml</code> for navigation structure.</p>
-<h2>docanvil.toml</h2>
-<div class="tabs">
-<div class="tab-headers">
-  <button class="tab-header active" data-tab="0">Minimal</button>
-  <button class="tab-header" data-tab="1">Full</button>
-</div>
-<div class="tab-content active" data-tab="0">
-<pre><code class="language-toml">[project]
-name = &quot;My Docs&quot;
-</code></pre>
-</div>
-<div class="tab-content" data-tab="1">
-<pre><code class="language-toml">[project]
-name = &quot;My Docs&quot;
-content_dir = &quot;docs&quot;
-<p>[build]
-output_dir = &quot;dist&quot;</p>
-<p>[theme]
-custom_css = &quot;theme/custom.css&quot;</p>
-<p>[theme.variables]
-color-primary = &quot;#059669&quot;
-font-body = &quot;Georgia, serif&quot;
-</code></pre></p>
-</div>
-</div>
-<div class="admonition warning">
-<p class="admonition-title">Required field</p>
-<p>The <code>name</code> field under <code>[project]</code> is required. DocAnvil will fail to load without it.</p>
-</div>
-<h3><code>[project]</code> Section</h3>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>name</code></td>
-<td><em>(required)</em></td>
-<td>Project name displayed in the sidebar and page titles</td>
-</tr>
-<tr>
-<td><code>content_dir</code></td>
-<td><code>&quot;docs&quot;</code></td>
-<td>Directory containing your Markdown files</td>
-</tr>
-</tbody>
-</table>
-<h3><code>[build]</code> Section</h3>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>output_dir</code></td>
-<td><code>&quot;dist&quot;</code></td>
-<td>Directory where the static site is generated</td>
-</tr>
-</tbody>
-</table>
-<h3><code>[theme]</code> Section</h3>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>name</code></td>
-<td><code>None</code></td>
-<td>Reserved for future theme selection</td>
-</tr>
-<tr>
-<td><code>custom_css</code></td>
-<td><code>None</code></td>
-<td>Path to a custom CSS file loaded after the default theme</td>
-</tr>
-<tr>
-<td><code>variables</code></td>
-<td><code>{}</code></td>
-<td>CSS variable overrides injected as <code>:root</code> properties</td>
-</tr>
-</tbody>
-</table>
-<p>Variables are specified as key-value pairs where the key is the CSS variable name (without <code>--</code>) and the value is any valid CSS value:</p>
+    <h1>Theming</h1>
+<p>DocAnvil's appearance is customizable through three layers, each building on the last:</p>
+<ol>
+<li><strong>CSS variable overrides</strong> in <code>docanvil.toml</code> — quick color and font changes</li>
+<li><strong>Custom CSS file</strong> — full control over any element</li>
+<li><strong>Template overrides</strong> — replace the entire HTML layout with Tera templates</li>
+</ol>
+<h2>CSS Variables in Config</h2>
+<p>The simplest way to customize the theme. Add variables under <code>[theme.variables]</code> in <code>docanvil.toml</code>:</p>
 <pre><code class="language-toml">[theme.variables]
 color-primary = &quot;#059669&quot;
-color-bg = &quot;#fafafa&quot;
-font-body = &quot;Inter, sans-serif&quot;
-content-max-width = &quot;960px&quot;
+color-primary-light = &quot;#34d399&quot;
+color-link = &quot;#059669&quot;
+color-link-hover = &quot;#047857&quot;
 </code></pre>
-<p>See <a href="/reference/css-variables.html">CSS Variables</a> for the complete list of available variables.</p>
-<h2>nav.toml</h2>
-<p>The navigation file controls the sidebar structure. It uses TOML's array-of-tables syntax and supports pages, separators, and groups.</p>
-<h3>Page Entries</h3>
-<p>The simplest entry links to a page by its slug (the file path relative to <code>content_dir</code>, without the <code>.md</code> extension):</p>
-<pre><code class="language-toml">&#91;[nav]]
-page = "index"
-
-&#91;[nav]]
-page = "guides/getting-started"
+<p>These are injected as a <code>:root</code> style block after the default theme, overriding the built-in values. Variable names omit the <code>--</code> prefix — DocAnvil adds it automatically.</p>
+<h2>Custom CSS File</h2>
+<p>For more control, point <code>custom_css</code> to a stylesheet:</p>
+<pre><code class="language-toml">[theme]
+custom_css = &quot;theme/custom.css&quot;
 </code></pre>
-<h3>Label Overrides</h3>
-<p>By default, the sidebar label is derived from the slug (<code>getting-started</code> becomes &quot;Getting Started&quot;). Override it with <code>label</code>:</p>
-<pre><code class="language-toml">&#91;[nav]]
-page = "guides/getting-started"
-label = "Installation"
-</code></pre>
-<h3>Separators</h3>
-<p>Add visual dividers between sections. A labeled separator shows text:</p>
-<pre><code class="language-toml">&#91;[nav]]
-separator = "Guides"
-</code></pre>
-<p>An unlabeled separator draws a horizontal line:</p>
-<pre><code class="language-toml">&#91;[nav]]
-separator = true
-</code></pre>
-<h3>Groups</h3>
-<p>Groups create collapsible sections in the sidebar. Each group has a <code>label</code> and an array of children in <code>group</code>:</p>
-<pre><code class="language-toml">&#91;[nav]]
-label = "Reference"
-group = [
-  { page = "reference/cli", label = "CLI Commands" },
-  { page = "reference/project-structure" },
-  { page = "reference/css-variables", label = "CSS Variables" },
-]
-</code></pre>
-<h3>Linked Group Headers</h3>
-<p>Add a <code>page</code> field to make the group header itself a clickable link:</p>
-<pre><code class="language-toml">&#91;[nav]]
-label = "Writing Content"
-page = "writing/markdown"
-group = [
-  { page = "writing/wiki-links", label = "Links &amp; Popovers" },
-  { page = "writing/components" },
-]
-</code></pre>
-<p>Clicking &quot;Writing Content&quot; navigates to the Markdown page, while the arrow expands the group.</p>
-<h3>Child Separators</h3>
-<p>You can add separators inside groups to organize children:</p>
-<pre><code class="language-toml">&#91;[nav]]
-label = "Reference"
-group = [
-  { page = "reference/cli", label = "CLI Commands" },
-  { separator = "Project" },
-  { page = "reference/project-structure" },
-  { page = "reference/css-variables", label = "CSS Variables" },
-]
-</code></pre>
-<h3>Auto-Discovery Fallback</h3>
-<p>If <code>nav.toml</code> is absent, DocAnvil auto-discovers all <code>.md</code> files in the content directory and builds the navigation from the directory structure. Files are sorted alphabetically, and directory names become group labels.</p>
-<h2>Related Pages</h2>
+<p>This file loads after both the default theme and config variable overrides, so it has the highest CSS specificity. Use it for:</p>
 <ul>
-<li><a href="/guides/theming.html">Theming</a> — CSS variables, custom CSS, and template overrides</li>
-<li><a href="/reference/project-structure.html">Project Structure</a> — how files map to pages and slugs</li>
+<li>Additional variable overrides in a <code>:root</code> block</li>
+<li>Custom selectors targeting specific elements</li>
+<li>New styles for your own classes (via inline attributes)</li>
 </ul>
+<h2>Common Customizations</h2>
+<div class="code-group">
+<div class="tab-headers">
+  <button class="tab-header active" data-tab="0">toml</button>
+  <button class="tab-header" data-tab="1">css</button>
+</div>
+<div class="tab-content active" data-tab="0"><pre><code class="language-toml"># docanvil.toml — change accent color and font
+[theme.variables]
+color-primary = "#059669"
+color-primary-light = "#34d399"
+color-link = "#059669"
+font-body = "Georgia, serif"</code></pre></div>
+<div class="tab-content" data-tab="1"><pre><code class="language-css">/* theme/custom.css — wider content area with dark code blocks */
+.content {
+  max-width: 960px;
+}
+<p>.content pre {
+background: #1e293b;
+color: #e2e8f0;
+border-color: #334155;
+}</p>
+<p>.content pre code {
+color: inherit;
+}</code></pre></div></p>
+</div>
+<h3>Load Order</h3>
+<p>Styles are applied in this order (last wins):</p>
+<ol>
+<li>Default theme (<code>style.css</code> embedded in the binary)</li>
+<li>Config variables (<code>[theme.variables]</code> → <code>:root { ... }</code>)</li>
+<li>Custom CSS file (<code>custom_css</code> path)</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">Specificity</p>
+<p>If a custom CSS rule doesn't seem to take effect, check that your selector is specific enough to override the default theme. Using <code>.content pre</code> is more specific than just <code>pre</code>.</p>
+</div>
+<h2>Template Overrides</h2>
+<p>For complete control over the HTML structure, override the default Tera template. Create a file at <code>theme/templates/layout.html</code> in your project:</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;title&gt;{{ page_title }} — {{ project_name }}&lt;/title&gt;
+  &lt;style&gt;{{ default_css | safe }}&lt;/style&gt;
+  {% if css_overrides %}
+  &lt;style&gt;:root { {{ css_overrides }} }&lt;/style&gt;
+  {% endif %}
+  {% if custom_css_path %}
+  &lt;link rel=&quot;stylesheet&quot; href=&quot;/{{ custom_css_path }}&quot;&gt;
+  {% endif %}
+  {% block head %}{% endblock %}
+&lt;/head&gt;
+&lt;body&gt;
+  {% block sidebar %}
+  &lt;nav class=&quot;sidebar&quot;&gt;
+    &lt;div class=&quot;project-name&quot;&gt;{{ project_name }}&lt;/div&gt;
+    {{ nav_html | safe }}
+  &lt;/nav&gt;
+  {% endblock %}
+
+  &lt;main class=&quot;content&quot;&gt;
+    {% block content %}
+    {{ content | safe }}
+    {% endblock %}
+
+    {% block footer %}
+    &lt;div class=&quot;footer&quot;&gt;
+      Built with &lt;a href=&quot;https://github.com/docanvil/docanvil&quot;&gt;DocAnvil&lt;/a&gt;
+    &lt;/div&gt;
+    {% endblock %}
+  &lt;/main&gt;
+
+  {% block scripts %}{% endblock %}
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h3>Template Blocks</h3>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>head</code></td>
+<td>Extra <code>&lt;head&gt;</code> content (fonts, meta tags, analytics)</td>
+</tr>
+<tr>
+<td><code>sidebar</code></td>
+<td>The navigation sidebar</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>Main page content area</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td>Footer below content</td>
+</tr>
+<tr>
+<td><code>scripts</code></td>
+<td>JavaScript at end of body</td>
+</tr>
+</tbody>
+</table>
+<h3>Template Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>page_title</code></td>
+<td>String</td>
+<td>Title of the current page</td>
+</tr>
+<tr>
+<td><code>project_name</code></td>
+<td>String</td>
+<td>Project name from <code>docanvil.toml</code></td>
+</tr>
+<tr>
+<td><code>default_css</code></td>
+<td>String</td>
+<td>The full default stylesheet (use with <code>safe</code> filter)</td>
+</tr>
+<tr>
+<td><code>css_overrides</code></td>
+<td>String</td>
+<td>CSS variable overrides from config</td>
+</tr>
+<tr>
+<td><code>custom_css_path</code></td>
+<td>String</td>
+<td>Path to custom CSS file, if configured</td>
+</tr>
+<tr>
+<td><code>nav_html</code></td>
+<td>String</td>
+<td>Rendered navigation HTML (use with <code>safe</code> filter)</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>String</td>
+<td>Rendered page HTML (use with <code>safe</code> filter)</td>
+</tr>
+<tr>
+<td><code>live_reload</code></td>
+<td>Boolean</td>
+<td>Whether the dev server is running</td>
+</tr>
+</tbody>
+</table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The sidebar includes a filter input that searches page labels in real time. This works with any navigation structure.</p>
+<p>The default template includes JavaScript for tab switching, sidebar collapse/expand, navigation filtering, and popover positioning. If you override the <code>scripts</code> block, you'll need to re-implement any of these features you want to keep.</p>
 </div>
+<h2>Related Pages</h2>
+<ul>
+<li><a href="/reference/css-variables.html">CSS Variables</a> — complete list of every variable and its default value</li>
+<li><a href="/guides/configuration.html">Configuration</a> — <code>docanvil.toml</code> and <code>nav.toml</code> reference</li>
+</ul>
 
     
 

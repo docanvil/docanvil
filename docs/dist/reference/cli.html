@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>Markdown — docs</title>
+  <title>Cli — DocAnvil</title>
   <style>:root {
   /* Primary palette — indigo */
   --color-primary: #6366f1;
@@ -771,25 +771,25 @@ body {
 <body>
   
   <nav class="sidebar">
-    <div class="project-name">docs</div>
+    <div class="project-name">DocAnvil</div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
     <ul>
   <li class="nav-item"><a href="/index.html">Home</a></li>
   <li class="nav-separator nav-separator-labeled">Guides</li>
-  <li class="nav-item"><a href="/guides/getting-started.html">Getting Started</a></li>
+  <li class="nav-item"><a href="/guides/getting-started.html">Installation</a></li>
   <li class="nav-item"><a href="/guides/configuration.html">Configuration</a></li>
+  <li class="nav-item"><a href="/guides/theming.html">Theming</a></li>
   <li class="nav-separator"><hr></li>
   <li class="nav-group">
     <button class="nav-group-toggle" aria-expanded="false">
       <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <a href="/api/overview.html" class="nav-group-link">API Reference</a>
+      <a href="/writing/markdown.html" class="nav-group-link">Writing Content</a>
     </button>
     <ul class="nav-group-children">
-      <li class="nav-separator nav-separator-labeled">Core</li>
-      <li class="nav-item"><a href="/api/endpoints.html">REST Endpoints</a></li>
-      <li class="nav-item"><a href="/api/authentication.html">Authentication</a></li>
+      <li class="nav-item"><a href="/writing/wiki-links.html">Links & Popovers</a></li>
+      <li class="nav-item"><a href="/writing/components.html">Components</a></li>
     </ul>
   </li>
   <li class="nav-group open">
@@ -798,16 +798,10 @@ body {
       Reference
     </button>
     <ul class="nav-group-children">
-      <li class="nav-item"><a href="/reference/components.html">Components</a></li>
-      <li class="nav-group open">
-        <button class="nav-group-toggle" aria-expanded="true">
-          <svg class="nav-chevron" viewBox="0 0 16 16" width="12" height="12"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Writing
-        </button>
-        <ul class="nav-group-children">
-      <li class="nav-item active"><a href="/reference/markdown.html">Markdown</a></li>
-        </ul>
-      </li>
+      <li class="nav-item active"><a href="/reference/cli.html">CLI Commands</a></li>
+      <li class="nav-separator nav-separator-labeled">Project</li>
+      <li class="nav-item"><a href="/reference/project-structure.html">Project Structure</a></li>
+      <li class="nav-item"><a href="/reference/css-variables.html">CSS Variables</a></li>
     </ul>
   </li>
 </ul>
@@ -817,76 +811,164 @@ body {
 
   <main class="content">
     
-    <h1>Markdown Features</h1>
-<p>DocAnvil supports GitHub Flavored Markdown (GFM) with several extensions.</p>
-<h2>Tables</h2>
+    <h1>CLI Commands</h1>
+<p>DocAnvil provides three subcommands: <code>init</code>, <code>serve</code>, and <code>build</code>.</p>
+<h2>Global Flags</h2>
 <table>
 <thead>
 <tr>
-<th>Feature</th>
-<th>Supported</th>
+<th>Flag</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Tables</td>
-<td>Yes</td>
+<td><code>--verbose</code></td>
+<td>Enable verbose output</td>
 </tr>
 <tr>
-<td>Task lists</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>Strikethrough</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>Footnotes</td>
-<td>Yes</td>
-</tr>
-<tr>
-<td>Front matter</td>
-<td>Yes</td>
+<td><code>--quiet</code></td>
+<td>Suppress non-error output</td>
 </tr>
 </tbody>
 </table>
-<h2>Task Lists</h2>
-<ul>
-<li><input type="checkbox" checked="" disabled="" /> Set up project with <code>docanvil init</code></li>
-<li><input type="checkbox" checked="" disabled="" /> Start dev server with <code>docanvil serve</code></li>
-<li><input type="checkbox" disabled="" /> Write your first page</li>
-<li><input type="checkbox" disabled="" /> Customize the theme</li>
-</ul>
-<h2>Strikethrough</h2>
-<p>This text has <del>strikethrough</del> formatting.</p>
-<h2>Footnotes</h2>
-<p>DocAnvil is built on comrak<sup class="footnote-ref"><a href="#fn-1" id="fnref-1" data-footnote-ref>1</a></sup>, which supports GFM footnotes<sup class="footnote-ref"><a href="#fn-2" id="fnref-2" data-footnote-ref>2</a></sup>.</p>
-<h2>Wiki-Links</h2>
-<p>Link to other pages using double-bracket syntax:</p>
-<ul>
-<li><code><span class="broken-link popover-trigger" tabindex="0">page-name<span class="popover-content popover-error" role="tooltip"><strong>Page not foud</strong><br />
-                     The linked page doesn't exist: <code>page-name</code></span></span></code> — links using the page title (e.g. <a href="/reference/components.html">components</a>)</li>
-<li><code><span class="broken-link popover-trigger" tabindex="0">custom text<span class="popover-content popover-error" role="tooltip"><strong>Page not foud</strong><br />
-                     The linked page doesn't exist: <code>page-name</code></span></span></code> — links with custom display text (e.g. <a href="/api/overview.html">API docs</a>)</li>
-</ul>
-<h2>Code Blocks</h2>
-<p>Fenced code blocks support syntax highlighting:</p>
-<pre><code class="language-rust">fn greet(name: &amp;str) {
-    println!(&quot;Hello, {}!&quot;, name);
-}
+<h2><code>docanvil init</code></h2>
+<p>Scaffold a new documentation project.</p>
+<pre><code class="language-bash">docanvil init &lt;name&gt;
 </code></pre>
-<p>See <a href="/reference/components.html">components</a> for the built-in directive components, or visit the
-<a href="/api/overview.html">API Reference</a> for example API documentation.</p>
-<section class="footnotes" data-footnotes>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Yes</td>
+<td>Directory name for the new project</td>
+</tr>
+</tbody>
+</table>
+<p>Creates a project directory with:</p>
+<ul>
+<li><code>docanvil.toml</code> — project configuration</li>
+<li><code>nav.toml</code> — navigation structure</li>
+<li><code>docs/</code> — content directory with starter pages</li>
+<li><code>theme/custom.css</code> — empty custom stylesheet</li>
+</ul>
+<div class="code-group">
+<div class="tab-headers">
+  <button class="tab-header active" data-tab="0">bash</button>
+  <button class="tab-header" data-tab="1">bash</button>
+</div>
+<div class="tab-content active" data-tab="0"><pre><code class="language-bash"># Create a docs project
+docanvil init my-docs</code></pre></div>
+<div class="tab-content" data-tab="1"><pre><code class="language-bash"># Create and immediately start serving
+docanvil init my-docs &amp;&amp; cd my-docs &amp;&amp; docanvil serve</code></pre></div>
+</div>
+<h2><code>docanvil serve</code></h2>
+<p>Start a development server with live reload.</p>
+<pre><code class="language-bash">docanvil serve [--host &lt;address&gt;] [--port &lt;port&gt;]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--host</code></td>
+<td><code>127.0.0.1</code></td>
+<td>Address to bind the server to</td>
+</tr>
+<tr>
+<td><code>--port</code></td>
+<td><code>3000</code></td>
+<td>Port number</td>
+</tr>
+</tbody>
+</table>
+<p>The server:</p>
+<ul>
+<li>Builds the site on startup</li>
+<li>Watches all project files for changes (Markdown, TOML, CSS, templates)</li>
+<li>Rebuilds affected pages on file change</li>
+<li>Notifies the browser via WebSocket at <code>/__docanvil_ws</code></li>
+<li>The browser reloads automatically — no manual refresh needed</li>
+</ul>
+<div class="code-group">
+<div class="tab-headers">
+  <button class="tab-header active" data-tab="0">bash</button>
+  <button class="tab-header" data-tab="1">bash</button>
+  <button class="tab-header" data-tab="2">bash</button>
+</div>
+<div class="tab-content active" data-tab="0"><pre><code class="language-bash"># Default: localhost:3000
+docanvil serve</code></pre></div>
+<div class="tab-content" data-tab="1"><pre><code class="language-bash"># Custom host and port
+docanvil serve --host 0.0.0.0 --port 8080</code></pre></div>
+<div class="tab-content" data-tab="2"><pre><code class="language-bash"># Verbose output to see rebuild events
+docanvil serve --verbose</code></pre></div>
+</div>
+<h2><code>docanvil build</code></h2>
+<p>Generate the static HTML site for deployment.</p>
+<pre><code class="language-bash">docanvil build [--out &lt;path&gt;] [--clean]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--out</code></td>
+<td><code>dist</code></td>
+<td>Output directory for the generated site</td>
+</tr>
+<tr>
+<td><code>--clean</code></td>
+<td><code>false</code></td>
+<td>Remove the output directory before building</td>
+</tr>
+</tbody>
+</table>
+<p>The build pipeline processes each page through:</p>
 <ol>
-<li id="fn-1">
-<p>comrak is a CommonMark + GFM compatible Markdown parser written in Rust. <a href="#fnref-1" class="footnote-backref" data-footnote-backref data-footnote-backref-idx="1" aria-label="Back to reference 1">↩</a></p>
-</li>
-<li id="fn-2">
-<p>Footnotes render as numbered references at the bottom of the page. <a href="#fnref-2" class="footnote-backref" data-footnote-backref data-footnote-backref-idx="2" aria-label="Back to reference 2">↩</a></p>
-</li>
+<li>Directive expansion (components)</li>
+<li>Popover conversion</li>
+<li>Markdown rendering (comrak with GFM)</li>
+<li>Wiki-link resolution</li>
+<li>Inline attribute injection</li>
+<li>Template wrapping (Tera layout)</li>
 </ol>
-</section>
+<p>Static assets (custom CSS, images) are copied to the output directory.</p>
+<div class="code-group">
+<div class="tab-headers">
+  <button class="tab-header active" data-tab="0">bash</button>
+  <button class="tab-header" data-tab="1">bash</button>
+</div>
+<div class="tab-content active" data-tab="0"><pre><code class="language-bash"># Default build to dist/
+docanvil build</code></pre></div>
+<div class="tab-content" data-tab="1"><pre><code class="language-bash"># Clean build to a custom directory
+docanvil build --out public --clean</code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Broken wiki-links are reported as warnings during build. Check the output for any &quot;broken link&quot; messages to find references to pages that don't exist.</p>
+</div>
+<h2>Related Pages</h2>
+<ul>
+<li><a href="/guides/getting-started.html">Installation</a> — install and create your first project</li>
+<li><a href="/guides/configuration.html">Configuration</a> — <code>docanvil.toml</code> and <code>nav.toml</code> reference</li>
+</ul>
 
     
 
@@ -977,6 +1059,14 @@ body {
   </script>
   
 
+  
+  <script>
+  (function() {
+    const ws = new WebSocket(`ws://${location.host}/__docanvil_ws`);
+    ws.onmessage = () => location.reload();
+    ws.onclose = () => setTimeout(() => location.reload(), 1000);
+  })();
+  </script>
   
 </body>
 </html>

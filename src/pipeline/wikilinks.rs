@@ -30,7 +30,11 @@ pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path) -> Str
             } else {
                 diagnostics::warn_broken_link(source_file, target);
                 result.push_str(&format!(
-                    "<a class=\"broken-link\" title=\"Page not found: {target}\">{display}</a>"
+                    "<span class=\"broken-link popover-trigger\" tabindex=\"0\">\
+                     {display}\
+                     <span class=\"popover-content popover-error\" role=\"tooltip\">\
+                     Page not found: <code>{target}</code></span>\
+                     </span>"
                 ));
             }
 
@@ -83,8 +87,10 @@ mod tests {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[nonexistent]] page.</p>";
         let result = resolve(html, &inv, Path::new("test.md"));
-        assert!(result.contains("class=\"broken-link\""));
-        assert!(result.contains("nonexistent"));
+        assert!(result.contains("class=\"broken-link popover-trigger\""));
+        assert!(result.contains("popover-error"));
+        assert!(result.contains("<code>nonexistent</code>"));
+        assert!(result.contains("Page not found:"));
     }
 
     #[test]

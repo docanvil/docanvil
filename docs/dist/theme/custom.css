@@ -1,0 +1,92 @@
+/* =================================================================
+   DocAnvil — Custom Stylesheet
+   =================================================================
+   This file is loaded after the default theme, so any rules here
+   will override the defaults.
+
+   Two ways to customize:
+
+   1. CSS Variables  — change colors, fonts, spacing globally.
+      Override them in a :root block below, or set them in
+      docanvil.toml under [theme.variables].
+
+   2. Custom Rules   — add your own CSS selectors for fine-grained
+      control over any element.
+   ================================================================= */
+
+/* -----------------------------------------------------------------
+   CSS Variable Overrides
+   -----------------------------------------------------------------
+   Uncomment any line below and change the value to customize.
+   The values shown are the built-in defaults.
+
+:root {
+  /* Colors */
+  /* --color-primary: #6366f1; */
+  /* --color-primary-light: #818cf8; */
+  /* --color-bg: #ffffff; */
+  /* --color-bg-secondary: #f8fafc; */
+  /* --color-text: #1e293b; */
+  /* --color-text-muted: #64748b; */
+  /* --color-border: #e2e8f0; */
+  /* --color-link: #6366f1; */
+  /* --color-link-hover: #4f46e5; */
+  /* --color-code-bg: #f1f5f9; */
+
+  /* Typography */
+  /* --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; */
+  /* --font-mono: "SF Mono", Consolas, "Liberation Mono", Menlo, monospace; */
+  /* --font-size-base: 16px; */
+
+  /* Layout */
+  /* --sidebar-width: 260px; */
+  /* --content-max-width: 800px; */
+
+  /* Sidebar */
+  /* --color-sidebar-hover: #eef2ff; */
+  /* --color-sidebar-active-bg: #eef2ff; */
+  /* --color-sidebar-active-text: #4f46e5; */
+
+  /* Nav filter & groups */
+  /* --nav-filter-bg: #ffffff; */
+  /* --nav-filter-border: var(--color-border); */
+  /* --nav-group-toggle-hover: rgba(99, 102, 241, 0.06); */
+}
+   ----------------------------------------------------------------- */
+
+/* -----------------------------------------------------------------
+   Example: Custom rules
+   -----------------------------------------------------------------
+   Below are some common customizations, commented out. Uncomment
+   and tweak to taste.
+   ----------------------------------------------------------------- */
+
+/* Wider content area */
+/* .content { max-width: 960px; } */
+
+/* Custom project name styling */
+/* .sidebar .project-name { font-style: italic; } */
+
+/* Dark code blocks */
+/*
+.content pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+.content pre code {
+  color: inherit;
+}
+*/
+
+/* Custom admonition colors */
+/*
+.admonition.note {
+  background: #f0fdf4;
+  border-color: #22c55e;
+}
+*/
+
+/* -----------------------------------------------------------------
+   Your custom styles below
+   ----------------------------------------------------------------- */

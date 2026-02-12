@@ -12,6 +12,7 @@ pub struct Config {
     pub project: ProjectConfig,
     pub build: BuildConfig,
     pub theme: ThemeConfig,
+    pub syntax: SyntaxConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,6 +36,22 @@ pub struct ThemeConfig {
     pub name: Option<String>,
     pub custom_css: Option<String>,
     pub variables: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct SyntaxConfig {
+    pub enabled: bool,
+    pub theme: String,
+}
+
+impl Default for SyntaxConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            theme: String::from("base16-ocean.dark"),
+        }
+    }
 }
 
 impl Default for ProjectConfig {

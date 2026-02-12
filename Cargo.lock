@@ -543,6 +543,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "slug",
+ "syntect",
  "tempfile",
  "tera",
  "thiserror",

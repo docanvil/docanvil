@@ -35,6 +35,10 @@ custom_css = "theme/custom.css"
 # [theme.variables]
 # color-primary = "#6366f1"
 # font-body = "Georgia, serif"
+
+# [syntax]
+# enabled = true
+# theme = "base16-ocean.dark"
 "##
     );
     std::fs::write(project_dir.join("docanvil.toml"), config)?;

@@ -4,8 +4,9 @@ use std::time::Instant;
 use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::error::{Error, Result};
-use crate::pipeline;
 use crate::nav;
+use crate::pipeline;
+use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInventory};
 use crate::render::assets;
 use crate::render::templates::{PageContext, TemplateRenderer};
@@ -84,6 +85,13 @@ fn build_site(
     };
     let registry = ComponentRegistry::with_builtins();
 
+    // Create syntax highlighter if enabled
+    let highlighter = if config.syntax.enabled {
+        Some(SyntaxHighlighter::new(&config.syntax.theme))
+    } else {
+        None
+    };
+
     // Dev server always uses "/" — base_url only applies to static builds
     let base_url = if live_reload {
         "/".to_string()
@@ -98,8 +106,14 @@ fn build_site(
         let page = &inventory.pages[slug];
         let source = std::fs::read_to_string(&page.source_path)?;
 
-        let html_body =
-            pipeline::process(&source, &inventory, &page.source_path, &registry, &base_url)?;
+        let html_body = pipeline::process(
+            &source,
+            &inventory,
+            &page.source_path,
+            &registry,
+            &base_url,
+            highlighter.as_ref(),
+        )?;
 
         let nav_html = project::render_nav(&nav_tree, slug, &base_url);
 

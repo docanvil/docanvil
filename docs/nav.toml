@@ -15,20 +15,28 @@ page = "guides/configuration"
 page = "guides/theming"
 
 [[nav]]
+page = "reference/cli"
+label = "CLI Commands" 
+
+[[nav]]
 separator = true
 
 [[nav]]
-label = "Writing Content"
+separator = "Writing Content"
+
+[[nav]]
 page = "writing/markdown"
-group = [
-  { page = "writing/wiki-links", label = "Links & Popovers" },
-  { page = "writing/components" },
-]
+
+[[nav]]
+page = "writing/wiki-links"
+label = "Links & Popovers"
+
+[[nav]]
+page = "writing/components"
 
 [[nav]]
 label = "Reference"
 group = [
-  { page = "reference/cli", label = "CLI Commands" },
   { separator = "Project" },
   { page = "reference/project-structure" },
   { page = "reference/css-variables", label = "CSS Variables" },

@@ -367,6 +367,8 @@ body {
 /* ---- Code blocks ---- */
 
 .content pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
   background: var(--color-code-bg);
   padding: 1rem 1.25rem;
   border-radius: var(--radius-md);
@@ -375,6 +377,11 @@ body {
   overflow-x: auto;
   margin: 0 0 1.25rem;
   line-height: 1.6;
+}
+
+/* Syntax-highlighted blocks: syntect outputs <pre style="..."> with no <code> wrapper */
+.content pre[style] {
+  border-color: transparent;
 }
 
 .content pre code {

@@ -28,6 +28,8 @@ impl TemplateRenderer {
         context.insert("css_overrides", &ctx.css_overrides);
         context.insert("custom_css_path", &ctx.custom_css_path);
         context.insert("base_url", &ctx.base_url);
+        context.insert("logo_path", &ctx.logo_path);
+        context.insert("favicon_path", &ctx.favicon_path);
         context.insert("live_reload", &ctx.live_reload);
 
         self.tera
@@ -46,5 +48,7 @@ pub struct PageContext {
     pub css_overrides: Option<String>,
     pub custom_css_path: Option<String>,
     pub base_url: String,
+    pub logo_path: Option<String>,
+    pub favicon_path: Option<String>,
     pub live_reload: bool,
 }

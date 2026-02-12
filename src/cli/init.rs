@@ -19,12 +19,15 @@ pub fn run(name: &str) -> Result<()> {
     std::fs::create_dir_all(project_dir.join("docs/api"))?;
     std::fs::create_dir_all(project_dir.join("docs/reference"))?;
     std::fs::create_dir_all(project_dir.join("theme"))?;
+    std::fs::create_dir_all(project_dir.join("assets"))?;
 
     // Write docanvil.toml
     let config = format!(
         r##"[project]
 name = "{name}"
 content_dir = "docs"
+# logo = "assets/logo.png"
+# favicon = "assets/favicon.ico"
 
 [build]
 output_dir = "dist"

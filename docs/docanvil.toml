@@ -1,6 +1,8 @@
 [project]
 name = "DocAnvil"
 content_dir = "docs"
+logo = "assets/logo.png"
+favicon = "assets/logo.png"
 
 [build]
 output_dir = "dist"

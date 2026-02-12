@@ -98,6 +98,18 @@ fn build_site(
     } else {
         config.base_url()
     };
+    // Compute logo and favicon paths with base_url prefix
+    let logo_path = config
+        .project
+        .logo
+        .as_ref()
+        .map(|p| format!("{}{}", base_url, p));
+    let favicon_path = config
+        .project
+        .favicon
+        .as_ref()
+        .map(|p| format!("{}{}", base_url, p));
+
     // Ensure output directory exists
     std::fs::create_dir_all(output_dir)?;
 
@@ -113,6 +125,7 @@ fn build_site(
             &registry,
             &base_url,
             highlighter.as_ref(),
+            project_root,
         )?;
 
         let nav_html = project::render_nav(&nav_tree, slug, &base_url);
@@ -131,6 +144,8 @@ fn build_site(
             css_overrides: theme.css_overrides.clone(),
             custom_css_path: theme.custom_css_path.clone(),
             base_url: base_url.clone(),
+            logo_path: logo_path.clone(),
+            favicon_path: favicon_path.clone(),
             live_reload,
         };
 

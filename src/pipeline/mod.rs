@@ -1,5 +1,6 @@
 pub mod attributes;
 pub mod directives;
+pub mod images;
 pub mod markdown;
 pub mod popovers;
 pub mod syntax;
@@ -21,6 +22,7 @@ pub fn process(
     registry: &ComponentRegistry,
     base_url: &str,
     highlighter: Option<&SyntaxHighlighter>,
+    project_root: &Path,
 ) -> Result<String> {
     // 1. Pre-comrak: process directives (:::name{attrs})
     let source = directives::process_directives(source, &mut |block| registry.render_block(block));
@@ -42,6 +44,9 @@ pub fn process(
 
     // 6. Post-comrak: inject inline attributes ({.class})
     let html = attributes::inject_attributes(&html);
+
+    // 7. Rewrite relative image paths with base_url
+    let html = images::rewrite_image_paths(&html, base_url, project_root);
 
     Ok(html)
 }

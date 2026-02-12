@@ -20,6 +20,8 @@ pub struct Config {
 pub struct ProjectConfig {
     pub name: String,
     pub content_dir: PathBuf,
+    pub logo: Option<String>,
+    pub favicon: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +61,8 @@ impl Default for ProjectConfig {
         Self {
             name: String::from("My Documentation"),
             content_dir: PathBuf::from("docs"),
+            logo: None,
+            favicon: None,
         }
     }
 }

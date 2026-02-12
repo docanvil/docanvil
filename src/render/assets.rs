@@ -22,6 +22,14 @@ pub fn copy_assets(project_root: &Path, output_dir: &Path, custom_css: Option<&s
         copy_dir_recursive(&static_dir, output_dir)?;
     }
 
+    // Copy assets/ directory (preserving it as a subdirectory)
+    let assets_dir = project_root.join("assets");
+    if assets_dir.exists() {
+        let dest = output_dir.join("assets");
+        std::fs::create_dir_all(&dest)?;
+        copy_dir_recursive(&assets_dir, &dest)?;
+    }
+
     Ok(())
 }
 

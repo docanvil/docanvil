@@ -9,6 +9,9 @@
   {% if css_overrides %}
   <style>:root { {{ css_overrides }} }</style>
   {% endif %}
+  {% if favicon_path %}
+  <link rel="icon" href="{{ favicon_path }}">
+  {% endif %}
   {% if custom_css_path %}
   <link rel="stylesheet" href="{{ base_url }}{{ custom_css_path }}">
   {% endif %}
@@ -17,7 +20,12 @@
 <body>
   {% block sidebar %}
   <nav class="sidebar">
-    <div class="project-name">{{ project_name }}</div>
+    <div class="project-name">
+      {% if logo_path %}
+      <img class="project-logo" src="{{ logo_path }}" alt="{{ project_name }} logo">
+      {% endif %}
+      {{ project_name }}
+    </div>
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>

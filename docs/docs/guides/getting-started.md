@@ -4,12 +4,14 @@ Get DocAnvil running and create your first documentation site.
 
 ## Install DocAnvil
 
-:::code-group
+::::tabs
+:::tab{title="From crates.io"}
 ```bash
 # Install from crates.io (when published)
 cargo install docanvil
 ```
-
+:::
+:::tab{title="From GitHub"}
 ```bash
 # Build from source
 git clone https://github.com/docanvil/docanvil.git
@@ -17,6 +19,7 @@ cd docanvil
 cargo install --path .
 ```
 :::
+::::
 
 Verify the installation:
 

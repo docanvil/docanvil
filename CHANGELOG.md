@@ -1,0 +1,63 @@
+# Changelog
+
+All notable changes to DocAnvil will be documented in this file.
+
+## [0.1.3] - 2026-02-12
+
+### Added
+
+- Image asset handling in the build pipeline
+- Logo and favicon support via `[project]` config in `docanvil.toml`
+
+### Changed
+
+- Tweaked the default theme styling for project docs
+
+## [0.1.2] - 2026-02-12
+
+### Added
+
+- Server-side syntax highlighting using syntect with the `default-fancy` feature set
+- Tabs component support in documentation pages
+
+### Changed
+
+- Restructured the docs navigation
+- Updated getting started guide to use tabs instead of codegroup
+
+## [0.1.1] - 2026-02-11
+
+### Added
+
+- Configurable base URL support for deployment to subdirectories
+- Configurable navigation structure via `docanvil.toml`
+- Popover tooltips for wiki-links in generated docs
+- Nested navigation in the sidebar
+- GitHub Actions workflow for publishing to GitHub Pages
+
+### Fixed
+
+- Output flag (`--out`) in the `docanvil build` command
+
+### Changed
+
+- Improved generated styles and overall theme polish
+- Better popover display for missing page links
+
+## [0.1.0] - 2026-02-11
+
+### Added
+
+- Initial release of DocAnvil
+- Markdown to HTML static site generation with comrak (GFM extensions)
+- Wiki-link resolution (`[[page]]` and `[[page|text]]`)
+- Fenced directive components (`:::note`, `:::warning`, `:::tabs`, `:::code-group`)
+- Inline attribute injection (`{.class #id}`)
+- Tera-based templating with `{% block %}` overrides
+- CSS-variable-based default theme
+- Dev server with live reload via axum and WebSocket
+- File watcher with debounced rebuilds
+- `docanvil init` project scaffolding
+- `docanvil serve` dev server
+- `docanvil build` static output generation
+- Configurable via `docanvil.toml`

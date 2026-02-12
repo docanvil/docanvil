@@ -19,19 +19,20 @@
    -----------------------------------------------------------------
    Uncomment any line below and change the value to customize.
    The values shown are the built-in defaults.
+*/
 
 :root {
   /* Colors */
-  /* --color-primary: #6366f1; */
-  /* --color-primary-light: #818cf8; */
-  /* --color-bg: #ffffff; */
-  /* --color-bg-secondary: #f8fafc; */
-  /* --color-text: #1e293b; */
-  /* --color-text-muted: #64748b; */
-  /* --color-border: #e2e8f0; */
-  /* --color-link: #6366f1; */
-  /* --color-link-hover: #4f46e5; */
-  /* --color-code-bg: #f1f5f9; */
+  --color-primary: #F17A06;
+  --color-primary-light: #F59A3A;
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-link: #F17A06;
+  --color-link-hover: #D96504;
+  --color-code-bg: #f1f5f9;
 
   /* Typography */
   /* --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; */
@@ -43,16 +44,16 @@
   /* --content-max-width: 800px; */
 
   /* Sidebar */
-  /* --color-sidebar-hover: #eef2ff; */
-  /* --color-sidebar-active-bg: #eef2ff; */
-  /* --color-sidebar-active-text: #4f46e5; */
+  --color-sidebar-hover: #FFF3E6;
+  --color-sidebar-active-bg: #FFF3E6;
+  --color-sidebar-active-text: #D96504;
 
   /* Nav filter & groups */
   /* --nav-filter-bg: #ffffff; */
   /* --nav-filter-border: var(--color-border); */
   /* --nav-group-toggle-hover: rgba(99, 102, 241, 0.06); */
 }
-   ----------------------------------------------------------------- */
+/*   ----------------------------------------------------------------- */
 
 /* -----------------------------------------------------------------
    Example: Custom rules

@@ -45,7 +45,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 - Internal links are resolved consistently :::lozenge{type="default",text="Not started"}
 - Broken links are detected during build :::lozenge{type="success",text="Done"}
 - Link errors are actionable and readable :::lozenge{type="success",text="Done"}
-- `--strict` mode works reliably for CI :::lozenge{type="in-progress",text=In progress"}
+- `--strict` mode works reliably for CI :::lozenge{type="in-progress",text="In progress"}
 
 
 

@@ -48,5 +48,8 @@ pub enum Command {
         /// Remove output directory before building
         #[arg(long)]
         clean: bool,
+        /// Strict mode so warnings cause build failure
+        #[arg(long)]
+        strict: bool,
     },
 }

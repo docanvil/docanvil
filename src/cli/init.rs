@@ -31,6 +31,7 @@ content_dir = "docs"
 
 [build]
 output_dir = "dist"
+# site_url = "https://example.com/"
 
 [theme]
 custom_css = "theme/custom.css"

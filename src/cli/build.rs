@@ -11,6 +11,7 @@ use crate::project::{self, PageInventory};
 use crate::render::assets;
 use crate::render::templates::{PageContext, TemplateRenderer};
 use crate::search;
+use crate::seo;
 use crate::theme::Theme;
 
 /// Run the build command from CLI.
@@ -174,6 +175,21 @@ fn build_site(
     if let Some(entries) = search_entries {
         let json = search::build_index(&entries);
         std::fs::write(output_dir.join("search-index.json"), json)?;
+    }
+
+    // Generate robots.txt and sitemap.xml for production builds
+    if !live_reload {
+        let site_url = config.site_url();
+        if site_url.is_none() {
+            crate::diagnostics::warn_no_site_url();
+        }
+
+        let sitemap_url = site_url.as_deref().map(|u| format!("{u}sitemap.xml"));
+        let robots = seo::generate_robots_txt(sitemap_url.as_deref());
+        std::fs::write(output_dir.join("robots.txt"), robots)?;
+
+        let sitemap = seo::generate_sitemap_xml(&inventory, &base_url, site_url.as_deref());
+        std::fs::write(output_dir.join("sitemap.xml"), sitemap)?;
     }
 
     // Copy static assets

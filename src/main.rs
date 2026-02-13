@@ -8,6 +8,7 @@ mod pipeline;
 mod project;
 mod render;
 mod search;
+mod seo;
 mod server;
 mod theme;
 

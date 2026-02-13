@@ -31,6 +31,7 @@ pub struct ProjectConfig {
 pub struct BuildConfig {
     pub output_dir: PathBuf,
     pub base_url: String,
+    pub site_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -102,6 +103,7 @@ impl Default for BuildConfig {
         Self {
             output_dir: PathBuf::from("dist"),
             base_url: "/".to_string(),
+            site_url: None,
         }
     }
 }
@@ -120,6 +122,14 @@ impl Config {
     /// Return the normalized base_url (ensures leading + trailing `/`).
     pub fn base_url(&self) -> String {
         normalize_base_url(&self.build.base_url)
+    }
+
+    /// Return the normalized site_url (ensures trailing `/`), if configured.
+    pub fn site_url(&self) -> Option<String> {
+        self.build.site_url.as_ref().map(|url| {
+            let trimmed = url.trim().trim_end_matches('/');
+            format!("{trimmed}/")
+        })
     }
 
     /// Load config from a `docanvil.toml` file in the given directory.

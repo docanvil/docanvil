@@ -94,6 +94,12 @@ Use `--clean` to remove the output directory before building:
 docanvil build --clean
 ```
 
+For integration with CI/CD pipelines, use `--strict` to return an error and non-zero exit code when there is any warnings during the build:
+
+```bash
+docanvil build --strict
+```
+
 ## Checklist
 
 - [x] Install DocAnvil

@@ -90,6 +90,7 @@ docanvil build [--out <path>] [--clean]
 |--------|---------|-------------|
 | `--out` | `dist` | Output directory for the generated site |
 | `--clean` | `false` | Remove the output directory before building |
+| `--strict` | `false` | Emit warnings as errors and exit with non-zero code |
 
 The build pipeline processes each page through:
 

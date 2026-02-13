@@ -35,9 +35,18 @@ label = "Links & Popovers"
 page = "writing/components"
 
 [[nav]]
-label = "Reference"
+separator = "Reference"
+
+[[nav]]
+page = "reference/project-structure"
+
+[[nav]]
+label = "CSS Variables"
+page = "reference/css-variables"
+
+[[nav]]
+label = "Development"
 group = [
-  { separator = "Project" },
-  { page = "reference/project-structure" },
-  { page = "reference/css-variables", label = "CSS Variables" },
+  { page = "development/roadmap" },
+  { page = "development/readiness", label = "V1.0 Readiness" },
 ]

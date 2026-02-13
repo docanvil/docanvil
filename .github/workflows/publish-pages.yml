@@ -49,7 +49,7 @@ jobs:
       - name: Run tool
         working-directory: ./docs
         run: |
-          docanvil build --out public                  # 👈 output folder (example)
+          docanvil build --strict --out public                  # 👈 output folder (example)
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

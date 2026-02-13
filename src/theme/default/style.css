@@ -721,21 +721,29 @@ body {
   font-weight: 600;
 }
 
-.lozenge.in-progress{
-  background: lightblue;
+.lozenge.default{
+  background: grey;
+  color: white;
 }
 
+.lozenge.in-progress{
+  background: rgb(0, 142, 226);
+  color: white;
+}
 
 .lozenge.warning{
-  background: lightyellow;
+  background: lightsalmon;
+  color: white;
 }
 
 .lozenge.success{
-  background: lightgreen;
+  background: rgb(0, 172, 24);
+  color: white;
 }
 
 .lozenge.error{
   background: lightcoral;
+  color: white;
 }
 
 

@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use crate::components::ComponentRegistry;
 use crate::config::Config;
+use crate::diagnostics::{reset_warnings, warning_count};
 use crate::error::{Error, Result};
 use crate::nav;
 use crate::pipeline;
@@ -15,7 +16,7 @@ use crate::seo;
 use crate::theme::Theme;
 
 /// Run the build command from CLI.
-pub fn run(out: &Path, clean: bool, quiet: bool) -> Result<()> {
+pub fn run(out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
     let start = Instant::now();
 
     let project_root = Path::new(".");
@@ -33,7 +34,13 @@ pub fn run(out: &Path, clean: bool, quiet: bool) -> Result<()> {
         std::fs::remove_dir_all(&output_dir)?;
     }
 
+    reset_warnings();
+
     let count = build_site(project_root, &config, &output_dir, false)?;
+
+    if strict && warning_count() > 0 {
+        return Err(Error::StrictWarnings(warning_count()))
+    }
 
     if !quiet {
         let elapsed = start.elapsed();

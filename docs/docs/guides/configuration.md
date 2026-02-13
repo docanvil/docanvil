@@ -82,7 +82,7 @@ See [[reference/css-variables|CSS Variables]] for the complete list of available
 |-----|---------|-------------|
 | `enabled` | `true` | Enable or disable full-text search |
 
-When enabled, DocAnvil generates a `search-index.json` file at build time and adds a search input to the sidebar. Search is powered by MiniSearch.js, loaded from a CDN on first use. Set `enabled = false` to remove the search UI and skip index generation.
+When enabled, DocAnvil generates a `search-index.json` file at build time and adds a search input to the header. Search is powered by MiniSearch.js, loaded from a CDN on first use. Set `enabled = false` to remove the search UI and skip index generation.
 
 ### `[charts]` Section
 
@@ -183,5 +183,5 @@ If `nav.toml` is absent, DocAnvil auto-discovers all `.md` files in the content 
 - [[reference/project-structure|Project Structure]] — how files map to pages and slugs
 
 :::note
-The sidebar includes a filter input that searches page labels in real time. This works with any navigation structure.
+The header includes a filter input that searches page labels in real time. This works with any navigation structure.
 :::

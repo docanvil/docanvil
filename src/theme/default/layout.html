@@ -12,8 +12,8 @@
   {% if favicon_path %}
   <link rel="icon" href="{{ favicon_path }}">
   {% endif %}
-  {% if custom_css_path %}
-  <link rel="stylesheet" href="{{ base_url }}{{ custom_css_path }}">
+  {% if custom_css %}
+  <style>{{ custom_css | safe }}</style>
   {% endif %}
   {% block head %}{% endblock %}
 </head>

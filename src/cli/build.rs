@@ -155,6 +155,7 @@ fn build_site(
             default_css: theme.default_css.clone(),
             css_overrides: theme.css_overrides.clone(),
             custom_css_path: theme.custom_css_path.clone(),
+            custom_css: theme.custom_css.clone(),
             base_url: base_url.clone(),
             logo_path: logo_path.clone(),
             favicon_path: favicon_path.clone(),

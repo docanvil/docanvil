@@ -709,6 +709,24 @@ body {
 }
 
 /* ----------------------------------------------------------------
+   Lozenges
+   ---------------------------------------------------------------- */
+
+.lozenge {
+  display: inline;
+  padding: 0.15em 0.5em;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.lozenge.success{
+  background: lightgreen;
+  border-color: green;
+}
+
+
+/* ----------------------------------------------------------------
    Tabs & code groups
    ---------------------------------------------------------------- */
 

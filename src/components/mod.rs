@@ -40,6 +40,7 @@ impl ComponentRegistry {
         registry.register(Box::new(builtin::tabs::Tabs));
         registry.register(Box::new(builtin::code_group::CodeGroup));
         registry.register(Box::new(builtin::mermaid::Mermaid));
+        registry.register(Box::new(builtin::lozenge::Lozenge));
         registry
     }
 
@@ -111,6 +112,22 @@ mod tests {
         let html = registry.render_block(&block);
         assert!(html.contains("note"));
         assert!(html.contains("This is important."));
+    }
+
+    #[test]
+    fn registry_renders_lozenge() {
+        let registry = ComponentRegistry::with_builtins();
+        let block = DirectiveBlock {
+            name: "lozenge".to_string(),
+            attributes: HashMap::from([
+                ("type".to_string(), "yellow".to_string()),
+                ("text".to_string(), "Not Done".to_string()),
+            ]),
+            body: "".to_string(),
+            depth: 3,
+        };
+        let html = registry.render_block(&block);
+        assert!(html.contains("<span class=\"lozenge yellow\">Not Done</span>"));
     }
 
     #[test]

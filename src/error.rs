@@ -20,7 +20,7 @@ pub enum Error {
     #[error("markdown rendering failed: {0}")]
     Render(String),
 
-    #[error("{0} warning(s) emitted during build")]
+    #[error("{0} warning(s) emitted during strict-mode build")]
     StrictWarnings(usize)
 }
 

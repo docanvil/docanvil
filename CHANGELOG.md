@@ -10,7 +10,7 @@ All notable changes to DocAnvil will be documented in this file.
 - Mermaid diagram support via `:::mermaid` directive — renders flowcharts, sequence diagrams, and other Mermaid charts in the browser
 - `[search]` config section in `docanvil.toml` to enable/disable search (enabled by default)
 - `[charts]` config section in `docanvil.toml` to enable/disable Mermaid and configure version (enabled by default)
-- Search input in sidebar with dropdown results
+- Search input in header with dropdown results
 - `search-index.json` generated during build when search is enabled
 
 ## [0.1.3] - 2026-02-12

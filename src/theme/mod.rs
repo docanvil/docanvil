@@ -43,20 +43,19 @@ impl Theme {
         let css_overrides = build_css_overrides(&config.theme.variables);
 
         // Custom CSS: resolve path and read content
-        let (custom_css_path, custom_css) =
-            match config.theme.custom_css.clone() {
-                Some(css_path) => {
-                    let full_path = project_root.join(&css_path);
-                    if full_path.exists() {
-                        let content = std::fs::read_to_string(&full_path).ok();
-                        (Some(css_path), content)
-                    } else {
-                        warn_custom_css_not_found(&css_path);
-                        (None, None)
-                    }
+        let (custom_css_path, custom_css) = match config.theme.custom_css.clone() {
+            Some(css_path) => {
+                let full_path = project_root.join(&css_path);
+                if full_path.exists() {
+                    let content = std::fs::read_to_string(&full_path).ok();
+                    (Some(css_path), content)
+                } else {
+                    warn_custom_css_not_found(&css_path);
+                    (None, None)
                 }
-                None => (None, None),
-            };
+            }
+            None => (None, None),
+        };
 
         Self {
             layout_template,

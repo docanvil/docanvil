@@ -43,10 +43,8 @@ pub fn highlight_code_blocks(html: &str, highlighter: &SyntaxHighlighter) -> Str
         return html.to_string();
     }
 
-    let re = Regex::new(
-        r#"<pre><code class="language-([\w+\-\.#]+)">([\s\S]*?)</code></pre>"#,
-    )
-    .expect("syntax regex is valid");
+    let re = Regex::new(r#"<pre><code class="language-([\w+\-\.#]+)">([\s\S]*?)</code></pre>"#)
+        .expect("syntax regex is valid");
 
     let theme = &highlighter.theme_set.themes[&highlighter.theme_name];
 
@@ -89,8 +87,7 @@ mod tests {
     #[test]
     fn leaves_unknown_language_unchanged() {
         let h = highlighter();
-        let input =
-            r#"<pre><code class="language-nosuchlang">hello world</code></pre>"#;
+        let input = r#"<pre><code class="language-nosuchlang">hello world</code></pre>"#;
         let result = highlight_code_blocks(input, &h);
         assert_eq!(result, input);
     }

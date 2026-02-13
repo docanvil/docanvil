@@ -1,4 +1,4 @@
-use comrak::{markdown_to_html, Options};
+use comrak::{Options, markdown_to_html};
 
 /// Build comrak options with GFM extensions enabled.
 pub fn comrak_options() -> Options<'static> {

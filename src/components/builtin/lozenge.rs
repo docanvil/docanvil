@@ -15,13 +15,8 @@ impl Component for Lozenge {
             .map(|s| s.as_str())
             .unwrap_or("default");
 
-        let text = ctx
-            .attributes
-            .get("text")
-            .map(|s| s.as_str())
-            .unwrap_or("");
+        let text = ctx.attributes.get("text").map(|s| s.as_str()).unwrap_or("");
 
-        Ok(format!(
-            "<span class=\"lozenge {variation}\">{text}</span>"))
+        Ok(format!("<span class=\"lozenge {variation}\">{text}</span>"))
     }
 }

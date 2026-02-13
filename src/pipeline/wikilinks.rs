@@ -5,7 +5,12 @@ use crate::project::PageInventory;
 
 /// Process wiki-links in rendered HTML.
 /// Replaces `[[target]]` and `[[target|display text]]` with proper HTML links.
-pub fn resolve(html: &str, inventory: &PageInventory, source_file: &Path, base_url: &str) -> String {
+pub fn resolve(
+    html: &str,
+    inventory: &PageInventory,
+    source_file: &Path,
+    base_url: &str,
+) -> String {
     let mut result = String::with_capacity(html.len());
     let mut remaining = html;
 

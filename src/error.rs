@@ -21,7 +21,7 @@ pub enum Error {
     Render(String),
 
     #[error("{0} warning(s) emitted during strict-mode build")]
-    StrictWarnings(usize)
+    StrictWarnings(usize),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

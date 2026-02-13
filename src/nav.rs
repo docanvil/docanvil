@@ -311,8 +311,12 @@ page = "guide"
         let tree = nav_tree_from_config(&entries, &inventory);
         assert_eq!(tree.len(), 3);
 
-        assert!(matches!(&tree[0], NavNode::Page { label, slug } if label == "My Guide" && slug == "guide"));
+        assert!(
+            matches!(&tree[0], NavNode::Page { label, slug } if label == "My Guide" && slug == "guide")
+        );
         assert!(matches!(&tree[1], NavNode::Separator { label: Some(l) } if l == "Section"));
-        assert!(matches!(&tree[2], NavNode::Page { label, slug } if label == "Home" && slug == "index"));
+        assert!(
+            matches!(&tree[2], NavNode::Page { label, slug } if label == "Home" && slug == "index")
+        );
     }
 }

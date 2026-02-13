@@ -39,7 +39,7 @@ pub fn run(out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
     let count = build_site(project_root, &config, &output_dir, false)?;
 
     if strict && warning_count() > 0 {
-        return Err(Error::StrictWarnings(warning_count()))
+        return Err(Error::StrictWarnings(warning_count()));
     }
 
     if !quiet {

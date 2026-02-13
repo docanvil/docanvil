@@ -32,9 +32,8 @@ pub fn strip_html_tags(html: &str) -> String {
 /// Each heading starts a new section; content before the first heading is the intro.
 pub fn extract_sections(html: &str, slug: &str, title: &str, base_url: &str) -> Vec<SearchSection> {
     // Split on heading tags that have an id attribute
-    static HEADING_SPLIT_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"<h[1-6][^>]*\bid="([^"]*)"[^>]*>(.*?)</h[1-6]>"#).unwrap()
-    });
+    static HEADING_SPLIT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"<h[1-6][^>]*\bid="([^"]*)"[^>]*>(.*?)</h[1-6]>"#).unwrap());
 
     let page_url = format!("{}{}.html", base_url, slug);
     let mut sections = Vec::new();

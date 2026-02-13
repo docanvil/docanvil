@@ -15,8 +15,7 @@ page = "guides/configuration"
 page = "guides/theming"
 
 [[nav]]
-page = "reference/cli"
-label = "CLI Commands" 
+page = "guides/migration"
 
 [[nav]]
 separator = true
@@ -36,6 +35,10 @@ page = "writing/components"
 
 [[nav]]
 separator = "Reference"
+
+[[nav]]
+page = "reference/cli"
+label = "CLI Commands" 
 
 [[nav]]
 page = "reference/project-structure"

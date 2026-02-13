@@ -58,7 +58,10 @@ mod tests {
     fn basic_heading_gets_id() {
         let html = "<h2>Installation Guide</h2>";
         let result = inject_heading_ids(html);
-        assert_eq!(result, r#"<h2 id="installation-guide">Installation Guide</h2>"#);
+        assert_eq!(
+            result,
+            r#"<h2 id="installation-guide">Installation Guide</h2>"#
+        );
     }
 
     #[test]

@@ -138,9 +138,9 @@ fn insert_nav_node(nodes: &mut Vec<NavNode>, parts: &[&str], info: &PageInfo) {
     } else {
         // Find or create directory node
         let dir_label = title_from_slug(parts[0]);
-        let dir_node = nodes.iter_mut().find(|n| {
-            matches!(n, NavNode::Group { label, slug: None, .. } if label == &dir_label)
-        });
+        let dir_node = nodes
+            .iter_mut()
+            .find(|n| matches!(n, NavNode::Group { label, slug: None, .. } if label == &dir_label));
 
         if let Some(NavNode::Group { children, .. }) = dir_node {
             insert_nav_node(children, &parts[1..], info);
@@ -181,9 +181,7 @@ pub(crate) fn title_from_slug(slug: &str) -> String {
 fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
     match node {
         NavNode::Page { slug, .. } => slug == current_slug,
-        NavNode::Group {
-            slug, children, ..
-        } => {
+        NavNode::Group { slug, children, .. } => {
             slug.as_deref() == Some(current_slug)
                 || children
                     .iter()

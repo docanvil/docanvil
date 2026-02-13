@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use notify_debouncer_mini::{new_debouncer, DebouncedEventKind};
+use notify_debouncer_mini::{DebouncedEventKind, new_debouncer};
 use tokio::sync::broadcast;
 
 /// Watch for file changes and trigger rebuilds.

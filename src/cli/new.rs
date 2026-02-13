@@ -263,10 +263,7 @@ curl https://api.example.com/v1/users
 All requests require a valid token — see [[authentication]] for details.
 For an overview of the API, visit [[overview|API Overview]].
 "##;
-    std::fs::write(
-        project_dir.join("docs/api/endpoints.md"),
-        api_endpoints,
-    )?;
+    std::fs::write(project_dir.join("docs/api/endpoints.md"), api_endpoints)?;
 
     // Write api/authentication.md
     let api_auth = r##"# Authentication
@@ -306,10 +303,7 @@ manager instead.
 See [[endpoints|REST Endpoints]] for the available routes, or head back to the
 [[overview|API Overview]].
 "##;
-    std::fs::write(
-        project_dir.join("docs/api/authentication.md"),
-        api_auth,
-    )?;
+    std::fs::write(project_dir.join("docs/api/authentication.md"), api_auth)?;
 
     // Write reference/components.md
     let ref_components = r##"# Components
@@ -418,10 +412,7 @@ fn greet(name: &str) {
 See [[components]] for the built-in directive components, or visit the
 [[overview|API Reference]] for example API documentation.
 "##;
-    std::fs::write(
-        project_dir.join("docs/reference/markdown.md"),
-        ref_markdown,
-    )?;
+    std::fs::write(project_dir.join("docs/reference/markdown.md"), ref_markdown)?;
 
     // Write nav.toml
     let nav_toml = r##"# Navigation configuration — controls sidebar ordering and structure.

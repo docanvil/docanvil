@@ -1,9 +1,8 @@
 use regex::Regex;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-static POPOVER_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\^\[([^\]]+)\]").unwrap());
+static POPOVER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\^\[([^\]]+)\]").unwrap());
 
 static POPOVER_ID: AtomicUsize = AtomicUsize::new(0);
 

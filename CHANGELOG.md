@@ -11,6 +11,7 @@ All notable changes to DocAnvil will be documented in this file.
 ### Changed
 
 - Moved the `init` command to `new` and updated the docs.
+- Updated the project to 2024 edition of rust
 
 ## [0.1.5] - 2026-02-13
 

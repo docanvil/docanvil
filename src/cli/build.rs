@@ -10,6 +10,7 @@ use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInventory};
 use crate::render::assets;
 use crate::render::templates::{PageContext, TemplateRenderer};
+use crate::search;
 use crate::theme::Theme;
 
 /// Run the build command from CLI.
@@ -113,6 +114,12 @@ fn build_site(
     // Ensure output directory exists
     std::fs::create_dir_all(output_dir)?;
 
+    let mut search_entries = if config.search.enabled {
+        Some(Vec::new())
+    } else {
+        None
+    };
+
     let mut count = 0;
     for slug in &inventory.ordered {
         let page = &inventory.pages[slug];
@@ -127,6 +134,18 @@ fn build_site(
             highlighter.as_ref(),
             project_root,
         )?;
+
+        if let Some(ref mut entries) = search_entries {
+            let body_text = search::strip_html_tags(&html_body);
+            let headings = search::extract_headings(&html_body);
+            entries.push(search::SearchIndexEntry {
+                id: slug.clone(),
+                title: page.title.clone(),
+                url: format!("{}{}", base_url, page.output_path.display()),
+                body: body_text,
+                headings,
+            });
+        }
 
         let nav_html = project::render_nav(&nav_tree, slug, &base_url);
 
@@ -147,11 +166,20 @@ fn build_site(
             logo_path: logo_path.clone(),
             favicon_path: favicon_path.clone(),
             live_reload,
+            mermaid_enabled: config.charts.enabled,
+            mermaid_version: config.charts.mermaid_version.clone(),
+            search_enabled: config.search.enabled,
         };
 
         let html = renderer.render_page(&ctx)?;
         std::fs::write(&out_path, html)?;
         count += 1;
+    }
+
+    // Write search index
+    if let Some(entries) = search_entries {
+        let json = search::build_index(&entries);
+        std::fs::write(output_dir.join("search-index.json"), json)?;
     }
 
     // Copy static assets

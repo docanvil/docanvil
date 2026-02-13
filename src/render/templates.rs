@@ -31,6 +31,9 @@ impl TemplateRenderer {
         context.insert("logo_path", &ctx.logo_path);
         context.insert("favicon_path", &ctx.favicon_path);
         context.insert("live_reload", &ctx.live_reload);
+        context.insert("mermaid_enabled", &ctx.mermaid_enabled);
+        context.insert("mermaid_version", &ctx.mermaid_version);
+        context.insert("search_enabled", &ctx.search_enabled);
 
         self.tera
             .render("layout.html", &context)
@@ -51,4 +54,7 @@ pub struct PageContext {
     pub logo_path: Option<String>,
     pub favicon_path: Option<String>,
     pub live_reload: bool,
+    pub mermaid_enabled: bool,
+    pub mermaid_version: String,
+    pub search_enabled: bool,
 }

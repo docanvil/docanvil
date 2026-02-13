@@ -145,6 +145,34 @@ def greet(name):
 :::
 ````
 
+## Mermaid Diagrams
+
+Render diagrams and charts using Mermaid.js. The content inside a `:::mermaid` block is passed directly to Mermaid — it is not processed as Markdown.
+
+:::mermaid
+graph TD
+    A[Write Markdown] --> B[Run docanvil build]
+    B --> C[Static HTML site]
+    C --> D[Deploy anywhere]
+:::
+
+Raw syntax:
+
+````markdown
+:::mermaid
+graph TD
+    A[Write Markdown] --> B[Run docanvil build]
+    B --> C[Static HTML site]
+    C --> D[Deploy anywhere]
+:::
+````
+
+Mermaid supports many diagram types including flowcharts, sequence diagrams, class diagrams, state diagrams, Gantt charts, and more. See the [Mermaid documentation](https://mermaid.js.org/) for the full syntax reference.
+
+:::note{title="Configuration"}
+Mermaid is enabled by default. Disable it by setting `enabled = false` under `[charts]` in `docanvil.toml`. When disabled, `:::mermaid` blocks render as preformatted text. See [[guides/configuration|Configuration]] for details.
+:::
+
 ## Nesting Directives
 
 When nesting directives, use more colons on the outer fence to distinguish it from inner closings. The `::::tabs` (four colons) and `:::tab` (three colons) pattern is the primary example of this:
@@ -182,6 +210,7 @@ This lets you create custom styled blocks using your own CSS.
 | Warning | `:::warning` | `title` | `"Warning"` |
 | Tabs | `::::tabs` + `:::tab` | `title` (on tab) | `"Tab 1"`, `"Tab 2"`, ... |
 | Code Group | `:::code-group` | *(none)* | Language name from code fence |
+| Mermaid | `:::mermaid` | *(none)* | Renders diagram via Mermaid.js |
 
 :::note
 Components are processed before Markdown rendering. This means you can use bold, italic, links, code, and other Markdown formatting inside any component.

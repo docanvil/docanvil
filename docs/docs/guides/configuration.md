@@ -27,6 +27,13 @@ custom_css = "theme/custom.css"
 [theme.variables]
 color-primary = "#059669"
 font-body = "Georgia, serif"
+
+[search]
+enabled = true
+
+[charts]
+enabled = true
+mermaid_version = "11"
 ```
 :::
 ::::
@@ -68,6 +75,23 @@ content-max-width = "960px"
 ```
 
 See [[reference/css-variables|CSS Variables]] for the complete list of available variables.
+
+### `[search]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `enabled` | `true` | Enable or disable full-text search |
+
+When enabled, DocAnvil generates a `search-index.json` file at build time and adds a search input to the sidebar. Search is powered by MiniSearch.js, loaded from a CDN on first use. Set `enabled = false` to remove the search UI and skip index generation.
+
+### `[charts]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `enabled` | `true` | Enable or disable Mermaid diagram rendering |
+| `mermaid_version` | `"11"` | Major version of Mermaid.js to load from CDN |
+
+When enabled, pages containing `:::mermaid` blocks will load Mermaid.js and render diagrams client-side. When disabled, `:::mermaid` content renders as preformatted text.
 
 ## nav.toml
 

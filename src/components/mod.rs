@@ -39,6 +39,7 @@ impl ComponentRegistry {
         registry.register(Box::new(builtin::warning::Warning));
         registry.register(Box::new(builtin::tabs::Tabs));
         registry.register(Box::new(builtin::code_group::CodeGroup));
+        registry.register(Box::new(builtin::mermaid::Mermaid));
         registry
     }
 

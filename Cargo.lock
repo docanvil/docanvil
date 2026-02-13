@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "docanvil"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "axum",
  "clap",
@@ -542,6 +542,7 @@ dependencies = [
  "regex",
  "rust-embed",
  "serde",
+ "serde_json",
  "slug",
  "syntect",
  "tempfile",

@@ -2,6 +2,17 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.1.4] - 2026-02-13
+
+### Added
+
+- Full-text search with client-side MiniSearch.js — build-time JSON index, lazy-loaded on first focus, with prefix/fuzzy matching, keyboard navigation, and click-outside dismiss
+- Mermaid diagram support via `:::mermaid` directive — renders flowcharts, sequence diagrams, and other Mermaid charts in the browser
+- `[search]` config section in `docanvil.toml` to enable/disable search (enabled by default)
+- `[charts]` config section in `docanvil.toml` to enable/disable Mermaid and configure version (enabled by default)
+- Search input in sidebar with dropdown results
+- `search-index.json` generated during build when search is enabled
+
 ## [0.1.3] - 2026-02-12
 
 ### Added

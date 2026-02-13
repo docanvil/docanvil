@@ -19,6 +19,9 @@ pub enum Error {
 
     #[error("markdown rendering failed: {0}")]
     Render(String),
+
+    #[error("{0} warning(s) emitted during build")]
+    StrictWarnings(usize)
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

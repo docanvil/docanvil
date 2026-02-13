@@ -32,8 +32,8 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 ## 🧭 Navigation & Structure
 
-- Sidebar navigation produces predictable results :::lozenge{type="default",text="Not started"}
-- Nested sections render correctly :::lozenge{type="default",text="Not started"}
+- Sidebar navigation produces predictable results :::lozenge{type="in-progress",text="In progress"}
+- Nested sections render correctly :::lozenge{type="in-progress",text="In progress"}
 - Deep links to headings are stable :::lozenge{type="default",text="Not started"}
 - Table of contents behavior is consistent :::lozenge{type="default",text="Not started"}
 - Large documentation trees remain usable :::lozenge{type="default",text="Not started"}
@@ -43,9 +43,9 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 ## 🔗 Linking & Validation
 
 - Internal links are resolved consistently :::lozenge{type="default",text="Not started"}
-- Broken links are detected during build :::lozenge{type="default",text="Not started"}
-- Link errors are actionable and readable :::lozenge{type="default",text="Not started"}
-- `--strict` mode works reliably for CI :::lozenge{type="default",text="Not started"}
+- Broken links are detected during build :::lozenge{type="success",text="Done"}
+- Link errors are actionable and readable :::lozenge{type="success",text="Done"}
+- `--strict` mode works reliably for CI :::lozenge{type="in-progress",text=In progress"}
 
 
 
@@ -86,28 +86,28 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 ## 📚 Documentation Quality
 
 - DocAnvil documentation is built using DocAnvil itself :::lozenge{type="in-progress",text="In progress"}
-- Installation instructions are clear and current :::lozenge{type="default",text="Not started"}
-- A minimal “Getting Started” guide exists :::lozenge{type="default",text="Not started"}
+- Installation instructions are clear and current :::lozenge{type="in-progress",text="In progress"}
+- A minimal “Getting Started” guide exists :::lozenge{type="in-progress",text="In progress"}
 - Configuration reference documentation is complete :::lozenge{type="default",text="Not started"}
 - Common workflows are documented :::lozenge{type="default",text="Not started"}
 - Known limitations are documented :::lozenge{type="default",text="Not started"}
-- Migration expectations are documented (even if empty) :::lozenge{type="default",text="Not started"}
+- Migration expectations are documented (even if empty) :::lozenge{type="in-progress",text="In progress"}
 
 
 
 ## 🧪 Reliability & Testing
 
 - Core functionality is covered by automated tests :::lozenge{type="in-progress",text="In progress"}
-- Builds fail loudly and early on errors
-- Edge cases are handled gracefully
-- No known data-loss or silent-failure bugs
-- Critical paths have reasonable test coverage
+- Builds fail loudly and early on errors :::lozenge{type="default",text="Not started"}
+- Edge cases are handled gracefully :::lozenge{type="default",text="Not started"}
+- No known data-loss or silent-failure bugs :::lozenge{type="default",text="Not started"}
+- Critical paths have reasonable test coverage :::lozenge{type="in-progress",text="In progress"}
 
 
 
 ## 📦 Packaging & Distribution
 
-- Package installs cleanly from cargo :::lozenge{type="default",text="Not started"}
+- Package installs cleanly from cargo :::lozenge{type="in-progress",text="In progress"}
 - Version numbers are consistent across outputs :::lozenge{type="default",text="Not started"}
 - CLI entrypoints behave consistently across platforms :::lozenge{type="default",text="Not started"}
 - License is clear and included in the repository :::lozenge{type="default",text="Not started"}

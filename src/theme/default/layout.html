@@ -18,16 +18,13 @@
   {% block head %}{% endblock %}
 </head>
 <body>
-  {% block sidebar %}
-  <nav class="sidebar">
-    <div class="project-name">
+  {% block header %}
+  <header class="top-header">
+    <div class="top-header-left">
       {% if logo_path %}
-      <img class="project-logo" src="{{ logo_path }}" alt="{{ project_name }} logo">
+      <img class="top-header-logo" src="{{ logo_path }}" alt="{{ project_name }} logo">
       {% endif %}
-      {{ project_name }}
-    </div>
-    <div class="nav-filter-wrapper">
-      <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
+      <span class="top-header-name">{{ project_name }}</span>
     </div>
     {% if search_enabled %}
     <div class="search-wrapper">
@@ -35,6 +32,14 @@
       <div class="search-results" role="listbox"></div>
     </div>
     {% endif %}
+  </header>
+  {% endblock %}
+
+  {% block sidebar %}
+  <nav class="sidebar">
+    <div class="nav-filter-wrapper">
+      <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
+    </div>
     {{ nav_html | safe }}
   </nav>
   {% endblock %}
@@ -141,6 +146,30 @@
     let miniSearch = null;
     let loaded = false;
 
+    function getSnippet(body, query, maxLen) {
+      if (!body) return '';
+      var lower = body.toLowerCase();
+      var terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+      var pos = -1;
+      for (var t = 0; t < terms.length; t++) {
+        pos = lower.indexOf(terms[t]);
+        if (pos >= 0) break;
+      }
+      if (pos < 0) return body.slice(0, maxLen) + (body.length > maxLen ? '...' : '');
+      var start = Math.max(0, pos - 40);
+      var end = Math.min(body.length, pos + maxLen - 40);
+      var snippet = (start > 0 ? '...' : '') + body.slice(start, end) + (end < body.length ? '...' : '');
+      for (var t = 0; t < terms.length; t++) {
+        var re = new RegExp('(' + terms[t].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        snippet = snippet.replace(re, '<mark>$1</mark>');
+      }
+      return snippet;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     function loadSearch() {
       if (loaded) return;
       loaded = true;
@@ -148,14 +177,14 @@
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/minisearch@7/dist/umd/index.min.js';
       script.onload = function() {
-        fetch('{{ base_url }}search-index.json')
+        fetch('{{ base_url | safe }}search-index.json')
           .then(r => r.json())
           .then(data => {
             miniSearch = new MiniSearch({
-              fields: ['title', 'headings', 'body'],
-              storeFields: ['title', 'url'],
+              fields: ['title', 'heading', 'body'],
+              storeFields: ['title', 'heading', 'url', 'body'],
               searchOptions: {
-                boost: { title: 3, headings: 2 },
+                boost: { title: 3, heading: 2 },
                 prefix: true,
                 fuzzy: 0.2
               }
@@ -168,9 +197,11 @@
     }
 
     let selectedIndex = -1;
+    let lastQuery = '';
 
     function doSearch(query) {
       selectedIndex = -1;
+      lastQuery = query;
       if (!miniSearch || !query.trim()) {
         resultsContainer.innerHTML = '';
         resultsContainer.style.display = 'none';
@@ -182,10 +213,15 @@
         resultsContainer.style.display = 'block';
         return;
       }
-      resultsContainer.innerHTML = results.map((r, i) =>
-        '<a class="search-result-item" href="' + r.url + '" role="option" data-index="' + i + '">' +
-        r.title + '</a>'
-      ).join('');
+      resultsContainer.innerHTML = results.map((r, i) => {
+        var titleText = escapeHtml(r.title);
+        if (r.heading) titleText += ' &rsaquo; ' + escapeHtml(r.heading);
+        var snippet = getSnippet(r.body || '', query, 80);
+        return '<a class="search-result-item" href="' + r.url + '" role="option" data-index="' + i + '">' +
+          '<div class="search-result-title">' + titleText + '</div>' +
+          (snippet ? '<div class="search-result-snippet">' + snippet + '</div>' : '') +
+          '</a>';
+      }).join('');
       resultsContainer.style.display = 'block';
     }
 

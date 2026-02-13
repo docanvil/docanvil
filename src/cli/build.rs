@@ -136,15 +136,8 @@ fn build_site(
         )?;
 
         if let Some(ref mut entries) = search_entries {
-            let body_text = search::strip_html_tags(&html_body);
-            let headings = search::extract_headings(&html_body);
-            entries.push(search::SearchIndexEntry {
-                id: slug.clone(),
-                title: page.title.clone(),
-                url: format!("{}{}", base_url, page.output_path.display()),
-                body: body_text,
-                headings,
-            });
+            let mut sections = search::extract_sections(&html_body, slug, &page.title, &base_url);
+            entries.append(&mut sections);
         }
 
         let nav_html = project::render_nav(&nav_tree, slug, &base_url);

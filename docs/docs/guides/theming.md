@@ -126,6 +126,7 @@ For complete control over the HTML structure, override the default Tera template
 | Block | Purpose |
 |-------|---------|
 | `head` | Extra `<head>` content (fonts, meta tags, analytics) |
+| `header` | Top header bar with project name and search |
 | `sidebar` | The navigation sidebar |
 | `content` | Main page content area |
 | `footer` | Footer below content |

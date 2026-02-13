@@ -1,5 +1,6 @@
 pub mod attributes;
 pub mod directives;
+pub mod headings;
 pub mod images;
 pub mod markdown;
 pub mod popovers;
@@ -14,7 +15,7 @@ use crate::project::PageInventory;
 
 use self::syntax::SyntaxHighlighter;
 
-/// Full pipeline: directives → popovers → markdown → syntax highlight → wiki-links → attributes.
+/// Full pipeline: directives → popovers → markdown → syntax highlight → wiki-links → attributes → heading IDs.
 pub fn process(
     source: &str,
     inventory: &PageInventory,
@@ -45,7 +46,10 @@ pub fn process(
     // 6. Post-comrak: inject inline attributes ({.class})
     let html = attributes::inject_attributes(&html);
 
-    // 7. Rewrite relative image paths with base_url
+    // 7. Auto-generate heading IDs (after attributes so manual {#id} wins)
+    let html = headings::inject_heading_ids(&html);
+
+    // 8. Rewrite relative image paths with base_url
     let html = images::rewrite_image_paths(&html, base_url, project_root);
 
     Ok(html)

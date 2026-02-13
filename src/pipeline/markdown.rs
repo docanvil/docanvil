@@ -8,7 +8,7 @@ pub fn comrak_options() -> Options<'static> {
     options.extension.tasklist = true;
     options.extension.footnotes = true;
     options.extension.front_matter_delimiter = Some("---".to_string());
-    options.render.unsafe_ = true;
+    options.render.r#unsafe = true;
     options
 }
 

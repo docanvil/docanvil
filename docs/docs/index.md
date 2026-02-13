@@ -9,7 +9,7 @@ A static documentation generator that turns Markdown into beautiful HTML sites.
 cargo install --path .
 
 # Create a new docs project
-docanvil init my-docs
+docanvil new my-docs
 
 # Start the dev server with live reload
 cd my-docs

@@ -2,6 +2,16 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.1.6] - 2026-02-13
+
+### Added
+
+- Add `--strict` build flag to emit non-zero exit code for use in CI/CD
+
+### Changed
+
+- Moved the `init` command to `new` and updated the docs.
+
 ## [0.1.5] - 2026-02-13
 
 ### Added

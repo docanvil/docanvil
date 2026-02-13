@@ -13,6 +13,8 @@ pub struct Config {
     pub build: BuildConfig,
     pub theme: ThemeConfig,
     pub syntax: SyntaxConfig,
+    pub charts: ChartsConfig,
+    pub search: SearchConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -53,6 +55,34 @@ impl Default for SyntaxConfig {
             enabled: true,
             theme: String::from("base16-ocean.dark"),
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct ChartsConfig {
+    pub enabled: bool,
+    pub mermaid_version: String,
+}
+
+impl Default for ChartsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            mermaid_version: String::from("11"),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct SearchConfig {
+    pub enabled: bool,
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self { enabled: true }
     }
 }
 

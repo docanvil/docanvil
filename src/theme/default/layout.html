@@ -29,6 +29,12 @@
     <div class="nav-filter-wrapper">
       <input type="text" class="nav-filter" placeholder="Filter pages..." aria-label="Filter navigation">
     </div>
+    {% if search_enabled %}
+    <div class="search-wrapper">
+      <input type="text" class="search-input" placeholder="Search docs..." aria-label="Search documentation">
+      <div class="search-results" role="listbox"></div>
+    </div>
+    {% endif %}
     {{ nav_html | safe }}
   </nav>
   {% endblock %}
@@ -124,6 +130,111 @@
   });
   </script>
   {% endblock %}
+
+  {% if search_enabled %}
+  <script>
+  (function() {
+    const input = document.querySelector('.search-input');
+    const resultsContainer = document.querySelector('.search-results');
+    if (!input || !resultsContainer) return;
+
+    let miniSearch = null;
+    let loaded = false;
+
+    function loadSearch() {
+      if (loaded) return;
+      loaded = true;
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/minisearch@7/dist/umd/index.min.js';
+      script.onload = function() {
+        fetch('{{ base_url }}search-index.json')
+          .then(r => r.json())
+          .then(data => {
+            miniSearch = new MiniSearch({
+              fields: ['title', 'headings', 'body'],
+              storeFields: ['title', 'url'],
+              searchOptions: {
+                boost: { title: 3, headings: 2 },
+                prefix: true,
+                fuzzy: 0.2
+              }
+            });
+            miniSearch.addAll(data);
+            doSearch(input.value);
+          });
+      };
+      document.head.appendChild(script);
+    }
+
+    let selectedIndex = -1;
+
+    function doSearch(query) {
+      selectedIndex = -1;
+      if (!miniSearch || !query.trim()) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        return;
+      }
+      const results = miniSearch.search(query).slice(0, 8);
+      if (results.length === 0) {
+        resultsContainer.innerHTML = '<div class="search-no-results">No results found</div>';
+        resultsContainer.style.display = 'block';
+        return;
+      }
+      resultsContainer.innerHTML = results.map((r, i) =>
+        '<a class="search-result-item" href="' + r.url + '" role="option" data-index="' + i + '">' +
+        r.title + '</a>'
+      ).join('');
+      resultsContainer.style.display = 'block';
+    }
+
+    function updateSelection() {
+      const items = resultsContainer.querySelectorAll('.search-result-item');
+      items.forEach((item, i) => {
+        item.classList.toggle('selected', i === selectedIndex);
+      });
+    }
+
+    input.addEventListener('focus', loadSearch);
+    input.addEventListener('input', () => doSearch(input.value));
+
+    input.addEventListener('keydown', (e) => {
+      const items = resultsContainer.querySelectorAll('.search-result-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+        updateSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        updateSelection();
+      } else if (e.key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+        e.preventDefault();
+        items[selectedIndex].click();
+      } else if (e.key === 'Escape') {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        input.blur();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-wrapper')) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+      }
+    });
+  })();
+  </script>
+  {% endif %}
+
+  {% if mermaid_enabled %}
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@{{ mermaid_version }}/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'default' });
+  </script>
+  {% endif %}
 
   {% if live_reload %}
   <script>

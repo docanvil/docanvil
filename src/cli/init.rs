@@ -42,6 +42,13 @@ custom_css = "theme/custom.css"
 # [syntax]
 # enabled = true
 # theme = "base16-ocean.dark"
+
+# [charts]
+# enabled = true
+# mermaid_version = "11"
+
+# [search]
+# enabled = true
 "##
     );
     std::fs::write(project_dir.join("docanvil.toml"), config)?;

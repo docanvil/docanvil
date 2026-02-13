@@ -7,6 +7,7 @@ mod nav;
 mod pipeline;
 mod project;
 mod render;
+mod search;
 mod server;
 mod theme;
 

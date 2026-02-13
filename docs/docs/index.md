@@ -22,7 +22,9 @@ Open [http://localhost:3000](http://localhost:3000) in your browser and start wr
 
 - **Markdown with GFM** — tables, task lists, strikethrough, footnotes, and front matter via comrak
 - **Wiki-links** — connect pages with double-bracket links
-- **Components** — notes, warnings, tabs, and code groups using `:::directive` blocks
+- **Components** — notes, warnings, tabs, code groups, and mermaid diagrams using `:::directive` blocks
+- **Full-text search** — client-side search powered by MiniSearch.js with a build-time JSON index
+- **Mermaid diagrams** — flowcharts, sequence diagrams, and more via `:::mermaid` blocks
 - **Theming** — CSS variables, custom stylesheets, and full template overrides with Tera
 - **Live reload** — edit a file and your browser refreshes automatically
 - **Static output** — build to plain HTML and deploy anywhere

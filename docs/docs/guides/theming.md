@@ -143,9 +143,12 @@ For complete control over the HTML structure, override the default Tera template
 | `nav_html` | String | Rendered navigation HTML (use with `safe` filter) |
 | `content` | String | Rendered page HTML (use with `safe` filter) |
 | `live_reload` | Boolean | Whether the dev server is running |
+| `search_enabled` | Boolean | Whether full-text search is enabled |
+| `mermaid_enabled` | Boolean | Whether Mermaid diagram rendering is enabled |
+| `mermaid_version` | String | Mermaid.js major version to load from CDN |
 
 :::note
-The default template includes JavaScript for tab switching, sidebar collapse/expand, navigation filtering, and popover positioning. If you override the `scripts` block, you'll need to re-implement any of these features you want to keep.
+The default template includes JavaScript for tab switching, sidebar collapse/expand, navigation filtering, popover positioning, search, and Mermaid diagram rendering. If you override the `scripts` block, you'll need to re-implement any of these features you want to keep.
 :::
 
 ## Related Pages

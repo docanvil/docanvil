@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::config::Config;
+use crate::diagnostics::warn_custom_css_not_found;
 
 #[derive(Embed)]
 #[folder = "src/theme/default/"]
@@ -50,7 +51,7 @@ impl Theme {
                         let content = std::fs::read_to_string(&full_path).ok();
                         (Some(css_path), content)
                     } else {
-                        eprintln!("warning: custom_css file not found: {}", css_path);
+                        warn_custom_css_not_found(&css_path);
                         (None, None)
                     }
                 }

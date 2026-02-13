@@ -35,7 +35,7 @@ cargo install docanvil
 ### Initialise a new project
 
 ```bash
-docanvil init 
+docanvil new 
 ```
 
 ### Serve the current project (with hot reloading)

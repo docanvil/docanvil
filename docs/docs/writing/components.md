@@ -66,6 +66,20 @@ Your warning content here.
 :::
 ```
 
+## Lozenge
+
+Display a quick visual status with a lozenge.
+
+Syntax is as follow: `:::lozenge{type="default",text="Default"}`
+
+| Syntax | Result |
+|--------|--------|
+| :::lozenge{type="default",text="Default"} | Default |
+| :::lozenge{type="warning",text="Warning"} | Warning |
+| :::lozenge{type="in-progress",text="In Progress"} | In Progress |
+| :::lozenge{type="error",text="Error"} | Error |
+| :::lozenge{type="success",text="Success"} | Success |
+
 ## Tabs
 
 Group content into switchable tabs. Each tab is defined with a nested `:::tab` directive. The outer `::::tabs` uses four colons so the inner `:::tab` closings (three colons) don't end the container prematurely:

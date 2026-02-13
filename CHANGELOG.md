@@ -2,6 +2,14 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.1.5] - 2026-02-13
+
+### Added
+
+- Automatic `robots.txt` and `sitemap.xml` generation during `docanvil build`
+- Optional `site_url` setting in `[build]` config for absolute sitemap URLs
+- Warning when `site_url` is not configured (sitemap falls back to relative URLs)
+
 ## [0.1.4] - 2026-02-13
 
 ### Added

@@ -21,6 +21,14 @@ pub fn warn_nav_missing_page(slug: &str) {
     );
 }
 
+/// Emit a warning that site_url is not configured (sitemap will use relative URLs).
+pub fn warn_no_site_url() {
+    eprintln!(
+        "{}: site_url not set in [build] — sitemap.xml will use relative URLs",
+        "warning".yellow().bold()
+    );
+}
+
 /// Emit a warning about an unclosed directive.
 pub fn warn_unclosed_directive(source_file: &Path, directive_name: &str, line_number: usize) {
     eprintln!(

@@ -1,6 +1,6 @@
 # CLI Commands
 
-DocAnvil provides three subcommands: `init`, `serve`, and `build`.
+DocAnvil provides three subcommands: `new`, `serve`, and `build`.
 
 ## Global Flags
 
@@ -9,12 +9,12 @@ DocAnvil provides three subcommands: `init`, `serve`, and `build`.
 | `--verbose` | Enable verbose output |
 | `--quiet` | Suppress non-error output |
 
-## `docanvil init`
+## `docanvil new`
 
 Scaffold a new documentation project.
 
 ```bash
-docanvil init <name>
+docanvil new <name>
 ```
 
 | Argument | Required | Description |
@@ -31,12 +31,12 @@ Creates a project directory with:
 :::code-group
 ```bash
 # Create a docs project
-docanvil init my-docs
+docanvil new my-docs
 ```
 
 ```bash
 # Create and immediately start serving
-docanvil init my-docs && cd my-docs && docanvil serve
+docanvil new my-docs && cd my-docs && docanvil serve
 ```
 :::
 

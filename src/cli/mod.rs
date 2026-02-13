@@ -1,5 +1,5 @@
 pub mod build;
-pub mod init;
+pub mod new;
 pub mod serve;
 
 use clap::{Parser, Subcommand};
@@ -27,7 +27,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Scaffold a new documentation project
-    Init {
+    New {
         /// Project name / directory
         name: String,
     },

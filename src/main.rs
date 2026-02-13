@@ -19,7 +19,7 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match &cli.command {
-        Command::Init { name } => cli::init::run(name),
+        Command::New { name } => cli::new::run(name),
         Command::Serve { host, port } => cli::serve::run(host, *port),
         Command::Build { out, clean, strict } => cli::build::run(out, *clean, cli.quiet, *strict),
     };

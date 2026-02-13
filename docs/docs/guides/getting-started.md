@@ -29,10 +29,10 @@ docanvil --help
 
 ## Create a Project
 
-Scaffold a new documentation project with `docanvil init`:
+Scaffold a new documentation project with `docanvil new`:
 
 ```bash
-docanvil init my-docs
+docanvil new my-docs
 ```
 
 This creates the following structure:
@@ -103,7 +103,7 @@ docanvil build --strict
 ## Checklist
 
 - [x] Install DocAnvil
-- [x] Run `docanvil init` to scaffold a project
+- [x] Run `docanvil new` to scaffold a project
 - [x] Start the dev server with `docanvil serve`
 - [ ] Write your pages in Markdown
 - [ ] Customize the theme

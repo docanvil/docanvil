@@ -87,17 +87,73 @@ pub fn process_directives(
 }
 
 /// Process inline (self-closing) directives: `:::name{attrs}` patterns that appear
-/// within text, have no body, and need no closing fence. Runs after block directive
-/// processing so only unmatched inline patterns remain.
+/// within text, have no body, and need no closing fence. Skips matches inside fenced
+/// code blocks and inline code spans.
 pub fn process_inline_directives(
     source: &str,
     renderer: &mut dyn FnMut(&DirectiveBlock) -> String,
 ) -> String {
+    let lines: Vec<&str> = source.lines().collect();
     let mut result = String::with_capacity(source.len());
-    let mut last_end = 0;
+    let mut in_fence = false;
+    let mut fence_char = '`';
+    let mut fence_len = 0;
 
-    for caps in INLINE_RE.captures_iter(source) {
-        let full_match = caps.get(0).unwrap();
+    for (idx, line) in lines.iter().enumerate() {
+        if idx > 0 {
+            result.push('\n');
+        }
+
+        let trimmed = line.trim();
+
+        if !in_fence {
+            if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+                fence_char = trimmed.chars().next().unwrap();
+                fence_len = trimmed.chars().take_while(|&c| c == fence_char).count();
+                in_fence = true;
+                result.push_str(line);
+                continue;
+            }
+            result.push_str(&replace_inline_in_line(line, renderer));
+        } else {
+            let close_count = trimmed.chars().take_while(|&c| c == fence_char).count();
+            if close_count >= fence_len
+                && trimmed.chars().skip(close_count).all(|c| c.is_whitespace())
+            {
+                in_fence = false;
+            }
+            result.push_str(line);
+        }
+    }
+
+    if source.ends_with('\n') {
+        result.push('\n');
+    }
+
+    result
+}
+
+/// Replace inline directives in a single line, skipping matches inside backtick code spans.
+fn replace_inline_in_line(
+    line: &str,
+    renderer: &mut dyn FnMut(&DirectiveBlock) -> String,
+) -> String {
+    let protected = inline_code_ranges(line);
+    let mut out = String::with_capacity(line.len());
+    let mut last = 0;
+
+    for caps in INLINE_RE.captures_iter(line) {
+        let m = caps.get(0).unwrap();
+
+        if protected
+            .iter()
+            .any(|&(s, e)| m.start() >= s && m.end() <= e)
+        {
+            continue;
+        }
+
+        out.push_str(&line[last..m.start()]);
+
         let name = caps[1].to_string();
         let attr_str = format!("{{{}}}", &caps[2]);
         let attrs = parse_attributes(&attr_str);
@@ -108,14 +164,54 @@ pub fn process_inline_directives(
             body: String::new(),
             depth: 3,
         };
-
-        result.push_str(&source[last_end..full_match.start()]);
-        result.push_str(&renderer(&block));
-        last_end = full_match.end();
+        out.push_str(&renderer(&block));
+        last = m.end();
     }
 
-    result.push_str(&source[last_end..]);
-    result
+    out.push_str(&line[last..]);
+    out
+}
+
+/// Find byte ranges of inline code spans (backtick-delimited) in a line.
+fn inline_code_ranges(line: &str) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        if bytes[i] == b'`' {
+            let start = i;
+            let mut ticks = 0;
+            while i < len && bytes[i] == b'`' {
+                ticks += 1;
+                i += 1;
+            }
+            // Search for matching closing run of exactly `ticks` backticks
+            loop {
+                if i >= len {
+                    break;
+                }
+                if bytes[i] == b'`' {
+                    let mut cticks = 0;
+                    while i < len && bytes[i] == b'`' {
+                        cticks += 1;
+                        i += 1;
+                    }
+                    if cticks == ticks {
+                        ranges.push((start, i));
+                        break;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    ranges
 }
 
 /// Parse `{key="val" key2="val2"}` attribute strings.
@@ -212,6 +308,22 @@ mod tests {
         assert!(output.contains("<span class=\"lozenge success\">Done</span>"));
         assert!(output.starts_with("Status: "));
         assert!(output.ends_with(" end"));
+    }
+
+    #[test]
+    fn inline_directive_skipped_in_fenced_code_block() {
+        let input = "Before\n\n```\n:::lozenge{type=\"success\",text=\"Done\"}\n```\n\nAfter\n";
+        let output = process_inline_directives(input, &mut |_| "RENDERED".to_string());
+        assert!(!output.contains("RENDERED"));
+        assert!(output.contains(":::lozenge"));
+    }
+
+    #[test]
+    fn inline_directive_skipped_in_inline_code() {
+        let input = "Use `:::lozenge{type=\"success\",text=\"Done\"}` for badges";
+        let output = process_inline_directives(input, &mut |_| "RENDERED".to_string());
+        assert!(!output.contains("RENDERED"));
+        assert!(output.contains(":::lozenge"));
     }
 
     #[test]

@@ -14,6 +14,8 @@ pub struct Theme {
     pub default_css: String,
     pub css_overrides: Option<String>,
     pub custom_css_path: Option<String>,
+    /// Custom CSS file content, read at build time for inline injection.
+    pub custom_css: Option<String>,
 }
 
 impl Theme {
@@ -39,22 +41,28 @@ impl Theme {
         // Build CSS variable overrides from config
         let css_overrides = build_css_overrides(&config.theme.variables);
 
-        // Custom CSS path
-        let custom_css_path = config.theme.custom_css.clone().and_then(|css_path| {
-            let full_path = project_root.join(&css_path);
-            if full_path.exists() {
-                Some(css_path)
-            } else {
-                eprintln!("warning: custom_css file not found: {}", css_path);
-                None
-            }
-        });
+        // Custom CSS: resolve path and read content
+        let (custom_css_path, custom_css) =
+            match config.theme.custom_css.clone() {
+                Some(css_path) => {
+                    let full_path = project_root.join(&css_path);
+                    if full_path.exists() {
+                        let content = std::fs::read_to_string(&full_path).ok();
+                        (Some(css_path), content)
+                    } else {
+                        eprintln!("warning: custom_css file not found: {}", css_path);
+                        (None, None)
+                    }
+                }
+                None => (None, None),
+            };
 
         Self {
             layout_template,
             default_css,
             css_overrides,
             custom_css_path,
+            custom_css,
         }
     }
 }

@@ -716,13 +716,26 @@ body {
   display: inline;
   padding: 0.15em 0.5em;
   border-radius: var(--radius-sm);
+  border-width: 0;
   font-size: var(--font-size-sm);
   font-weight: 600;
 }
 
+.lozenge.in-progress{
+  background: lightblue;
+}
+
+
+.lozenge.warning{
+  background: lightyellow;
+}
+
 .lozenge.success{
   background: lightgreen;
-  border-color: green;
+}
+
+.lozenge.error{
+  background: lightcoral;
 }
 
 

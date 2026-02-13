@@ -27,6 +27,7 @@ impl TemplateRenderer {
         context.insert("default_css", &ctx.default_css);
         context.insert("css_overrides", &ctx.css_overrides);
         context.insert("custom_css_path", &ctx.custom_css_path);
+        context.insert("custom_css", &ctx.custom_css);
         context.insert("base_url", &ctx.base_url);
         context.insert("logo_path", &ctx.logo_path);
         context.insert("favicon_path", &ctx.favicon_path);
@@ -50,6 +51,7 @@ pub struct PageContext {
     pub default_css: String,
     pub css_overrides: Option<String>,
     pub custom_css_path: Option<String>,
+    pub custom_css: Option<String>,
     pub base_url: String,
     pub logo_path: Option<String>,
     pub favicon_path: Option<String>,

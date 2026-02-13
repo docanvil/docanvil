@@ -53,7 +53,14 @@ Slugs are derived from the file path relative to the content directory, with the
 
 When a wiki-link target doesn't match any page, it renders as a red highlighted span with an error popover. Here is a deliberate example:
 
-[[nonexistent-page]]
+<p>
+    <span class="broken-link popover-trigger" tabindex="0">nonexistent-page
+        <span class="popover-content popover-error" role="tooltip">
+        <strong>Page not found you</strong><br>
+        The linked page doesn't exist: <code>nonexistent-page</code>
+        </span>
+    </span>
+</p>
 
 The build process also logs a warning for each broken link, so you can find and fix them.
 

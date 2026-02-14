@@ -5,17 +5,7 @@ page = "index"
 separator = "Guides"
 
 [[nav]]
-page = "guides/getting-started"
-label = "Installation"
-
-[[nav]]
-page = "guides/configuration"
-
-[[nav]]
-page = "guides/theming"
-
-[[nav]]
-page = "guides/migration"
+autodiscover = "guides"
 
 [[nav]]
 separator = true
@@ -24,35 +14,14 @@ separator = true
 separator = "Writing Content"
 
 [[nav]]
-page = "writing/markdown"
-
-[[nav]]
-page = "writing/front-matter"
-
-[[nav]]
-page = "writing/wiki-links"
-label = "Links & Popovers"
-
-[[nav]]
-page = "writing/components"
+autodiscover = "writing"
 
 [[nav]]
 separator = "Reference"
 
 [[nav]]
-page = "reference/cli"
-label = "CLI Commands" 
-
-[[nav]]
-page = "reference/project-structure"
-
-[[nav]]
-label = "CSS Variables"
-page = "reference/css-variables"
+autodiscover = "reference"
 
 [[nav]]
 label = "Development"
-group = [
-  { page = "development/roadmap" },
-  { page = "development/readiness", label = "V1.0 Readiness" },
-]
+autodiscover = "development"

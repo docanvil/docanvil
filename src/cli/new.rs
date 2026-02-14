@@ -455,6 +455,22 @@ group = [
     { page = "reference/markdown" },
   ]},
 ]
+
+# Autodiscover — automatically include all pages from a folder.
+# Standalone autodiscover inlines pages at this position:
+# [[nav]]
+# autodiscover = "guides"
+#
+# Wrap autodiscovered pages in a collapsible group:
+# [[nav]]
+# label = "API Reference"
+# autodiscover = "api"
+#
+# Group with clickable header + autodiscovered children:
+# [[nav]]
+# label = "Guides"
+# page = "guides/index"
+# autodiscover = "guides"
 "##;
     std::fs::write(project_dir.join("nav.toml"), nav_toml)?;
 

@@ -8,6 +8,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 - Added `--path` option to `serve` and `build` commands to target a project from any directory
 - Added front matter handling for the addition of SEO oriented meta tags in the outputted pages
+- Added autodiscover option to navigation config so we can autodiscover specific folders
 
 ### Changed
 

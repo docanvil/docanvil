@@ -18,17 +18,15 @@ use crate::seo;
 use crate::theme::Theme;
 
 /// Run the build command from CLI.
-pub fn run(out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
+pub fn run(project_root: &Path, out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
     let start = Instant::now();
-
-    let project_root = Path::new(".");
     let config = Config::load(project_root)?;
 
     // Resolve output directory
     let output_dir = if out != Path::new("dist") {
         out.to_path_buf()
     } else {
-        config.build.output_dir.clone()
+        project_root.join(&config.build.output_dir)
     };
 
     // Clean output directory if requested
@@ -57,10 +55,9 @@ pub fn run(out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
 }
 
 /// Build with live_reload enabled (used by the dev server).
-pub fn run_with_options(out: &Path, live_reload: bool) -> Result<()> {
-    let project_root = Path::new(".");
+pub fn run_with_options(project_root: &Path, out: &Path, live_reload: bool) -> Result<()> {
     let config = Config::load(project_root)?;
-    let output_dir = config.build.output_dir.clone();
+    let output_dir = project_root.join(&config.build.output_dir);
     let _ = out; // Use config output dir for serve mode
 
     let count = build_site(project_root, &config, &output_dir, live_reload)?;

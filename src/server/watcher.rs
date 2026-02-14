@@ -5,7 +5,7 @@ use notify_debouncer_mini::{DebouncedEventKind, new_debouncer};
 use tokio::sync::broadcast;
 
 /// Watch for file changes and trigger rebuilds.
-pub fn watch(tx: broadcast::Sender<()>, output_dir: &Path) -> crate::error::Result<()> {
+pub fn watch(tx: broadcast::Sender<()>, output_dir: &Path, project_root: &Path) -> crate::error::Result<()> {
     let (notify_tx, notify_rx) = std::sync::mpsc::channel();
 
     let mut debouncer = new_debouncer(Duration::from_millis(200), notify_tx)
@@ -14,14 +14,14 @@ pub fn watch(tx: broadcast::Sender<()>, output_dir: &Path) -> crate::error::Resu
     // Watch the docs/ and theme/ directories
     let watch_dirs = ["docs", "theme", "assets", "docanvil.toml", "nav.toml"];
     for dir in &watch_dirs {
-        let path = Path::new(dir);
+        let path = project_root.join(dir);
         if path.exists() {
             let mode = if path.is_dir() {
                 notify::RecursiveMode::Recursive
             } else {
                 notify::RecursiveMode::NonRecursive
             };
-            let _ = debouncer.watcher().watch(path, mode);
+            let _ = debouncer.watcher().watch(&path, mode);
         }
     }
 
@@ -34,7 +34,7 @@ pub fn watch(tx: broadcast::Sender<()>, output_dir: &Path) -> crate::error::Resu
 
                 if has_changes {
                     eprintln!("Change detected, rebuilding...");
-                    match crate::cli::build::run_with_options(output_dir, true) {
+                    match crate::cli::build::run_with_options(project_root, output_dir, true) {
                         Ok(()) => {
                             let _ = tx.send(());
                         }

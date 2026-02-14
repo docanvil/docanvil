@@ -11,7 +11,7 @@ use tower_http::services::ServeDir;
 use crate::error::Result;
 
 /// Start the dev server with file watching and hot reload.
-pub async fn start(host: &str, port: u16, output_dir: &Path) -> Result<()> {
+pub async fn start(host: &str, port: u16, output_dir: &Path, project_root: &Path) -> Result<()> {
     let (tx, _rx) = broadcast::channel::<()>(16);
 
     let addr: SocketAddr = format!("{host}:{port}")
@@ -20,13 +20,14 @@ pub async fn start(host: &str, port: u16, output_dir: &Path) -> Result<()> {
 
     // Initial build with live_reload enabled
     let out = output_dir.to_path_buf();
-    crate::cli::build::run_with_options(&out, true)?;
+    crate::cli::build::run_with_options(project_root, &out, true)?;
 
     // Start file watcher
     let tx_clone = tx.clone();
     let watch_out = out.clone();
+    let watch_root = project_root.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        if let Err(e) = watcher::watch(tx_clone, &watch_out) {
+        if let Err(e) = watcher::watch(tx_clone, &watch_out, &watch_root) {
             eprintln!("watcher error: {e}");
         }
     });

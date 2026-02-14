@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [0.1.7] - 2026-02-14
 
+### Added
+
+- Added front matter handling for the addition of SEO oriented meta tags in the outputted pages.
+
 ### Changed
 
 - Update the search index building to include breadcrumbs for the full path to results

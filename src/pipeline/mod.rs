@@ -1,5 +1,6 @@
 pub mod attributes;
 pub mod directives;
+pub mod frontmatter;
 pub mod headings;
 pub mod images;
 pub mod markdown;

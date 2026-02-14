@@ -35,6 +35,9 @@ impl TemplateRenderer {
         context.insert("mermaid_enabled", &ctx.mermaid_enabled);
         context.insert("mermaid_version", &ctx.mermaid_version);
         context.insert("search_enabled", &ctx.search_enabled);
+        context.insert("meta_description", &ctx.meta_description);
+        context.insert("meta_author", &ctx.meta_author);
+        context.insert("meta_date", &ctx.meta_date);
 
         self.tera
             .render("layout.html", &context)
@@ -59,4 +62,7 @@ pub struct PageContext {
     pub mermaid_enabled: bool,
     pub mermaid_version: String,
     pub search_enabled: bool,
+    pub meta_description: Option<String>,
+    pub meta_author: Option<String>,
+    pub meta_date: Option<String>,
 }

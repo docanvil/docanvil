@@ -3,7 +3,7 @@ title: CLI Commands
 ---
 # CLI Commands
 
-DocAnvil provides three subcommands: `new`, `serve`, and `build`.
+DocAnvil provides four subcommands: `new`, `doctor`, `serve`, and `build`.
 
 ## Global Flags
 
@@ -41,6 +41,64 @@ docanvil new my-docs
 # Create and immediately start serving
 docanvil new my-docs && cd my-docs && docanvil serve
 ```
+:::
+
+## `docanvil doctor`
+
+Diagnose project configuration and content issues before building.
+
+```bash
+docanvil doctor [--fix] [--strict] [--path <dir>]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--fix` | `false` | Automatically apply safe fixes (create missing dirs, files) |
+| `--strict` | `false` | Exit with code 1 if any warnings or errors are found (for CI) |
+| `--path` | `.` | Path to the project root |
+
+The doctor runs five categories of checks:
+
+1. **Project structure** — config file, content directory, index page
+2. **Configuration** — TOML parsing, file references (logo, favicon), nav.toml validation
+3. **Theme** — custom CSS file existence, layout template Tera syntax
+4. **Content** — broken wiki-links, unclosed directives, front-matter YAML errors, duplicate slugs
+5. **Output** — output directory writability
+
+If no `docanvil.toml` is found, doctor prints a friendly message suggesting `docanvil new` and exits cleanly.
+
+:::code-group
+```bash
+# Check the current project
+docanvil doctor
+```
+
+```bash
+# Check and auto-fix safe issues
+docanvil doctor --fix
+```
+
+```bash
+# Use in CI to fail on any issues
+docanvil doctor --strict
+```
+
+```bash
+# Check a project in another directory
+docanvil doctor --path ../my-docs
+```
+:::
+
+The `--fix` flag applies safe, non-destructive fixes:
+
+| Issue | Fix applied |
+|-------|-------------|
+| Content directory missing | Creates the directory |
+| No `index.md` at content root | Creates a minimal index page |
+| Custom CSS file not found | Creates an empty CSS file at the configured path |
+
+:::note
+Run `docanvil doctor` again after `--fix` to verify all issues are resolved. Some fixes (like creating the content directory) may reveal additional issues on the next run.
 :::
 
 ## `docanvil serve`

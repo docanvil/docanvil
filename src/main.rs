@@ -2,6 +2,7 @@ mod cli;
 mod components;
 mod config;
 mod diagnostics;
+mod doctor;
 mod error;
 mod nav;
 mod pipeline;
@@ -20,6 +21,7 @@ fn main() {
 
     let result = match &cli.command {
         Command::New { name } => cli::new::run(name),
+        Command::Doctor { fix, strict, path } => cli::doctor::run(path, *fix, *strict, cli.quiet),
         Command::Serve { host, port, path } => cli::serve::run(host, *port, path),
         Command::Build { out, clean, strict, path } => cli::build::run(path, out, *clean, cli.quiet, *strict),
     };

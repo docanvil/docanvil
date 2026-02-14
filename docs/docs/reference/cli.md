@@ -1,7 +1,6 @@
 ---
 title: CLI Commands
 ---
-
 # CLI Commands
 
 DocAnvil provides three subcommands: `new`, `serve`, and `build`.

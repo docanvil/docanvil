@@ -26,12 +26,12 @@ pub fn process(
     highlighter: Option<&SyntaxHighlighter>,
     project_root: &Path,
 ) -> Result<String> {
+    // 1. Pre-comrak: process block directives (:::name{attrs} ... :::)
+    let source = directives::process_directives(&source, &mut |block| registry.render_block(block));
+
     // 1b. Pre-comrak: process inline directives (:::name{attrs} with no body)
     let source =
         directives::process_inline_directives(&source, &mut |block| registry.render_block(block));
-
-    // 1. Pre-comrak: process block directives (:::name{attrs} ... :::)
-    let source = directives::process_directives(&source, &mut |block| registry.render_block(block));
 
     // 2. Pre-comrak: convert ^[content] to popover spans
     let source = popovers::process_popovers(&source);

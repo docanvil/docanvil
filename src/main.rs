@@ -20,8 +20,8 @@ fn main() {
 
     let result = match &cli.command {
         Command::New { name } => cli::new::run(name),
-        Command::Serve { host, port } => cli::serve::run(host, *port),
-        Command::Build { out, clean, strict } => cli::build::run(out, *clean, cli.quiet, *strict),
+        Command::Serve { host, port, path } => cli::serve::run(host, *port, path),
+        Command::Build { out, clean, strict, path } => cli::build::run(path, out, *clean, cli.quiet, *strict),
     };
 
     if let Err(e) = result {

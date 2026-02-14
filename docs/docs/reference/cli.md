@@ -45,13 +45,14 @@ docanvil new my-docs && cd my-docs && docanvil serve
 Start a development server with live reload.
 
 ```bash
-docanvil serve [--host <address>] [--port <port>]
+docanvil serve [--host <address>] [--port <port>] [--path <dir>]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--host` | `127.0.0.1` | Address to bind the server to |
 | `--port` | `3000` | Port number |
+| `--path` | `.` | Path to the project root |
 
 The server:
 
@@ -76,6 +77,11 @@ docanvil serve --host 0.0.0.0 --port 8080
 # Verbose output to see rebuild events
 docanvil serve --verbose
 ```
+
+```bash
+# Serve a project from another directory
+docanvil serve --path ../my-docs
+```
 :::
 
 ## `docanvil build`
@@ -83,7 +89,7 @@ docanvil serve --verbose
 Generate the static HTML site for deployment.
 
 ```bash
-docanvil build [--out <path>] [--clean]
+docanvil build [--out <path>] [--clean] [--path <dir>]
 ```
 
 | Option | Default | Description |
@@ -91,6 +97,7 @@ docanvil build [--out <path>] [--clean]
 | `--out` | `dist` | Output directory for the generated site |
 | `--clean` | `false` | Remove the output directory before building |
 | `--strict` | `false` | Emit warnings as errors and exit with non-zero code |
+| `--path` | `.` | Path to the project root |
 
 The build pipeline processes each page through:
 
@@ -112,6 +119,11 @@ docanvil build
 ```bash
 # Clean build to a custom directory
 docanvil build --out public --clean
+```
+
+```bash
+# Build a project from another directory
+docanvil build --path ../my-docs
 ```
 :::
 

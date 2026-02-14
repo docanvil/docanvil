@@ -39,6 +39,9 @@ pub enum Command {
         /// Port to listen on
         #[arg(long, default_value_t = 3000)]
         port: u16,
+        /// Path to the project root
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
     },
     /// Build static HTML site
     Build {
@@ -51,5 +54,8 @@ pub enum Command {
         /// Treat warnings as errors
         #[arg(long)]
         strict: bool,
+        /// Path to the project root
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
     },
 }

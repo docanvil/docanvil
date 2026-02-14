@@ -27,6 +27,9 @@ separator = "Writing Content"
 page = "writing/markdown"
 
 [[nav]]
+page = "writing/front-matter"
+
+[[nav]]
 page = "writing/wiki-links"
 label = "Links & Popovers"
 

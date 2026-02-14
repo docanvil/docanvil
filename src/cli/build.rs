@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
 
@@ -7,6 +8,7 @@ use crate::diagnostics::{reset_warnings, warning_count};
 use crate::error::{Error, Result};
 use crate::nav;
 use crate::pipeline;
+use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInventory};
 use crate::render::assets;
@@ -83,7 +85,27 @@ fn build_site(
     let renderer = TemplateRenderer::new(&theme)?;
 
     // Build page inventory for wiki-link resolution and navigation
-    let inventory = PageInventory::scan(&content_dir)?;
+    let mut inventory = PageInventory::scan(&content_dir)?;
+
+    // Pre-pass: read all sources and extract front matter.
+    // Override page titles from front matter before nav/search are built.
+    let mut sources: HashMap<String, String> = HashMap::new();
+    let mut front_matters: HashMap<String, FrontMatter> = HashMap::new();
+    for slug in &inventory.ordered {
+        let page = &inventory.pages[slug];
+        let source = std::fs::read_to_string(&page.source_path)?;
+        let fm = frontmatter::extract(&source);
+        if let Some(ref title) = fm.title {
+            inventory
+                .pages
+                .get_mut(slug)
+                .unwrap()
+                .title = title.clone();
+        }
+        sources.insert(slug.clone(), source);
+        front_matters.insert(slug.clone(), fm);
+    }
+
     let nav_config = nav::load_nav(project_root)?;
     let nav_tree = match nav_config {
         Some(entries) => {
@@ -132,10 +154,11 @@ fn build_site(
     let mut count = 0;
     for slug in &inventory.ordered {
         let page = &inventory.pages[slug];
-        let source = std::fs::read_to_string(&page.source_path)?;
+        let source = &sources[slug];
+        let fm = &front_matters[slug];
 
         let html_body = pipeline::process(
-            &source,
+            source,
             &inventory,
             &page.source_path,
             &registry,
@@ -177,6 +200,9 @@ fn build_site(
             mermaid_enabled: config.charts.enabled,
             mermaid_version: config.charts.mermaid_version.clone(),
             search_enabled: config.search.enabled,
+            meta_description: fm.description.clone(),
+            meta_author: fm.author.clone(),
+            meta_date: fm.date.clone(),
         };
 
         let html = renderer.render_page(&ctx)?;

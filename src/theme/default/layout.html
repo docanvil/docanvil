@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
   <title>{{ page_title }} — {{ project_name }}</title>
+  {% if meta_description %}
+  <meta name="description" content="{{ meta_description }}">
+  <meta property="og:description" content="{{ meta_description }}">
+  {% endif %}
+  {% if meta_author %}
+  <meta name="author" content="{{ meta_author }}">
+  {% endif %}
+  {% if meta_date %}
+  <meta property="article:published_time" content="{{ meta_date }}">
+  {% endif %}
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:type" content="article">
   <style>{{ default_css | safe }}</style>
   {% if css_overrides %}
   <style>:root { {{ css_overrides }} }</style>

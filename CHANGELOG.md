@@ -2,6 +2,12 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.1.7] - 2026-02-14
+
+### Changed
+
+- Update the search index building to include breadcrumbs for the full path to results
+
 ## [0.1.6] - 2026-02-13
 
 ### Added
@@ -10,7 +16,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Changed
 
-- Moved the `init` command to `new` and updated the docs.
+- Moved the `init` command to `new` and updated the docs
 - Updated the project to 2024 edition of rust
 
 ## [0.1.5] - 2026-02-13

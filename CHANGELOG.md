@@ -2,6 +2,17 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.1.8] - 2026-02-14
+
+### Added
+
+- Added `docanvil doctor` command to diagnose project configuration and content issues
+  - Checks project structure, config validity, theme files, content health, and output writability
+  - Detects broken wiki-links, unclosed directives, front-matter parse errors, and duplicate slugs
+  - `--fix` flag to automatically create missing directories, index pages, and CSS files
+  - `--strict` flag for CI use (exits with code 1 on any warnings or errors)
+  - `--path` flag to target a project from any directory
+
 ## [0.1.7] - 2026-02-14
 
 ### Added

@@ -1,4 +1,5 @@
 pub mod build;
+pub mod doctor;
 pub mod new;
 pub mod serve;
 
@@ -39,6 +40,18 @@ pub enum Command {
         /// Port to listen on
         #[arg(long, default_value_t = 3000)]
         port: u16,
+        /// Path to the project root
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
+    /// Diagnose project configuration and content issues
+    Doctor {
+        /// Automatically apply safe fixes
+        #[arg(long)]
+        fix: bool,
+        /// Exit with code 1 if any warnings or errors are found (for CI)
+        #[arg(long)]
+        strict: bool,
         /// Path to the project root
         #[arg(long, default_value = ".")]
         path: PathBuf,

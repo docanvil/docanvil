@@ -335,18 +335,21 @@ page = "guide"
                 label: Some("My Guide".to_string()),
                 separator: None,
                 group: None,
+                autodiscover: None,
             },
             NavEntry {
                 page: None,
                 label: None,
                 separator: Some(SeparatorValue::Labeled("Section".to_string())),
                 group: None,
+                autodiscover: None,
             },
             NavEntry {
                 page: Some("index".to_string()),
                 label: None,
                 separator: None,
                 group: None,
+                autodiscover: None,
             },
         ];
 

@@ -78,9 +78,9 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 ## 🔍 Search & SEO
 
-- Search index is generated reliably :::lozenge{type="default",text="Not started"}
-- Search results are accurate and performant :::lozenge{type="default",text="Not started"}
-- SEO metadata is present and correct :::lozenge{type="default",text="Not started"}
+- Search index is generated reliably :::lozenge{type="success",text="Done"}
+- Search results are accurate and performant :::lozenge{type="success",text="Done"}
+- SEO metadata is present and correct :::lozenge{type="success",text="Done"}
 - `sitemap.xml` is generated correctly :::lozenge{type="success",text="Done"}
 - `robots.txt` is generated correctly :::lozenge{type="success",text="Done"}
 
@@ -91,7 +91,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 - DocAnvil documentation is built using DocAnvil itself :::lozenge{type="in-progress",text="In progress"}
 - Installation instructions are clear and current :::lozenge{type="in-progress",text="In progress"}
 - A minimal “Getting Started” guide exists :::lozenge{type="in-progress",text="In progress"}
-- Configuration reference documentation is complete :::lozenge{type="default",text="Not started"}
+- Configuration reference documentation is complete :::lozenge{type="in-progress",text="In progress"}
 - Common workflows are documented :::lozenge{type="default",text="Not started"}
 - Known limitations are documented :::lozenge{type="default",text="Not started"}
 - Migration expectations are documented (even if empty) :::lozenge{type="in-progress",text="In progress"}
@@ -121,7 +121,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 ## 🧭 Project & Maintenance Signals
 
 - Versioning policy is documented :::lozenge{type="default",text="Not started"}
-- CHANGELOG exists and is maintained :::lozenge{type="default",text="Not started"}
+- CHANGELOG exists and is maintained :::lozenge{type="success",text="Done"}
 - CONTRIBUTING guidelines exist :::lozenge{type="default",text="Not started"}
 - Issue or discussion templates exist (recommended) :::lozenge{type="default",text="Not started"}
 - Support expectations for the 1.x series are stated :::lozenge{type="default",text="Not started"}
@@ -143,3 +143,5 @@ Before tagging **v1.0.0**, the following should all be true:
 
 Version 1.0 represents a commitment to stability, not feature completeness.  
 New features will continue to land in 1.x as long as they are additive and opt-in.
+
+[[Broken]]

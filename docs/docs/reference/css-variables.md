@@ -1,7 +1,6 @@
 ---
 title: CSS Variables
 ---
-
 # CSS Variables
 
 DocAnvil's default theme is built entirely on CSS custom properties (variables). Override any of them to customize the look of your site without writing complex CSS.

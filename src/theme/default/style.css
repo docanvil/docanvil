@@ -331,6 +331,10 @@ body {
   color: var(--color-text-muted);
 }
 
+.search-result-separator {
+  margin: 0 0.15em;
+}
+
 .search-result-item:hover .search-result-title,
 .search-result-item.selected .search-result-title {
   color: var(--color-primary);

@@ -177,6 +177,42 @@ pub(crate) fn title_from_slug(slug: &str) -> String {
         .join(" ")
 }
 
+/// Build a map from page slug to its full breadcrumb trail (ancestor group labels + page label).
+pub fn build_breadcrumb_map(nodes: &[NavNode]) -> HashMap<String, Vec<String>> {
+    let mut map = HashMap::new();
+    collect_breadcrumbs(nodes, &[], &mut map);
+    map
+}
+
+fn collect_breadcrumbs(
+    nodes: &[NavNode],
+    ancestors: &[String],
+    map: &mut HashMap<String, Vec<String>>,
+) {
+    for node in nodes {
+        match node {
+            NavNode::Page { label, slug } => {
+                let mut trail = ancestors.to_vec();
+                trail.push(label.clone());
+                map.insert(slug.clone(), trail);
+            }
+            NavNode::Group {
+                label,
+                slug,
+                children,
+            } => {
+                let mut trail = ancestors.to_vec();
+                trail.push(label.clone());
+                if let Some(s) = slug {
+                    map.insert(s.clone(), trail.clone());
+                }
+                collect_breadcrumbs(children, &trail, map);
+            }
+            NavNode::Separator { .. } => {}
+        }
+    }
+}
+
 /// Check if a nav section contains the active page.
 fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
     match node {
@@ -372,5 +408,78 @@ mod tests {
         let html_active = render_nav(&tree, "guides/setup", "/");
         assert!(html_active.contains("nav-group open"));
         assert!(html_active.contains("aria-expanded=\"true\""));
+    }
+
+    #[test]
+    fn breadcrumb_map_flat_pages() {
+        let nodes = vec![
+            NavNode::Page {
+                label: "Home".into(),
+                slug: "index".into(),
+            },
+            NavNode::Page {
+                label: "About".into(),
+                slug: "about".into(),
+            },
+        ];
+        let map = build_breadcrumb_map(&nodes);
+        assert_eq!(map.get("index").unwrap(), &vec!["Home"]);
+        assert_eq!(map.get("about").unwrap(), &vec!["About"]);
+    }
+
+    #[test]
+    fn breadcrumb_map_nested_groups() {
+        let nodes = vec![NavNode::Group {
+            label: "Guides".into(),
+            slug: None,
+            children: vec![NavNode::Group {
+                label: "Advanced".into(),
+                slug: None,
+                children: vec![NavNode::Page {
+                    label: "Setup".into(),
+                    slug: "guides/advanced/setup".into(),
+                }],
+            }],
+        }];
+        let map = build_breadcrumb_map(&nodes);
+        assert_eq!(
+            map.get("guides/advanced/setup").unwrap(),
+            &vec!["Guides", "Advanced", "Setup"]
+        );
+    }
+
+    #[test]
+    fn breadcrumb_map_group_with_header_page() {
+        let nodes = vec![NavNode::Group {
+            label: "Guides".into(),
+            slug: Some("guides/index".into()),
+            children: vec![NavNode::Page {
+                label: "Setup".into(),
+                slug: "guides/setup".into(),
+            }],
+        }];
+        let map = build_breadcrumb_map(&nodes);
+        assert_eq!(map.get("guides/index").unwrap(), &vec!["Guides"]);
+        assert_eq!(
+            map.get("guides/setup").unwrap(),
+            &vec!["Guides", "Setup"]
+        );
+    }
+
+    #[test]
+    fn breadcrumb_map_ignores_separators() {
+        let nodes = vec![
+            NavNode::Separator {
+                label: Some("Section".into()),
+            },
+            NavNode::Page {
+                label: "Home".into(),
+                slug: "index".into(),
+            },
+            NavNode::Separator { label: None },
+        ];
+        let map = build_breadcrumb_map(&nodes);
+        assert_eq!(map.len(), 1);
+        assert_eq!(map.get("index").unwrap(), &vec!["Home"]);
     }
 }

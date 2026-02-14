@@ -92,6 +92,7 @@ fn build_site(
         }
         None => inventory.nav_tree(),
     };
+    let breadcrumb_map = project::build_breadcrumb_map(&nav_tree);
     let registry = ComponentRegistry::with_builtins();
 
     // Create syntax highlighter if enabled
@@ -144,7 +145,12 @@ fn build_site(
         )?;
 
         if let Some(ref mut entries) = search_entries {
-            let mut sections = search::extract_sections(&html_body, slug, &page.title, &base_url);
+            let crumbs = breadcrumb_map
+                .get(slug)
+                .cloned()
+                .unwrap_or_else(|| vec![page.title.clone()]);
+            let mut sections =
+                search::extract_sections(&html_body, slug, &page.title, &base_url, crumbs);
             entries.append(&mut sections);
         }
 

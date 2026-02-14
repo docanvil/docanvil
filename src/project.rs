@@ -110,6 +110,34 @@ impl PageInventory {
         })
     }
 
+    /// Build a navigation subtree for pages within a specific folder.
+    ///
+    /// Filters pages whose slugs start with `{folder}/`, strips the folder prefix,
+    /// and builds a subtree using the same logic as `nav_tree`. Optionally excludes
+    /// a specific slug (e.g. when a group's header page should not appear as a child).
+    pub fn nav_tree_for_folder(&self, folder: &str, exclude_slug: Option<&str>) -> Vec<NavNode> {
+        let prefix = format!("{}/", folder.trim_end_matches('/'));
+        let mut root: Vec<NavNode> = Vec::new();
+
+        for slug in &self.ordered {
+            if let Some(excluded) = exclude_slug {
+                if slug == excluded {
+                    continue;
+                }
+            }
+            if let Some(rest) = slug.strip_prefix(&prefix) {
+                if rest.is_empty() {
+                    continue;
+                }
+                let info = &self.pages[slug];
+                let parts: Vec<&str> = rest.split('/').collect();
+                insert_nav_node(&mut root, &parts, info);
+            }
+        }
+
+        root
+    }
+
     /// Build a navigation tree from the page inventory.
     pub fn nav_tree(&self) -> Vec<NavNode> {
         let mut root: Vec<NavNode> = Vec::new();

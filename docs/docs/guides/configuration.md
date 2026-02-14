@@ -173,6 +173,21 @@ group = [
 ]
 </code></pre>
 
+### Autodiscover
+
+You can use the autodiscover option to selectivly autodiscover a folder and add it to the navigation:
+
+<pre><code class="language-toml">&#91;[nav]]
+autodiscover = "api"
+</code></pre>
+
+You can also use autodiscover with a collapsible group:
+
+<pre><code class="language-toml">&#91;[nav]]
+label = "Reference"
+autodiscover = "reference"
+</code></pre>
+
 ### Auto-Discovery Fallback
 
 If `nav.toml` is absent, DocAnvil auto-discovers all `.md` files in the content directory and builds the navigation from the directory structure. Files are sorted alphabetically, and directory names become group labels.

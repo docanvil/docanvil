@@ -1,3 +1,7 @@
+---
+title: Links & Popovers
+---
+
 # Links & Popovers
 
 DocAnvil provides two special inline syntaxes beyond standard Markdown: **wiki-links** for linking between pages and **popovers** for inline tooltips.

@@ -61,6 +61,16 @@ pub fn warn_unclosed_directive(source_file: &Path, directive_name: &str, line_nu
     );
 }
 
+/// Emit a warning that an autodiscover folder has no matching pages.
+pub fn warn_nav_autodiscover_empty(folder: &str) {
+    increment();
+    eprintln!(
+        "{}: nav.toml autodiscover folder '{}' matches no pages",
+        "warning".yellow().bold(),
+        folder
+    );
+}
+
 /// Emit a warning that a custom CSS file was not found.
 pub fn warn_custom_css_not_found(path: &str) {
     increment();

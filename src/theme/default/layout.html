@@ -176,7 +176,7 @@
           .then(function(data) {
             miniSearch = new MiniSearch({
               fields: ['title', 'heading', 'body'],
-              storeFields: ['title', 'heading', 'url', 'body'],
+              storeFields: ['title', 'heading', 'url', 'body', 'breadcrumbs'],
               searchOptions: {
                 boost: { title: 3, heading: 2 },
                 prefix: true,
@@ -217,8 +217,17 @@
         return;
       }
       resultsContainer.innerHTML = results.map(function(r, i) {
-        var titleText = escapeHtml(r.title);
-        if (r.heading) titleText += ' <span class="search-result-breadcrumb">&rsaquo; ' + escapeHtml(r.heading) + '</span>';
+        var trail = r.breadcrumbs && r.breadcrumbs.length ? r.breadcrumbs.slice() : [r.title];
+        if (r.heading) trail.push(r.heading);
+        var titleText = '';
+        for (var t = 0; t < trail.length; t++) {
+          if (t > 0) titleText += '<span class="search-result-separator search-result-breadcrumb">&rsaquo;</span>';
+          if (t < trail.length - 1) {
+            titleText += '<span class="search-result-breadcrumb">' + escapeHtml(trail[t]) + '</span>';
+          } else {
+            titleText += escapeHtml(trail[t]);
+          }
+        }
         var snippet = getSnippet(r.body || '', query, 140);
         return '<a class="search-result-item" href="' + r.url + '" role="option" data-index="' + i + '">' +
           '<div class="search-result-title">' + titleText + '</div>' +

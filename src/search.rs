@@ -10,6 +10,7 @@ pub struct SearchSection {
     pub anchor: String,
     pub url: String,
     pub body: String,
+    pub breadcrumbs: Vec<String>,
 }
 
 /// Remove HTML tags, decode common entities, and collapse whitespace.
@@ -30,7 +31,13 @@ pub fn strip_html_tags(html: &str) -> String {
 
 /// Split HTML into sections based on headings with IDs.
 /// Each heading starts a new section; content before the first heading is the intro.
-pub fn extract_sections(html: &str, slug: &str, title: &str, base_url: &str) -> Vec<SearchSection> {
+pub fn extract_sections(
+    html: &str,
+    slug: &str,
+    title: &str,
+    base_url: &str,
+    breadcrumbs: Vec<String>,
+) -> Vec<SearchSection> {
     // Split on heading tags that have an id attribute
     static HEADING_SPLIT_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r#"<h[1-6][^>]*\bid="([^"]*)"[^>]*>(.*?)</h[1-6]>"#).unwrap());
@@ -61,6 +68,7 @@ pub fn extract_sections(html: &str, slug: &str, title: &str, base_url: &str) -> 
                 anchor: String::new(),
                 url: page_url,
                 body,
+                breadcrumbs,
             });
         }
         return sections;
@@ -77,6 +85,7 @@ pub fn extract_sections(html: &str, slug: &str, title: &str, base_url: &str) -> 
             anchor: String::new(),
             url: page_url.clone(),
             body: intro_body,
+            breadcrumbs: breadcrumbs.clone(),
         });
     }
 
@@ -98,6 +107,7 @@ pub fn extract_sections(html: &str, slug: &str, title: &str, base_url: &str) -> 
             anchor: anchor.clone(),
             url: format!("{}#{}", page_url, anchor),
             body,
+            breadcrumbs: breadcrumbs.clone(),
         });
     }
 
@@ -134,7 +144,7 @@ mod tests {
     #[test]
     fn extract_sections_no_headings() {
         let html = "<p>Just some text</p>";
-        let sections = extract_sections(html, "intro", "Intro Page", "/");
+        let sections = extract_sections(html, "intro", "Intro Page", "/", vec!["Intro Page".into()]);
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].heading, "");
         assert_eq!(sections[0].anchor, "");
@@ -145,7 +155,7 @@ mod tests {
     #[test]
     fn extract_sections_with_headings() {
         let html = r#"<p>Intro text</p><h2 id="install">Installation</h2><p>Install steps</p><h2 id="usage">Usage</h2><p>Usage info</p>"#;
-        let sections = extract_sections(html, "guide", "Guide", "/docs/");
+        let sections = extract_sections(html, "guide", "Guide", "/docs/", vec!["Guide".into()]);
 
         assert_eq!(sections.len(), 3);
 
@@ -170,7 +180,7 @@ mod tests {
     #[test]
     fn extract_sections_heading_with_inner_tags() {
         let html = r#"<h2 id="api">The <code>API</code> Reference</h2><p>Details here</p>"#;
-        let sections = extract_sections(html, "ref", "Reference", "/");
+        let sections = extract_sections(html, "ref", "Reference", "/", vec!["Reference".into()]);
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].heading, "The API Reference");
         assert_eq!(sections[0].anchor, "api");
@@ -179,7 +189,7 @@ mod tests {
     #[test]
     fn extract_sections_no_intro_when_heading_first() {
         let html = r#"<h2 id="first">First</h2><p>Content</p>"#;
-        let sections = extract_sections(html, "page", "Page", "/");
+        let sections = extract_sections(html, "page", "Page", "/", vec!["Page".into()]);
         // No intro section since there's no content before the heading
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].heading, "First");
@@ -194,6 +204,7 @@ mod tests {
             anchor: String::new(),
             url: "/getting-started.html".to_string(),
             body: "Install and run".to_string(),
+            breadcrumbs: vec!["Getting Started".to_string()],
         }];
         let json = build_index(&entries);
         assert!(json.contains("\"id\":\"getting-started\""));

@@ -160,10 +160,26 @@ echo "Updating Cargo.toml..."
 sed -i '' -E "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
 
 ############################################
-# Commit version bump
+# Ensure lockfile is up to date
+############################################
+
+echo "Updating Cargo.lock..."
+cargo check > /dev/null
+
+############################################
+# Stage version changes
 ############################################
 
 git add Cargo.toml
+
+if [ -f Cargo.lock ]; then
+  git add Cargo.lock
+fi
+
+############################################
+# Commit version bump
+############################################
+
 git commit -m "Release v$NEW_VERSION"
 
 ############################################

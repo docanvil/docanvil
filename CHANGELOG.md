@@ -7,6 +7,11 @@ All notable changes to DocAnvil will be documented in this file.
 ### Added
 
 - Copy-to-clipboard button on code blocks — appears on hover, shows checkmark on success
+- Clickable anchor links on headings — hover to reveal, click to copy deep link
+- Mobile navigation toggle — hamburger menu with slide-out sidebar and backdrop overlay
+- Custom 404 page — generated automatically during `docanvil build`
+- On-page table of contents — fixed right sidebar built from h2/h3 headings with scroll-spy highlighting
+- Previous/next page navigation — sequential links at the bottom of each page based on nav order
 - Added `docanvil doctor` command to diagnose project configuration and content issues
   - Checks project structure, config validity, theme files, content health, and output writability
   - Detects broken wiki-links, unclosed directives, front-matter parse errors, and duplicate slugs

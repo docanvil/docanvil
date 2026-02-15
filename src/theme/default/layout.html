@@ -33,6 +33,10 @@
   {% block header %}
   <header class="top-header">
     <div class="top-header-left">
+      <button class="mobile-nav-toggle" aria-label="Toggle navigation" aria-expanded="false">
+        <svg class="mobile-nav-icon-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg class="mobile-nav-icon-close" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
       {% if logo_path %}
       <img class="top-header-logo" src="{{ logo_path }}" alt="{{ project_name }} logo">
       {% endif %}
@@ -59,12 +63,35 @@
     {{ content | safe }}
     {% endblock %}
 
+    {% if prev_page or next_page %}
+    <nav class="prev-next" aria-label="Page navigation">
+      {% if prev_page %}
+      <a class="prev-next-link prev-next-prev" href="{{ prev_page.url }}">
+        <span class="prev-next-label">Previous</span>
+        <span class="prev-next-title">{{ prev_page.title }}</span>
+      </a>
+      {% else %}
+      <span></span>
+      {% endif %}
+      {% if next_page %}
+      <a class="prev-next-link prev-next-next" href="{{ next_page.url }}">
+        <span class="prev-next-label">Next</span>
+        <span class="prev-next-title">{{ next_page.title }}</span>
+      </a>
+      {% endif %}
+    </nav>
+    {% endif %}
+
     {% block footer %}
     <div class="footer">
       Built with <a href="https://github.com/docanvil/docanvil">DocAnvil</a>
     </div>
     {% endblock %}
   </main>
+
+  <aside class="toc">
+    <nav class="toc-nav" aria-label="Table of contents"></nav>
+  </aside>
 
   {% if search_enabled %}
   <div class="search-overlay" aria-modal="true" role="dialog" aria-label="Search documentation">
@@ -101,6 +128,16 @@
       const expanded = group.classList.toggle('open');
       btn.setAttribute('aria-expanded', expanded);
     });
+  });
+
+  // Clickable heading anchor links
+  document.querySelectorAll('.content h1[id], .content h2[id], .content h3[id], .content h4[id], .content h5[id], .content h6[id]').forEach(heading => {
+    const link = document.createElement('a');
+    link.className = 'heading-anchor';
+    link.href = '#' + heading.id;
+    link.setAttribute('aria-label', 'Link to this heading');
+    link.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+    heading.appendChild(link);
   });
 
   // Copy button on code blocks
@@ -158,6 +195,65 @@
     trigger.addEventListener('mouseenter', reposition);
     trigger.addEventListener('focusin', reposition);
   });
+
+  // Mobile navigation toggle
+  (function() {
+    const toggle = document.querySelector('.mobile-nav-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    if (!toggle || !sidebar) return;
+
+    toggle.addEventListener('click', () => {
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      document.body.classList.toggle('nav-open', isOpen);
+      toggle.setAttribute('aria-expanded', isOpen);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (sidebar.classList.contains('mobile-open') &&
+          !sidebar.contains(e.target) &&
+          !toggle.contains(e.target)) {
+        sidebar.classList.remove('mobile-open');
+        document.body.classList.remove('nav-open');
+        toggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+  })();
+
+  // Table of contents
+  (function() {
+    const tocNav = document.querySelector('.toc-nav');
+    if (!tocNav) return;
+    const headings = document.querySelectorAll('.content h2[id], .content h3[id]');
+    if (headings.length < 2) {
+      tocNav.closest('.toc').style.display = 'none';
+      return;
+    }
+
+    const ul = document.createElement('ul');
+    ul.className = 'toc-list';
+    headings.forEach(h => {
+      const li = document.createElement('li');
+      li.className = 'toc-item' + (h.tagName === 'H3' ? ' toc-h3' : '');
+      const a = document.createElement('a');
+      a.href = '#' + h.id;
+      a.textContent = h.textContent.replace(/\s*#$/, '');
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+    tocNav.appendChild(ul);
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocNav.querySelectorAll('.toc-item').forEach(item => item.classList.remove('active'));
+          const active = tocNav.querySelector(`a[href="#${entry.target.id}"]`);
+          if (active) active.parentElement.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-80px 0px -70% 0px' });
+
+    headings.forEach(h => observer.observe(h));
+  })();
   </script>
   {% endblock %}
 

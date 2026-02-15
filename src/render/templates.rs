@@ -1,7 +1,15 @@
+use serde::Serialize;
 use tera::{Context, Tera};
 
 use crate::error::{Error, Result};
 use crate::theme::Theme;
+
+/// A link to a previous or next page.
+#[derive(Debug, Clone, Serialize)]
+pub struct PageLink {
+    pub title: String,
+    pub url: String,
+}
 
 /// Tera-based template renderer.
 pub struct TemplateRenderer {
@@ -38,6 +46,8 @@ impl TemplateRenderer {
         context.insert("meta_description", &ctx.meta_description);
         context.insert("meta_author", &ctx.meta_author);
         context.insert("meta_date", &ctx.meta_date);
+        context.insert("prev_page", &ctx.prev_page);
+        context.insert("next_page", &ctx.next_page);
 
         self.tera
             .render("layout.html", &context)
@@ -65,4 +75,6 @@ pub struct PageContext {
     pub meta_description: Option<String>,
     pub meta_author: Option<String>,
     pub meta_date: Option<String>,
+    pub prev_page: Option<PageLink>,
+    pub next_page: Option<PageLink>,
 }

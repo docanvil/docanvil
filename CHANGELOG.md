@@ -12,6 +12,13 @@ All notable changes to DocAnvil will be documented in this file.
   - Writes a commented `theme/custom.css` and updates `docanvil.toml` automatically
   - `--overwrite` flag to replace existing theme customizations
   - `--path` flag to target a project from any directory
+- Dark mode support with configurable `color_mode` setting
+  - Three modes: `"light"` (default), `"dark"`, and `"both"` (light + dark with toggle)
+  - When `color_mode = "both"`: sun/moon toggle button in the header, OS `prefers-color-scheme` detection, and localStorage persistence across pages
+  - When `color_mode = "dark"`: dark mode always active, no toggle
+  - Separate color palettes for light and dark modes with independently customizable primary/secondary colors
+  - `docanvil theme` generator extended with color mode selection and dual-palette prompts
+  - Flash-prevention script to avoid light-mode flicker on dark-mode pages
 
 ## [0.1.8] - 2026-02-15
 

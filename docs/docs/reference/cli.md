@@ -56,7 +56,13 @@ docanvil theme [--overwrite] [--path <dir>]
 | `--overwrite` | `false` | Replace existing theme customizations |
 | `--path` | `.` | Path to the project root |
 
-The command prompts for two hex colors — a primary accent color and a warning/secondary color — then automatically derives all 14 color-related CSS variables and writes them to a `theme/custom.css` file. It also updates `docanvil.toml` to reference the generated CSS.
+The command walks through an interactive prompt:
+
+1. **Color mode** — choose Light only, Dark only, or Both (light + dark with toggle)
+2. **Primary color** — hex code for the primary accent color (prompted once per mode)
+3. **Secondary color** — hex code for the warning/secondary color (prompted once per mode)
+
+It then derives all color-related CSS variables, writes them to `theme/custom.css`, and updates `docanvil.toml` with both `custom_css` and `color_mode`.
 
 If existing theme customizations are detected (`custom_css` or `[theme.variables]` in config), the command exits with a helpful message unless `--overwrite` is passed.
 
@@ -77,9 +83,19 @@ docanvil theme --overwrite
 ```
 :::
 
-### Derived Variables
+### Color Modes
 
-From the two input colors, the following CSS variables are generated:
+| Mode | Behavior |
+|------|----------|
+| **Light only** | Single light palette in `:root`. No toggle button. |
+| **Dark only** | Single dark palette in `:root` with dark backgrounds/text. No toggle. |
+| **Both** | Light as default `:root`, dark via `[data-theme="dark"]`, OS `prefers-color-scheme` auto-detection, and a sun/moon toggle button in the header. User preference is saved to localStorage. |
+
+When "Both" is selected, you are prompted for separate primary and secondary colors for each mode, allowing independent light and dark palettes.
+
+### Derived Variables (Light)
+
+From the two input colors, the following CSS variables are generated for light mode:
 
 | Variable | Derivation |
 |----------|-----------|
@@ -97,6 +113,33 @@ From the two input colors, the following CSS variables are generated:
 | `--color-focus-ring` | Primary at 40% opacity |
 | `--color-warning-border` | Secondary color as-is |
 | `--color-warning-bg` | Secondary tinted to 95% lightness |
+
+### Derived Variables (Dark)
+
+Dark mode uses inverted derivation logic plus explicit background and text colors:
+
+| Variable | Derivation |
+|----------|-----------|
+| `--color-bg` | Dark background (`#0f172a`) |
+| `--color-bg-secondary` | Slightly lighter dark (`#1e293b`) |
+| `--color-text` | Light text (`#f1f5f9`) |
+| `--color-text-muted` | Mid-light text (`#94a3b8`) |
+| `--color-border` | Dark border (`#334155`) |
+| `--color-code-bg` | Dark code background (`#1e293b`) |
+| `--color-primary` | Primary color as-is |
+| `--color-primary-light` | Primary lightened 10% |
+| `--color-link` | Same as primary |
+| `--color-link-hover` | Primary lightened 10% (lighter on dark bg) |
+| `--color-sidebar-hover` | Primary tinted to 15% lightness |
+| `--color-sidebar-active-bg` | Primary tinted to 15% lightness |
+| `--color-sidebar-active-text` | Primary lightened 10% |
+| `--color-note-bg` | Primary tinted to 15% lightness |
+| `--color-note-border` | Primary lightened 10% |
+| `--color-mark-bg` | Primary at 20% opacity |
+| `--nav-group-toggle-hover` | Primary at 12% opacity |
+| `--color-focus-ring` | Primary at 40% opacity |
+| `--color-warning-border` | Secondary color as-is |
+| `--color-warning-bg` | Secondary tinted to 15% lightness |
 
 :::note
 After generating a theme, run `docanvil serve` to preview the result. You can edit the generated `theme/custom.css` file directly for further tweaks.

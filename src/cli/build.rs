@@ -225,6 +225,7 @@ fn build_site(
             meta_date: fm.date.clone(),
             prev_page,
             next_page,
+            color_mode: config.theme.color_mode.clone(),
         };
 
         let html = renderer.render_page(&ctx)?;
@@ -285,6 +286,7 @@ fn build_site(
             meta_date: None,
             prev_page: None,
             next_page: None,
+            color_mode: config.theme.color_mode.clone(),
         };
         let html = renderer.render_page(&ctx)?;
         std::fs::write(output_dir.join("404.html"), html)?;

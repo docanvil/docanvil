@@ -23,6 +23,7 @@ base_url = "/my-project/"
 
 [theme]
 custom_css = "theme/custom.css"
+color_mode = "both"
 
 [theme.variables]
 color-primary = "#059669"
@@ -62,6 +63,7 @@ The `name` field under `[project]` is required. DocAnvil will fail to load witho
 |-----|---------|-------------|
 | `name` | `None` | Reserved for future theme selection |
 | `custom_css` | `None` | Path to a custom CSS file loaded after the default theme |
+| `color_mode` | `"light"` | Color mode: `"light"`, `"dark"`, or `"both"` (light + dark with toggle) |
 | `variables` | `{}` | CSS variable overrides injected as `:root` properties |
 
 Variables are specified as key-value pairs where the key is the CSS variable name (without `--`) and the value is any valid CSS value:

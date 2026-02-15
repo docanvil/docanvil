@@ -241,6 +241,34 @@ fn collect_breadcrumbs(
     }
 }
 
+/// Flatten the nav tree into an ordered list of (slug, label) pairs for prev/next navigation.
+pub fn flatten_nav_pages(nodes: &[NavNode]) -> Vec<(String, String)> {
+    let mut pages = Vec::new();
+    collect_nav_pages(nodes, &mut pages);
+    pages
+}
+
+fn collect_nav_pages(nodes: &[NavNode], out: &mut Vec<(String, String)>) {
+    for node in nodes {
+        match node {
+            NavNode::Page { label, slug } => {
+                out.push((slug.clone(), label.clone()));
+            }
+            NavNode::Group {
+                label,
+                slug,
+                children,
+            } => {
+                if let Some(s) = slug {
+                    out.push((s.clone(), label.clone()));
+                }
+                collect_nav_pages(children, out);
+            }
+            NavNode::Separator { .. } => {}
+        }
+    }
+}
+
 /// Check if a nav section contains the active page.
 fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
     match node {

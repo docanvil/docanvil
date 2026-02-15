@@ -12,7 +12,7 @@ use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInventory};
 use crate::render::assets;
-use crate::render::templates::{PageContext, TemplateRenderer};
+use crate::render::templates::{PageContext, PageLink, TemplateRenderer};
 use crate::search;
 use crate::seo;
 use crate::theme::Theme;
@@ -142,6 +142,31 @@ fn build_site(
     // Ensure output directory exists
     std::fs::create_dir_all(output_dir)?;
 
+    // Build prev/next page map from nav tree ordering
+    let flat_pages = project::flatten_nav_pages(&nav_tree);
+    let mut prev_next_map: HashMap<String, (Option<PageLink>, Option<PageLink>)> = HashMap::new();
+    for (i, (slug, _label)) in flat_pages.iter().enumerate() {
+        let prev = if i > 0 {
+            let (ref ps, ref pl) = flat_pages[i - 1];
+            Some(PageLink {
+                title: pl.clone(),
+                url: format!("{}{}.html", base_url, ps),
+            })
+        } else {
+            None
+        };
+        let next = if i + 1 < flat_pages.len() {
+            let (ref ns, ref nl) = flat_pages[i + 1];
+            Some(PageLink {
+                title: nl.clone(),
+                url: format!("{}{}.html", base_url, ns),
+            })
+        } else {
+            None
+        };
+        prev_next_map.insert(slug.clone(), (prev, next));
+    }
+
     let mut search_entries = if config.search.enabled {
         Some(Vec::new())
     } else {
@@ -181,6 +206,11 @@ fn build_site(
             std::fs::create_dir_all(parent)?;
         }
 
+        let (prev_page, next_page) = prev_next_map
+            .get(slug)
+            .cloned()
+            .unwrap_or((None, None));
+
         let ctx = PageContext {
             page_title: page.title.clone(),
             project_name: config.project.name.clone(),
@@ -200,6 +230,8 @@ fn build_site(
             meta_description: fm.description.clone(),
             meta_author: fm.author.clone(),
             meta_date: fm.date.clone(),
+            prev_page,
+            next_page,
         };
 
         let html = renderer.render_page(&ctx)?;
@@ -226,6 +258,43 @@ fn build_site(
 
         let sitemap = seo::generate_sitemap_xml(&inventory, &base_url, site_url.as_deref());
         std::fs::write(output_dir.join("sitemap.xml"), sitemap)?;
+    }
+
+    // Generate 404 page
+    {
+        let nav_html = project::render_nav(&nav_tree, "", &base_url);
+        let not_found_content = format!(
+            "<div class=\"not-found\">\
+             <h1>404</h1>\
+             <p>The page you're looking for doesn't exist.</p>\
+             <a href=\"{}\">Back to home</a>\
+             </div>",
+            base_url
+        );
+        let ctx = PageContext {
+            page_title: "Page Not Found".to_string(),
+            project_name: config.project.name.clone(),
+            content: not_found_content,
+            nav_html,
+            default_css: theme.default_css.clone(),
+            css_overrides: theme.css_overrides.clone(),
+            custom_css_path: theme.custom_css_path.clone(),
+            custom_css: theme.custom_css.clone(),
+            base_url: base_url.clone(),
+            logo_path: logo_path.clone(),
+            favicon_path: favicon_path.clone(),
+            live_reload,
+            mermaid_enabled: false,
+            mermaid_version: String::new(),
+            search_enabled: config.search.enabled,
+            meta_description: None,
+            meta_author: None,
+            meta_date: None,
+            prev_page: None,
+            next_page: None,
+        };
+        let html = renderer.render_page(&ctx)?;
+        std::fs::write(output_dir.join("404.html"), html)?;
     }
 
     // Copy static assets

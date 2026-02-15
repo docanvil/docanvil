@@ -154,7 +154,7 @@
   });
 
   // Copy button on code blocks
-  document.querySelectorAll('.content pre').forEach(pre => {
+  document.querySelectorAll('.content pre:not(.mermaid)').forEach(pre => {
     const btn = document.createElement('button');
     btn.className = 'copy-btn';
     btn.setAttribute('aria-label', 'Copy code');

@@ -27,7 +27,7 @@ DocAnvil supports light mode, dark mode, or both with an automatic toggle. Set t
 color_mode = "both"  # "light" (default) | "dark" | "both"
 ```
 
-| Mode | Behavior |
+|  <div style="width:60px">Mode</div>  | Behavior |
 |------|----------|
 | `light` | Light palette only (default, current behavior) |
 | `dark` | Dark palette only — dark backgrounds, light text |

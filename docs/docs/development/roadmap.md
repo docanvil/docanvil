@@ -1,165 +1,236 @@
-# 🛣️ DocAnvil Public Roadmap
+# Roadmap
 
-This roadmap outlines the planned evolution of **DocAnvil**, a Markdown-first static documentation generator.
+This roadmap outlines DocAnvil’s progression from early development (0.x) to a stable 1.0 release and beyond.
 
-DocAnvil is currently in **early development (v0.x)**. The focus is on stabilizing the core experience before committing to long-term compatibility guarantees in **v1.0.0**.
+DocAnvil follows Semantic Versioning.  
+See VERSIONING.md for the full policy.
 
-> ⚠️ This roadmap is directional, not a promise. Priorities may shift based on feedback and real-world usage.
+Current version: 0.1.4
 
+---
 
+# Philosophy
 
-## 📌 Versioning Overview
+0.x → Iterate boldly  
+1.x → Evolve safely  
+2.x → Redesign deliberately  
 
-DocAnvil follows **Semantic Versioning (SemVer)** with the following intent:
+The goal is to reach a stable, production-ready 1.0 foundation before expanding the ecosystem.
 
-### **0.x — Learning & Shaping**
-Rapid iteration while the core model, CLI, and configuration are refined.  
-Breaking changes may occur as the tool matures.
+---
 
-### **1.x — Trustworthy Core**
-A stable, production-ready documentation generator.  
-Upgrades within 1.x should be safe and predictable.
+# Path to 1.0
 
-### **2.x — Scale & Expansion**
-Support for large documentation ecosystems, including versions, languages, and APIs.
+During 0.x:
 
+- Breaking changes are permitted in MINOR releases.
+- Patch releases must not introduce breaking behavior.
+- The focus is stabilising core contracts before committing to long-term guarantees.
 
+---
 
-## 🚧 0.x — Learning & Shaping (Current → Pre-1.0)
+## 0.2.x — Core Engine Stabilisation
 
-**Summary:**  
-> Prove the core model, harden the CLI, and ensure DocAnvil can fully document itself with confidence.
+Goal: Harden and stabilise the document processing pipeline.
 
-### Planned Focus Areas
-- Continued iteration on the core static site generator
-- Improving defaults and error handling
-- Using DocAnvil to fully document DocAnvil itself
+Focus:
 
-### Key Features Targeted Before 1.0
-- **Broken link detection at build time**
-  - Optional `--strict` mode for CI
-- **Automatic SEO outputs**
-  - `sitemap.xml`
-  - `robots.txt`
-  - Page-level meta tags from front-matter
-- **Improved sidebar navigation**
-  - Nested & collapsible sections
-  - Better handling of large documentation trees
-- **Glossary / reference index**
-  - Auto-generated from front-matter or a dedicated glossary file
-- **CLI quality-of-life improvements**
-  - `docanvil doctor` — detect common configuration and content issues
-  - `docanvil new` — scaffold common documentation templates
+- Stable Markdown parsing
+- Stable frontmatter parsing
+- Deterministic build output
+- Consistent error handling
+- Internal pipeline cleanup if required
 
-### Exit Criteria for 1.0.0
-- CLI commands and flags are stable
-- Configuration format is stable and documented
-- Content model (Markdown, components, front-matter) is stable
-- DocAnvil’s own documentation is generated using DocAnvil
-- Reasonable confidence that upgrades within 1.x will not break sites
+Exit criteria:
 
+- Same input + same version = identical output
+- No expected architectural rewrites before 1.0
 
+---
 
-## 🎉 1.0.0 — Trustworthy Core
+## 0.3.x — Diagnostics & Strict Mode
 
-**Summary:**  
-> A stable, predictable documentation generator suitable for production use.
+Goal: Make DocAnvil CI-ready.
 
-### What 1.0.0 Represents
-- Stable CLI and configuration
-- Reliable builds suitable for CI/CD
-- Clear documentation and upgrade expectations
-- No required extensions or plugins
+Focus:
 
+- Strict mode
+- Structured diagnostics
+- Clear warning categories
+- Defined non-zero exit codes
+- Consistent CLI error formatting
 
+Exit criteria:
 
-## 🧩 1.x — Extensibility & Refinement
+- Strict mode usable in CI pipelines
+- Exit codes documented and stable
 
-**Summary:**  
-> Grow DocAnvil’s capabilities without breaking existing sites.
+---
 
-### Planned Enhancements (Minor Releases)
-- **Plugin system**
-  - Markdown transformers
-  - Custom components
-  - Build hooks
-- **Front-matter schema validation**
-  - Early detection of invalid or missing metadata
-- **Component registry pattern**
-  - Official components
-  - Community-contributed extensions
-- **Optional content linting**
-  - Style checks
-  - Spelling checks
-  - Consistency rules
+## 0.4.x — Configuration Stabilisation
 
-### Guiding Rule for 1.x
-- All new functionality must be **additive and opt-in**
-- Existing documentation sites should continue to build without changes
+Goal: Finalise configuration structure before 1.0.
 
+Focus:
 
+- Stabilise docanvil.toml schema
+- Configuration validation
+- Clear configuration error reporting
+- Documentation alignment
 
-## 🌍 2.0.0 — Docs at Scale
+Exit criteria:
 
-**Summary:**  
-> Enable large, long-lived documentation ecosystems.
+- Configuration structure complete and unlikely to change
 
-### Planned Major Features
-- **Multi-version documentation**
-  - Versioned builds (e.g. v1, v2, latest)
-  - Built-in version switcher UI
-- **Internationalization (i18n)**
-  - Multi-language builds
-  - Language switcher
-- **API reference generation**
-  - OpenAPI-first support
-  - Consistent reference layouts
-- **Search improvements**
-  - Version- and language-aware indexing and filtering
+---
 
-### Why This Is a Major Release
-- URL structures may change
-- Configuration and build behavior may evolve
-- Migration guidance will be provided
+## 0.5.x — Output Contract Freeze
 
+Goal: Lock the output structure.
 
+Focus:
 
-## 📦 2.x+ — Distribution & Compliance
+- Output directory layout finalised
+- Asset handling stabilised
+- Template resolution behaviour defined
+- Output contract documented
 
-**Summary:**  
-> Support more output formats and stricter environments.
+Exit criteria:
 
-### Planned Enhancements
-- **PDF export**
-  - Full site or section-based output
-- **Offline documentation bundles**
-  - Self-contained artifacts
-- **Build presets**
-  - Documentation
-  - Handbooks
-  - Specifications
-- **Accessibility checks during build**
-  - Heading structure
-  - Alt text
-  - Basic contrast warnings
+- Output layout will not change in 1.x
 
+---
 
+## 0.6.x — Internal Refactor Window (Optional)
 
-## 🧭 Guiding Principles
+Goal: Final cleanup before stabilisation.
 
-- Markdown-first, static output
-- Minimal core, powerful extensions
-- No built-in CMS or WYSIWYG editor
-- Optimized for developers and technical writers
-- Predictable builds suitable for CI/CD
+Focus:
 
+- Internal API simplification
+- Removal of experimental flags
+- Codebase cleanup
+- Performance baseline improvements
 
+Last safe window for significant internal restructuring.
 
-## 💬 Feedback & Contributions
+---
 
-Feature ideas and feedback are welcome via:
-- GitHub Issues
-- GitHub Discussions
-- Pull Requests
+## 0.7.x — Deprecation Sweep
 
-If a feature fits the guiding principles, we’re happy to explore it.
+Goal: Remove unstable or experimental features.
+
+Focus:
+
+- Remove temporary flags
+- Remove experimental configuration fields
+- Finalise feature surface for 1.0
+
+Breaking changes are still allowed here.
+
+---
+
+## 0.8.x — Hardening Phase
+
+Goal: Stabilisation and polish.
+
+Focus:
+
+- Bug fixes
+- Performance improvements
+- Documentation refinement
+- Edge-case validation
+- Test coverage expansion
+
+No intentional breaking changes.
+
+---
+
+## 0.9.x — Freeze & Release Preparation
+
+Goal: Validate 1.0 readiness.
+
+Focus:
+
+- Strict mode audit
+- Determinism verification
+- Build reproducibility validation
+- Changelog audit
+- Migration notes prepared
+
+0.9.x releases should be treated as release candidates.
+
+---
+
+# 1.0.0 — Stability Guarantee
+
+Starting at 1.0.0, DocAnvil guarantees backward compatibility for:
+
+- CLI flags
+- Configuration structure
+- Document frontmatter schema
+- Output directory structure
+- Exit code semantics
+- Plugin API v1 (if introduced before or at 1.0)
+
+1.0 represents:
+
+A stable foundation suitable for production documentation pipelines.
+
+---
+
+# Post-1.0 Evolution
+
+After 1.0, development shifts to additive improvements only within 1.x.
+
+---
+
+## 1.1.x — Extensibility Foundations
+
+Planned focus:
+
+- WASM plugin system (v1)
+- Additional CLI flags (additive)
+- Additional diagnostics
+- Template enhancements
+
+Must remain fully backward compatible.
+
+---
+
+## 1.2.x+ — Ecosystem Growth
+
+Potential focus areas:
+
+- Expanded plugin hooks
+- Performance optimisations
+- Incremental or partial builds
+- Caching
+- Plugin SDK crate
+- Documentation tooling enhancements
+
+Breaking changes require a MAJOR release.
+
+---
+
+# 2.0 and Beyond
+
+A 2.0 release would only be considered if:
+
+- Configuration redesign is required
+- Plugin API v2 is introduced
+- Output model changes fundamentally
+- Major architectural shifts are necessary
+
+2.0 should be deliberate and clearly justified.
+
+---
+
+# Summary
+
+The strategy is:
+
+1. Stabilise the core.
+2. Lock contracts before 1.0.
+3. Make 1.0 boring and reliable.
+4. Expand safely and additively in 1.x.

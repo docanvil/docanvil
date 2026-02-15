@@ -36,6 +36,9 @@ pub fn process(
     // 2. Pre-comrak: convert ^[content] to popover spans
     let source = popovers::process_popovers(&source);
 
+    // 2b. Pre-comrak: extract custom heading IDs ({#id} on heading lines)
+    let source = headings::extract_custom_heading_ids(&source);
+
     // 3. Render Markdown to HTML
     let html = markdown::render(&source);
 

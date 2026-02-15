@@ -12,6 +12,14 @@ DocAnvil renders Markdown using comrak with GitHub Flavored Markdown (GFM) exten
 
 You can combine them: ***bold and italic***, ~~**bold strikethrough**~~
 
+==Highlighted text== uses double equals: `==highlighted==`
+
+Superscript uses carets: X^2^ is written as `X^2^`
+
+Subscript uses single tildes: H~2~O is written as `H~2~O`
+
+Emoji shortcodes like `:smile:` are converted to their Unicode equivalents: :smile:
+
 ## Headings
 
 ```markdown
@@ -22,6 +30,16 @@ You can combine them: ***bold and italic***, ~~**bold strikethrough**~~
 ```
 
 Heading 1 gets a colored bottom border. Heading 2 gets a subtle separator line. Headings 3 and 4 are unstyled dividers.
+
+### Custom Heading IDs
+
+By default, headings get auto-generated IDs based on their text. You can override this with a custom ID using `{#id}` at the end of the heading line:
+
+```markdown
+### API Reference {#api-ref}
+```
+
+This renders as `<h3 id="api-ref">API Reference</h3>` instead of the auto-generated `api-reference`.
 
 ## Links and Images
 

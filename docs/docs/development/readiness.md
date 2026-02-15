@@ -13,20 +13,20 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 ## 🧱 Core Architecture
 
 - Static site generation pipeline is stable and well-understood :::lozenge{type="success",text="Done"}
-- Build output is deterministic (same input → same output) :::lozenge{type="default",text="Not started"}
-- No experimental features enabled by default :::lozenge{type="default",text="Not started"}
-- Reasonable performance for small and medium documentation sites :::lozenge{type="default",text="Not started"}
-- Clear separation between content, theme/layout, and configuration :::lozenge{type="default",text="Not started"}
+- Build output is deterministic (same input → same output) :::lozenge{type="success",text="Done"}
+- No experimental features enabled by default :::lozenge{type="success",text="Done"}
+- Reasonable performance for small and medium documentation sites :::lozenge{type="success",text="Done"}
+- Clear separation between content, theme/layout, and configuration :::lozenge{type="success",text="Done"}
 
 
 
 ## 🖋️ Content Model Stability
 
-- Markdown syntax support is documented and complete :::lozenge{type="default",text="Not started"}
-- Supported extensions (tables, footnotes, wiki-links, etc.) are frozen for 1.x :::lozenge{type="default",text="Not started"}
-- Custom components API is stable  :::lozenge{type="default",text="Not started"}
+- Markdown syntax support is documented and complete :::lozenge{type="success",text="Done"}
+- Supported extensions (tables, footnotes, wiki-links, etc.) are frozen for 1.x :::lozenge{type="success",text="Done"}
+- Custom components API is stable  :::lozenge{type="success",text="Done"}
 - Component behavior is consistent across themes :::lozenge{type="default",text="Not started"}
-- Front-matter fields and their meanings are documented :::lozenge{type="default",text="Not started"}
+- Front-matter fields and their meanings are documented :::lozenge{type="success",text="Done"}
 - Sensible defaults exist for missing metadata :::lozenge{type="default",text="Not started"}
 
 > **1.0 rule:** No breaking changes to the content model within 1.x.
@@ -37,15 +37,15 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 - Sidebar navigation produces predictable results :::lozenge{type="in-progress",text="In progress"}
 - Nested sections render correctly :::lozenge{type="in-progress",text="In progress"}
-- Deep links to headings are stable :::lozenge{type="default",text="Not started"}
-- Table of contents behavior is consistent :::lozenge{type="default",text="Not started"}
-- Large documentation trees remain usable :::lozenge{type="default",text="Not started"}
+- Deep links to headings are stable :::lozenge{type="in-progress",text="In progress"}
+- Table of contents behavior is consistent :::lozenge{type="in-progress",text="In progress"}
+- Large documentation trees remain usable :::lozenge{type="in-progress",text="In progress"}
 
 
 
 ## 🔗 Linking & Validation
 
-- Internal links are resolved consistently :::lozenge{type="default",text="Not started"}
+- Internal links are resolved consistently :::lozenge{type="in-progress",text="In progress"}
 - Broken links are detected during build :::lozenge{type="success",text="Done"}
 - Link errors are actionable and readable :::lozenge{type="success",text="Done"}
 - `--strict` mode works reliably for CI :::lozenge{type="success",text="Done"}
@@ -54,13 +54,13 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 ## 🧰 CLI & Configuration
 
-- CLI commands are stable and documented :::lozenge{type="default",text="Not started"}
-- Flags and options have clear, consistent naming :::lozenge{type="default",text="Not started"}
-- Exit codes are meaningful and reliable :::lozenge{type="default",text="Not started"}
-- Error messages clearly explain what failed, where, and how to fix it :::lozenge{type="default",text="Not started"}
-- Configuration format is documented and frozen :::lozenge{type="default",text="Not started"}
+- CLI commands are stable and documented :::lozenge{type="in-progress",text="In progress"}
+- Flags and options have clear, consistent naming :::lozenge{type="in-progress",text="In progress"}
+- Exit codes are meaningful and reliable :::lozenge{type="in-progress",text="In progress"}
+- Error messages clearly explain what failed, where, and how to fix it :::lozenge{type="in-progress",text="In progress"}
+- Configuration format is documented and frozen :::lozenge{type="in-progress",text="In progress"}
 - Invalid configuration produces clear, actionable errors :::lozenge{type="default",text="Not started"}
-- `docanvil doctor` detects common misconfigurations :::lozenge{type="default",text="Not started"}
+- `docanvil doctor` detects common misconfigurations :::lozenge{type="success",text="Done"}
 
 > **1.0 rule:** No breaking CLI or configuration changes in 1.x.
 
@@ -68,8 +68,8 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 ## 🎨 Theming & Presentation
 
-- Default theme is usable and accessible :::lozenge{type="default",text="Not started"}
-- Theme customization points are documented :::lozenge{type="default",text="Not started"}
+- Default theme is usable and accessible :::lozenge{type="success",text="Done"}
+- Theme customization points are documented :::lozenge{type="success",text="Done"}
 - Custom CSS does not require undocumented hooks :::lozenge{type="default",text="Not started"}
 - Components degrade gracefully when styles are overridden :::lozenge{type="default",text="Not started"}
 - Output HTML structure is stable enough for user-defined CSS :::lozenge{type="default",text="Not started"}
@@ -110,7 +110,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 ## 📦 Packaging & Distribution
 
-- Package installs cleanly from cargo :::lozenge{type="in-progress",text="In progress"}
+- Package installs cleanly from cargo :::lozenge{type="success",text="Done"}
 - Version numbers are consistent across outputs :::lozenge{type="default",text="Not started"}
 - CLI entrypoints behave consistently across platforms :::lozenge{type="default",text="Not started"}
 - License is clear and included in the repository :::lozenge{type="default",text="Not started"}

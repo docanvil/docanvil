@@ -584,6 +584,46 @@ body {
   word-break: normal;
 }
 
+/* ---- Copy button on code blocks ---- */
+
+.content pre {
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+}
+
+.content pre:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light);
+}
+
+.copy-btn.copied {
+  color: #16a34a;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
 /* ---- Tables ---- */
 
 .content table {

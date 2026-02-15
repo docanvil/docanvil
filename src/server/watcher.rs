@@ -5,7 +5,11 @@ use notify_debouncer_mini::{DebouncedEventKind, new_debouncer};
 use tokio::sync::broadcast;
 
 /// Watch for file changes and trigger rebuilds.
-pub fn watch(tx: broadcast::Sender<()>, output_dir: &Path, project_root: &Path) -> crate::error::Result<()> {
+pub fn watch(
+    tx: broadcast::Sender<()>,
+    output_dir: &Path,
+    project_root: &Path,
+) -> crate::error::Result<()> {
     let (notify_tx, notify_rx) = std::sync::mpsc::channel();
 
     let mut debouncer = new_debouncer(Duration::from_millis(200), notify_tx)

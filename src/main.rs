@@ -22,8 +22,14 @@ fn main() {
     let result = match &cli.command {
         Command::New { name } => cli::new::run(name),
         Command::Doctor { fix, strict, path } => cli::doctor::run(path, *fix, *strict, cli.quiet),
+        Command::Theme { path, overwrite } => cli::theme::run(path, *overwrite),
         Command::Serve { host, port, path } => cli::serve::run(host, *port, path),
-        Command::Build { out, clean, strict, path } => cli::build::run(path, out, *clean, cli.quiet, *strict),
+        Command::Build {
+            out,
+            clean,
+            strict,
+            path,
+        } => cli::build::run(path, out, *clean, cli.quiet, *strict),
     };
 
     if let Err(e) = result {

@@ -2,6 +2,17 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.1.9] - 2026-02-15
+
+### Added
+
+- Interactive `docanvil theme` command to generate a custom color theme
+  - Prompts for primary and warning/secondary colors with hex validation
+  - Derives all 14 color-related CSS variables from the two inputs
+  - Writes a commented `theme/custom.css` and updates `docanvil.toml` automatically
+  - `--overwrite` flag to replace existing theme customizations
+  - `--path` flag to target a project from any directory
+
 ## [0.1.8] - 2026-02-15
 
 ### Added

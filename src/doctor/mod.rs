@@ -53,13 +53,25 @@ impl Summary {
     pub fn print(&self) {
         let mut parts = Vec::new();
         if self.errors > 0 {
-            parts.push(format!("{} error{}", self.errors, if self.errors == 1 { "" } else { "s" }));
+            parts.push(format!(
+                "{} error{}",
+                self.errors,
+                if self.errors == 1 { "" } else { "s" }
+            ));
         }
         if self.warnings > 0 {
-            parts.push(format!("{} warning{}", self.warnings, if self.warnings == 1 { "" } else { "s" }));
+            parts.push(format!(
+                "{} warning{}",
+                self.warnings,
+                if self.warnings == 1 { "" } else { "s" }
+            ));
         }
         if self.infos > 0 {
-            parts.push(format!("{} info{}", self.infos, if self.infos == 1 { "" } else { "s" }));
+            parts.push(format!(
+                "{} info{}",
+                self.infos,
+                if self.infos == 1 { "" } else { "s" }
+            ));
         }
 
         if parts.is_empty() {
@@ -80,7 +92,11 @@ impl Summary {
                 Severity::Error => errors += 1,
             }
         }
-        Self { infos, warnings, errors }
+        Self {
+            infos,
+            warnings,
+            errors,
+        }
     }
 }
 
@@ -92,9 +108,15 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
     let config_path = project_root.join("docanvil.toml");
     if !config_path.exists() {
         eprintln!("{}", "Checking project structure...".bold());
-        eprintln!("  {} No docanvil.toml found. Run `docanvil init <name>` to create a project.",
-            "!".red().bold());
-        let summary = Summary { infos: 0, warnings: 0, errors: 0 };
+        eprintln!(
+            "  {} No docanvil.toml found. Run `docanvil init <name>` to create a project.",
+            "!".red().bold()
+        );
+        let summary = Summary {
+            infos: 0,
+            warnings: 0,
+            errors: 0,
+        };
         return (all, summary);
     }
 
@@ -140,8 +162,14 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
     // D. Content checks
     if let Some(ref inv) = inventory {
         let page_count = inv.pages.len();
-        eprintln!("{}", format!("Checking content ({page_count} page{})...",
-            if page_count == 1 { "" } else { "s" }).bold());
+        eprintln!(
+            "{}",
+            format!(
+                "Checking content ({page_count} page{})...",
+                if page_count == 1 { "" } else { "s" }
+            )
+            .bold()
+        );
         let content_diags = checks::content::check_content(project_root, &config, inv);
         print_check_results(&content_diags);
         all.extend(content_diags);
@@ -168,7 +196,11 @@ fn print_check_results(diagnostics: &[Diagnostic]) {
             Severity::Warning => format!("{}", "⚠".yellow().bold()),
             Severity::Error => format!("{}", "✗".red().bold()),
         };
-        let fixable = if d.fix.is_some() { " (fixable: --fix)" } else { "" };
+        let fixable = if d.fix.is_some() {
+            " (fixable: --fix)"
+        } else {
+            ""
+        };
         let location = match (&d.file, d.line) {
             (Some(f), Some(l)) => format!(" in {}:{}", f.display(), l),
             (Some(f), None) => format!(" in {}", f.display()),
@@ -199,10 +231,18 @@ pub fn apply_fixes(diagnostics: &[Diagnostic]) -> usize {
         match d.fix.as_ref().unwrap() {
             Fix::CreateDir(path) => {
                 if let Err(e) = std::fs::create_dir_all(path) {
-                    eprintln!("  {} Failed to create directory {}: {}",
-                        "✗".red().bold(), path.display(), e);
+                    eprintln!(
+                        "  {} Failed to create directory {}: {}",
+                        "✗".red().bold(),
+                        path.display(),
+                        e
+                    );
                 } else {
-                    eprintln!("  {} Created directory {}", "✓".green().bold(), path.display());
+                    eprintln!(
+                        "  {} Created directory {}",
+                        "✓".green().bold(),
+                        path.display()
+                    );
                     fixed += 1;
                 }
             }
@@ -211,8 +251,12 @@ pub fn apply_fixes(diagnostics: &[Diagnostic]) -> usize {
                     let _ = std::fs::create_dir_all(parent);
                 }
                 if let Err(e) = std::fs::write(path, content) {
-                    eprintln!("  {} Failed to create {}: {}",
-                        "✗".red().bold(), path.display(), e);
+                    eprintln!(
+                        "  {} Failed to create {}: {}",
+                        "✗".red().bold(),
+                        path.display(),
+                        e
+                    );
                 } else {
                     eprintln!("  {} Created {}", "✓".green().bold(), path.display());
                     fixed += 1;

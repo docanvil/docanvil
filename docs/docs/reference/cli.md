@@ -3,7 +3,7 @@ title: CLI Commands
 ---
 # CLI Commands
 
-DocAnvil provides four subcommands: `new`, `doctor`, `serve`, and `build`.
+DocAnvil provides five subcommands: `new`, `theme`, `doctor`, `serve`, and `build`.
 
 ## Global Flags
 
@@ -41,6 +41,65 @@ docanvil new my-docs
 # Create and immediately start serving
 docanvil new my-docs && cd my-docs && docanvil serve
 ```
+:::
+
+## `docanvil theme`
+
+Interactively generate a custom color theme for your project.
+
+```bash
+docanvil theme [--overwrite] [--path <dir>]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--overwrite` | `false` | Replace existing theme customizations |
+| `--path` | `.` | Path to the project root |
+
+The command prompts for two hex colors — a primary accent color and a warning/secondary color — then automatically derives all 14 color-related CSS variables and writes them to a `theme/custom.css` file. It also updates `docanvil.toml` to reference the generated CSS.
+
+If existing theme customizations are detected (`custom_css` or `[theme.variables]` in config), the command exits with a helpful message unless `--overwrite` is passed.
+
+:::code-group
+```bash
+# Generate a theme for the current project
+docanvil theme
+```
+
+```bash
+# Generate a theme for a project in another directory
+docanvil theme --path ../my-docs
+```
+
+```bash
+# Replace an existing theme
+docanvil theme --overwrite
+```
+:::
+
+### Derived Variables
+
+From the two input colors, the following CSS variables are generated:
+
+| Variable | Derivation |
+|----------|-----------|
+| `--color-primary` | Primary color as-is |
+| `--color-primary-light` | Primary lightened 10% |
+| `--color-link` | Same as primary |
+| `--color-link-hover` | Primary darkened 10% |
+| `--color-sidebar-hover` | Primary tinted to 95% lightness |
+| `--color-sidebar-active-bg` | Primary tinted to 95% lightness |
+| `--color-sidebar-active-text` | Primary darkened 10% |
+| `--color-note-bg` | Primary tinted to 95% lightness |
+| `--color-note-border` | Primary lightened 10% |
+| `--color-mark-bg` | Primary at 12% opacity |
+| `--nav-group-toggle-hover` | Primary at 6% opacity |
+| `--color-focus-ring` | Primary at 40% opacity |
+| `--color-warning-border` | Secondary color as-is |
+| `--color-warning-bg` | Secondary tinted to 95% lightness |
+
+:::note
+After generating a theme, run `docanvil serve` to preview the result. You can edit the generated `theme/custom.css` file directly for further tweaks.
 :::
 
 ## `docanvil doctor`

@@ -93,11 +93,7 @@ fn build_site(
         let source = std::fs::read_to_string(&page.source_path)?;
         let fm = frontmatter::extract(&source);
         if let Some(ref title) = fm.title {
-            inventory
-                .pages
-                .get_mut(slug)
-                .unwrap()
-                .title = title.clone();
+            inventory.pages.get_mut(slug).unwrap().title = title.clone();
         }
         sources.insert(slug.clone(), source);
         front_matters.insert(slug.clone(), fm);
@@ -206,10 +202,7 @@ fn build_site(
             std::fs::create_dir_all(parent)?;
         }
 
-        let (prev_page, next_page) = prev_next_map
-            .get(slug)
-            .cloned()
-            .unwrap_or((None, None));
+        let (prev_page, next_page) = prev_next_map.get(slug).cloned().unwrap_or((None, None));
 
         let ctx = PageContext {
             page_title: page.title.clone(),

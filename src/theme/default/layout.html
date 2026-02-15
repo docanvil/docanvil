@@ -478,8 +478,92 @@
   {% if mermaid_enabled %}
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@{{ mermaid_version }}/dist/mermaid.esm.min.mjs';
-    var mermaidTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
-    mermaid.initialize({ startOnLoad: true, theme: mermaidTheme });
+
+    function hexToRgb(hex) {
+      hex = hex.replace('#', '');
+      if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+      var n = parseInt(hex, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+
+    function tintHex(hex, factor) {
+      var c = hexToRgb(hex);
+      var r = Math.round(c.r + (255 - c.r) * factor);
+      var g = Math.round(c.g + (255 - c.g) * factor);
+      var b = Math.round(c.b + (255 - c.b) * factor);
+      return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+    }
+
+    function resolveVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function getMermaidConfig() {
+      var primary     = resolveVar('--color-primary') || '#6366f1';
+      var bg          = resolveVar('--color-bg') || '#ffffff';
+      var text        = resolveVar('--color-text') || '#1e293b';
+      var border      = resolveVar('--color-border') || '#e2e8f0';
+      var bgSecondary = resolveVar('--color-bg-secondary') || '#f8fafc';
+      var textMuted   = resolveVar('--color-text-muted') || '#64748b';
+      var fontFamily  = resolveVar('--font-body') || 'system-ui, sans-serif';
+      var isDark      = document.documentElement.getAttribute('data-theme') === 'dark';
+      var mainBkg     = tintHex(primary, isDark ? 0.82 : 0.88);
+
+      return {
+        startOnLoad: false,
+        theme: 'base',
+        themeVariables: {
+          primaryColor: mainBkg,
+          primaryTextColor: text,
+          primaryBorderColor: primary,
+          lineColor: textMuted,
+          secondaryColor: bgSecondary,
+          secondaryTextColor: text,
+          secondaryBorderColor: border,
+          tertiaryColor: bg,
+          tertiaryTextColor: text,
+          tertiaryBorderColor: border,
+          background: bg,
+          mainBkg: mainBkg,
+          textColor: text,
+          nodeTextColor: text,
+          labelTextColor: text,
+          nodeBorder: primary,
+          clusterBkg: bgSecondary,
+          clusterBorder: border,
+          edgeLabelBackground: bg,
+          fontFamily: fontFamily,
+          fontSize: '14px'
+        }
+      };
+    }
+
+    async function renderMermaid() {
+      mermaid.initialize(getMermaidConfig());
+      // Reset any previously rendered diagrams so mermaid will re-process them
+      document.querySelectorAll('.mermaid[data-processed]').forEach(function(el) {
+        el.removeAttribute('data-processed');
+        el.innerHTML = el.getAttribute('data-original') || el.textContent;
+      });
+      // Store original source before first render
+      document.querySelectorAll('.mermaid:not([data-original])').forEach(function(el) {
+        el.setAttribute('data-original', el.textContent);
+      });
+      await mermaid.run();
+    }
+
+    // Initial render
+    await renderMermaid();
+
+    // Re-render when theme changes
+    new MutationObserver(function(mutations) {
+      for (var m of mutations) {
+        if (m.attributeName === 'data-theme') {
+          renderMermaid();
+          break;
+        }
+      }
+    }).observe(document.documentElement, { attributes: true });
   </script>
   {% endif %}
 

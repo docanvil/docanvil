@@ -18,6 +18,71 @@ This prompts for a primary and secondary color, then generates a complete `theme
 
 See [[reference/cli|CLI Commands]] for the full list of options (`--overwrite`, `--path`).
 
+## Dark Mode
+
+DocAnvil supports light mode, dark mode, or both with an automatic toggle. Set the `color_mode` in your `docanvil.toml`:
+
+```toml
+[theme]
+color_mode = "both"  # "light" (default) | "dark" | "both"
+```
+
+| Mode | Behavior |
+|------|----------|
+| `light` | Light palette only (default, current behavior) |
+| `dark` | Dark palette only — dark backgrounds, light text |
+| `both` | Light as default, with a sun/moon toggle in the header and OS `prefers-color-scheme` auto-detection |
+
+### Using the Theme Generator
+
+The easiest way to set up dark mode is through the theme generator:
+
+```bash
+docanvil theme
+```
+
+Select "Both (light + dark with toggle)" when prompted for color mode. You'll be asked for separate primary and secondary colors for each mode, and the generator will produce a single `theme/custom.css` with light variables in `:root`, dark variables in `[data-theme="dark"]`, and an `@media (prefers-color-scheme: dark)` block for OS auto-detection.
+
+### How the Toggle Works
+
+When `color_mode = "both"`:
+
+- A sun/moon icon button appears in the header
+- On first visit, the OS preference is respected via `prefers-color-scheme`
+- Clicking the toggle switches between light and dark and saves the choice to `localStorage`
+- The choice persists across page navigations and browser sessions
+- A flash-prevention script in `<head>` ensures the page renders in the correct mode immediately
+
+### Manual Dark Mode CSS
+
+If you prefer to write your own dark mode CSS instead of using the generator, structure your `theme/custom.css` like this:
+
+```css
+/* Light mode */
+:root {
+  --color-primary: #6366f1;
+  /* ... other light variables ... */
+}
+
+/* Dark mode — explicit toggle */
+[data-theme="dark"] {
+  --color-bg: #0f172a;
+  --color-text: #f1f5f9;
+  /* ... other dark variables ... */
+}
+
+/* Dark mode — OS preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f172a;
+    --color-text: #f1f5f9;
+    /* ... same dark variables ... */
+  }
+}
+```
+
+The `[data-theme="dark"]` selector handles explicit user choice via the toggle, while the `@media` block handles OS-level preference when no explicit choice has been made.
+
 ## CSS Variables in Config
 
 The simplest way to customize the theme. Add variables under `[theme.variables]` in `docanvil.toml`:
@@ -159,6 +224,7 @@ For complete control over the HTML structure, override the default Tera template
 | `search_enabled` | Boolean | Whether full-text search is enabled |
 | `mermaid_enabled` | Boolean | Whether Mermaid diagram rendering is enabled |
 | `mermaid_version` | String | Mermaid.js major version to load from CDN |
+| `color_mode` | String | Color mode: `"light"`, `"dark"`, or `"both"` |
 
 :::note
 The default template includes JavaScript for tab switching, sidebar collapse/expand, navigation filtering, popover positioning, search, and Mermaid diagram rendering. If you override the `scripts` block, you'll need to re-implement any of these features you want to keep.

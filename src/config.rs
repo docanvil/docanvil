@@ -36,11 +36,22 @@ pub struct BuildConfig {
 
 #[derive(Debug, Deserialize)]
 #[serde(default)]
-#[derive(Default)]
 pub struct ThemeConfig {
     pub name: Option<String>,
     pub custom_css: Option<String>,
+    pub color_mode: String,
     pub variables: HashMap<String, String>,
+}
+
+impl Default for ThemeConfig {
+    fn default() -> Self {
+        Self {
+            name: None,
+            custom_css: None,
+            color_mode: String::from("light"),
+            variables: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

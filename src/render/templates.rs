@@ -48,6 +48,7 @@ impl TemplateRenderer {
         context.insert("meta_date", &ctx.meta_date);
         context.insert("prev_page", &ctx.prev_page);
         context.insert("next_page", &ctx.next_page);
+        context.insert("color_mode", &ctx.color_mode);
 
         self.tera
             .render("layout.html", &context)
@@ -77,4 +78,5 @@ pub struct PageContext {
     pub meta_date: Option<String>,
     pub prev_page: Option<PageLink>,
     pub next_page: Option<PageLink>,
+    pub color_mode: String,
 }

@@ -11,6 +11,7 @@ site_url = "https://docanvil.github.io/docanvil/"
 
 [theme]
 custom_css = "theme/custom.css"
+color_mode = "both"
 # Set CSS variables to customize the theme:
 # [theme.variables]
 # color-primary = "#6366f1"

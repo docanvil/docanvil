@@ -2,10 +2,11 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
-## [0.1.8] - 2026-02-14
+## [0.1.8] - 2026-02-15
 
 ### Added
 
+- Copy-to-clipboard button on code blocks — appears on hover, shows checkmark on success
 - Added `docanvil doctor` command to diagnose project configuration and content issues
   - Checks project structure, config validity, theme files, content health, and output writability
   - Detects broken wiki-links, unclosed directives, front-matter parse errors, and duplicate slugs

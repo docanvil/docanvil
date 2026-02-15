@@ -7,6 +7,11 @@ pub fn comrak_options() -> Options<'static> {
     options.extension.table = true;
     options.extension.tasklist = true;
     options.extension.footnotes = true;
+    options.extension.superscript = true;
+    options.extension.subscript = true;
+    options.extension.highlight = true;
+    options.extension.shortcodes = true;
+    options.extension.description_lists = true;
     options.extension.front_matter_delimiter = Some("---".to_string());
     options.render.r#unsafe = true;
     options
@@ -70,5 +75,40 @@ mod tests {
         let html = render(md);
         assert!(!html.contains("title: Test"));
         assert!(html.contains("Content here"));
+    }
+
+    #[test]
+    fn superscript() {
+        let html = render("X^2^");
+        assert!(html.contains("<sup>2</sup>"));
+    }
+
+    #[test]
+    fn subscript() {
+        let html = render("H~2~O");
+        assert!(html.contains("<sub>2</sub>"));
+    }
+
+    #[test]
+    fn highlight() {
+        let html = render("==highlighted==");
+        assert!(html.contains("<mark>highlighted</mark>"));
+    }
+
+    #[test]
+    fn emoji_shortcodes() {
+        let html = render("Hello :smile:");
+        assert!(!html.contains(":smile:"));
+        // Should be converted to an actual emoji character
+        assert!(html.contains('\u{1F604}') || html.contains("😄"));
+    }
+
+    #[test]
+    fn description_lists() {
+        let md = "Term\n: Definition";
+        let html = render(md);
+        assert!(html.contains("<dl>"));
+        assert!(html.contains("<dt>"));
+        assert!(html.contains("<dd>"));
     }
 }

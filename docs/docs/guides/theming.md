@@ -6,6 +6,18 @@ DocAnvil's appearance is customizable through three layers, each building on the
 2. **Custom CSS file** — full control over any element
 3. **Template overrides** — replace the entire HTML layout with Tera templates
 
+## Quick Start: Theme Generator
+
+The fastest way to customize your site's colors is the interactive theme generator:
+
+```bash
+docanvil theme
+```
+
+This prompts for a primary and secondary color, then generates a complete `theme/custom.css` with all derived color variables and updates your `docanvil.toml` automatically. Run `docanvil serve` afterward to preview the result.
+
+See [[reference/cli|CLI Commands]] for the full list of options (`--overwrite`, `--path`).
+
 ## CSS Variables in Config
 
 The simplest way to customize the theme. Add variables under `[theme.variables]` in `docanvil.toml`:

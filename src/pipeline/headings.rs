@@ -11,9 +11,8 @@ use std::sync::LazyLock;
 /// Into:
 ///   `### My Great Heading\n\n{#custom-id}`
 pub fn extract_custom_heading_ids(source: &str) -> String {
-    static HEADING_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?m)^(#{1,6}\s+.*?)\s+\{#([\w-]+)\}\s*$").unwrap()
-    });
+    static HEADING_ID_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^(#{1,6}\s+.*?)\s+\{#([\w-]+)\}\s*$").unwrap());
 
     HEADING_ID_RE
         .replace_all(source, "$1\n\n{#$2}")

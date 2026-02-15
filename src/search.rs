@@ -144,7 +144,8 @@ mod tests {
     #[test]
     fn extract_sections_no_headings() {
         let html = "<p>Just some text</p>";
-        let sections = extract_sections(html, "intro", "Intro Page", "/", vec!["Intro Page".into()]);
+        let sections =
+            extract_sections(html, "intro", "Intro Page", "/", vec!["Intro Page".into()]);
         assert_eq!(sections.len(), 1);
         assert_eq!(sections[0].heading, "");
         assert_eq!(sections[0].anchor, "");

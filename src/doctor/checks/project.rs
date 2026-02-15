@@ -58,9 +58,7 @@ pub fn check_project(project_root: &Path) -> Vec<Diagnostic> {
     let has_md = walkdir::WalkDir::new(&content_dir)
         .into_iter()
         .filter_map(|e| e.ok())
-        .any(|e| {
-            e.path().extension().is_some_and(|ext| ext == "md") && e.file_type().is_file()
-        });
+        .any(|e| e.path().extension().is_some_and(|ext| ext == "md") && e.file_type().is_file());
 
     if !has_md {
         diags.push(Diagnostic {
@@ -86,8 +84,10 @@ pub fn check_project(project_root: &Path) -> Vec<Diagnostic> {
             line: None,
             fix: Some(Fix::CreateFile {
                 path: index_path,
-                content: format!("---\ntitle: Home\n---\n\n# {}\n\nWelcome to your documentation site.\n",
-                    config.project.name),
+                content: format!(
+                    "---\ntitle: Home\n---\n\n# {}\n\nWelcome to your documentation site.\n",
+                    config.project.name
+                ),
             }),
         });
     }

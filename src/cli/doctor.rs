@@ -15,8 +15,10 @@ pub fn run(project_root: &Path, fix: bool, strict: bool, quiet: bool) -> Result<
         let fixed = doctor::apply_fixes(&diagnostics);
         if !quiet && fixed > 0 {
             eprintln!();
-            eprintln!("Fixed {fixed} issue{}. Run `docanvil doctor` again to verify.",
-                if fixed == 1 { "" } else { "s" });
+            eprintln!(
+                "Fixed {fixed} issue{}. Run `docanvil doctor` again to verify.",
+                if fixed == 1 { "" } else { "s" }
+            );
         }
     }
 

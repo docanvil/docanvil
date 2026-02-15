@@ -516,10 +516,7 @@ mod tests {
         }];
         let map = build_breadcrumb_map(&nodes);
         assert_eq!(map.get("guides/index").unwrap(), &vec!["Guides"]);
-        assert_eq!(
-            map.get("guides/setup").unwrap(),
-            &vec!["Guides", "Setup"]
-        );
+        assert_eq!(map.get("guides/setup").unwrap(), &vec!["Guides", "Setup"]);
     }
 
     #[test]

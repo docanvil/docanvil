@@ -121,10 +121,7 @@ fn check_unclosed_directives(source: &str, source_path: &Path, diags: &mut Vec<D
         }
 
         // Check for closing fence
-        if trimmed.starts_with(":::")
-            && trimmed.chars().all(|c| c == ':')
-            && trimmed.len() >= 3
-        {
+        if trimmed.starts_with(":::") && trimmed.chars().all(|c| c == ':') && trimmed.len() >= 3 {
             let close_colons = trimmed.len();
             // Find matching open directive (same colon count)
             if let Some(pos) = stack.iter().rposition(|(_n, c, _l)| *c == close_colons) {

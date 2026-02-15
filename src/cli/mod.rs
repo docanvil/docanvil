@@ -1,7 +1,9 @@
 pub mod build;
+pub mod color;
 pub mod doctor;
 pub mod new;
 pub mod serve;
+pub mod theme;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -55,6 +57,15 @@ pub enum Command {
         /// Path to the project root
         #[arg(long, default_value = ".")]
         path: PathBuf,
+    },
+    /// Generate a custom color theme interactively
+    Theme {
+        /// Path to the project root
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+        /// Overwrite existing theme customizations
+        #[arg(long)]
+        overwrite: bool,
     },
     /// Build static HTML site
     Build {

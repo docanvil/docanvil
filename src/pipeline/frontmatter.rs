@@ -22,7 +22,9 @@ pub fn extract(source: &str) -> FrontMatter {
 
     // Find the closing delimiter after the opening `---`
     let after_open = &trimmed[3..];
-    let rest = after_open.strip_prefix('\n').or_else(|| after_open.strip_prefix("\r\n"));
+    let rest = after_open
+        .strip_prefix('\n')
+        .or_else(|| after_open.strip_prefix("\r\n"));
     let Some(rest) = rest else {
         return FrontMatter::default();
     };
@@ -44,7 +46,10 @@ mod tests {
         let source = "---\ntitle: Getting Started\ndescription: Learn how to set up DocAnvil\nauthor: Jane Doe\ndate: 2024-01-15\n---\n\n# Hello";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("Getting Started"));
-        assert_eq!(fm.description.as_deref(), Some("Learn how to set up DocAnvil"));
+        assert_eq!(
+            fm.description.as_deref(),
+            Some("Learn how to set up DocAnvil")
+        );
         assert_eq!(fm.author.as_deref(), Some("Jane Doe"));
         assert_eq!(fm.date.as_deref(), Some("2024-01-15"));
     }
@@ -84,7 +89,8 @@ mod tests {
 
     #[test]
     fn unknown_fields_ignored() {
-        let source = "---\ntitle: My Page\ncustom_field: some value\ntags: [a, b, c]\n---\n\nContent";
+        let source =
+            "---\ntitle: My Page\ncustom_field: some value\ntags: [a, b, c]\n---\n\nContent";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("My Page"));
     }

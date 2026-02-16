@@ -331,7 +331,7 @@ fn minify_js_source(source: &str) -> String {
         mangle: Some(oxc::minifier::MangleOptions::default()),
         compress: Some(oxc::minifier::CompressOptions::smallest()),
     };
-    let ret = oxc::minifier::Minifier::new(options).build(&allocator, &mut program);
+    let ret = oxc::minifier::Minifier::new(options).minify(&allocator, &mut program);
     oxc::codegen::Codegen::new()
         .with_options(oxc::codegen::CodegenOptions::minify())
         .with_scoping(ret.scoping)

@@ -1,5 +1,7 @@
 ---
-description: Quick start guide for getting up and running with DocAnvil
+{
+  "description": "Quick start guide for getting up and running with DocAnvil"
+}
 ---
 # Installation
 

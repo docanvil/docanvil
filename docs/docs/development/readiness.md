@@ -1,5 +1,7 @@
 ---
-title: V1.0 Readiness
+{
+  "title": "V1.0 Readiness"
+}
 ---
 # ✅ DocAnvil 1.0 Readiness Checklist
 

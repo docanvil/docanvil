@@ -10,7 +10,7 @@ pub struct FrontMatter {
     pub date: Option<String>,
 }
 
-/// Extract YAML front matter from a Markdown source string.
+/// Extract JSON front matter from a Markdown source string.
 ///
 /// Expects the standard `---` delimiters at the start of the file.
 /// Returns `FrontMatter::default()` if no front matter is found or parsing fails.
@@ -33,8 +33,8 @@ pub fn extract(source: &str) -> FrontMatter {
         return FrontMatter::default();
     };
 
-    let yaml = &rest[..end];
-    serde_yaml::from_str(yaml).unwrap_or_default()
+    let content = &rest[..end];
+    serde_json::from_str(content).unwrap_or_default()
 }
 
 #[cfg(test)]
@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn full_front_matter() {
-        let source = "---\ntitle: Getting Started\ndescription: Learn how to set up DocAnvil\nauthor: Jane Doe\ndate: 2024-01-15\n---\n\n# Hello";
+        let source = "---\n{\"title\": \"Getting Started\", \"description\": \"Learn how to set up DocAnvil\", \"author\": \"Jane Doe\", \"date\": \"2024-01-15\"}\n---\n\n# Hello";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("Getting Started"));
         assert_eq!(
@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn partial_front_matter() {
-        let source = "---\ntitle: My Page\n---\n\nContent here";
+        let source = "---\n{\"title\": \"My Page\"}\n---\n\nContent here";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("My Page"));
         assert!(fm.description.is_none());
@@ -74,15 +74,15 @@ mod tests {
 
     #[test]
     fn empty_front_matter() {
-        let source = "---\n---\n\nContent";
+        let source = "---\n{}\n---\n\nContent";
         let fm = extract(source);
         assert!(fm.title.is_none());
         assert!(fm.description.is_none());
     }
 
     #[test]
-    fn invalid_yaml() {
-        let source = "---\n: : : not valid yaml [[\n---\n\nContent";
+    fn invalid_json() {
+        let source = "---\n{not valid json\n---\n\nContent";
         let fm = extract(source);
         assert!(fm.title.is_none());
     }
@@ -90,14 +90,14 @@ mod tests {
     #[test]
     fn unknown_fields_ignored() {
         let source =
-            "---\ntitle: My Page\ncustom_field: some value\ntags: [a, b, c]\n---\n\nContent";
+            "---\n{\"title\": \"My Page\", \"custom_field\": \"some value\", \"tags\": [\"a\", \"b\", \"c\"]}\n---\n\nContent";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("My Page"));
     }
 
     #[test]
     fn no_closing_delimiter() {
-        let source = "---\ntitle: Broken\n\nContent without closing delimiter";
+        let source = "---\n{\"title\": \"Broken\"}\n\nContent without closing delimiter";
         let fm = extract(source);
         // No closing `---`, so no valid front matter
         assert!(fm.title.is_none());

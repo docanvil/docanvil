@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Changed
 
+- Switched front matter format from YAML to JSON, removing the deprecated `serde_yml` dependency in favor of the already-present `serde_json`
 - Extracted inline JavaScript (~460 lines) from `layout.html` into a separate `docanvil.js` file served as an external `<script>`, reducing per-page HTML size
 - Production builds (`docanvil build`) now minify the JS automatically via `oxc` (compress + mangle, ~36% reduction)
 - External JS file includes a content-hash cachebust query string for reliable cache invalidation

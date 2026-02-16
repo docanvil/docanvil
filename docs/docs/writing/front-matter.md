@@ -1,22 +1,26 @@
 ---
-title: Front Matter
-description: Add page metadata with YAML front matter for titles, SEO, and more
+{
+  "title": "Front Matter",
+  "description": "Add page metadata with JSON front matter for titles, SEO, and more"
+}
 ---
 
 # Front Matter
 
-Front matter is a block of YAML metadata at the top of a Markdown file, wrapped in `---` delimiters. DocAnvil parses front matter and uses it to set page titles, generate SEO meta tags, and populate Open Graph metadata in the HTML output.
+Front matter is a block of JSON metadata at the top of a Markdown file, wrapped in `---` delimiters. DocAnvil parses front matter and uses it to set page titles, generate SEO meta tags, and populate Open Graph metadata in the HTML output.
 
 ## Basic Syntax
 
-Place a YAML block at the very start of your Markdown file:
+Place a JSON block at the very start of your Markdown file:
 
 ```markdown
 ---
-title: Getting Started
-description: Learn how to install and configure DocAnvil
-author: Jane Doe
-date: 2024-01-15
+{
+  "title": "Getting Started",
+  "description": "Learn how to install and configure DocAnvil",
+  "author": "Jane Doe",
+  "date": "2024-01-15"
+}
 ---
 
 Your page content starts here.
@@ -48,7 +52,9 @@ By default, DocAnvil derives page titles from filenames — `getting-started.md`
 
 ```markdown
 ---
-title: Quick Start Guide
+{
+  "title": "Quick Start Guide"
+}
 ---
 
 # Getting Started with DocAnvil
@@ -82,7 +88,9 @@ Every page also gets these Open Graph tags automatically, regardless of front ma
 
 ```markdown
 ---
-title: API Reference
+{
+  "title": "API Reference"
+}
 ---
 ```
 
@@ -90,10 +98,12 @@ title: API Reference
 
 ```markdown
 ---
-title: Deployment Guide
-description: Deploy your DocAnvil site to Netlify, Vercel, or GitHub Pages
-author: Documentation Team
-date: 2024-06-01
+{
+  "title": "Deployment Guide",
+  "description": "Deploy your DocAnvil site to Netlify, Vercel, or GitHub Pages",
+  "author": "Documentation Team",
+  "date": "2024-06-01"
+}
 ---
 ```
 

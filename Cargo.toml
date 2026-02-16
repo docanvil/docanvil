@@ -26,13 +26,11 @@ tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["fs"] }
 notify = "8"
 notify-debouncer-mini = "0.7"
-miette = { version = "7", features = ["fancy"] }
 owo-colors = "4"
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
-serde_yaml = "0.9"
-dialoguer = "0.11"
-toml_edit = "0.22"
-oxc = { version = "0.72", features = ["minifier", "codegen"] }
+dialoguer = "0.12"
+toml_edit = "0.25"
+oxc = { version = "0.113", features = ["minifier", "codegen"] }
 
 [dev-dependencies]
 tempfile = "3"

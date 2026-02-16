@@ -1,5 +1,7 @@
 ---
-title: CSS Variables
+{
+  "title": "CSS Variables"
+}
 ---
 # CSS Variables
 

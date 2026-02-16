@@ -1,5 +1,7 @@
 ---
-title: Links & Popovers
+{
+  "title": "Links & Popovers"
+}
 ---
 
 # Links & Popovers

@@ -131,14 +131,16 @@ Here's another example with a longer footnote[^details].
 
 ## Front Matter
 
-Pages can include YAML front matter between `---` delimiters at the top of the file. Front matter lets you set custom page titles, descriptions, author info, and dates — which DocAnvil uses for navigation labels, search, and SEO meta tags.
+Pages can include JSON front matter between `---` delimiters at the top of the file. Front matter lets you set custom page titles, descriptions, author info, and dates — which DocAnvil uses for navigation labels, search, and SEO meta tags.
 
 ```markdown
 ---
-title: My Page Title
-description: A brief summary for search engines
-author: Jane Doe
-date: 2024-01-15
+{
+  "title": "My Page Title",
+  "description": "A brief summary for search engines",
+  "author": "Jane Doe",
+  "date": "2024-01-15"
+}
 ---
 
 # Page Content

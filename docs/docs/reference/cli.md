@@ -1,5 +1,7 @@
 ---
-title: CLI Commands
+{
+  "title": "CLI Commands"
+}
 ---
 # CLI Commands
 
@@ -164,7 +166,7 @@ The doctor runs five categories of checks:
 1. **Project structure** — config file, content directory, index page
 2. **Configuration** — TOML parsing, file references (logo, favicon), nav.toml validation
 3. **Theme** — custom CSS file existence, layout template Tera syntax
-4. **Content** — broken wiki-links, unclosed directives, front-matter YAML errors, duplicate slugs
+4. **Content** — broken wiki-links, unclosed directives, front-matter JSON errors, duplicate slugs
 5. **Output** — output directory writability
 
 If no `docanvil.toml` is found, doctor prints a friendly message suggesting `docanvil new` and exits cleanly.

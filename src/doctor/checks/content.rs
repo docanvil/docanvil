@@ -162,13 +162,13 @@ fn check_frontmatter(source: &str, source_path: &Path, diags: &mut Vec<Diagnosti
         return;
     };
 
-    let yaml = &rest[..end];
-    if let Err(e) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
+    let content = &rest[..end];
+    if let Err(e) = serde_json::from_str::<serde_json::Value>(content) {
         diags.push(Diagnostic {
             check: "frontmatter-parse-error",
             category: "content",
             severity: Severity::Warning,
-            message: format!("Front-matter YAML parse error: {e}"),
+            message: format!("Front-matter JSON parse error: {e}"),
             file: Some(source_path.to_path_buf()),
             line: Some(1),
             fix: None,

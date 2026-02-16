@@ -1,0 +1,43 @@
+name: Plugin Proposal
+description: Propose a new DocAnvil plugin
+title: "[Plugin]: "
+labels: ["plugin"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Plugins allow DocAnvil to remain minimal while enabling extensibility.
+
+  - type: input
+    id: plugin_name
+    attributes:
+      label: Proposed Plugin Name
+      placeholder: "docanvil-plugin-..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: purpose
+    attributes:
+      label: Purpose
+      description: What does this plugin do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Who benefits from this plugin?
+    validations:
+      required: true
+
+  - type: textarea
+    id: core_or_external
+    attributes:
+      label: Should this be bundled with core?
+      description: Explain whether this should remain external or become bundled.
+    validations:
+      required: false

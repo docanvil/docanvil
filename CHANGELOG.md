@@ -7,7 +7,7 @@ All notable changes to DocAnvil will be documented in this file.
 ### Changed
 
 - Extracted inline JavaScript (~460 lines) from `layout.html` into a separate `docanvil.js` file served as an external `<script>`, reducing per-page HTML size
-- Production builds (`docanvil build`) now minify the JS automatically via `minify-js`
+- Production builds (`docanvil build`) now minify the JS automatically via `oxc` (compress + mangle, ~36% reduction)
 - External JS file includes a content-hash cachebust query string for reliable cache invalidation
 - `docanvil init` now scaffolds `theme/docanvil.js` for user customization alongside `theme/custom.css`
 - User JS overrides are supported by placing a `theme/docanvil.js` in the project root

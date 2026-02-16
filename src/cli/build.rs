@@ -318,21 +318,23 @@ fn build_site(
     Ok(count)
 }
 
-/// Minify JavaScript source for production builds.
+/// Minify JavaScript source for production builds using oxc.
 fn minify_js_source(source: &str) -> String {
-    let source_owned = source.to_string();
-    // Suppress panic output from minify-js internals
-    let prev_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let result = std::panic::catch_unwind(|| {
-        let session = minify_js::Session::new();
-        let mut out = Vec::new();
-        match minify_js::minify(&session, minify_js::TopLevelMode::Global, source_owned.as_bytes(), &mut out) {
-            Ok(()) => String::from_utf8(out).unwrap_or(source_owned.clone()),
-            Err(_) => source_owned.clone(),
-        }
-    })
-    .unwrap_or_else(|_| source.to_string());
-    std::panic::set_hook(prev_hook);
-    result
+    let allocator = oxc::allocator::Allocator::default();
+    let source_type = oxc::span::SourceType::mjs();
+    let ret = oxc::parser::Parser::new(&allocator, source, source_type).parse();
+    if !ret.errors.is_empty() {
+        return source.to_string();
+    }
+    let mut program = ret.program;
+    let options = oxc::minifier::MinifierOptions {
+        mangle: Some(oxc::minifier::MangleOptions::default()),
+        compress: Some(oxc::minifier::CompressOptions::smallest()),
+    };
+    let ret = oxc::minifier::Minifier::new(options).build(&allocator, &mut program);
+    oxc::codegen::Codegen::new()
+        .with_options(oxc::codegen::CodegenOptions::minify())
+        .with_scoping(ret.scoping)
+        .build(&program)
+        .code
 }

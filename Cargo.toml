@@ -32,7 +32,7 @@ syntect = { version = "5", default-features = false, features = ["default-fancy"
 serde_yaml = "0.9"
 dialoguer = "0.11"
 toml_edit = "0.22"
-minify-js = "0.6"
+oxc = { version = "0.72", features = ["minifier", "codegen"] }
 
 [dev-dependencies]
 tempfile = "3"

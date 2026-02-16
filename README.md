@@ -1,67 +1,46 @@
-# DocAnvil — Forge beautiful static documentation from Markdown.
+# DocAnvil
 
-**DocAnvil** is a Rust-based static documentation generator that turns plain
-Markdown into a fast, polished HTML site — with live reloading, customizable
-components, and flexible styling.
+**Forge beautiful static documentation from Markdown.**
 
-Built for developers who want full control over how their documentation looks
-and behaves, DocAnvil focuses on **clarity**, **performance**, and
-**composability**. Write in Markdown, extend with custom components, and let
-DocAnvil handle the rest.
+DocAnvil turns your Markdown files into a polished, searchable documentation site with a single command. Built in Rust for speed, designed for developers who want great docs without the setup overhead.
 
-Whether you're documenting a Rust crate, a library, or an entire product,
-DocAnvil helps you forge documentation that feels solid, intentional, and
-well-crafted.
+**[Documentation](https://docanvil.github.io/docanvil/)** &middot; **[GitHub](https://github.com/docanvil/docanvil)**
 
-## Why DocAnvil?
-
-- ⚡ **Fast by default** — built in Rust for quick builds and snappy dev cycles
-- 🔁 **Hot reloading** — see changes instantly as you edit Markdown
-- 🧩 **Custom components** — extend beyond Markdown when you need to
-- 🎨 **Configurable styling** — themes without fighting the tool
-- 📦 **Static output** — deploy anywhere
-
-## CLI Usage
-
-DocAnvil is designed to be used from the command line during both development
-and deployment.
-
-### Install
+## Quickstart
 
 ```bash
 cargo install docanvil
-```
-
-### Initialise a new project
-
-```bash
-docanvil new 
-```
-
-### Serve the current project (with hot reloading)
-
-Simplest way to serve the current project is just to run:
-```bash
+docanvil new my-docs
+cd my-docs
 docanvil serve
 ```
 
-However you can also specify the host and listening ports:
-```bash
-docanvil serve --host 0.0.0.0 --port 3000
-```
+Open [localhost:3000](http://localhost:3000) — your site is live with hot reloading.
 
-### Build the current project 
-
-To output the current project as static html you can use the following command.
-
-By default the built static site will be output to 'dist/'
+When you're ready to deploy:
 
 ```bash
 docanvil build
 ```
 
-You can pass an out flag and an alternative path instead
+Static HTML goes to `dist/`, ready to host anywhere.
 
-```bash
-docanvil build --out dist/
-```
+## Why DocAnvil?
+
+Most documentation tools either look great but lock you in, or give you control but demand hours of configuration. DocAnvil gives you both — a site you'll be proud of out of the box, with the flexibility to make it your own.
+
+- **Instant results** — scaffold, serve, and start writing in under a minute
+- **Beautiful by default** — clean, readable design with dark mode, syntax highlighting, and responsive layout
+- **Live reloading** — see every edit reflected instantly in your browser
+- **Rich Markdown** — tabs, admonitions, code groups, diagrams, popovers, and wikilinks built in
+- **Fully customisable** — themes, templates, and CSS variables let you match any brand
+- **Static output** — deploy to GitHub Pages, Netlify, S3, or anywhere that serves HTML
+- **Fast** — Rust-powered builds that scale with your content
+
+## Learn More
+
+Head to the **[full documentation](https://docanvil.github.io/docanvil/)** for guides on configuration, theming, components, navigation, and more.
+
+## License
+
+MIT

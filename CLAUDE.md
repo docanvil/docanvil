@@ -7,6 +7,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 - **Never add `Co-Authored-By` to commit messages.**
 - **Never bump the version in `Cargo.toml`.** Version bumps are handled manually by the maintainer.
 - **Keep CLAUDE.md up to date.** After making material changes that affect details in this file (new modules, renamed files, new CLI commands, changed types, new dependencies, etc.), identify the necessary CLAUDE.md updates and confirm them with the user before applying.
+- **Tone for written content (docs, README, CLI output, comments):** Friendly, welcoming, and approachable — but grounded and serious. DocAnvil is a production-ready tool for real projects. The voice should reflect that: confident, practical, and focused on helping people ship great docs fast without the usual headaches. Avoid fluff, corporate-speak, or anything patronizing. Emoji are welcome where they add warmth or clarity.
 
 ## Project Overview
 

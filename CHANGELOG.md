@@ -2,7 +2,7 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
-## [0.2.1] - 2026-02-16
+## [0.3.0] - 2026-02-16
 
 ### Changed
 

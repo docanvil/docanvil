@@ -236,17 +236,25 @@
   (function() {
     const tocNav = document.querySelector('.toc-nav');
     if (!tocNav) return;
-    const headings = document.querySelectorAll('.content h2[id], .content h3[id]');
+    const multiH1 = document.querySelectorAll('.content h1[id]').length > 1;
+    const headings = document.querySelectorAll(
+      multiH1
+        ? '.content h1[id], .content h2[id], .content h3[id]'
+        : '.content h2[id], .content h3[id]'
+    );
     if (headings.length < 2) {
       tocNav.closest('.toc').style.display = 'none';
       return;
     }
 
     const ul = document.createElement('ul');
-    ul.className = 'toc-list';
+    ul.className = 'toc-list' + (multiH1 ? ' toc-has-h1' : '');
     headings.forEach(h => {
       const li = document.createElement('li');
-      li.className = 'toc-item' + (h.tagName === 'H3' ? ' toc-h3' : '');
+      let cls = 'toc-item';
+      if (h.tagName === 'H3') cls += ' toc-h3';
+      else if (h.tagName === 'H2' && multiH1) cls += ' toc-h2';
+      li.className = cls;
       const a = document.createElement('a');
       a.href = '#' + h.id;
       a.textContent = h.textContent.replace(/\s*#$/, '');

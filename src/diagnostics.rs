@@ -49,18 +49,6 @@ pub fn warn_no_site_url() {
     );
 }
 
-/// Emit a warning about an unclosed directive.
-pub fn warn_unclosed_directive(source_file: &Path, directive_name: &str, line_number: usize) {
-    increment();
-    eprintln!(
-        "{}: unclosed directive ':::{}' opened at line {} in {}",
-        "warning".yellow().bold(),
-        directive_name,
-        line_number,
-        source_file.display()
-    );
-}
-
 /// Emit a warning that an autodiscover folder has no matching pages.
 pub fn warn_nav_autodiscover_empty(folder: &str) {
     increment();

@@ -27,27 +27,27 @@ pub fn inject_attributes(html: &str) -> String {
     for (start, end, inner) in matches.into_iter().rev() {
         // Find the preceding closing tag
         let before = &result[..start].trim_end();
-        if let Some(tag_end) = before.rfind('>') {
-            if let Some(tag_start) = before[..tag_end].rfind("</") {
-                // Found closing tag like </h2>, now find the opening tag
-                let tag_name = &before[tag_start + 2..tag_end];
-                let open_pattern = format!("<{}", tag_name);
+        if let Some(tag_end) = before.rfind('>')
+            && let Some(tag_start) = before[..tag_end].rfind("</")
+        {
+            // Found closing tag like </h2>, now find the opening tag
+            let tag_name = &before[tag_start + 2..tag_end];
+            let open_pattern = format!("<{}", tag_name);
 
-                if let Some(open_pos) = before[..tag_start].rfind(&open_pattern) {
-                    let open_tag_end = before[open_pos..].find('>').unwrap() + open_pos;
+            if let Some(open_pos) = before[..tag_start].rfind(&open_pattern) {
+                let open_tag_end = before[open_pos..].find('>').unwrap() + open_pos;
 
-                    // Build attribute string
-                    let attrs = build_attr_string(&inner);
+                // Build attribute string
+                let attrs = build_attr_string(&inner);
 
-                    // Insert attributes into opening tag
-                    let new_result = format!(
-                        "{}{}>{}\n",
-                        &result[..open_tag_end],
-                        attrs,
-                        &result[open_tag_end + 1..start].trim_end(),
-                    );
-                    result = format!("{}{}", new_result, &result[end..]);
-                }
+                // Insert attributes into opening tag
+                let new_result = format!(
+                    "{}{}>{}\n",
+                    &result[..open_tag_end],
+                    attrs,
+                    &result[open_tag_end + 1..start].trim_end(),
+                );
+                result = format!("{}{}", new_result, &result[end..]);
             }
         }
     }

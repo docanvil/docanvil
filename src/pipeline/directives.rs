@@ -8,8 +8,6 @@ pub struct DirectiveBlock {
     pub name: String,
     pub attributes: HashMap<String, String>,
     pub body: String,
-    /// Nesting depth (number of colons in the fence).
-    pub depth: usize,
 }
 
 static OPEN_RE: LazyLock<Regex> =
@@ -64,7 +62,6 @@ pub fn process_directives(
                     name,
                     attributes: attrs,
                     body: body_lines.join("\n"),
-                    depth: colons,
                 };
                 let rendered = renderer(&block);
                 output.push_str(&rendered);
@@ -162,7 +159,6 @@ fn replace_inline_in_line(
             name,
             attributes: attrs,
             body: String::new(),
-            depth: 3,
         };
         out.push_str(&renderer(&block));
         last = m.end();

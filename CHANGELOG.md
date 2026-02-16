@@ -2,6 +2,21 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.3.1] - 2026-02-16
+
+### Changed
+
+- Deduplicated nav.rs by extracting a `NavItem` trait for shared fields between `NavEntry` and `NavGroupItem`, unifying validation and node-building logic
+- Merged near-identical `render_nav` / `render_nav_item` into a single recursive `render_nav_node` with proper indentation at all nesting depths
+- Consolidated duplicate HTML escape functions from `code_group.rs` and `popovers.rs` into a shared `util::html_escape`
+- Simplified `generate_theme` signature in theme.rs by grouping color parameters into a `ThemeColors` struct (11 params → 6)
+- Removed unused `out` parameter from `run_with_options` and the watcher
+
+### Fixed
+
+- Resolved all clippy warnings: removed dead code (`warn_unclosed_directive`, `ConfigNotFound` variant, `DirectiveBlock::depth` field), collapsed nested if-let patterns, removed a needless borrow
+- Popover IDs now reset between builds, preventing non-deterministic output during dev-server rebuilds
+
 ## [0.3.0] - 2026-02-16
 
 ### Changed

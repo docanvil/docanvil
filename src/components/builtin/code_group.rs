@@ -1,5 +1,6 @@
 use crate::components::{Component, ComponentContext};
 use crate::error::Result;
+use crate::util::html_escape;
 
 pub struct CodeGroup;
 
@@ -51,10 +52,4 @@ impl Component for CodeGroup {
         html.push_str("</div>");
         Ok(html)
     }
-}
-
-fn html_escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }

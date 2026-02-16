@@ -107,7 +107,6 @@ mod tests {
             name: "note".to_string(),
             attributes: HashMap::new(),
             body: "This is important.".to_string(),
-            depth: 3,
         };
         let html = registry.render_block(&block);
         assert!(html.contains("note"));
@@ -124,7 +123,6 @@ mod tests {
                 ("text".to_string(), "Not Done".to_string()),
             ]),
             body: "".to_string(),
-            depth: 3,
         };
         let html = registry.render_block(&block);
         assert!(html.contains("<span class=\"lozenge yellow\">Not Done</span>"));
@@ -137,7 +135,6 @@ mod tests {
             name: "custom-thing".to_string(),
             attributes: HashMap::new(),
             body: "Body text".to_string(),
-            depth: 3,
         };
         let html = registry.render_block(&block);
         assert!(html.contains("<div class=\"custom-thing\">"));
@@ -162,7 +159,6 @@ mod tests {
             name: "my-comp".to_string(),
             attributes: HashMap::new(),
             body: "hello".to_string(),
-            depth: 3,
         };
         let html = registry.render_block(&block);
         assert_eq!(html, "<custom>hello</custom>");

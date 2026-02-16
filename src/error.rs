@@ -11,9 +11,6 @@ pub enum Error {
         source: toml::de::Error,
     },
 
-    #[error("config file not found: {0}")]
-    ConfigNotFound(PathBuf),
-
     #[error("no content directory found at {0}")]
     ContentDirNotFound(PathBuf),
 

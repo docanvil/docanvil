@@ -27,7 +27,7 @@ pub fn process(
     project_root: &Path,
 ) -> Result<String> {
     // 1. Pre-comrak: process block directives (:::name{attrs} ... :::)
-    let source = directives::process_directives(&source, &mut |block| registry.render_block(block));
+    let source = directives::process_directives(source, &mut |block| registry.render_block(block));
 
     // 1b. Pre-comrak: process inline directives (:::name{attrs} with no body)
     let source =

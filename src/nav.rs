@@ -24,7 +24,7 @@ pub struct NavEntry {
 #[serde(untagged)]
 pub enum SeparatorValue {
     Labeled(String),
-    Unlabeled(bool),
+    Unlabeled(#[allow(dead_code)] bool),
 }
 
 #[derive(Deserialize, Debug)]
@@ -34,6 +34,51 @@ pub struct NavGroupItem {
     pub separator: Option<SeparatorValue>,
     pub group: Option<Vec<NavGroupItem>>,
     pub autodiscover: Option<String>,
+}
+
+/// Shared accessors for the identical fields on `NavEntry` and `NavGroupItem`.
+trait NavItem {
+    fn page(&self) -> Option<&str>;
+    fn label(&self) -> Option<&str>;
+    fn separator(&self) -> Option<&SeparatorValue>;
+    fn group(&self) -> Option<&[NavGroupItem]>;
+    fn autodiscover(&self) -> Option<&str>;
+}
+
+impl NavItem for NavEntry {
+    fn page(&self) -> Option<&str> {
+        self.page.as_deref()
+    }
+    fn label(&self) -> Option<&str> {
+        self.label.as_deref()
+    }
+    fn separator(&self) -> Option<&SeparatorValue> {
+        self.separator.as_ref()
+    }
+    fn group(&self) -> Option<&[NavGroupItem]> {
+        self.group.as_deref()
+    }
+    fn autodiscover(&self) -> Option<&str> {
+        self.autodiscover.as_deref()
+    }
+}
+
+impl NavItem for NavGroupItem {
+    fn page(&self) -> Option<&str> {
+        self.page.as_deref()
+    }
+    fn label(&self) -> Option<&str> {
+        self.label.as_deref()
+    }
+    fn separator(&self) -> Option<&SeparatorValue> {
+        self.separator.as_ref()
+    }
+    fn group(&self) -> Option<&[NavGroupItem]> {
+        self.group.as_deref()
+    }
+    fn autodiscover(&self) -> Option<&str> {
+        self.autodiscover.as_deref()
+    }
 }
 
 /// Read and parse `nav.toml` from the project root, if it exists.
@@ -55,37 +100,23 @@ pub fn load_nav(project_root: &Path) -> Result<Option<Vec<NavEntry>>> {
 
 /// Warn about slugs in nav.toml that don't match any page in the inventory.
 pub fn validate(entries: &[NavEntry], inventory: &PageInventory) {
-    for entry in entries {
-        if let Some(slug) = &entry.page {
-            if !inventory.pages.contains_key(slug) {
-                diagnostics::warn_nav_missing_page(slug);
-            }
-        }
-        if let Some(folder) = &entry.autodiscover {
-            if inventory.nav_tree_for_folder(folder, None).is_empty() {
-                diagnostics::warn_nav_autodiscover_empty(folder);
-            }
-        }
-        if let Some(group) = &entry.group {
-            validate_group_items(group, inventory);
-        }
-    }
+    validate_items(entries, inventory);
 }
 
-fn validate_group_items(items: &[NavGroupItem], inventory: &PageInventory) {
+fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory) {
     for item in items {
-        if let Some(slug) = &item.page {
-            if !inventory.pages.contains_key(slug) {
-                diagnostics::warn_nav_missing_page(slug);
-            }
+        if let Some(slug) = item.page()
+            && !inventory.pages.contains_key(slug)
+        {
+            diagnostics::warn_nav_missing_page(slug);
         }
-        if let Some(folder) = &item.autodiscover {
-            if inventory.nav_tree_for_folder(folder, None).is_empty() {
-                diagnostics::warn_nav_autodiscover_empty(folder);
-            }
+        if let Some(folder) = item.autodiscover()
+            && inventory.nav_tree_for_folder(folder, None).is_empty()
+        {
+            diagnostics::warn_nav_autodiscover_empty(folder);
         }
-        if let Some(group) = &item.group {
-            validate_group_items(group, inventory);
+        if let Some(group) = item.group() {
+            validate_items(group, inventory);
         }
     }
 }
@@ -94,13 +125,13 @@ fn validate_group_items(items: &[NavGroupItem], inventory: &PageInventory) {
 pub fn nav_tree_from_config(entries: &[NavEntry], inventory: &PageInventory) -> Vec<NavNode> {
     entries
         .iter()
-        .flat_map(|entry| entry_to_nodes(entry, inventory))
+        .flat_map(|entry| item_to_nodes(entry, inventory))
         .collect()
 }
 
-fn entry_to_nodes(entry: &NavEntry, inventory: &PageInventory) -> Vec<NavNode> {
+fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory) -> Vec<NavNode> {
     // Separator entry
-    if let Some(sep) = &entry.separator {
+    if let Some(sep) = item.separator() {
         return vec![match sep {
             SeparatorValue::Labeled(label) => NavNode::Separator {
                 label: Some(label.clone()),
@@ -110,26 +141,27 @@ fn entry_to_nodes(entry: &NavEntry, inventory: &PageInventory) -> Vec<NavNode> {
     }
 
     // Autodiscover entry
-    if let Some(folder) = &entry.autodiscover {
-        let exclude = entry.page.as_deref();
+    if let Some(folder) = item.autodiscover() {
+        let exclude = item.page();
         let discovered = inventory.nav_tree_for_folder(folder, exclude);
-        if let Some(label) = &entry.label {
-            // Wrap in a group
+        if let Some(label) = item.label() {
             return vec![NavNode::Group {
-                label: label.clone(),
-                slug: entry.page.clone(),
+                label: label.to_string(),
+                slug: item.page().map(String::from),
                 children: discovered,
             }];
         }
-        // Inline the discovered nodes
         return discovered;
     }
 
     // Group entry
-    if let Some(group_items) = &entry.group {
-        let label = entry.label.clone().unwrap_or_default();
-        let slug = entry.page.clone();
-        let children = group_items_to_nodes(group_items, inventory);
+    if let Some(group_items) = item.group() {
+        let label = item.label().unwrap_or_default().to_string();
+        let slug = item.page().map(String::from);
+        let children: Vec<NavNode> = group_items
+            .iter()
+            .flat_map(|child| item_to_nodes(child, inventory))
+            .collect();
         return vec![NavNode::Group {
             label,
             slug,
@@ -138,73 +170,14 @@ fn entry_to_nodes(entry: &NavEntry, inventory: &PageInventory) -> Vec<NavNode> {
     }
 
     // Page entry
-    if let Some(slug) = &entry.page {
-        let label = entry
-            .label
-            .clone()
-            .unwrap_or_else(|| resolve_label(slug, inventory));
-        return vec![NavNode::Page {
-            label,
-            slug: slug.clone(),
-        }];
-    }
-
-    vec![]
-}
-
-fn group_items_to_nodes(items: &[NavGroupItem], inventory: &PageInventory) -> Vec<NavNode> {
-    items
-        .iter()
-        .flat_map(|item| group_item_to_nodes(item, inventory))
-        .collect()
-}
-
-fn group_item_to_nodes(item: &NavGroupItem, inventory: &PageInventory) -> Vec<NavNode> {
-    // Separator
-    if let Some(sep) = &item.separator {
-        return vec![match sep {
-            SeparatorValue::Labeled(label) => NavNode::Separator {
-                label: Some(label.clone()),
-            },
-            SeparatorValue::Unlabeled(_) => NavNode::Separator { label: None },
-        }];
-    }
-
-    // Autodiscover
-    if let Some(folder) = &item.autodiscover {
-        let exclude = item.page.as_deref();
-        let discovered = inventory.nav_tree_for_folder(folder, exclude);
-        if let Some(label) = &item.label {
-            return vec![NavNode::Group {
-                label: label.clone(),
-                slug: item.page.clone(),
-                children: discovered,
-            }];
-        }
-        return discovered;
-    }
-
-    // Nested group
-    if let Some(group_items) = &item.group {
-        let label = item.label.clone().unwrap_or_default();
-        let slug = item.page.clone();
-        let children = group_items_to_nodes(group_items, inventory);
-        return vec![NavNode::Group {
-            label,
-            slug,
-            children,
-        }];
-    }
-
-    // Page
-    if let Some(slug) = &item.page {
+    if let Some(slug) = item.page() {
         let label = item
-            .label
-            .clone()
+            .label()
+            .map(String::from)
             .unwrap_or_else(|| resolve_label(slug, inventory));
         return vec![NavNode::Page {
             label,
-            slug: slug.clone(),
+            slug: slug.to_string(),
         }];
     }
 

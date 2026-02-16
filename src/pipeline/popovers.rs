@@ -6,12 +6,11 @@ static POPOVER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\^\[([^\]]+)\
 
 static POPOVER_ID: AtomicUsize = AtomicUsize::new(0);
 
-/// Escape HTML entities in popover content.
-fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
+use crate::util::html_escape;
+
+/// Reset the popover ID counter to zero (call between builds).
+pub fn reset_popover_ids() {
+    POPOVER_ID.store(0, Ordering::Relaxed);
 }
 
 /// Pre-comrak pass: convert `^[content]` to inline popover HTML spans.
@@ -86,7 +85,7 @@ fn replace_popovers_in_line(line: &str) -> String {
 fn replace_popovers_in_text(text: &str) -> String {
     POPOVER_RE
         .replace_all(text, |caps: &regex::Captures| {
-            let content = escape_html(&caps[1]);
+            let content = html_escape(&caps[1]);
             let id = POPOVER_ID.fetch_add(1, Ordering::Relaxed);
             format!(
                 "<span class=\"popover-trigger\" tabindex=\"0\" aria-describedby=\"popover-{id}\">\

@@ -12,6 +12,7 @@ mod search;
 mod seo;
 mod server;
 mod theme;
+mod util;
 
 use clap::Parser;
 use cli::{Cli, Command};

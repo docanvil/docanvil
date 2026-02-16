@@ -37,6 +37,7 @@ pub fn run(project_root: &Path, out: &Path, clean: bool, quiet: bool, strict: bo
     }
 
     reset_warnings();
+    crate::pipeline::popovers::reset_popover_ids();
 
     let count = build_site(project_root, &config, &output_dir, false)?;
 
@@ -57,10 +58,12 @@ pub fn run(project_root: &Path, out: &Path, clean: bool, quiet: bool, strict: bo
 }
 
 /// Build with live_reload enabled (used by the dev server).
-pub fn run_with_options(project_root: &Path, out: &Path, live_reload: bool) -> Result<()> {
+pub fn run_with_options(project_root: &Path, live_reload: bool) -> Result<()> {
     let config = Config::load(project_root)?;
     let output_dir = project_root.join(&config.build.output_dir);
-    let _ = out; // Use config output dir for serve mode
+
+    reset_warnings();
+    crate::pipeline::popovers::reset_popover_ids();
 
     let count = build_site(project_root, &config, &output_dir, live_reload)?;
     eprintln!("Built {count} page{}", if count == 1 { "" } else { "s" });

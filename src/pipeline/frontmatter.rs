@@ -89,8 +89,7 @@ mod tests {
 
     #[test]
     fn unknown_fields_ignored() {
-        let source =
-            "---\n{\"title\": \"My Page\", \"custom_field\": \"some value\", \"tags\": [\"a\", \"b\", \"c\"]}\n---\n\nContent";
+        let source = "---\n{\"title\": \"My Page\", \"custom_field\": \"some value\", \"tags\": [\"a\", \"b\", \"c\"]}\n---\n\nContent";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("My Page"));
     }

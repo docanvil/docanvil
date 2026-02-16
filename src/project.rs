@@ -120,10 +120,10 @@ impl PageInventory {
         let mut root: Vec<NavNode> = Vec::new();
 
         for slug in &self.ordered {
-            if let Some(excluded) = exclude_slug {
-                if slug == excluded {
-                    continue;
-                }
+            if let Some(excluded) = exclude_slug
+                && slug == excluded
+            {
+                continue;
             }
             if let Some(rest) = slug.strip_prefix(&prefix) {
                 if rest.is_empty() {
@@ -291,60 +291,27 @@ pub fn render_nav(nodes: &[NavNode], current_slug: &str, base_url: &str) -> Stri
 
     let mut html = String::from("<ul>\n");
     for node in nodes {
-        match node {
-            NavNode::Page { label, slug } => {
-                let href = format!("{}{}.html", base_url, slug);
-                let class = if slug == current_slug {
-                    "nav-item active"
-                } else {
-                    "nav-item"
-                };
-                html.push_str(&format!(
-                    "  <li class=\"{class}\"><a href=\"{href}\">{label}</a></li>\n",
-                ));
-            }
-            NavNode::Group {
-                label,
-                slug,
-                children,
-            } => {
-                let is_open = section_contains_active(node, current_slug);
-                let open_class = if is_open { " open" } else { "" };
-                let aria = if is_open { "true" } else { "false" };
-                let header_html = if let Some(s) = slug {
-                    let href = format!("{}{}.html", base_url, s);
-                    let link_class = if s == current_slug { " active" } else { "" };
-                    format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
-                } else {
-                    label.clone()
-                };
-                html.push_str(&format!(
-                    "  <li class=\"nav-group{open_class}\">\n    <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n      <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n      {header_html}\n    </button>\n",
-                ));
-                html.push_str("    <ul class=\"nav-group-children\">\n");
-                for child in children {
-                    html.push_str(&render_nav_item(child, current_slug, base_url));
-                }
-                html.push_str("    </ul>\n  </li>\n");
-            }
-            NavNode::Separator { label } => {
-                if let Some(text) = label {
-                    html.push_str(&format!(
-                        "  <li class=\"nav-separator nav-separator-labeled\">{text}</li>\n"
-                    ));
-                } else {
-                    html.push_str("  <li class=\"nav-separator\"><hr></li>\n");
-                }
-            }
-        }
+        render_nav_node(node, current_slug, base_url, 0, &mut html);
     }
     html.push_str("</ul>\n");
     html
 }
 
-/// Render a single nav item (leaf or nested group) within a group's children.
-fn render_nav_item(node: &NavNode, current_slug: &str, base_url: &str) -> String {
-    let mut html = String::new();
+/// Render a single nav node at the given nesting depth.
+/// Depth 0 = top-level items (2-space base indent), depth 1+ = nested children (6-space base).
+fn render_nav_node(
+    node: &NavNode,
+    current_slug: &str,
+    base_url: &str,
+    depth: usize,
+    html: &mut String,
+) {
+    // Compute indentation: depth 0 → 2 spaces, depth 1+ → 2 + 4*depth spaces
+    let base = 2 + 4 * depth;
+    let indent: String = " ".repeat(base);
+    let inner: String = " ".repeat(base + 2);
+    let deep: String = " ".repeat(base + 4);
+
     match node {
         NavNode::Page { label, slug } => {
             let href = format!("{}{}.html", base_url, slug);
@@ -354,7 +321,7 @@ fn render_nav_item(node: &NavNode, current_slug: &str, base_url: &str) -> String
                 "nav-item"
             };
             html.push_str(&format!(
-                "      <li class=\"{class}\"><a href=\"{href}\">{label}</a></li>\n",
+                "{indent}<li class=\"{class}\"><a href=\"{href}\">{label}</a></li>\n",
             ));
         }
         NavNode::Group {
@@ -373,25 +340,24 @@ fn render_nav_item(node: &NavNode, current_slug: &str, base_url: &str) -> String
                 label.clone()
             };
             html.push_str(&format!(
-                "      <li class=\"nav-group{open_class}\">\n        <button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n          <svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n          {header_html}\n        </button>\n",
+                "{indent}<li class=\"nav-group{open_class}\">\n{inner}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n{deep}<svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n{deep}{header_html}\n{inner}</button>\n",
             ));
-            html.push_str("        <ul class=\"nav-group-children\">\n");
+            html.push_str(&format!("{inner}<ul class=\"nav-group-children\">\n"));
             for child in children {
-                html.push_str(&render_nav_item(child, current_slug, base_url));
+                render_nav_node(child, current_slug, base_url, depth + 1, html);
             }
-            html.push_str("        </ul>\n      </li>\n");
+            html.push_str(&format!("{inner}</ul>\n{indent}</li>\n"));
         }
         NavNode::Separator { label } => {
             if let Some(text) = label {
                 html.push_str(&format!(
-                    "      <li class=\"nav-separator nav-separator-labeled\">{text}</li>\n"
+                    "{indent}<li class=\"nav-separator nav-separator-labeled\">{text}</li>\n"
                 ));
             } else {
-                html.push_str("      <li class=\"nav-separator\"><hr></li>\n");
+                html.push_str(&format!("{indent}<li class=\"nav-separator\"><hr></li>\n"));
             }
         }
     }
-    html
 }
 
 #[cfg(test)]

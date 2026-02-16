@@ -19,21 +19,19 @@ pub async fn start(host: &str, port: u16, output_dir: &Path, project_root: &Path
         .map_err(|e| crate::error::Error::Render(format!("invalid address: {e}")))?;
 
     // Initial build with live_reload enabled
-    let out = output_dir.to_path_buf();
-    crate::cli::build::run_with_options(project_root, &out, true)?;
+    crate::cli::build::run_with_options(project_root, true)?;
 
     // Start file watcher
     let tx_clone = tx.clone();
-    let watch_out = out.clone();
     let watch_root = project_root.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        if let Err(e) = watcher::watch(tx_clone, &watch_out, &watch_root) {
+        if let Err(e) = watcher::watch(tx_clone, &watch_root) {
             eprintln!("watcher error: {e}");
         }
     });
 
     // Build axum router
-    let app = build_router(tx, out);
+    let app = build_router(tx, output_dir.to_path_buf());
 
     eprintln!("Serving at http://{addr}");
     let listener = tokio::net::TcpListener::bind(addr)

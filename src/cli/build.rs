@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::time::Instant;
 
@@ -135,6 +137,22 @@ fn build_site(
         .as_ref()
         .map(|p| format!("{}{}", base_url, p));
 
+    // Write JS file to output directory
+    let js_content = if live_reload {
+        theme.default_js.clone()
+    } else {
+        minify_js_source(&theme.default_js)
+    };
+    std::fs::create_dir_all(output_dir.join("js"))?;
+    std::fs::write(output_dir.join("js/docanvil.js"), &js_content)?;
+
+    // Generate cachebust query string from JS content hash
+    let js_cachebust = {
+        let mut hasher = DefaultHasher::new();
+        js_content.hash(&mut hasher);
+        format!("?v={:x}", hasher.finish())
+    };
+
     // Ensure output directory exists
     std::fs::create_dir_all(output_dir)?;
 
@@ -226,6 +244,7 @@ fn build_site(
             prev_page,
             next_page,
             color_mode: config.theme.color_mode.clone(),
+            js_cachebust: js_cachebust.clone(),
         };
 
         let html = renderer.render_page(&ctx)?;
@@ -287,6 +306,7 @@ fn build_site(
             prev_page: None,
             next_page: None,
             color_mode: config.theme.color_mode.clone(),
+            js_cachebust: js_cachebust.clone(),
         };
         let html = renderer.render_page(&ctx)?;
         std::fs::write(output_dir.join("404.html"), html)?;
@@ -296,4 +316,23 @@ fn build_site(
     assets::copy_assets(project_root, output_dir, config.theme.custom_css.as_deref())?;
 
     Ok(count)
+}
+
+/// Minify JavaScript source for production builds.
+fn minify_js_source(source: &str) -> String {
+    let source_owned = source.to_string();
+    // Suppress panic output from minify-js internals
+    let prev_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let result = std::panic::catch_unwind(|| {
+        let session = minify_js::Session::new();
+        let mut out = Vec::new();
+        match minify_js::minify(&session, minify_js::TopLevelMode::Global, source_owned.as_bytes(), &mut out) {
+            Ok(()) => String::from_utf8(out).unwrap_or(source_owned.clone()),
+            Err(_) => source_owned.clone(),
+        }
+    })
+    .unwrap_or_else(|_| source.to_string());
+    std::panic::set_hook(prev_hook);
+    result
 }

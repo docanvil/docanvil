@@ -478,6 +478,10 @@ group = [
     let custom_css = include_str!("../theme/starter_custom.css");
     std::fs::write(project_dir.join("theme/custom.css"), custom_css)?;
 
+    // Write default docanvil.js for user customization
+    let default_js = include_str!("../theme/default/docanvil.js");
+    std::fs::write(project_dir.join("theme/docanvil.js"), default_js)?;
+
     eprintln!(
         "{} Created project '{}' at {}",
         "✓".green().bold(),

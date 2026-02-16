@@ -13,6 +13,7 @@ struct DefaultTheme;
 pub struct Theme {
     pub layout_template: String,
     pub default_css: String,
+    pub default_js: String,
     pub css_overrides: Option<String>,
     pub custom_css_path: Option<String>,
     /// Custom CSS file content, read at build time for inline injection.
@@ -27,6 +28,10 @@ impl Theme {
             .map(|f| String::from_utf8_lossy(&f.data).into_owned())
             .unwrap_or_default();
 
+        let default_js = DefaultTheme::get("docanvil.js")
+            .map(|f| String::from_utf8_lossy(&f.data).into_owned())
+            .unwrap_or_default();
+
         let default_layout = DefaultTheme::get("layout.html")
             .map(|f| String::from_utf8_lossy(&f.data).into_owned())
             .unwrap_or_default();
@@ -37,6 +42,14 @@ impl Theme {
             std::fs::read_to_string(&user_layout_path).unwrap_or(default_layout)
         } else {
             default_layout
+        };
+
+        // Check for user JS override
+        let user_js_path = project_root.join("theme/docanvil.js");
+        let default_js = if user_js_path.exists() {
+            std::fs::read_to_string(&user_js_path).unwrap_or(default_js)
+        } else {
+            default_js
         };
 
         // Build CSS variable overrides from config
@@ -60,6 +73,7 @@ impl Theme {
         Self {
             layout_template,
             default_css,
+            default_js,
             css_overrides,
             custom_css_path,
             custom_css,

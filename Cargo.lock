@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "docanvil"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "axum",
  "clap",

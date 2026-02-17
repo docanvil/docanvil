@@ -2,7 +2,7 @@
 
 DocAnvil follows [Semantic Versioning](https://semver.org). Here's where things stand and where they're headed.
 
-**Current version: 0.3.1**
+**Current version: 0.3.4**
 
 ---
 

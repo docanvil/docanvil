@@ -113,7 +113,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 ## 📦 Packaging & Distribution
 
 - Package installs cleanly from cargo :::lozenge{type="success",text="Done"}
-- Version numbers are consistent across outputs :::lozenge{type="default",text="Not started"}
+- Version numbers are consistent across outputs :::lozenge{type="success",text="Done"}
 - CLI entrypoints behave consistently across platforms :::lozenge{type="success",text="Done"}
 - License is clear and included in the repository :::lozenge{type="success",text="Done"}
 - README accurately reflects current behavior :::lozenge{type="success",text="Done"}

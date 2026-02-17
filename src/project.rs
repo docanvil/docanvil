@@ -63,7 +63,10 @@ impl PageInventory {
 
         for entry in entries {
             let path = entry.path().to_path_buf();
-            let relative = path.strip_prefix(content_dir).unwrap();
+            let Ok(relative) = path.strip_prefix(content_dir) else {
+                crate::diagnostics::warn_unexpected_content_path(&path);
+                continue;
+            };
 
             // Build slug: drop .md extension, use forward slashes
             let slug = relative

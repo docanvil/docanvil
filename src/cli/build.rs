@@ -103,8 +103,10 @@ fn build_site(
         let source =
             std::fs::read_to_string(&page.source_path).map_err(io_context(&page.source_path))?;
         let fm = frontmatter::extract(&source);
-        if let Some(ref title) = fm.title {
-            inventory.pages.get_mut(slug).unwrap().title = title.clone();
+        if let Some(ref title) = fm.title
+            && let Some(page) = inventory.pages.get_mut(slug)
+        {
+            page.title = title.clone();
         }
         sources.insert(slug.clone(), source);
         front_matters.insert(slug.clone(), fm);

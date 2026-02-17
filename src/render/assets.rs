@@ -37,7 +37,10 @@ fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<()> {
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
         let path = entry.path();
-        let relative = path.strip_prefix(src).unwrap();
+        let Ok(relative) = path.strip_prefix(src) else {
+            crate::diagnostics::warn_unexpected_asset_path(&path);
+            continue;
+        };
         let target = dest.join(relative);
 
         if path.is_dir() {

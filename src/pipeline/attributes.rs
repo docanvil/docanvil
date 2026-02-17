@@ -35,7 +35,11 @@ pub fn inject_attributes(html: &str) -> String {
             let open_pattern = format!("<{}", tag_name);
 
             if let Some(open_pos) = before[..tag_start].rfind(&open_pattern) {
-                let open_tag_end = before[open_pos..].find('>').unwrap() + open_pos;
+                let Some(offset) = before[open_pos..].find('>') else {
+                    crate::diagnostics::warn_malformed_attribute_tag();
+                    continue;
+                };
+                let open_tag_end = offset + open_pos;
 
                 // Build attribute string
                 let attrs = build_attr_string(&inner);

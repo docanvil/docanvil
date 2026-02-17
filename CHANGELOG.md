@@ -14,6 +14,13 @@ All notable changes to DocAnvil will be documented in this file.
 - Build pipeline IO errors now include the file path that caused them (e.g., `dist/index.html: Permission denied` instead of just `Permission denied`)
 - `docanvil theme` no longer panics if `theme` is set as a scalar value instead of a table in `docanvil.toml`
 - Image path regex in `pipeline/images.rs` moved to a `LazyLock` static to avoid recompilation on every call
+- Replaced 6 unsafe `.unwrap()` / `.expect()` calls in production code with proper error handling:
+  - Attribute injection (`{.class}`) now emits a warning and skips instead of panicking on malformed HTML tags
+  - `docanvil theme` color prompts now return a proper error instead of panicking if hex parsing fails after the dialoguer fallback path
+  - `docanvil theme` internals refactored to use a `ThemeMode` enum, eliminating fragile `Option::unwrap()` calls coupled to string matching
+  - Build pipeline page title update uses a safe guard instead of unwrapping into the page inventory
+  - Asset copying and content scanning now warn and skip instead of panicking on unexpected paths (e.g. from symlinks)
+- All new warnings integrate with `--strict` mode (increment the warning counter, fail the build when strict is enabled)
 
 ## [0.3.3] - 2026-02-17
 

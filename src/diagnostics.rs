@@ -75,6 +75,47 @@ pub fn warn_nav_autodiscover_empty(folder: &str) {
     );
 }
 
+/// Emit a warning about a malformed HTML tag that prevented attribute injection.
+pub fn warn_malformed_attribute_tag() {
+    increment();
+    eprintln!(
+        "{}: malformed HTML tag — could not inject attribute block",
+        "warning".yellow().bold(),
+    );
+    eprintln!(
+        "  {}: Check your Markdown for unclosed HTML tags. Run 'docanvil doctor' for details.",
+        "hint".dimmed()
+    );
+}
+
+/// Emit a warning about an unexpected asset path (e.g. from symlinks).
+pub fn warn_unexpected_asset_path(path: &Path) {
+    increment();
+    eprintln!(
+        "{}: unexpected asset path {} — skipping file",
+        "warning".yellow().bold(),
+        path.display()
+    );
+    eprintln!(
+        "  {}: This may be caused by symlinks. Check your assets directory for symlinks pointing outside the project.",
+        "hint".dimmed()
+    );
+}
+
+/// Emit a warning about an unexpected content path (e.g. from symlinks).
+pub fn warn_unexpected_content_path(path: &Path) {
+    increment();
+    eprintln!(
+        "{}: unexpected content path {} — skipping file",
+        "warning".yellow().bold(),
+        path.display()
+    );
+    eprintln!(
+        "  {}: This may be caused by symlinks in your content directory. Run 'docanvil doctor' to check your project structure.",
+        "hint".dimmed()
+    );
+}
+
 /// Emit a warning that a custom CSS file was not found.
 pub fn warn_custom_css_not_found(path: &str) {
     increment();

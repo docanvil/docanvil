@@ -25,6 +25,8 @@ pub struct PageInventory {
     pub pages: HashMap<String, PageInfo>,
     /// Pages in directory-walk order.
     pub ordered: Vec<String>,
+    /// Maps old (filename-based) slugs to new (overridden) slugs for backward-compatible resolution.
+    pub slug_aliases: HashMap<String, String>,
 }
 
 /// A node in the navigation tree.
@@ -91,16 +93,61 @@ impl PageInventory {
             pages.insert(slug, info);
         }
 
-        Ok(Self { pages, ordered })
+        Ok(Self {
+            pages,
+            ordered,
+            slug_aliases: HashMap::new(),
+        })
+    }
+
+    /// Re-key a page in the inventory when its slug changes.
+    ///
+    /// Preserves the directory prefix from the original slug — only the filename
+    /// portion changes. Records the old slug as an alias for backward-compatible
+    /// wiki-link resolution.
+    pub fn update_slug(&mut self, old_slug: &str, new_slug: String) {
+        if old_slug == new_slug {
+            return;
+        }
+        if let Some(mut page) = self.pages.remove(old_slug) {
+            // Compute the full new slug preserving directory prefix
+            let full_new_slug = if let Some(pos) = old_slug.rfind('/') {
+                format!("{}/{}", &old_slug[..pos], new_slug)
+            } else {
+                new_slug
+            };
+
+            // Update the page's slug and output path
+            page.slug = full_new_slug.clone();
+            page.output_path = PathBuf::from(format!("{}.html", &full_new_slug));
+
+            // Update the ordered vec
+            if let Some(entry) = self.ordered.iter_mut().find(|s| *s == old_slug) {
+                *entry = full_new_slug.clone();
+            }
+
+            // Record alias for backward-compatible resolution
+            self.slug_aliases
+                .insert(old_slug.to_string(), full_new_slug.clone());
+
+            self.pages.insert(full_new_slug, page);
+        }
     }
 
     /// Resolve a wiki-link target to a page slug.
-    /// Tries exact match first, then basename match.
+    /// Tries exact match first, then alias lookup, then basename match.
     pub fn resolve_link(&self, target: &str) -> Option<&PageInfo> {
         let normalized = target.trim().replace('\\', "/");
 
         // Exact match
         if let Some(page) = self.pages.get(&normalized) {
+            return Some(page);
+        }
+
+        // Alias match (old filename-based slug → new slug)
+        if let Some(new_slug) = self.slug_aliases.get(&normalized)
+            && let Some(page) = self.pages.get(new_slug)
+        {
             return Some(page);
         }
 
@@ -392,6 +439,67 @@ mod tests {
         assert!(inv.resolve_link("setup").is_some());
         // Missing
         assert!(inv.resolve_link("nonexistent").is_none());
+    }
+
+    #[test]
+    fn update_slug_basic() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("01-intro.md"), "# Intro").unwrap();
+
+        let mut inv = PageInventory::scan(&docs).unwrap();
+        assert!(inv.pages.contains_key("01-intro"));
+
+        inv.update_slug("01-intro", "introduction".to_string());
+
+        assert!(!inv.pages.contains_key("01-intro"));
+        assert!(inv.pages.contains_key("introduction"));
+        assert_eq!(inv.pages["introduction"].slug, "introduction");
+        assert_eq!(
+            inv.pages["introduction"].output_path,
+            PathBuf::from("introduction.html")
+        );
+        assert_eq!(inv.ordered, vec!["introduction"]);
+        assert_eq!(
+            inv.slug_aliases.get("01-intro").map(String::as_str),
+            Some("introduction")
+        );
+    }
+
+    #[test]
+    fn update_slug_preserves_directory_prefix() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(docs.join("guides")).unwrap();
+        fs::write(docs.join("guides/01-setup.md"), "# Setup").unwrap();
+
+        let mut inv = PageInventory::scan(&docs).unwrap();
+        inv.update_slug("guides/01-setup", "setup-guide".to_string());
+
+        assert!(inv.pages.contains_key("guides/setup-guide"));
+        assert_eq!(inv.pages["guides/setup-guide"].slug, "guides/setup-guide");
+        assert_eq!(
+            inv.pages["guides/setup-guide"].output_path,
+            PathBuf::from("guides/setup-guide.html")
+        );
+    }
+
+    #[test]
+    fn resolve_link_with_alias() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("01-intro.md"), "# Intro").unwrap();
+
+        let mut inv = PageInventory::scan(&docs).unwrap();
+        inv.update_slug("01-intro", "introduction".to_string());
+
+        // New slug resolves
+        assert!(inv.resolve_link("introduction").is_some());
+        // Old slug still resolves via alias
+        assert!(inv.resolve_link("01-intro").is_some());
+        assert_eq!(inv.resolve_link("01-intro").unwrap().slug, "introduction");
     }
 
     #[test]

@@ -2,6 +2,15 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.3.5] - 2026-02-17
+
+### Added
+
+- Front matter-driven slug generation — pages with a front matter `title` now get clean, title-derived URLs instead of using the raw filename (e.g., `01-introduction.md` with title "Introduction" → `/introduction.html`)
+- Explicit `slug` front matter field for full manual control over a page's URL (e.g., `{"slug": "getting-started"}` → `/getting-started.html`)
+- Backward-compatible wiki-link resolution — links using the old filename-based slug (e.g., `[[01-introduction]]`) still resolve correctly after a slug override
+- `index` pages are exempt from title-derived slug changes (the well-known `/index.html` URL is preserved)
+
 ## [0.3.4] - 2026-02-17
 
 ### Added

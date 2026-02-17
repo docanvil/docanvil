@@ -34,7 +34,8 @@ All fields are optional. You can include any combination of them or omit front m
 
 | Field | Type | Effect |
 |-------|------|--------|
-| `title` | String | Overrides the page title used in the browser tab, navigation sidebar, search index, and breadcrumbs |
+| `title` | String | Overrides the page title used in the browser tab, navigation sidebar, search index, breadcrumbs, and URL slug |
+| `slug` | String | Overrides the URL slug directly — takes priority over the title-derived slug |
 | `description` | String | Renders as `<meta name="description">` and `<meta property="og:description">` for search engines and link previews |
 | `author` | String | Renders as `<meta name="author">` |
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
@@ -49,6 +50,7 @@ By default, DocAnvil derives page titles from filenames — `getting-started.md`
 - The navigation sidebar label
 - The search index
 - Breadcrumb trails
+- The URL slug and output filename
 
 ```markdown
 ---
@@ -63,6 +65,43 @@ Content here...
 ```
 
 In this example, the sidebar and browser tab show "Quick Start Guide" while the page content displays its own `# Getting Started with DocAnvil` heading.
+
+### Clean URLs from Titles
+
+When a `title` is set, the page's URL slug is derived from the title instead of the filename. This is especially useful for files with organizational prefixes:
+
+| Filename | Title | Output URL |
+|----------|-------|------------|
+| `01-introduction.md` | `"Introduction"` | `/introduction.html` |
+| `03-setup-guide.md` | `"Setup Guide"` | `/setup-guide.html` |
+| `guides/01-basics.md` | `"The Basics"` | `/guides/the-basics.html` |
+
+The directory prefix is always preserved — only the filename portion changes.
+
+:::note{title="Index pages are exempt"}
+Pages named `index.md` keep their slug regardless of the `title` field. The `index` URL is a well-known convention and is never overridden by title. Use the explicit `slug` field if you need to change it.
+:::
+
+## Slug Override
+
+For full control over the output URL, use the `slug` field. It takes priority over both the filename and the title-derived slug.
+
+```markdown
+---
+{
+  "title": "Getting Started with DocAnvil",
+  "slug": "quickstart"
+}
+---
+```
+
+This page will be written to `/quickstart.html` while still displaying "Getting Started with DocAnvil" as the page title.
+
+The `slug` value is normalized to a URL-safe format automatically — spaces become hyphens and special characters are removed.
+
+### Backward-Compatible Links
+
+When a slug changes (via `title` or `slug`), wiki-links using the old filename-based slug still resolve correctly. For example, if `01-setup.md` gets the title "Setup Guide", both `[[01-setup]]` and `[[setup-guide]]` will link to the same page.
 
 ## SEO Meta Tags
 
@@ -106,6 +145,19 @@ Every page also gets these Open Graph tags automatically, regardless of front ma
 }
 ---
 ```
+
+### Custom slug
+
+```markdown
+---
+{
+  "title": "Frequently Asked Questions",
+  "slug": "faq"
+}
+---
+```
+
+This outputs to `/faq.html` instead of `/frequently-asked-questions.html`.
 
 ### No front matter
 

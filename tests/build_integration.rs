@@ -179,6 +179,94 @@ Body text."#;
 }
 
 #[test]
+fn test_title_derived_slug() {
+    let page = r#"---
+{"title": "Setup Guide"}
+---
+# Setup Guide
+
+How to set up."#;
+
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[("index.md", "# Home"), ("01-setup.md", page)],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    // Should produce setup-guide.html (not 01-setup.html)
+    assert!(
+        output_exists(dir.path(), "setup-guide.html"),
+        "title-derived slug should produce setup-guide.html"
+    );
+    assert!(
+        !output_exists(dir.path(), "01-setup.html"),
+        "old filename-based output should not exist"
+    );
+
+    let html = read_output(dir.path(), "setup-guide.html");
+    assert!(
+        html.contains("Setup Guide"),
+        "page should contain the title"
+    );
+}
+
+#[test]
+fn test_explicit_slug_field() {
+    let page = r#"---
+{"title": "My Page", "slug": "custom-url"}
+---
+# My Page
+
+Content."#;
+
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[("index.md", "# Home"), ("boring-name.md", page)],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    // Should use the explicit slug, not the title-derived one
+    assert!(
+        output_exists(dir.path(), "custom-url.html"),
+        "explicit slug should produce custom-url.html"
+    );
+    assert!(
+        !output_exists(dir.path(), "boring-name.html"),
+        "old filename-based output should not exist"
+    );
+    assert!(
+        !output_exists(dir.path(), "my-page.html"),
+        "title-derived slug should not be used when explicit slug is set"
+    );
+}
+
+#[test]
+fn test_wikilink_resolves_old_slug() {
+    let setup_page = r#"---
+{"title": "Setup Guide"}
+---
+# Setup Guide
+
+How to set up."#;
+
+    let index_page = "# Home\n\nSee [[01-setup]] for setup instructions.";
+
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[("index.md", index_page), ("01-setup.md", setup_page)],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    let html = read_output(dir.path(), "index.html");
+    // Wiki-link using old filename slug should resolve to new slug's URL
+    assert!(
+        html.contains("href=\"/setup-guide.html\""),
+        "wikilink using old slug should resolve to new slug URL, got nav section: {}",
+        &html
+    );
+}
+
+#[test]
 fn test_components_render() {
     let page = r#"# Notes
 

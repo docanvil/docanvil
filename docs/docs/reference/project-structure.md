@@ -68,6 +68,20 @@ The slug is the file path relative to the content directory, with the `.md` exte
 | `docs/reference/cli.md` | `reference/cli` | `reference/cli.html` | Cli |
 | `docs/writing/wiki-links.md` | `writing/wiki-links` | `writing/wiki-links.html` | Wiki Links |
 
+### Front Matter Slug Overrides
+
+When a page has a `title` in its front matter, the slug is derived from the title instead of the filename. An explicit `slug` front matter field takes priority over both. This lets you use organizational prefixes in filenames while keeping clean URLs:
+
+| Source File | Front Matter | Slug | Output File |
+|-------------|-------------|------|-------------|
+| `docs/01-intro.md` | `{"title": "Introduction"}` | `introduction` | `introduction.html` |
+| `docs/guides/01-setup.md` | `{"title": "Setup Guide"}` | `guides/setup-guide` | `guides/setup-guide.html` |
+| `docs/faq-page.md` | `{"slug": "faq"}` | `faq` | `faq.html` |
+
+Directory prefixes are preserved — only the filename portion changes. Pages named `index.md` are exempt from title-derived slugs. See [[writing/front-matter|Front Matter]] for full details.
+
+Wiki-links using the old filename-based slug continue to resolve after a slug override.
+
 ### Title Generation
 
 Titles are derived from the slug's last path component:

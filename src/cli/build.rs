@@ -95,9 +95,11 @@ fn build_site(
     let mut inventory = PageInventory::scan(&content_dir)?;
 
     // Pre-pass: read all sources and extract front matter.
-    // Override page titles from front matter before nav/search are built.
+    // Override page titles and slugs from front matter before nav/search are built.
     let mut sources: HashMap<String, String> = HashMap::new();
     let mut front_matters: HashMap<String, FrontMatter> = HashMap::new();
+    let mut slug_updates: Vec<(String, String)> = Vec::new();
+
     for slug in &inventory.ordered {
         let page = &inventory.pages[slug];
         let source =
@@ -108,8 +110,46 @@ fn build_site(
         {
             page.title = title.clone();
         }
+
+        // Determine slug override: explicit slug field takes priority, then title-derived.
+        // Skip title-derived slugs for "index" pages (well-known convention).
+        let current_basename = slug.rsplit('/').next().unwrap_or(slug);
+        let new_slug = if let Some(ref s) = fm.slug {
+            Some(slug::slugify(s))
+        } else if let Some(ref title) = fm.title
+            && current_basename != "index"
+        {
+            Some(slug::slugify(title))
+        } else {
+            None
+        };
+
+        if let Some(new_slug) = new_slug {
+            // Only update if the slug actually changes (compare against filename portion)
+            if new_slug != current_basename {
+                slug_updates.push((slug.clone(), new_slug));
+            }
+        }
+
         sources.insert(slug.clone(), source);
         front_matters.insert(slug.clone(), fm);
+    }
+
+    // Apply slug updates after the loop to avoid mutating while iterating.
+    for (old_slug, new_slug) in slug_updates {
+        // Re-key source and front matter entries
+        if let Some(source) = sources.remove(&old_slug) {
+            let fm = front_matters.remove(&old_slug).unwrap_or_default();
+            inventory.update_slug(&old_slug, new_slug);
+            // Find the new full slug (with directory prefix preserved)
+            let full_new_slug = inventory
+                .slug_aliases
+                .get(&old_slug)
+                .cloned()
+                .unwrap_or(old_slug);
+            sources.insert(full_new_slug.clone(), source);
+            front_matters.insert(full_new_slug, fm);
+        }
     }
 
     let nav_config = nav::load_nav(project_root)?;

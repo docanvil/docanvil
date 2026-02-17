@@ -8,6 +8,7 @@ pub struct FrontMatter {
     pub description: Option<String>,
     pub author: Option<String>,
     pub date: Option<String>,
+    pub slug: Option<String>,
 }
 
 /// Extract JSON front matter from a Markdown source string.
@@ -92,6 +93,23 @@ mod tests {
         let source = "---\n{\"title\": \"My Page\", \"custom_field\": \"some value\", \"tags\": [\"a\", \"b\", \"c\"]}\n---\n\nContent";
         let fm = extract(source);
         assert_eq!(fm.title.as_deref(), Some("My Page"));
+    }
+
+    #[test]
+    fn explicit_slug_field() {
+        let source =
+            "---\n{\"title\": \"My Page\", \"slug\": \"custom-slug\"}\n---\n\nContent here";
+        let fm = extract(source);
+        assert_eq!(fm.title.as_deref(), Some("My Page"));
+        assert_eq!(fm.slug.as_deref(), Some("custom-slug"));
+    }
+
+    #[test]
+    fn slug_without_title() {
+        let source = "---\n{\"slug\": \"override-slug\"}\n---\n\nContent";
+        let fm = extract(source);
+        assert!(fm.title.is_none());
+        assert_eq!(fm.slug.as_deref(), Some("override-slug"));
     }
 
     #[test]

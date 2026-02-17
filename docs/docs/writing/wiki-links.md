@@ -35,10 +35,11 @@ Here are working wiki-links to pages in this documentation:
 
 ### Resolution Rules
 
-DocAnvil resolves wiki-links against the page inventory in two steps:
+DocAnvil resolves wiki-links against the page inventory in three steps:
 
 1. **Exact match** — the target is compared to page slugs directly (`guides/getting-started` matches `guides/getting-started`)
-2. **Basename match** — if no exact match, the last path component is tried (`getting-started` matches `guides/getting-started`)
+2. **Alias match** — if a page's slug was overridden by front matter (via `title` or `slug`), the old filename-based slug still resolves to the new page
+3. **Basename match** — if no exact or alias match, the last path component is tried (`getting-started` matches `guides/getting-started`)
 
 Basename matching means you can use short names when the page name is unique:
 
@@ -47,13 +48,17 @@ Basename matching means you can use short names when the page name is unique:
 
 ### Slug Derivation
 
-Slugs are derived from the file path relative to the content directory, with the `.md` extension removed:
+Slugs are derived from the file path relative to the content directory, with the `.md` extension removed. When a page has a `title` or `slug` in its [[writing/front-matter|front matter]], the slug is overridden accordingly.
 
-| File Path | Slug |
-|-----------|------|
-| `docs/index.md` | `index` |
-| `docs/guides/getting-started.md` | `guides/getting-started` |
-| `docs/reference/cli.md` | `reference/cli` |
+| File Path | Front Matter | Slug |
+|-----------|-------------|------|
+| `docs/index.md` | — | `index` |
+| `docs/guides/getting-started.md` | — | `guides/getting-started` |
+| `docs/reference/cli.md` | — | `reference/cli` |
+| `docs/01-setup.md` | `{"title": "Setup Guide"}` | `setup-guide` |
+| `docs/faq-page.md` | `{"slug": "faq"}` | `faq` |
+
+When a slug changes, both the old and new slugs resolve correctly in wiki-links.
 
 ### Broken Links
 

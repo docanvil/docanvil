@@ -177,7 +177,7 @@ group = [
 
 ### Autodiscover
 
-You can use the autodiscover option to selectivly autodiscover a folder and add it to the navigation:
+You can use the autodiscover option to selectively autodiscover a folder and add it to the navigation:
 
 <pre><code class="language-toml">&#91;[nav]]
 autodiscover = "api"

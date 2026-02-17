@@ -116,16 +116,16 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 - Version numbers are consistent across outputs :::lozenge{type="default",text="Not started"}
 - CLI entrypoints behave consistently across platforms :::lozenge{type="default",text="Not started"}
 - License is clear and included in the repository :::lozenge{type="default",text="Not started"}
-- README accurately reflects current behavior :::lozenge{type="default",text="Not started"}
+- README accurately reflects current behavior :::lozenge{type="success",text="Done"}
 
 
 
 ## 🧭 Project & Maintenance Signals
 
-- Versioning policy is documented :::lozenge{type="default",text="Not started"}
+- Versioning policy is documented :::lozenge{type="success",text="Done"}
 - CHANGELOG exists and is maintained :::lozenge{type="success",text="Done"}
-- CONTRIBUTING guidelines exist :::lozenge{type="default",text="Not started"}
-- Issue or discussion templates exist (recommended) :::lozenge{type="default",text="Not started"}
+- CONTRIBUTING guidelines exist :::lozenge{type="success",text="Done"}
+- Issue or discussion templates exist (recommended) :::lozenge{type="success",text="Done"}
 - Support expectations for the 1.x series are stated :::lozenge{type="default",text="Not started"}
 
 

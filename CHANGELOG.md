@@ -8,6 +8,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 - `ColorMode` enum (`light`, `dark`, `both`) with validation at config parse time — invalid values like `color_mode = "purple"` now produce a clear error instead of silently passing through
 - Unit tests for `config.rs` covering empty/partial configs, invalid TOML, `base_url` normalization, `site_url` normalization, and `color_mode` validation
+- Bump crate versions for `oxc` to 0.114 and `clap` to 4.5.59
 
 ### Fixed
 

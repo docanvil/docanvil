@@ -402,7 +402,11 @@ fn update_config(
         doc["theme"] = toml_edit::Item::Table(toml_edit::Table::new());
     }
 
-    let theme = doc["theme"].as_table_mut().unwrap();
+    let theme = doc["theme"].as_table_mut().ok_or_else(|| {
+        crate::error::Error::Render(
+            "[theme] in docanvil.toml must be a table, not a scalar value".to_string(),
+        )
+    })?;
 
     // Set custom_css if not already set (or if overwriting)
     if overwrite || theme.get("custom_css").is_none() {

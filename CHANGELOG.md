@@ -2,6 +2,19 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.3.4] - 2026-02-17
+
+### Added
+
+- `ColorMode` enum (`light`, `dark`, `both`) with validation at config parse time — invalid values like `color_mode = "purple"` now produce a clear error instead of silently passing through
+- Unit tests for `config.rs` covering empty/partial configs, invalid TOML, `base_url` normalization, `site_url` normalization, and `color_mode` validation
+
+### Fixed
+
+- Build pipeline IO errors now include the file path that caused them (e.g., `dist/index.html: Permission denied` instead of just `Permission denied`)
+- `docanvil theme` no longer panics if `theme` is set as a scalar value instead of a table in `docanvil.toml`
+- Image path regex in `pipeline/images.rs` moved to a `LazyLock` static to avoid recompilation on every call
+
 ## [0.3.3] - 2026-02-17
 
 ### Added

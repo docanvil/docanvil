@@ -1,6 +1,7 @@
 use serde::Serialize;
 use tera::{Context, Tera};
 
+use crate::config::ColorMode;
 use crate::error::{Error, Result};
 use crate::theme::Theme;
 
@@ -79,6 +80,6 @@ pub struct PageContext {
     pub meta_date: Option<String>,
     pub prev_page: Option<PageLink>,
     pub next_page: Option<PageLink>,
-    pub color_mode: String,
+    pub color_mode: ColorMode,
     pub js_cachebust: String,
 }

@@ -19,6 +19,11 @@ use crate::search;
 use crate::seo;
 use crate::theme::Theme;
 
+/// Wrap an IO error with the file path that caused it.
+fn io_context(path: &Path) -> impl FnOnce(std::io::Error) -> Error + '_ {
+    move |e| Error::General(format!("{}: {e}", path.display()))
+}
+
 /// Run the build command from CLI.
 pub fn run(project_root: &Path, out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
     let start = Instant::now();
@@ -95,7 +100,8 @@ fn build_site(
     let mut front_matters: HashMap<String, FrontMatter> = HashMap::new();
     for slug in &inventory.ordered {
         let page = &inventory.pages[slug];
-        let source = std::fs::read_to_string(&page.source_path)?;
+        let source =
+            std::fs::read_to_string(&page.source_path).map_err(io_context(&page.source_path))?;
         let fm = frontmatter::extract(&source);
         if let Some(ref title) = fm.title {
             inventory.pages.get_mut(slug).unwrap().title = title.clone();
@@ -147,7 +153,8 @@ fn build_site(
         minify_js_source(&theme.default_js)
     };
     std::fs::create_dir_all(output_dir.join("js"))?;
-    std::fs::write(output_dir.join("js/docanvil.js"), &js_content)?;
+    let js_path = output_dir.join("js/docanvil.js");
+    std::fs::write(&js_path, &js_content).map_err(io_context(&js_path))?;
 
     // Generate cachebust query string from JS content hash
     let js_cachebust = {
@@ -251,14 +258,15 @@ fn build_site(
         };
 
         let html = renderer.render_page(&ctx)?;
-        std::fs::write(&out_path, html)?;
+        std::fs::write(&out_path, &html).map_err(io_context(&out_path))?;
         count += 1;
     }
 
     // Write search index
     if let Some(entries) = search_entries {
         let json = search::build_index(&entries);
-        std::fs::write(output_dir.join("search-index.json"), json)?;
+        let path = output_dir.join("search-index.json");
+        std::fs::write(&path, json).map_err(io_context(&path))?;
     }
 
     // Generate robots.txt and sitemap.xml for production builds
@@ -270,10 +278,12 @@ fn build_site(
 
         let sitemap_url = site_url.as_deref().map(|u| format!("{u}sitemap.xml"));
         let robots = seo::generate_robots_txt(sitemap_url.as_deref());
-        std::fs::write(output_dir.join("robots.txt"), robots)?;
+        let robots_path = output_dir.join("robots.txt");
+        std::fs::write(&robots_path, robots).map_err(io_context(&robots_path))?;
 
         let sitemap = seo::generate_sitemap_xml(&inventory, &base_url, site_url.as_deref());
-        std::fs::write(output_dir.join("sitemap.xml"), sitemap)?;
+        let sitemap_path = output_dir.join("sitemap.xml");
+        std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
     }
 
     // Generate 404 page
@@ -312,7 +322,8 @@ fn build_site(
             js_cachebust: js_cachebust.clone(),
         };
         let html = renderer.render_page(&ctx)?;
-        std::fs::write(output_dir.join("404.html"), html)?;
+        let not_found_path = output_dir.join("404.html");
+        std::fs::write(&not_found_path, html).map_err(io_context(&not_found_path))?;
     }
 
     // Copy static assets

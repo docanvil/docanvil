@@ -104,7 +104,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 - Core functionality is covered by automated tests :::lozenge{type="success",text="Done"}
 - Builds fail loudly and early on errors :::lozenge{type="success",text="Done"}
-- Edge cases are handled gracefully :::lozenge{type="in-progress",text="In progress"}
+- Edge cases are handled gracefully :::lozenge{type="success",text="Done"}
 - No known data-loss or silent-failure bugs :::lozenge{type="success",text="Done"}
 - Critical paths have reasonable test coverage :::lozenge{type="success",text="Done"}
 

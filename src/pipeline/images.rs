@@ -1,51 +1,54 @@
 use std::path::Path;
+use std::sync::LazyLock;
 
 use regex::Regex;
+
+static IMG_SRC_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"<img\b([^>]*)\bsrc\s*=\s*"([^"]*)"([^>]*)>"#).unwrap());
 
 /// Rewrite relative `<img src="...">` paths in rendered HTML to include the base URL.
 ///
 /// Skips absolute paths (`/`), URLs (`http://`, `https://`), and data URIs (`data:`).
 /// For relative paths, checks if the file exists at project root; if not, tries under `assets/`.
 pub fn rewrite_image_paths(html: &str, base_url: &str, project_root: &Path) -> String {
-    let re = Regex::new(r#"<img\b([^>]*)\bsrc\s*=\s*"([^"]*)"([^>]*)>"#).unwrap();
+    IMG_SRC_RE
+        .replace_all(html, |caps: &regex::Captures| {
+            let before = &caps[1];
+            let src = &caps[2];
+            let after = &caps[3];
 
-    re.replace_all(html, |caps: &regex::Captures| {
-        let before = &caps[1];
-        let src = &caps[2];
-        let after = &caps[3];
+            if src.starts_with('/')
+                || src.starts_with("http://")
+                || src.starts_with("https://")
+                || src.starts_with("data:")
+            {
+                return caps[0].to_string();
+            }
 
-        if src.starts_with('/')
-            || src.starts_with("http://")
-            || src.starts_with("https://")
-            || src.starts_with("data:")
-        {
-            return caps[0].to_string();
-        }
-
-        // Check if the path exists directly relative to project root
-        let resolved = if project_root.join(src).exists() {
-            Some(src.to_string())
-        } else {
-            // Try under assets/ as a fallback
-            let assets_path = format!("assets/{src}");
-            if project_root.join(&assets_path).exists() {
-                Some(assets_path)
+            // Check if the path exists directly relative to project root
+            let resolved = if project_root.join(src).exists() {
+                Some(src.to_string())
             } else {
-                None
-            }
-        };
+                // Try under assets/ as a fallback
+                let assets_path = format!("assets/{src}");
+                if project_root.join(&assets_path).exists() {
+                    Some(assets_path)
+                } else {
+                    None
+                }
+            };
 
-        match resolved {
-            Some(path) => {
-                format!(r#"<img{before}src="{base_url}{path}"{after}>"#)
+            match resolved {
+                Some(path) => {
+                    format!(r#"<img{before}src="{base_url}{path}"{after}>"#)
+                }
+                None => {
+                    // Path not found — still prepend base_url to the original src
+                    format!(r#"<img{before}src="{base_url}{src}"{after}>"#)
+                }
             }
-            None => {
-                // Path not found — still prepend base_url to the original src
-                format!(r#"<img{before}src="{base_url}{src}"{after}>"#)
-            }
-        }
-    })
-    .into_owned()
+        })
+        .into_owned()
 }
 
 #[cfg(test)]

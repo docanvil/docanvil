@@ -114,7 +114,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 - Package installs cleanly from cargo :::lozenge{type="success",text="Done"}
 - Version numbers are consistent across outputs :::lozenge{type="default",text="Not started"}
-- CLI entrypoints behave consistently across platforms :::lozenge{type="in-progress",text="In progress"}
+- CLI entrypoints behave consistently across platforms :::lozenge{type="success",text="Done"}
 - License is clear and included in the repository :::lozenge{type="success",text="Done"}
 - README accurately reflects current behavior :::lozenge{type="success",text="Done"}
 
@@ -152,8 +152,6 @@ These are the most impactful items still outstanding. Closing these would meanin
 - **Add integration tests for the build pipeline.** All 119 tests are unit tests. A handful of end-to-end tests (config → build → verify output) would catch regressions that unit tests miss.
 - **Document known limitations.** Users coming from other tools need to know what DocAnvil intentionally doesn't do (yet). Even a short list builds trust.
 - **Add a deployment guide.** The docs mention deploying to GitHub Pages, Netlify, and S3 in passing but never walk through it. This is a common first question.
-- **Add cross-platform CI.** Rust is inherently cross-platform, but there's no evidence of testing on Windows. A GitHub Actions matrix would close this gap cheaply.
-
 
 
 ## 📌 Notes

@@ -25,7 +25,7 @@ cargo fmt                      # Format code
 cargo install --path .         # Install locally
 ```
 
-All tests are inline `#[cfg(test)]` modules within their respective source files — there is no separate `tests/` directory.
+Unit tests are inline `#[cfg(test)]` modules within their respective source files. Integration tests live in `tests/` — `build_integration.rs` (library-level build pipeline tests) and `cli_integration.rs` (binary subprocess tests), with shared helpers in `integration_helpers.rs`.
 
 ## CLI Interface
 
@@ -47,6 +47,7 @@ CLI definition: `src/cli/mod.rs`
 
 ```
 src/
+  lib.rs                       # Public module re-exports (for integration tests)
   main.rs                      # clap CLI dispatch
   config.rs                    # docanvil.toml parsing (serde + toml)
   project.rs                   # PageInventory, NavNode, file discovery

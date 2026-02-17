@@ -102,11 +102,11 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 ## 🧪 Reliability & Testing
 
-- Core functionality is covered by automated tests :::lozenge{type="in-progress",text="In progress"}
+- Core functionality is covered by automated tests :::lozenge{type="success",text="Done"}
 - Builds fail loudly and early on errors :::lozenge{type="success",text="Done"}
 - Edge cases are handled gracefully :::lozenge{type="in-progress",text="In progress"}
 - No known data-loss or silent-failure bugs :::lozenge{type="success",text="Done"}
-- Critical paths have reasonable test coverage :::lozenge{type="in-progress",text="In progress"}
+- Critical paths have reasonable test coverage :::lozenge{type="success",text="Done"}
 
 
 
@@ -149,7 +149,6 @@ These are the most impactful items still outstanding. Closing these would meanin
 - **Document HTML/CSS stability guarantees.** The theming system works well, but there's no documented commitment on which CSS classes and HTML structure are considered stable API. Users writing custom CSS need to know what won't break under them in 1.x.
 
 **High value:**
-- **Add integration tests for the build pipeline.** All 119 tests are unit tests. A handful of end-to-end tests (config → build → verify output) would catch regressions that unit tests miss.
 - **Document known limitations.** Users coming from other tools need to know what DocAnvil intentionally doesn't do (yet). Even a short list builds trust.
 - **Add a deployment guide.** The docs mention deploying to GitHub Pages, Netlify, and S3 in passing but never walk through it. This is a common first question.
 

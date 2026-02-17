@@ -2,6 +2,18 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.3.3] - 2026-02-17
+
+### Added
+
+- Integration tests for the build pipeline — 11 new tests covering end-to-end builds (config → build → verify output), including nav ordering, wikilinks, strict mode, search index, front matter, components, and CLI subprocess exit codes
+- `src/lib.rs` exposing public modules so integration tests (and downstream consumers) can import from the `docanvil` crate
+
+### Changed
+
+- `src/main.rs` now imports from the `docanvil` library crate instead of declaring modules directly
+- CI workflow skips runs when only `docs/` files change (`paths-ignore`)
+
 ## [0.3.2] - 2026-02-17
 
 ### Added

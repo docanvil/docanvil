@@ -34,3 +34,5 @@ oxc = { version = "0.113", features = ["minifier", "codegen"] }
 
 [dev-dependencies]
 tempfile = "3"
+assert_cmd = "2"
+predicates = "3"

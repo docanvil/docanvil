@@ -1,5 +1,7 @@
 # 🔨 DocAnvil
 
+[![CI](https://github.com/docanvil/docanvil/actions/workflows/ci.yml/badge.svg)](https://github.com/docanvil/docanvil/actions/workflows/ci.yml)
+
 **Forge beautiful static documentation from Markdown.**
 
 DocAnvil turns your Markdown files into a polished, searchable documentation site with a single command. Built in Rust for speed, designed for developers who want great docs without the setup overhead.

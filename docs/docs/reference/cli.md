@@ -158,7 +158,7 @@ docanvil doctor [--fix] [--strict] [--path <dir>]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--fix` | `false` | Automatically apply safe fixes (create missing dirs, files) |
-| `--strict` | `false` | Exit with code 1 if any warnings or errors are found (for CI) |
+| `--strict` | `false` | Exit with code `3` if any warnings or errors are found (for CI) |
 | `--path` | `.` | Path to the project root |
 
 The doctor runs five categories of checks:
@@ -261,7 +261,7 @@ docanvil build [--out <path>] [--clean] [--path <dir>]
 |--------|---------|-------------|
 | `--out` | `dist` | Output directory for the generated site |
 | `--clean` | `false` | Remove the output directory before building |
-| `--strict` | `false` | Emit warnings as errors and exit with non-zero code |
+| `--strict` | `false` | Emit warnings as errors and exit with code `3` |
 | `--path` | `.` | Path to the project root |
 
 The build pipeline processes each page through:
@@ -294,6 +294,36 @@ docanvil build --path ../my-docs
 
 :::note
 Broken wiki-links are reported as warnings during build. Check the output for any "broken link" messages to find references to pages that don't exist.
+:::
+
+## Exit Codes
+
+All commands return structured exit codes so CI pipelines can distinguish between different failure types:
+
+| Code | Meaning | Example causes |
+|------|---------|----------------|
+| `0` | Success | Build completed, doctor passed |
+| `1` | General failure | IO error, directory already exists, runtime setup failure |
+| `2` | Configuration error | Missing `docanvil.toml`, invalid TOML syntax |
+| `3` | Content validation error | Missing content directory, `--strict` warnings, `doctor --strict` failures |
+| `4` | Rendering error | Template syntax error, Markdown rendering failure |
+| `5` | Internal error | Panic (bug) — includes a message asking you to file an issue |
+
+You can use these in CI scripts to handle different failures appropriately:
+
+```bash
+docanvil build --strict
+code=$?
+case $code in
+  0) echo "Build succeeded" ;;
+  2) echo "Fix your docanvil.toml" ;;
+  3) echo "Content issues found — check warnings above" ;;
+  *) echo "Build failed with exit code $code" ;;
+esac
+```
+
+:::note
+Exit code `5` should never happen in normal use. If you see it, please [report the issue](https://github.com/docanvil/docanvil/issues) — it means DocAnvil hit an unexpected panic.
 :::
 
 ## Related Pages

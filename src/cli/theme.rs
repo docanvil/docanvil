@@ -25,7 +25,7 @@ pub fn run(project_root: &Path, overwrite: bool) -> Result<()> {
             project_root.display()
         );
         eprintln!("  Run `docanvil init` first, or use `--path` to point to your project.");
-        std::process::exit(1);
+        return Err(crate::error::Error::ConfigNotFound(config_path));
     }
 
     let config = Config::load(project_root)?;
@@ -53,7 +53,7 @@ pub fn run(project_root: &Path, overwrite: bool) -> Result<()> {
             }
             eprintln!();
             eprintln!("  Use {} to replace them.", "--overwrite".bold());
-            std::process::exit(0);
+            return Ok(());
         }
     }
 

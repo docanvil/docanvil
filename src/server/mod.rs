@@ -16,7 +16,7 @@ pub async fn start(host: &str, port: u16, output_dir: &Path, project_root: &Path
 
     let addr: SocketAddr = format!("{host}:{port}")
         .parse()
-        .map_err(|e| crate::error::Error::Render(format!("invalid address: {e}")))?;
+        .map_err(|e| crate::error::Error::General(format!("invalid address: {e}")))?;
 
     // Initial build with live_reload enabled
     crate::cli::build::run_with_options(project_root, true)?;

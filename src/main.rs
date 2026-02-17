@@ -18,6 +18,15 @@ use clap::Parser;
 use cli::{Cli, Command};
 
 fn main() {
+    // Exit code 5 for panics (internal error / bug).
+    std::panic::set_hook(Box::new(|info| {
+        eprintln!("error: internal error (this is a bug)");
+        eprintln!("{info}");
+        eprintln!();
+        eprintln!("Please report this at https://github.com/docanvil/docanvil/issues");
+        std::process::exit(5);
+    }));
+
     let cli = Cli::parse();
 
     let result = match &cli.command {
@@ -35,6 +44,6 @@ fn main() {
 
     if let Err(e) = result {
         eprintln!("error: {e}");
-        std::process::exit(1);
+        std::process::exit(e.exit_code());
     }
 }

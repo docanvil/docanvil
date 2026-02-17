@@ -28,7 +28,10 @@ pub fn run(project_root: &Path, fix: bool, strict: bool, quiet: bool) -> Result<
     }
 
     if strict && (summary.warnings > 0 || summary.errors > 0) {
-        std::process::exit(1);
+        return Err(crate::error::Error::DoctorFailed {
+            warnings: summary.warnings,
+            errors: summary.errors,
+        });
     }
 
     Ok(())

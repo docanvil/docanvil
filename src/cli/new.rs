@@ -8,7 +8,7 @@ pub fn run(name: &str) -> Result<()> {
     let project_dir = Path::new(name);
 
     if project_dir.exists() {
-        return Err(crate::error::Error::Render(format!(
+        return Err(crate::error::Error::General(format!(
             "directory '{}' already exists",
             name
         )));

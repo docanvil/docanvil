@@ -2,6 +2,26 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [0.3.2] - 2026-02-17
+
+### Added
+
+- Structured exit codes for CI pipelines — `build`, `doctor`, and all commands now return meaningful exit codes instead of a blanket `1` for every error:
+  - `0` — success
+  - `1` — general / IO failure
+  - `2` — configuration error (missing or invalid `docanvil.toml`)
+  - `3` — content validation error (missing content dir, strict-mode warnings, doctor failures)
+  - `4` — theme / rendering error
+  - `5` — internal error (panic / bug)
+- New error variants: `ConfigNotFound`, `DoctorFailed`, and `General` for more precise error categorization
+- Panic hook that prints a friendly "this is a bug" message with a link to the issue tracker
+
+### Changed
+
+- `docanvil doctor --strict` now returns exit code `3` (content validation) instead of `1`
+- `docanvil theme` no longer calls `process::exit()` directly — missing config returns exit code `2`, overwrite guard returns `0`
+- Non-rendering runtime errors (directory exists, runtime setup, watcher, invalid address) now use `General` instead of `Render`, mapping to exit code `1` rather than `4`
+
 ## [0.3.1] - 2026-02-16
 
 ### Changed

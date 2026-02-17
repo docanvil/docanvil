@@ -9,7 +9,7 @@ pub fn watch(tx: broadcast::Sender<()>, project_root: &Path) -> crate::error::Re
     let (notify_tx, notify_rx) = std::sync::mpsc::channel();
 
     let mut debouncer = new_debouncer(Duration::from_millis(200), notify_tx)
-        .map_err(|e| crate::error::Error::Render(format!("watcher setup failed: {e}")))?;
+        .map_err(|e| crate::error::Error::General(format!("watcher setup failed: {e}")))?;
 
     // Watch the docs/ and theme/ directories
     let watch_dirs = ["docs", "theme", "assets", "docanvil.toml", "nav.toml"];

@@ -28,6 +28,10 @@ pub fn warn_broken_link(source_file: &Path, link_target: &str) {
         link_target,
         source_file.display()
     );
+    eprintln!(
+        "  {}: Run 'docanvil doctor' to check all links.",
+        "hint".dimmed()
+    );
 }
 
 /// Emit a warning about a nav.toml entry referencing a page that doesn't exist.
@@ -38,6 +42,10 @@ pub fn warn_nav_missing_page(slug: &str) {
         "warning".yellow().bold(),
         slug
     );
+    eprintln!(
+        "  {}: Check nav.toml or run 'docanvil doctor' for details.",
+        "hint".dimmed()
+    );
 }
 
 /// Emit a warning that site_url is not configured (sitemap will use relative URLs).
@@ -46,6 +54,10 @@ pub fn warn_no_site_url() {
     eprintln!(
         "{}: site_url not set in [build] — sitemap.xml will use relative URLs",
         "warning".yellow().bold()
+    );
+    eprintln!(
+        "  {}: Add site_url to [build] in docanvil.toml for absolute URLs.",
+        "hint".dimmed()
     );
 }
 
@@ -57,6 +69,10 @@ pub fn warn_nav_autodiscover_empty(folder: &str) {
         "warning".yellow().bold(),
         folder
     );
+    eprintln!(
+        "  {}: Check the folder path in nav.toml or add pages to it.",
+        "hint".dimmed()
+    );
 }
 
 /// Emit a warning that a custom CSS file was not found.
@@ -66,5 +82,9 @@ pub fn warn_custom_css_not_found(path: &str) {
         "{}: custom_css file not found: {}",
         "warning".yellow().bold(),
         path
+    );
+    eprintln!(
+        "  {}: Check the path in docanvil.toml, or run 'docanvil doctor --fix' to create it.",
+        "hint".dimmed()
     );
 }

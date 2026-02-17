@@ -39,13 +39,45 @@ impl Error {
     /// | 2    | Configuration error      |
     /// | 3    | Content validation error  |
     /// | 4    | Theme / rendering error   |
+    /// Return a recovery suggestion for this error, if one is available.
+    pub fn hint(&self) -> Option<String> {
+        match self {
+            Error::Io(_) => Some("Check file permissions and available disk space.".into()),
+            Error::ConfigParse { path, .. } => Some(format!(
+                "Check TOML syntax in {}. Run 'docanvil doctor' for details.",
+                path.display()
+            )),
+            Error::ConfigNotFound(_) => Some(
+                "Run 'docanvil new <name>' to create a project, or check you're in the right directory.".into(),
+            ),
+            Error::ContentDirNotFound(_) => Some(
+                "Create the directory or update content_dir in docanvil.toml.\n       Run 'docanvil doctor --fix' to create it automatically.".into(),
+            ),
+            Error::Render(_) => Some(
+                "Check your layout template for syntax errors. Run 'docanvil doctor' to validate.".into(),
+            ),
+            Error::StrictWarnings(_) => {
+                Some("Fix the warnings above, or build without --strict.".into())
+            }
+            Error::General(_) | Error::DoctorFailed { .. } => None,
+        }
+    }
+
+    /// Return a structured exit code for CI pipelines.
+    ///
+    /// | Code | Meaning                  |
+    /// |------|--------------------------|
+    /// | 1    | General / IO failure     |
+    /// | 2    | Configuration error      |
+    /// | 3    | Content validation error  |
+    /// | 4    | Theme / rendering error   |
     pub fn exit_code(&self) -> i32 {
         match self {
             Error::Io(_) | Error::General(_) => 1,
             Error::ConfigParse { .. } | Error::ConfigNotFound(_) => 2,
-            Error::ContentDirNotFound(_) | Error::StrictWarnings(_) | Error::DoctorFailed { .. } => {
-                3
-            }
+            Error::ContentDirNotFound(_)
+            | Error::StrictWarnings(_)
+            | Error::DoctorFailed { .. } => 3,
             Error::Render(_) => 4,
         }
     }
@@ -97,5 +129,66 @@ mod tests {
     fn exit_code_render() {
         let render = Error::Render("template broke".into());
         assert_eq!(render.exit_code(), 4);
+    }
+
+    #[test]
+    fn hint_io() {
+        let err = Error::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "gone"));
+        let hint = err.hint().unwrap();
+        assert!(hint.contains("permissions"));
+    }
+
+    #[test]
+    fn hint_config_parse() {
+        let err = Error::ConfigParse {
+            path: PathBuf::from("docanvil.toml"),
+            source: toml::from_str::<toml::Value>("not valid").unwrap_err(),
+        };
+        let hint = err.hint().unwrap();
+        assert!(hint.contains("docanvil.toml"));
+        assert!(hint.contains("docanvil doctor"));
+    }
+
+    #[test]
+    fn hint_config_not_found() {
+        let err = Error::ConfigNotFound(PathBuf::from("docanvil.toml"));
+        let hint = err.hint().unwrap();
+        assert!(hint.contains("docanvil new"));
+    }
+
+    #[test]
+    fn hint_content_dir_not_found() {
+        let err = Error::ContentDirNotFound(PathBuf::from("docs"));
+        let hint = err.hint().unwrap();
+        assert!(hint.contains("docanvil doctor --fix"));
+    }
+
+    #[test]
+    fn hint_render() {
+        let err = Error::Render("template broke".into());
+        let hint = err.hint().unwrap();
+        assert!(hint.contains("template"));
+    }
+
+    #[test]
+    fn hint_strict_warnings() {
+        let err = Error::StrictWarnings(2);
+        let hint = err.hint().unwrap();
+        assert!(hint.contains("--strict"));
+    }
+
+    #[test]
+    fn hint_none_for_general() {
+        let err = Error::General("something".into());
+        assert!(err.hint().is_none());
+    }
+
+    #[test]
+    fn hint_none_for_doctor_failed() {
+        let err = Error::DoctorFailed {
+            warnings: 1,
+            errors: 2,
+        };
+        assert!(err.hint().is_none());
     }
 }

@@ -59,9 +59,9 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 - CLI commands are stable and documented :::lozenge{type="success",text="Done"}
 - Flags and options have clear, consistent naming :::lozenge{type="success",text="Done"}
 - Exit codes are meaningful and reliable :::lozenge{type="success",text="Done"}
-- Error messages clearly explain what failed, where, and how to fix it :::lozenge{type="in-progress",text="In progress"}
+- Error messages clearly explain what failed, where, and how to fix it :::lozenge{type="success",text="Done"}
 - Configuration format is documented and frozen :::lozenge{type="success",text="Done"}
-- Invalid configuration produces clear, actionable errors :::lozenge{type="in-progress",text="In progress"}
+- Invalid configuration produces clear, actionable errors :::lozenge{type="success",text="Done"}
 - `docanvil doctor` detects common misconfigurations :::lozenge{type="success",text="Done"}
 
 > **1.0 rule:** No breaking CLI or configuration changes in 1.x.
@@ -147,7 +147,6 @@ These are the most impactful items still outstanding. Closing these would meanin
 
 **Blockers:**
 - **Document HTML/CSS stability guarantees.** The theming system works well, but there's no documented commitment on which CSS classes and HTML structure are considered stable API. Users writing custom CSS need to know what won't break under them in 1.x.
-- **Improve error messages with recovery suggestions.** Doctor diagnostics are excellent, but build/serve errors often say *what* went wrong without suggesting *how to fix it*. Bringing those up to the doctor's standard would make a real difference.
 
 **High value:**
 - **Add integration tests for the build pipeline.** All 119 tests are unit tests. A handful of end-to-end tests (config → build → verify output) would catch regressions that unit tests miss.

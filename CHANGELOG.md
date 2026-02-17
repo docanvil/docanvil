@@ -15,6 +15,8 @@ All notable changes to DocAnvil will be documented in this file.
   - `5` — internal error (panic / bug)
 - New error variants: `ConfigNotFound`, `DoctorFailed`, and `General` for more precise error categorization
 - Panic hook that prints a friendly "this is a bug" message with a link to the issue tracker
+- Recovery hints on all error messages and build warnings — every error and warning now includes an actionable suggestion (e.g., "Run 'docanvil doctor --fix' to create it automatically")
+- Colored error output matching the doctor's style (`error:` in red, `hint:` dimmed)
 
 ### Changed
 

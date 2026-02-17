@@ -16,6 +16,7 @@ mod util;
 
 use clap::Parser;
 use cli::{Cli, Command};
+use owo_colors::OwoColorize;
 
 fn main() {
     // Exit code 5 for panics (internal error / bug).
@@ -43,7 +44,10 @@ fn main() {
     };
 
     if let Err(e) = result {
-        eprintln!("error: {e}");
+        eprintln!("{}: {e}", "error".red().bold());
+        if let Some(hint) = e.hint() {
+            eprintln!("  {}: {hint}", "hint".dimmed());
+        }
         std::process::exit(e.exit_code());
     }
 }

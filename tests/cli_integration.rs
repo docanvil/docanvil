@@ -1,7 +1,7 @@
 mod integration_helpers;
 
 use assert_cmd::Command;
-use integration_helpers::{create_project, DEFAULT_CONFIG};
+use integration_helpers::{DEFAULT_CONFIG, create_project};
 use predicates::prelude::*;
 
 #[allow(deprecated)]

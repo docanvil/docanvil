@@ -1,8 +1,7 @@
 mod integration_helpers;
 
 use integration_helpers::{
-    build_project, build_project_strict, create_project, output_exists, read_output,
-    DEFAULT_CONFIG,
+    DEFAULT_CONFIG, build_project, build_project_strict, create_project, output_exists, read_output,
 };
 
 #[test]
@@ -17,7 +16,10 @@ fn test_basic_build() {
     assert!(output_exists(dir.path(), "js/docanvil.js"));
 
     let html = read_output(dir.path(), "index.html");
-    assert!(html.contains("Hello world"), "page content should appear in output");
+    assert!(
+        html.contains("Hello world"),
+        "page content should appear in output"
+    );
     assert!(html.contains("<title>"), "output should have a title tag");
 }
 
@@ -85,8 +87,12 @@ page = "index"
     let html = read_output(dir.path(), "second.html");
 
     // Find the nav section — look for href occurrences in the nav list
-    let pos_second = html.find("href=\"/second.html\"").expect("nav should contain second link");
-    let pos_first = html.find("href=\"/first.html\"").expect("nav should contain first link");
+    let pos_second = html
+        .find("href=\"/second.html\"")
+        .expect("nav should contain second link");
+    let pos_first = html
+        .find("href=\"/first.html\"")
+        .expect("nav should contain first link");
     assert!(
         pos_second < pos_first,
         "second should appear before first in nav (nav.toml ordering)\nhtml snippet: {}",
@@ -109,7 +115,8 @@ fn test_wikilinks_resolve() {
     assert!(
         html.contains("href=\"/guide.html\""),
         "wikilink should resolve to guide.html, got: {}",
-        &html[html.find("guide").unwrap_or(0)..html.find("guide").unwrap_or(0) + 80.min(html.len())]
+        &html
+            [html.find("guide").unwrap_or(0)..html.find("guide").unwrap_or(0) + 80.min(html.len())]
     );
 }
 

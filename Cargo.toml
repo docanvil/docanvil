@@ -4,6 +4,9 @@ version = "0.3.3"
 edition = "2024"
 description = "A Rust-based static documentation generator that converts Markdown into HTML sites"
 license = "MIT"
+homepage = "https://docanvil.github.io/docanvil/"
+repository = "https://github.com/docanvil/docanvil"
+readme = "README.md"
 
 [[bin]]
 name = "docanvil"

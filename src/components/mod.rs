@@ -25,6 +25,12 @@ pub struct ComponentRegistry {
     components: HashMap<String, Box<dyn Component>>,
 }
 
+impl Default for ComponentRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ComponentRegistry {
     pub fn new() -> Self {
         Self {

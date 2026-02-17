@@ -115,7 +115,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 - Package installs cleanly from cargo :::lozenge{type="success",text="Done"}
 - Version numbers are consistent across outputs :::lozenge{type="default",text="Not started"}
 - CLI entrypoints behave consistently across platforms :::lozenge{type="in-progress",text="In progress"}
-- License is clear and included in the repository :::lozenge{type="default",text="Not started"}
+- License is clear and included in the repository :::lozenge{type="success",text="Done"}
 - README accurately reflects current behavior :::lozenge{type="success",text="Done"}
 
 
@@ -146,7 +146,6 @@ Before tagging **v1.0.0**, the following should all be true:
 These are the most impactful items still outstanding. Closing these would meaningfully increase confidence in a 1.0 release.
 
 **Blockers:**
-- **Add a LICENSE file.** `Cargo.toml` and the README both say MIT, but the actual license text isn't in the repository. This is required by the MIT license itself and expected by users evaluating the project.
 - **Document HTML/CSS stability guarantees.** The theming system works well, but there's no documented commitment on which CSS classes and HTML structure are considered stable API. Users writing custom CSS need to know what won't break under them in 1.x.
 - **Improve error messages with recovery suggestions.** Doctor diagnostics are excellent, but build/serve errors often say *what* went wrong without suggesting *how to fix it*. Bringing those up to the doctor's standard would make a real difference.
 

@@ -101,7 +101,7 @@ The `slug` value is normalized to a URL-safe format automatically — spaces bec
 
 ### Backward-Compatible Links
 
-When a slug changes (via `title` or `slug`), wiki-links using the old filename-based slug still resolve correctly. For example, if `01-setup.md` gets the title "Setup Guide", both `[[01-setup]]` and `[[setup-guide]]` will link to the same page.
+When a slug changes (via `title` or `slug`), wiki-links using the old filename-based slug still resolve correctly. For example, if `01-setup.md` gets the title "Setup Guide", both `01-setup` and `setup-guide` will link to the same page.
 
 ## SEO Meta Tags
 

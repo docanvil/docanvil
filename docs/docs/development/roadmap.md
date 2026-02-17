@@ -2,7 +2,7 @@
 
 DocAnvil follows [Semantic Versioning](https://semver.org). Here's where things stand and where they're headed.
 
-**Current version: 0.3.4**
+**Current version: 0.3.5**
 
 ---
 
@@ -80,11 +80,15 @@ Starting at 1.0.0, DocAnvil guarantees backward compatibility for:
 
 Development shifts to additive improvements only within 1.x.
 
-### 1.1.x — Extensibility
+### 1.1.x — Core Feature Enhancements
+
+Localisation Support, Doc Versioning Support, PDF output format, Style Linting
+
+### 1.2.x — Extensibility
 
 WASM plugin system (v1), additional CLI flags, more diagnostics, and template enhancements. Fully backward compatible.
 
-### 1.2.x+ — Ecosystem Growth
+### 1.3.x+ — Ecosystem Growth
 
 Plugin hooks, performance optimizations, incremental builds, caching, and a plugin SDK crate. Breaking changes require a major release.
 

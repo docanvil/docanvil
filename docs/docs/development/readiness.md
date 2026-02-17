@@ -58,7 +58,7 @@ DocAnvil is a Markdown-first, static documentation generator. Version 1.0 repres
 
 - CLI commands are stable and documented :::lozenge{type="success",text="Done"}
 - Flags and options have clear, consistent naming :::lozenge{type="success",text="Done"}
-- Exit codes are meaningful and reliable :::lozenge{type="in-progress",text="In progress"}
+- Exit codes are meaningful and reliable :::lozenge{type="success",text="Done"}
 - Error messages clearly explain what failed, where, and how to fix it :::lozenge{type="in-progress",text="In progress"}
 - Configuration format is documented and frozen :::lozenge{type="success",text="Done"}
 - Invalid configuration produces clear, actionable errors :::lozenge{type="in-progress",text="In progress"}
@@ -153,7 +153,6 @@ These are the most impactful items still outstanding. Closing these would meanin
 - **Add integration tests for the build pipeline.** All 119 tests are unit tests. A handful of end-to-end tests (config → build → verify output) would catch regressions that unit tests miss.
 - **Document known limitations.** Users coming from other tools need to know what DocAnvil intentionally doesn't do (yet). Even a short list builds trust.
 - **Add a deployment guide.** The docs mention deploying to GitHub Pages, Netlify, and S3 in passing but never walk through it. This is a common first question.
-- **Differentiate exit codes.** All errors return exit code 1. For CI users, distinguishing config errors from content errors from system errors would be valuable.
 - **Add cross-platform CI.** Rust is inherently cross-platform, but there's no evidence of testing on Windows. A GitHub Actions matrix would close this gap cheaply.
 
 

@@ -190,6 +190,68 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
   });
 })();
 
+// Locale switcher
+(function() {
+  var switcher = document.querySelector('.locale-switcher');
+  if (!switcher) return;
+
+  var trigger = switcher.querySelector('.locale-switcher-trigger');
+  var menu = switcher.querySelector('.locale-switcher-menu');
+
+  trigger.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var isOpen = switcher.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', isOpen);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!switcher.contains(e.target)) {
+      switcher.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Store locale choice on explicit click
+  menu.addEventListener('click', function(e) {
+    var link = e.target.closest('a[data-locale]');
+    if (link) {
+      localStorage.setItem('docanvil-locale', link.dataset.locale);
+    }
+  });
+})();
+
+// Locale auto-detection
+(function() {
+  var html = document.documentElement;
+  var autoDetect = document.body.dataset.localeAutoDetect === 'true';
+  if (!autoDetect) return;
+
+  var currentLocale = html.getAttribute('lang') || 'en';
+  var switcher = document.querySelector('.locale-switcher-menu');
+  if (!switcher) return;
+
+  // Collect available locale codes
+  var links = switcher.querySelectorAll('a[data-locale]');
+  var available = [];
+  var urlMap = {};
+  for (var i = 0; i < links.length; i++) {
+    var code = links[i].dataset.locale;
+    available.push(code);
+    urlMap[code] = links[i].href;
+  }
+
+  // Check localStorage first
+  var saved = localStorage.getItem('docanvil-locale');
+  if (saved) return; // User already made an explicit choice
+
+  // Check navigator.language
+  var browserLang = (navigator.language || '').split('-')[0].toLowerCase();
+  if (browserLang && browserLang !== currentLocale && available.indexOf(browserLang) >= 0) {
+    localStorage.setItem('docanvil-locale', browserLang);
+    window.location.href = urlMap[browserLang];
+  }
+})();
+
 // Search
 (function() {
   var overlay = document.querySelector('.search-overlay');

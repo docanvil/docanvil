@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
@@ -16,17 +16,21 @@ pub struct PageInfo {
     pub title: String,
     /// URL-friendly slug used for wiki-link resolution (e.g. `guides/setup`).
     pub slug: String,
+    /// Locale code for this page (e.g. "en"), if i18n is enabled.
+    pub locale: Option<String>,
 }
 
 /// Ordered collection of all pages in the docs directory.
 #[derive(Debug)]
 pub struct PageInventory {
-    /// Slug → PageInfo lookup.
+    /// Slug → PageInfo lookup. When i18n is enabled, keys are composite `{locale}:{slug}`.
     pub pages: HashMap<String, PageInfo>,
-    /// Pages in directory-walk order.
+    /// Pages in directory-walk order (keys matching `pages`).
     pub ordered: Vec<String>,
     /// Maps old (filename-based) slugs to new (overridden) slugs for backward-compatible resolution.
     pub slug_aliases: HashMap<String, String>,
+    /// Locales discovered during scanning (populated only when i18n is enabled).
+    pub discovered_locales: HashSet<String>,
 }
 
 /// A node in the navigation tree.
@@ -46,11 +50,34 @@ pub enum NavNode {
     },
 }
 
+/// Extract locale suffix from a filename stem, if it matches an enabled locale.
+///
+/// Given `getting-started.en` and enabled `["en", "fr"]`, returns `("getting-started", Some("en"))`.
+/// Given `getting-started` (or a suffix not in enabled), returns `("getting-started", None)`.
+pub fn extract_locale_suffix(stem: &str, enabled_locales: &[String]) -> (String, Option<String>) {
+    if let Some(dot_pos) = stem.rfind('.') {
+        let suffix = &stem[dot_pos + 1..];
+        if enabled_locales.iter().any(|l| l == suffix) {
+            return (stem[..dot_pos].to_string(), Some(suffix.to_string()));
+        }
+    }
+    (stem.to_string(), None)
+}
+
 impl PageInventory {
     /// Scan the content directory and build the page inventory.
-    pub fn scan(content_dir: &Path) -> Result<Self> {
+    ///
+    /// When `enabled_locales` is `Some`, locale suffixes are parsed from filenames
+    /// and pages are keyed as `{locale}:{slug}` with locale-prefixed output paths.
+    /// When `None`, i18n is disabled and filenames are treated as-is.
+    pub fn scan(
+        content_dir: &Path,
+        enabled_locales: Option<&[String]>,
+        default_locale: Option<&str>,
+    ) -> Result<Self> {
         let mut pages = HashMap::new();
         let mut ordered = Vec::new();
+        let mut discovered_locales = HashSet::new();
 
         let mut entries: Vec<_> = WalkDir::new(content_dir)
             .into_iter()
@@ -70,33 +97,65 @@ impl PageInventory {
                 continue;
             };
 
-            // Build slug: drop .md extension, use forward slashes
-            let slug = relative
+            // Build raw slug: drop .md extension, use forward slashes
+            let raw_slug = relative
                 .with_extension("")
                 .to_string_lossy()
                 .replace('\\', "/");
 
-            // Output path: same structure but .html
-            let output_path = relative.with_extension("html");
+            if let Some(locales) = enabled_locales {
+                // i18n enabled: extract locale suffix
+                let (base_slug, locale) = extract_locale_suffix(&raw_slug, locales);
+                let locale = locale.or_else(|| default_locale.map(String::from));
 
-            // Title: derive from filename (improved later with front-matter/heading extraction)
-            let title = title_from_slug(&slug);
+                let Some(ref locale_code) = locale else {
+                    // No locale suffix and no default — skip (shouldn't happen if config is valid)
+                    continue;
+                };
 
-            let info = PageInfo {
-                source_path: path,
-                output_path,
-                title,
-                slug: slug.clone(),
-            };
+                discovered_locales.insert(locale_code.clone());
 
-            ordered.push(slug.clone());
-            pages.insert(slug, info);
+                // Output path includes locale prefix: {locale}/{base_slug}.html
+                let output_path = PathBuf::from(format!("{}/{}.html", locale_code, base_slug));
+
+                let title = title_from_slug(&base_slug);
+
+                // Composite key for inventory: {locale}:{base_slug}
+                let key = format!("{}:{}", locale_code, base_slug);
+
+                let info = PageInfo {
+                    source_path: path,
+                    output_path,
+                    title,
+                    slug: base_slug,
+                    locale: Some(locale_code.clone()),
+                };
+
+                ordered.push(key.clone());
+                pages.insert(key, info);
+            } else {
+                // i18n disabled: treat filenames as-is (backward compat)
+                let output_path = relative.with_extension("html");
+                let title = title_from_slug(&raw_slug);
+
+                let info = PageInfo {
+                    source_path: path,
+                    output_path,
+                    title,
+                    slug: raw_slug.clone(),
+                    locale: None,
+                };
+
+                ordered.push(raw_slug.clone());
+                pages.insert(raw_slug, info);
+            }
         }
 
         Ok(Self {
             pages,
             ordered,
             slug_aliases: HashMap::new(),
+            discovered_locales,
         })
     }
 
@@ -134,6 +193,34 @@ impl PageInventory {
         }
     }
 
+    /// Resolve a wiki-link target within a specific locale.
+    /// Looks up `{locale}:{normalized_target}`, then alias, then basename — all within the same locale.
+    pub fn resolve_link_in_locale(&self, target: &str, locale: &str) -> Option<&PageInfo> {
+        let normalized = target.trim().replace('\\', "/");
+        let key = format!("{}:{}", locale, normalized);
+
+        // Exact match with locale prefix
+        if let Some(page) = self.pages.get(&key) {
+            return Some(page);
+        }
+
+        // Alias match within locale
+        if let Some(new_slug) = self.slug_aliases.get(&key)
+            && let Some(page) = self.pages.get(new_slug)
+        {
+            return Some(page);
+        }
+
+        // Basename match within same locale
+        self.pages.values().find(|p| {
+            p.locale.as_deref() == Some(locale)
+                && p.slug
+                    .rsplit('/')
+                    .next()
+                    .is_some_and(|base| base == normalized)
+        })
+    }
+
     /// Resolve a wiki-link target to a page slug.
     /// Tries exact match first, then alias lookup, then basename match.
     pub fn resolve_link(&self, target: &str) -> Option<&PageInfo> {
@@ -158,6 +245,32 @@ impl PageInventory {
                 .next()
                 .is_some_and(|base| base == normalized)
         })
+    }
+
+    /// Return the ordered keys for pages matching a specific locale.
+    pub fn ordered_for_locale(&self, locale: &str) -> Vec<String> {
+        self.ordered
+            .iter()
+            .filter(|key| {
+                self.pages
+                    .get(*key)
+                    .is_some_and(|p| p.locale.as_deref() == Some(locale))
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Collect all base slugs across all locales, returning a map of base_slug → set of locales.
+    pub fn slug_locale_coverage(&self) -> HashMap<String, HashSet<String>> {
+        let mut map: HashMap<String, HashSet<String>> = HashMap::new();
+        for page in self.pages.values() {
+            if let Some(ref locale) = page.locale {
+                map.entry(page.slug.clone())
+                    .or_default()
+                    .insert(locale.clone());
+            }
+        }
+        map
     }
 
     /// Build a navigation subtree for pages within a specific folder.
@@ -188,13 +301,64 @@ impl PageInventory {
         root
     }
 
+    /// Build a navigation subtree for pages within a specific folder, filtered to a locale.
+    ///
+    /// Like `nav_tree_for_folder` but only includes pages matching the given locale.
+    /// Slugs are base slugs (no locale prefix).
+    pub fn nav_tree_for_folder_in_locale(
+        &self,
+        folder: &str,
+        exclude_slug: Option<&str>,
+        locale: &str,
+    ) -> Vec<NavNode> {
+        let prefix = format!("{}/", folder.trim_end_matches('/'));
+        let mut root: Vec<NavNode> = Vec::new();
+
+        for key in &self.ordered {
+            let info = &self.pages[key];
+            if info.locale.as_deref() != Some(locale) {
+                continue;
+            }
+            if let Some(excluded) = exclude_slug
+                && info.slug == excluded
+            {
+                continue;
+            }
+            if let Some(rest) = info.slug.strip_prefix(&prefix) {
+                if rest.is_empty() {
+                    continue;
+                }
+                let parts: Vec<&str> = rest.split('/').collect();
+                insert_nav_node(&mut root, &parts, info);
+            }
+        }
+
+        root
+    }
+
     /// Build a navigation tree from the page inventory.
     pub fn nav_tree(&self) -> Vec<NavNode> {
         let mut root: Vec<NavNode> = Vec::new();
 
         for slug in &self.ordered {
             let info = &self.pages[slug];
-            let parts: Vec<&str> = slug.split('/').collect();
+            let parts: Vec<&str> = info.slug.split('/').collect();
+            insert_nav_node(&mut root, &parts, info);
+        }
+
+        root
+    }
+
+    /// Build a navigation tree for a specific locale's pages.
+    pub fn nav_tree_for_locale(&self, locale: &str) -> Vec<NavNode> {
+        let mut root: Vec<NavNode> = Vec::new();
+
+        for key in &self.ordered {
+            let info = &self.pages[key];
+            if info.locale.as_deref() != Some(locale) {
+                continue;
+            }
+            let parts: Vec<&str> = info.slug.split('/').collect();
             insert_nav_node(&mut root, &parts, info);
         }
 
@@ -430,7 +594,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guides/setup.md"), "# Setup Guide").unwrap();
 
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         assert_eq!(inv.pages.len(), 2);
 
         // Exact match
@@ -448,7 +612,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("01-intro.md"), "# Intro").unwrap();
 
-        let mut inv = PageInventory::scan(&docs).unwrap();
+        let mut inv = PageInventory::scan(&docs, None, None).unwrap();
         assert!(inv.pages.contains_key("01-intro"));
 
         inv.update_slug("01-intro", "introduction".to_string());
@@ -474,7 +638,7 @@ mod tests {
         fs::create_dir_all(docs.join("guides")).unwrap();
         fs::write(docs.join("guides/01-setup.md"), "# Setup").unwrap();
 
-        let mut inv = PageInventory::scan(&docs).unwrap();
+        let mut inv = PageInventory::scan(&docs, None, None).unwrap();
         inv.update_slug("guides/01-setup", "setup-guide".to_string());
 
         assert!(inv.pages.contains_key("guides/setup-guide"));
@@ -492,7 +656,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("01-intro.md"), "# Intro").unwrap();
 
-        let mut inv = PageInventory::scan(&docs).unwrap();
+        let mut inv = PageInventory::scan(&docs, None, None).unwrap();
         inv.update_slug("01-intro", "introduction".to_string());
 
         // New slug resolves
@@ -510,7 +674,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
 
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         let tree = inv.nav_tree();
 
         // Should have "Guides" directory node and "Home" page node
@@ -526,7 +690,7 @@ mod tests {
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
         fs::write(docs.join("guides/config.md"), "# Config").unwrap();
 
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         let tree = inv.nav_tree();
 
         // When viewing a page outside the group, group should be collapsed
@@ -611,5 +775,123 @@ mod tests {
         let map = build_breadcrumb_map(&nodes);
         assert_eq!(map.len(), 1);
         assert_eq!(map.get("index").unwrap(), &vec!["Home"]);
+    }
+
+    #[test]
+    fn extract_locale_suffix_match() {
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let (base, locale) = extract_locale_suffix("getting-started.en", &locales);
+        assert_eq!(base, "getting-started");
+        assert_eq!(locale, Some("en".to_string()));
+    }
+
+    #[test]
+    fn extract_locale_suffix_no_match() {
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let (base, locale) = extract_locale_suffix("api.v2", &locales);
+        assert_eq!(base, "api.v2");
+        assert_eq!(locale, None);
+    }
+
+    #[test]
+    fn extract_locale_suffix_no_dot() {
+        let locales = vec!["en".to_string()];
+        let (base, locale) = extract_locale_suffix("getting-started", &locales);
+        assert_eq!(base, "getting-started");
+        assert_eq!(locale, None);
+    }
+
+    #[test]
+    fn scan_with_i18n() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("index.en.md"), "# Home").unwrap();
+        fs::write(docs.join("index.fr.md"), "# Accueil").unwrap();
+        fs::write(docs.join("guide.en.md"), "# Guide").unwrap();
+
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+
+        assert_eq!(inv.pages.len(), 3);
+        assert!(inv.pages.contains_key("en:index"));
+        assert!(inv.pages.contains_key("fr:index"));
+        assert!(inv.pages.contains_key("en:guide"));
+
+        // Slugs should be base (no locale suffix)
+        assert_eq!(inv.pages["en:index"].slug, "index");
+        assert_eq!(inv.pages["fr:index"].slug, "index");
+
+        // Output paths should include locale prefix
+        assert_eq!(
+            inv.pages["en:index"].output_path,
+            PathBuf::from("en/index.html")
+        );
+        assert_eq!(
+            inv.pages["fr:index"].output_path,
+            PathBuf::from("fr/index.html")
+        );
+
+        // Locale should be set
+        assert_eq!(inv.pages["en:index"].locale, Some("en".to_string()));
+        assert_eq!(inv.pages["fr:index"].locale, Some("fr".to_string()));
+    }
+
+    #[test]
+    fn scan_with_i18n_unsuffixed_files_get_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("index.md"), "# Home").unwrap();
+
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+
+        assert_eq!(inv.pages.len(), 1);
+        assert!(inv.pages.contains_key("en:index"));
+        assert_eq!(inv.pages["en:index"].locale, Some("en".to_string()));
+    }
+
+    #[test]
+    fn resolve_link_in_locale_exact() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("guide.en.md"), "# Guide").unwrap();
+        fs::write(docs.join("guide.fr.md"), "# Guide FR").unwrap();
+
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+
+        let en_page = inv.resolve_link_in_locale("guide", "en");
+        assert!(en_page.is_some());
+        assert_eq!(en_page.unwrap().locale, Some("en".to_string()));
+
+        let fr_page = inv.resolve_link_in_locale("guide", "fr");
+        assert!(fr_page.is_some());
+        assert_eq!(fr_page.unwrap().locale, Some("fr".to_string()));
+
+        // Missing locale
+        assert!(inv.resolve_link_in_locale("guide", "de").is_none());
+    }
+
+    #[test]
+    fn slug_locale_coverage_map() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("index.en.md"), "# Home").unwrap();
+        fs::write(docs.join("index.fr.md"), "# Accueil").unwrap();
+        fs::write(docs.join("guide.en.md"), "# Guide").unwrap();
+
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let coverage = inv.slug_locale_coverage();
+
+        assert_eq!(coverage["index"].len(), 2);
+        assert!(coverage["index"].contains("en"));
+        assert!(coverage["index"].contains("fr"));
+        assert_eq!(coverage["guide"].len(), 1);
+        assert!(coverage["guide"].contains("en"));
     }
 }

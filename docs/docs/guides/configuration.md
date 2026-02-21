@@ -35,6 +35,18 @@ enabled = true
 [charts]
 enabled = true
 mermaid_version = "11"
+
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+auto_detect = true
+
+[locale.display_names]
+en = "English"
+fr = "Français"
+
+[locale.flags]
+en = "🇺🇸"
 ```
 :::
 ::::
@@ -56,6 +68,11 @@ The `name` field under `[project]` is required. DocAnvil will fail to load witho
 |-----|---------|-------------|
 | `output_dir` | `"dist"` | Directory where the static site is generated |
 | `base_url` | `"/"` | URL path prefix for subfolder deployments (e.g. `"/my-project/"`) |
+| `site_url` | `None` | Full site URL (e.g. `"https://example.com/"`) for canonical URLs, hreflang tags, and sitemap |
+
+:::note{title="Recommended for i18n"}
+Setting `site_url` is strongly recommended when using localisation. It enables absolute hreflang URLs, canonical `<link>` tags, and `og:url` meta tags — all important for multilingual SEO.
+:::
 
 ### `[theme]` Section
 
@@ -94,6 +111,37 @@ When enabled, DocAnvil generates a `search-index.json` file at build time and ad
 | `mermaid_version` | `"11"` | Major version of Mermaid.js to load from CDN |
 
 When enabled, pages containing `:::mermaid` blocks will load Mermaid.js and render diagrams client-side. When disabled, `:::mermaid` content renders as preformatted text.
+
+### `[locale]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `default` | `None` | Default locale code (e.g. `"en"`). Required to enable i18n. |
+| `enabled` | `[]` | List of enabled locale codes (e.g. `["en", "fr", "de"]`) |
+| `auto_detect` | `true` | Auto-detect the user's browser language and redirect on first visit |
+| `display_names` | `{}` | Human-readable names for locales shown in the language switcher |
+| `flags` | `{}` | Flag emoji overrides for locales (e.g. `{"en": "🇺🇸"}` to use US flag instead of default 🇬🇧) |
+
+When both `default` and `enabled` are set, DocAnvil switches to multi-language mode: each locale gets its own URL prefix (`/en/`, `/fr/`), its own navigation and search index, and a language switcher appears in the header.
+
+```toml
+[locale]
+default = "en"
+enabled = ["en", "fr", "de"]
+auto_detect = true
+
+[locale.display_names]
+en = "English"
+fr = "Français"
+de = "Deutsch"
+
+[locale.flags]
+en = "🇺🇸"    # Use US flag instead of default GB
+```
+
+:::note{title="Need details?"}
+See [[guides/localisation|Localisation]] for a complete walkthrough of setting up multi-language docs, including file naming, per-locale navigation, and translation coverage.
+:::
 
 ## nav.toml
 

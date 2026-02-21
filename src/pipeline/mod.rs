@@ -17,6 +17,8 @@ use crate::project::PageInventory;
 use self::syntax::SyntaxHighlighter;
 
 /// Full pipeline: directives → popovers → markdown → syntax highlight → wiki-links → attributes → heading IDs.
+/// When `locale` is provided, wiki-links resolve within that locale only.
+#[allow(clippy::too_many_arguments)]
 pub fn process(
     source: &str,
     inventory: &PageInventory,
@@ -25,6 +27,7 @@ pub fn process(
     base_url: &str,
     highlighter: Option<&SyntaxHighlighter>,
     project_root: &Path,
+    locale: Option<&str>,
 ) -> Result<String> {
     // 1. Pre-comrak: process block directives (:::name{attrs} ... :::)
     let source = directives::process_directives(source, &mut |block| registry.render_block(block));
@@ -49,7 +52,7 @@ pub fn process(
     };
 
     // 5. Resolve wiki-links
-    let html = wikilinks::resolve(&html, inventory, source_file, base_url);
+    let html = wikilinks::resolve(&html, inventory, source_file, base_url, locale);
 
     // 6. Post-comrak: inject inline attributes ({.class})
     let html = attributes::inject_attributes(&html);

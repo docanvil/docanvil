@@ -116,6 +116,22 @@ pub fn warn_unexpected_content_path(path: &Path) {
     );
 }
 
+/// Emit a warning about a missing translation for a page in a locale.
+pub fn warn_missing_translation(slug: &str, locale: &str) {
+    increment();
+    eprintln!(
+        "{}: page '{}' has no translation for locale '{}'",
+        "warning".yellow().bold(),
+        slug,
+        locale
+    );
+    eprintln!(
+        "  {}: Create a file with the '.{}.md' suffix to add a translation.",
+        "hint".dimmed(),
+        locale
+    );
+}
+
 /// Emit a warning that a custom CSS file was not found.
 pub fn warn_custom_css_not_found(path: &str) {
     increment();

@@ -141,8 +141,13 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
     all.extend(project_diags);
 
     // Try to build inventory (needed for config and content checks)
+    let enabled_locales = if config.is_i18n_enabled() {
+        Some(config.locale.enabled.as_slice())
+    } else {
+        None
+    };
     let inventory = if has_content_dir {
-        PageInventory::scan(&content_dir).ok()
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale()).ok()
     } else {
         None
     };
@@ -175,7 +180,15 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
         all.extend(content_diags);
     }
 
-    // E. Output checks
+    // E. Locale checks (only when i18n is enabled)
+    if config.is_i18n_enabled() {
+        eprintln!("{}", "Checking translations...".bold());
+        let locale_diags = checks::locale::check_locale(project_root, &config, inventory.as_ref());
+        print_check_results(&locale_diags);
+        all.extend(locale_diags);
+    }
+
+    // F. Output checks
     eprintln!("{}", "Checking output...".bold());
     let output_diags = checks::output::check_output(project_root, &config);
     print_check_results(&output_diags);

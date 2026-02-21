@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::time::Instant;
@@ -14,7 +14,7 @@ use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInventory};
 use crate::render::assets;
-use crate::render::templates::{PageContext, PageLink, TemplateRenderer};
+use crate::render::templates::{LocaleInfo, PageContext, PageLink, TemplateRenderer};
 use crate::search;
 use crate::seo;
 use crate::theme::Theme;
@@ -92,7 +92,13 @@ fn build_site(
     let renderer = TemplateRenderer::new(&theme)?;
 
     // Build page inventory for wiki-link resolution and navigation
-    let mut inventory = PageInventory::scan(&content_dir)?;
+    let enabled_locales = if config.is_i18n_enabled() {
+        Some(config.locale.enabled.as_slice())
+    } else {
+        None
+    };
+    let mut inventory =
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale())?;
 
     // Pre-pass: read all sources and extract front matter.
     // Override page titles and slugs from front matter before nav/search are built.
@@ -152,15 +158,6 @@ fn build_site(
         }
     }
 
-    let nav_config = nav::load_nav(project_root)?;
-    let nav_tree = match nav_config {
-        Some(entries) => {
-            nav::validate(&entries, &inventory);
-            nav::nav_tree_from_config(&entries, &inventory)
-        }
-        None => inventory.nav_tree(),
-    };
-    let breadcrumb_map = project::build_breadcrumb_map(&nav_tree);
     let registry = ComponentRegistry::with_builtins();
 
     // Create syntax highlighter if enabled
@@ -171,24 +168,24 @@ fn build_site(
     };
 
     // Dev server always uses "/" — base_url only applies to static builds
-    let base_url = if live_reload {
+    let root_base_url = if live_reload {
         "/".to_string()
     } else {
         config.base_url()
     };
-    // Compute logo and favicon paths with base_url prefix
+    // Compute logo and favicon paths with root base_url prefix
     let logo_path = config
         .project
         .logo
         .as_ref()
-        .map(|p| format!("{}{}", base_url, p));
+        .map(|p| format!("{}{}", root_base_url, p));
     let favicon_path = config
         .project
         .favicon
         .as_ref()
-        .map(|p| format!("{}{}", base_url, p));
+        .map(|p| format!("{}{}", root_base_url, p));
 
-    // Write JS file to output directory
+    // Write JS file to output directory (shared across locales)
     let js_content = if live_reload {
         theme.default_js.clone()
     } else {
@@ -208,107 +205,311 @@ fn build_site(
     // Ensure output directory exists
     std::fs::create_dir_all(output_dir)?;
 
-    // Build prev/next page map from nav tree ordering
-    let flat_pages = project::flatten_nav_pages(&nav_tree);
-    let mut prev_next_map: HashMap<String, (Option<PageLink>, Option<PageLink>)> = HashMap::new();
-    for (i, (slug, _label)) in flat_pages.iter().enumerate() {
-        let prev = if i > 0 {
-            let (ref ps, ref pl) = flat_pages[i - 1];
-            Some(PageLink {
-                title: pl.clone(),
-                url: format!("{}{}.html", base_url, ps),
-            })
-        } else {
-            None
-        };
-        let next = if i + 1 < flat_pages.len() {
-            let (ref ns, ref nl) = flat_pages[i + 1];
-            Some(PageLink {
-                title: nl.clone(),
-                url: format!("{}{}.html", base_url, ns),
-            })
-        } else {
-            None
-        };
-        prev_next_map.insert(slug.clone(), (prev, next));
-    }
-
-    let mut search_entries = if config.search.enabled {
-        Some(Vec::new())
-    } else {
-        None
-    };
-
     let mut count = 0;
-    for slug in &inventory.ordered {
-        let page = &inventory.pages[slug];
-        let source = &sources[slug];
-        let fm = &front_matters[slug];
 
-        let html_body = pipeline::process(
-            source,
-            &inventory,
-            &page.source_path,
-            &registry,
-            &base_url,
-            highlighter.as_ref(),
-            project_root,
-        )?;
+    if config.is_i18n_enabled() {
+        // ── i18n build: per-locale loop ──
+        let slug_coverage = inventory.slug_locale_coverage();
 
-        if let Some(ref mut entries) = search_entries {
-            let crumbs = breadcrumb_map
-                .get(slug)
-                .cloned()
-                .unwrap_or_else(|| vec![page.title.clone()]);
-            let mut sections =
-                search::extract_sections(&html_body, slug, &page.title, &base_url, crumbs);
-            entries.append(&mut sections);
+        for locale in &config.locale.enabled {
+            let locale_base_url = format!("{}{}/", root_base_url, locale);
+
+            // Load locale-specific nav
+            let nav_config = nav::load_nav_for_locale(project_root, locale)?;
+            let nav_tree = match nav_config {
+                Some(entries) => {
+                    nav::validate_for_locale(&entries, &inventory, locale);
+                    nav::nav_tree_from_config_for_locale(&entries, &inventory, locale)
+                }
+                None => inventory.nav_tree_for_locale(locale),
+            };
+            let breadcrumb_map = project::build_breadcrumb_map(&nav_tree);
+
+            // Build prev/next page map for this locale
+            let flat_pages = project::flatten_nav_pages(&nav_tree);
+            let mut prev_next_map: HashMap<String, (Option<PageLink>, Option<PageLink>)> =
+                HashMap::new();
+            for (i, (slug, _label)) in flat_pages.iter().enumerate() {
+                let prev = if i > 0 {
+                    let (ref ps, ref pl) = flat_pages[i - 1];
+                    Some(PageLink {
+                        title: pl.clone(),
+                        url: format!("{}{}.html", locale_base_url, ps),
+                    })
+                } else {
+                    None
+                };
+                let next = if i + 1 < flat_pages.len() {
+                    let (ref ns, ref nl) = flat_pages[i + 1];
+                    Some(PageLink {
+                        title: nl.clone(),
+                        url: format!("{}{}.html", locale_base_url, ns),
+                    })
+                } else {
+                    None
+                };
+                prev_next_map.insert(slug.clone(), (prev, next));
+            }
+
+            let mut search_entries = if config.search.enabled {
+                Some(Vec::new())
+            } else {
+                None
+            };
+
+            let locale_keys = inventory.ordered_for_locale(locale);
+            for key in &locale_keys {
+                let page = &inventory.pages[key];
+                let source = &sources[key];
+                let fm = &front_matters[key];
+                let base_slug = &page.slug;
+
+                let html_body = pipeline::process(
+                    source,
+                    &inventory,
+                    &page.source_path,
+                    &registry,
+                    &root_base_url,
+                    highlighter.as_ref(),
+                    project_root,
+                    Some(locale),
+                )?;
+
+                if let Some(ref mut entries) = search_entries {
+                    let crumbs = breadcrumb_map
+                        .get(base_slug)
+                        .cloned()
+                        .unwrap_or_else(|| vec![page.title.clone()]);
+                    let mut sections = search::extract_sections(
+                        &html_body,
+                        base_slug,
+                        &page.title,
+                        &locale_base_url,
+                        crumbs,
+                    );
+                    entries.append(&mut sections);
+                }
+
+                let nav_html = project::render_nav(&nav_tree, base_slug, &locale_base_url);
+
+                let out_path = output_dir.join(&page.output_path);
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+
+                let (prev_page, next_page) = prev_next_map
+                    .get(base_slug)
+                    .cloned()
+                    .unwrap_or((None, None));
+
+                // Build available locales for the language switcher
+                let site_url = config.site_url();
+                let site_url_ref = site_url.as_deref();
+                let available_locales = build_locale_info(
+                    config,
+                    base_slug,
+                    locale,
+                    &slug_coverage,
+                    &root_base_url,
+                    site_url_ref,
+                );
+
+                let canonical_url = site_url_ref.map(|site| {
+                    let site = site.trim_end_matches('/');
+                    let path = page.output_path.to_string_lossy().replace('\\', "/");
+                    format!("{site}/{path}")
+                });
+
+                let default_locale = config.default_locale().unwrap_or("en");
+                let x_default_url = available_locales
+                    .iter()
+                    .find(|l| l.code == default_locale)
+                    .and_then(|l| l.absolute_url.clone().or(Some(l.url.clone())));
+
+                let ctx = PageContext {
+                    page_title: page.title.clone(),
+                    project_name: config.project.name.clone(),
+                    content: html_body,
+                    nav_html,
+                    default_css: theme.default_css.clone(),
+                    css_overrides: theme.css_overrides.clone(),
+                    custom_css_path: theme.custom_css_path.clone(),
+                    custom_css: theme.custom_css.clone(),
+                    base_url: root_base_url.clone(),
+                    logo_path: logo_path.clone(),
+                    favicon_path: favicon_path.clone(),
+                    live_reload,
+                    mermaid_enabled: config.charts.enabled,
+                    mermaid_version: config.charts.mermaid_version.clone(),
+                    search_enabled: config.search.enabled,
+                    meta_description: fm.description.clone(),
+                    meta_author: fm.author.clone(),
+                    meta_date: fm.date.clone(),
+                    prev_page,
+                    next_page,
+                    color_mode: config.theme.color_mode.clone(),
+                    js_cachebust: js_cachebust.clone(),
+                    current_locale: Some(locale.clone()),
+                    current_flag: Some(config.locale_flag(locale)),
+                    available_locales,
+                    locale_auto_detect: config.locale.auto_detect,
+                    canonical_url,
+                    x_default_url,
+                };
+
+                let html = renderer.render_page(&ctx)?;
+                std::fs::write(&out_path, &html).map_err(io_context(&out_path))?;
+                count += 1;
+            }
+
+            // Write per-locale search index
+            if let Some(entries) = search_entries {
+                let json = search::build_index(&entries);
+                let path = output_dir.join(format!("{}/search-index.json", locale));
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&path, json).map_err(io_context(&path))?;
+            }
         }
 
-        let nav_html = project::render_nav(&nav_tree, slug, &base_url);
+        // Emit missing translation warnings
+        for (slug, locales_with_page) in &slug_coverage {
+            for locale in &config.locale.enabled {
+                if !locales_with_page.contains(locale) {
+                    crate::diagnostics::warn_missing_translation(slug, locale);
+                }
+            }
+        }
+    } else {
+        // ── Single-language build (backward compatible) ──
+        let base_url = root_base_url.clone();
 
-        let out_path = output_dir.join(&page.output_path);
-        if let Some(parent) = out_path.parent() {
-            std::fs::create_dir_all(parent)?;
+        let nav_config = nav::load_nav(project_root)?;
+        let nav_tree = match nav_config {
+            Some(entries) => {
+                nav::validate(&entries, &inventory);
+                nav::nav_tree_from_config(&entries, &inventory)
+            }
+            None => inventory.nav_tree(),
+        };
+        let breadcrumb_map = project::build_breadcrumb_map(&nav_tree);
+
+        // Build prev/next page map from nav tree ordering
+        let flat_pages = project::flatten_nav_pages(&nav_tree);
+        let mut prev_next_map: HashMap<String, (Option<PageLink>, Option<PageLink>)> =
+            HashMap::new();
+        for (i, (slug, _label)) in flat_pages.iter().enumerate() {
+            let prev = if i > 0 {
+                let (ref ps, ref pl) = flat_pages[i - 1];
+                Some(PageLink {
+                    title: pl.clone(),
+                    url: format!("{}{}.html", base_url, ps),
+                })
+            } else {
+                None
+            };
+            let next = if i + 1 < flat_pages.len() {
+                let (ref ns, ref nl) = flat_pages[i + 1];
+                Some(PageLink {
+                    title: nl.clone(),
+                    url: format!("{}{}.html", base_url, ns),
+                })
+            } else {
+                None
+            };
+            prev_next_map.insert(slug.clone(), (prev, next));
         }
 
-        let (prev_page, next_page) = prev_next_map.get(slug).cloned().unwrap_or((None, None));
-
-        let ctx = PageContext {
-            page_title: page.title.clone(),
-            project_name: config.project.name.clone(),
-            content: html_body,
-            nav_html,
-            default_css: theme.default_css.clone(),
-            css_overrides: theme.css_overrides.clone(),
-            custom_css_path: theme.custom_css_path.clone(),
-            custom_css: theme.custom_css.clone(),
-            base_url: base_url.clone(),
-            logo_path: logo_path.clone(),
-            favicon_path: favicon_path.clone(),
-            live_reload,
-            mermaid_enabled: config.charts.enabled,
-            mermaid_version: config.charts.mermaid_version.clone(),
-            search_enabled: config.search.enabled,
-            meta_description: fm.description.clone(),
-            meta_author: fm.author.clone(),
-            meta_date: fm.date.clone(),
-            prev_page,
-            next_page,
-            color_mode: config.theme.color_mode.clone(),
-            js_cachebust: js_cachebust.clone(),
+        let mut search_entries = if config.search.enabled {
+            Some(Vec::new())
+        } else {
+            None
         };
 
-        let html = renderer.render_page(&ctx)?;
-        std::fs::write(&out_path, &html).map_err(io_context(&out_path))?;
-        count += 1;
-    }
+        for slug in &inventory.ordered {
+            let page = &inventory.pages[slug];
+            let source = &sources[slug];
+            let fm = &front_matters[slug];
 
-    // Write search index
-    if let Some(entries) = search_entries {
-        let json = search::build_index(&entries);
-        let path = output_dir.join("search-index.json");
-        std::fs::write(&path, json).map_err(io_context(&path))?;
+            let html_body = pipeline::process(
+                source,
+                &inventory,
+                &page.source_path,
+                &registry,
+                &base_url,
+                highlighter.as_ref(),
+                project_root,
+                None,
+            )?;
+
+            if let Some(ref mut entries) = search_entries {
+                let crumbs = breadcrumb_map
+                    .get(slug)
+                    .cloned()
+                    .unwrap_or_else(|| vec![page.title.clone()]);
+                let mut sections =
+                    search::extract_sections(&html_body, slug, &page.title, &base_url, crumbs);
+                entries.append(&mut sections);
+            }
+
+            let nav_html = project::render_nav(&nav_tree, slug, &base_url);
+
+            let out_path = output_dir.join(&page.output_path);
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            let (prev_page, next_page) = prev_next_map.get(slug).cloned().unwrap_or((None, None));
+
+            let canonical_url = config.site_url().map(|site| {
+                let site = site.trim_end_matches('/');
+                let path = page.output_path.to_string_lossy().replace('\\', "/");
+                format!("{site}/{path}")
+            });
+
+            let ctx = PageContext {
+                page_title: page.title.clone(),
+                project_name: config.project.name.clone(),
+                content: html_body,
+                nav_html,
+                default_css: theme.default_css.clone(),
+                css_overrides: theme.css_overrides.clone(),
+                custom_css_path: theme.custom_css_path.clone(),
+                custom_css: theme.custom_css.clone(),
+                base_url: base_url.clone(),
+                logo_path: logo_path.clone(),
+                favicon_path: favicon_path.clone(),
+                live_reload,
+                mermaid_enabled: config.charts.enabled,
+                mermaid_version: config.charts.mermaid_version.clone(),
+                search_enabled: config.search.enabled,
+                meta_description: fm.description.clone(),
+                meta_author: fm.author.clone(),
+                meta_date: fm.date.clone(),
+                prev_page,
+                next_page,
+                color_mode: config.theme.color_mode.clone(),
+                js_cachebust: js_cachebust.clone(),
+                current_locale: None,
+                current_flag: None,
+                available_locales: Vec::new(),
+                locale_auto_detect: false,
+                canonical_url,
+                x_default_url: None,
+            };
+
+            let html = renderer.render_page(&ctx)?;
+            std::fs::write(&out_path, &html).map_err(io_context(&out_path))?;
+            count += 1;
+        }
+
+        // Write search index
+        if let Some(entries) = search_entries {
+            let json = search::build_index(&entries);
+            let path = output_dir.join("search-index.json");
+            std::fs::write(&path, json).map_err(io_context(&path))?;
+        }
     }
 
     // Generate robots.txt and sitemap.xml for production builds
@@ -323,22 +524,74 @@ fn build_site(
         let robots_path = output_dir.join("robots.txt");
         std::fs::write(&robots_path, robots).map_err(io_context(&robots_path))?;
 
-        let sitemap = seo::generate_sitemap_xml(&inventory, &base_url, site_url.as_deref());
+        let locale_config = if config.is_i18n_enabled() {
+            let slug_coverage = inventory.slug_locale_coverage();
+            Some(seo::SitemapLocaleConfig {
+                enabled: config.locale.enabled.clone(),
+                default_locale: config.default_locale().unwrap_or("en").to_string(),
+                slug_coverage,
+            })
+        } else {
+            None
+        };
+        let sitemap = seo::generate_sitemap_xml(
+            &inventory,
+            &root_base_url,
+            site_url.as_deref(),
+            locale_config.as_ref(),
+        );
         let sitemap_path = output_dir.join("sitemap.xml");
         std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
     }
 
     // Generate 404 page
     {
-        let nav_html = project::render_nav(&nav_tree, "", &base_url);
-        let not_found_content = format!(
-            "<div class=\"not-found\">\
-             <h1>404</h1>\
-             <p>The page you're looking for doesn't exist.</p>\
-             <a href=\"{}\">Back to home</a>\
-             </div>",
-            base_url
-        );
+        let default_locale = config.default_locale().map(String::from);
+        let base_url_404 = if let Some(ref locale) = default_locale {
+            format!("{}{}/", root_base_url, locale)
+        } else {
+            root_base_url.clone()
+        };
+        let nav_tree_404 = if let Some(ref locale) = default_locale {
+            let nav_config = nav::load_nav_for_locale(project_root, locale)?;
+            match nav_config {
+                Some(entries) => nav::nav_tree_from_config_for_locale(&entries, &inventory, locale),
+                None => inventory.nav_tree_for_locale(locale),
+            }
+        } else {
+            let nav_config = nav::load_nav(project_root)?;
+            match nav_config {
+                Some(entries) => nav::nav_tree_from_config(&entries, &inventory),
+                None => inventory.nav_tree(),
+            }
+        };
+        let nav_html = project::render_nav(&nav_tree_404, "", &base_url_404);
+
+        let not_found_content = if config.is_i18n_enabled() {
+            let mut links = String::from(
+                "<div class=\"not-found\">\
+                 <h1>404</h1>\
+                 <p>The page you're looking for doesn't exist.</p>\
+                 <p>",
+            );
+            for locale in &config.locale.enabled {
+                let display = config.locale_display_name(locale);
+                let locale_home = format!("{}{}/index.html", root_base_url, locale);
+                links.push_str(&format!("<a href=\"{}\">{}</a> ", locale_home, display));
+            }
+            links.push_str("</p></div>");
+            links
+        } else {
+            format!(
+                "<div class=\"not-found\">\
+                 <h1>404</h1>\
+                 <p>The page you're looking for doesn't exist.</p>\
+                 <a href=\"{}\">Back to home</a>\
+                 </div>",
+                root_base_url
+            )
+        };
+
         let ctx = PageContext {
             page_title: "Page Not Found".to_string(),
             project_name: config.project.name.clone(),
@@ -348,7 +601,7 @@ fn build_site(
             css_overrides: theme.css_overrides.clone(),
             custom_css_path: theme.custom_css_path.clone(),
             custom_css: theme.custom_css.clone(),
-            base_url: base_url.clone(),
+            base_url: root_base_url.clone(),
             logo_path: logo_path.clone(),
             favicon_path: favicon_path.clone(),
             live_reload,
@@ -362,6 +615,12 @@ fn build_site(
             next_page: None,
             color_mode: config.theme.color_mode.clone(),
             js_cachebust: js_cachebust.clone(),
+            current_locale: default_locale,
+            current_flag: None,
+            available_locales: Vec::new(),
+            locale_auto_detect: false,
+            canonical_url: None,
+            x_default_url: None,
         };
         let html = renderer.render_page(&ctx)?;
         let not_found_path = output_dir.join("404.html");
@@ -372,6 +631,50 @@ fn build_site(
     assets::copy_assets(project_root, output_dir, config.theme.custom_css.as_deref())?;
 
     Ok(count)
+}
+
+/// Build locale info for the language switcher on a specific page.
+fn build_locale_info(
+    config: &Config,
+    base_slug: &str,
+    current_locale: &str,
+    slug_coverage: &HashMap<String, HashSet<String>>,
+    root_base_url: &str,
+    site_url: Option<&str>,
+) -> Vec<LocaleInfo> {
+    config
+        .locale
+        .enabled
+        .iter()
+        .map(|code| {
+            let has_page = slug_coverage
+                .get(base_slug)
+                .is_some_and(|locales| locales.contains(code));
+            let url = if has_page {
+                format!("{}{}/{}.html", root_base_url, code, base_slug)
+            } else {
+                // Link to this locale's home page when the specific page doesn't exist
+                format!("{}{}/index.html", root_base_url, code)
+            };
+            let absolute_url = site_url.map(|site| {
+                let locale_path = if has_page {
+                    format!("{code}/{base_slug}.html")
+                } else {
+                    format!("{code}/index.html")
+                };
+                format!("{site}{locale_path}")
+            });
+            LocaleInfo {
+                code: code.clone(),
+                display_name: config.locale_display_name(code),
+                flag: config.locale_flag(code),
+                url,
+                absolute_url,
+                is_current: code == current_locale,
+                has_page,
+            }
+        })
+        .collect()
 }
 
 /// Minify JavaScript source for production builds using oxc.

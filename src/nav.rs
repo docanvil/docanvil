@@ -98,17 +98,43 @@ pub fn load_nav(project_root: &Path) -> Result<Option<Vec<NavEntry>>> {
     Ok(Some(nav_file.nav))
 }
 
-/// Warn about slugs in nav.toml that don't match any page in the inventory.
-pub fn validate(entries: &[NavEntry], inventory: &PageInventory) {
-    validate_items(entries, inventory);
+/// Load locale-specific nav file: tries `nav.{locale}.toml` first, falls back to `nav.toml`.
+pub fn load_nav_for_locale(project_root: &Path, locale: &str) -> Result<Option<Vec<NavEntry>>> {
+    let locale_path = project_root.join(format!("nav.{locale}.toml"));
+    if locale_path.exists() {
+        let content = std::fs::read_to_string(&locale_path)?;
+        let nav_file: NavFile =
+            toml::from_str(&content).map_err(|e| crate::error::Error::ConfigParse {
+                path: locale_path.clone(),
+                source: e,
+            })?;
+        return Ok(Some(nav_file.nav));
+    }
+
+    // Fall back to the default nav.toml
+    load_nav(project_root)
 }
 
-fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory) {
+/// Warn about slugs in nav.toml that don't match any page in the inventory.
+pub fn validate(entries: &[NavEntry], inventory: &PageInventory) {
+    validate_items(entries, inventory, None);
+}
+
+/// Warn about slugs in nav.toml that don't match any page for the given locale.
+pub fn validate_for_locale(entries: &[NavEntry], inventory: &PageInventory, locale: &str) {
+    validate_items(entries, inventory, Some(locale));
+}
+
+fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory, locale: Option<&str>) {
     for item in items {
-        if let Some(slug) = item.page()
-            && !inventory.pages.contains_key(slug)
-        {
-            diagnostics::warn_nav_missing_page(slug);
+        if let Some(slug) = item.page() {
+            let key = match locale {
+                Some(l) => format!("{l}:{slug}"),
+                None => slug.to_string(),
+            };
+            if !inventory.pages.contains_key(&key) {
+                diagnostics::warn_nav_missing_page(slug);
+            }
         }
         if let Some(folder) = item.autodiscover()
             && inventory.nav_tree_for_folder(folder, None).is_empty()
@@ -116,7 +142,7 @@ fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory) {
             diagnostics::warn_nav_autodiscover_empty(folder);
         }
         if let Some(group) = item.group() {
-            validate_items(group, inventory);
+            validate_items(group, inventory, locale);
         }
     }
 }
@@ -125,11 +151,28 @@ fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory) {
 pub fn nav_tree_from_config(entries: &[NavEntry], inventory: &PageInventory) -> Vec<NavNode> {
     entries
         .iter()
-        .flat_map(|entry| item_to_nodes(entry, inventory))
+        .flat_map(|entry| item_to_nodes(entry, inventory, None))
         .collect()
 }
 
-fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory) -> Vec<NavNode> {
+/// Convert parsed nav entries into a NavNode tree for a specific locale.
+/// Nav entries use base slugs; inventory lookup uses `{locale}:{slug}` composite keys.
+pub fn nav_tree_from_config_for_locale(
+    entries: &[NavEntry],
+    inventory: &PageInventory,
+    locale: &str,
+) -> Vec<NavNode> {
+    entries
+        .iter()
+        .flat_map(|entry| item_to_nodes(entry, inventory, Some(locale)))
+        .collect()
+}
+
+fn item_to_nodes(
+    item: &dyn NavItem,
+    inventory: &PageInventory,
+    locale: Option<&str>,
+) -> Vec<NavNode> {
     // Separator entry
     if let Some(sep) = item.separator() {
         return vec![match sep {
@@ -143,7 +186,11 @@ fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory) -> Vec<NavNode> 
     // Autodiscover entry
     if let Some(folder) = item.autodiscover() {
         let exclude = item.page();
-        let discovered = inventory.nav_tree_for_folder(folder, exclude);
+        let discovered = if let Some(locale) = locale {
+            inventory.nav_tree_for_folder_in_locale(folder, exclude, locale)
+        } else {
+            inventory.nav_tree_for_folder(folder, exclude)
+        };
         if let Some(label) = item.label() {
             return vec![NavNode::Group {
                 label: label.to_string(),
@@ -160,7 +207,7 @@ fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory) -> Vec<NavNode> 
         let slug = item.page().map(String::from);
         let children: Vec<NavNode> = group_items
             .iter()
-            .flat_map(|child| item_to_nodes(child, inventory))
+            .flat_map(|child| item_to_nodes(child, inventory, locale))
             .collect();
         return vec![NavNode::Group {
             label,
@@ -174,7 +221,7 @@ fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory) -> Vec<NavNode> 
         let label = item
             .label()
             .map(String::from)
-            .unwrap_or_else(|| resolve_label(slug, inventory));
+            .unwrap_or_else(|| resolve_label(slug, inventory, locale));
         return vec![NavNode::Page {
             label,
             slug: slug.to_string(),
@@ -185,10 +232,14 @@ fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory) -> Vec<NavNode> 
 }
 
 /// Resolve a label for a page slug — use the page title from inventory, or derive from slug.
-fn resolve_label(slug: &str, inventory: &PageInventory) -> String {
+fn resolve_label(slug: &str, inventory: &PageInventory, locale: Option<&str>) -> String {
+    let key = match locale {
+        Some(l) => format!("{l}:{slug}"),
+        None => slug.to_string(),
+    };
     inventory
         .pages
-        .get(slug)
+        .get(&key)
         .map(|p| p.title.clone())
         .unwrap_or_else(|| crate::project::title_from_slug(slug))
 }
@@ -300,7 +351,7 @@ page = "guide"
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guide.md"), "# Guide").unwrap();
 
-        let inventory = PageInventory::scan(&docs).unwrap();
+        let inventory = PageInventory::scan(&docs, None, None).unwrap();
 
         let entries = vec![
             NavEntry {

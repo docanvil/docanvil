@@ -1,6 +1,6 @@
 # DocAnvil
 
-A static documentation generator that turns Markdown into beautiful HTML sites.
+Un générateur de documentation statique qui transforme Markdown en de superbes sites HTML.
 
 ## Quick Start
 

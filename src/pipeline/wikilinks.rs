@@ -5,11 +5,13 @@ use crate::project::PageInventory;
 
 /// Process wiki-links in rendered HTML.
 /// Replaces `[[target]]` and `[[target|display text]]` with proper HTML links.
+/// When `locale` is provided, links resolve within that locale only.
 pub fn resolve(
     html: &str,
     inventory: &PageInventory,
     source_file: &Path,
     base_url: &str,
+    locale: Option<&str>,
 ) -> String {
     let mut result = String::with_capacity(html.len());
     let mut remaining = html;
@@ -29,7 +31,11 @@ pub fn resolve(
             let target = target.trim();
             let display = display.trim();
 
-            if let Some(page) = inventory.resolve_link(target) {
+            let resolved = match locale {
+                Some(l) => inventory.resolve_link_in_locale(target, l),
+                None => inventory.resolve_link(target),
+            };
+            if let Some(page) = resolved {
                 let href = format!("{}{}", base_url, page.output_path.display());
                 result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
             } else {
@@ -68,7 +74,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("setup.md"), "# Setup").unwrap();
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         (dir, inv)
     }
 
@@ -76,7 +82,7 @@ mod tests {
     fn resolve_simple_link() {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[setup]] for details.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"), "/");
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
         assert!(result.contains("<a href=\"/setup.html\">setup</a>"));
     }
 
@@ -84,7 +90,7 @@ mod tests {
     fn resolve_link_with_display_text() {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[setup|the setup guide]] for details.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"), "/");
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
         assert!(result.contains("<a href=\"/setup.html\">the setup guide</a>"));
     }
 
@@ -92,7 +98,7 @@ mod tests {
     fn broken_link_gets_class() {
         let (_dir, inv) = test_inventory();
         let html = "<p>See [[nonexistent]] page.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"), "/");
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
         assert!(result.contains("class=\"broken-link popover-trigger\""));
         assert!(result.contains("popover-error"));
         assert!(result.contains("<code>nonexistent</code>"));
@@ -103,7 +109,7 @@ mod tests {
     fn unclosed_brackets_preserved() {
         let (_dir, inv) = test_inventory();
         let html = "<p>This [[ is unclosed.</p>";
-        let result = resolve(html, &inv, Path::new("test.md"), "/");
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
         assert!(result.contains("[["));
     }
 }

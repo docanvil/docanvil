@@ -2,6 +2,11 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [1.0.0] - 2026-02-20
+
+### Changed
+- Changed the version to 1.0.0 and released as the first stable version
+
 ## [0.3.5] - 2026-02-17
 
 ### Added

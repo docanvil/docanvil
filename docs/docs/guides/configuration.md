@@ -44,6 +44,9 @@ auto_detect = true
 [locale.display_names]
 en = "English"
 fr = "Français"
+
+[locale.flags]
+en = "🇺🇸"
 ```
 :::
 ::::
@@ -112,6 +115,7 @@ When enabled, pages containing `:::mermaid` blocks will load Mermaid.js and rend
 | `enabled` | `[]` | List of enabled locale codes (e.g. `["en", "fr", "de"]`) |
 | `auto_detect` | `true` | Auto-detect the user's browser language and redirect on first visit |
 | `display_names` | `{}` | Human-readable names for locales shown in the language switcher |
+| `flags` | `{}` | Flag emoji overrides for locales (e.g. `{"en": "🇺🇸"}` to use US flag instead of default 🇬🇧) |
 
 When both `default` and `enabled` are set, DocAnvil switches to multi-language mode: each locale gets its own URL prefix (`/en/`, `/fr/`), its own navigation and search index, and a language switcher appears in the header.
 
@@ -125,6 +129,9 @@ auto_detect = true
 en = "English"
 fr = "Français"
 de = "Deutsch"
+
+[locale.flags]
+en = "🇺🇸"    # Use US flag instead of default GB
 ```
 
 :::note{title="Need details?"}

@@ -99,12 +99,25 @@ Each locale gets its own search index (`en/search-index.json`, `fr/search-index.
 
 When i18n is enabled, a language switcher appears in the header bar. It shows:
 
-- A globe icon with the current locale code
-- A dropdown listing all enabled locales with their display names
+- A flag emoji with the current locale code (e.g. 🇬🇧 EN)
+- A dropdown listing all enabled locales with flag emoji and display names
 - The current locale highlighted
 - Unavailable translations greyed out (when a page doesn't exist in that locale)
 
 Clicking a locale navigates to the same page in the selected language. If the page doesn't exist in the target locale, the link goes to that locale's home page instead.
+
+### Flag Emoji
+
+DocAnvil auto-assigns flag emoji based on locale codes — `en` gets 🇬🇧, `fr` gets 🇫🇷, `de` gets 🇩🇪, and so on. Unknown locale codes get a 🌐 globe.
+
+To override the default flag for a locale (e.g. using the US flag for English), add a `[locale.flags]` table:
+
+```toml
+[locale.flags]
+en = "🇺🇸"
+```
+
+This is useful when a language maps to multiple countries and you want to match your audience.
 
 ## Browser Auto-Detection
 

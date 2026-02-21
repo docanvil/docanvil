@@ -17,6 +17,7 @@ pub struct PageLink {
 pub struct LocaleInfo {
     pub code: String,
     pub display_name: String,
+    pub flag: String,
     pub url: String,
     pub is_current: bool,
     pub has_page: bool,
@@ -62,6 +63,7 @@ impl TemplateRenderer {
         context.insert("color_mode", &ctx.color_mode);
         context.insert("js_cachebust", &ctx.js_cachebust);
         context.insert("current_locale", &ctx.current_locale);
+        context.insert("current_flag", &ctx.current_flag);
         context.insert("available_locales", &ctx.available_locales);
         context.insert("locale_auto_detect", &ctx.locale_auto_detect);
 
@@ -96,6 +98,7 @@ pub struct PageContext {
     pub color_mode: ColorMode,
     pub js_cachebust: String,
     pub current_locale: Option<String>,
+    pub current_flag: Option<String>,
     pub available_locales: Vec<LocaleInfo>,
     pub locale_auto_detect: bool,
 }

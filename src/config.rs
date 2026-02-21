@@ -60,6 +60,8 @@ pub struct LocaleConfig {
     pub display_names: HashMap<String, String>,
     /// Whether to auto-detect the user's browser language and redirect (default: true).
     pub auto_detect: bool,
+    /// Flag emoji overrides for locales (e.g. {"en": "🇺🇸"} to use US flag instead of default GB).
+    pub flags: HashMap<String, String>,
 }
 
 impl Default for LocaleConfig {
@@ -69,6 +71,7 @@ impl Default for LocaleConfig {
             enabled: Vec::new(),
             display_names: HashMap::new(),
             auto_detect: true,
+            flags: HashMap::new(),
         }
     }
 }
@@ -189,6 +192,44 @@ impl Default for BuildConfig {
     }
 }
 
+/// Map common language codes to flag emoji using regional indicator symbols.
+fn default_flag_for_locale(code: &str) -> String {
+    match code {
+        "en" => "🇬🇧",
+        "fr" => "🇫🇷",
+        "de" => "🇩🇪",
+        "es" => "🇪🇸",
+        "it" => "🇮🇹",
+        "pt" => "🇵🇹",
+        "nl" => "🇳🇱",
+        "ja" => "🇯🇵",
+        "zh" => "🇨🇳",
+        "ko" => "🇰🇷",
+        "ru" => "🇷🇺",
+        "ar" => "🇸🇦",
+        "hi" => "🇮🇳",
+        "sv" => "🇸🇪",
+        "da" => "🇩🇰",
+        "fi" => "🇫🇮",
+        "no" => "🇳🇴",
+        "pl" => "🇵🇱",
+        "tr" => "🇹🇷",
+        "uk" => "🇺🇦",
+        "cs" => "🇨🇿",
+        "el" => "🇬🇷",
+        "he" => "🇮🇱",
+        "th" => "🇹🇭",
+        "vi" => "🇻🇳",
+        "id" => "🇮🇩",
+        "ms" => "🇲🇾",
+        "ro" => "🇷🇴",
+        "hu" => "🇭🇺",
+        "bg" => "🇧🇬",
+        _ => "🌐",
+    }
+    .to_string()
+}
+
 /// Normalize a base_url: ensure leading and trailing `/`.
 fn normalize_base_url(url: &str) -> String {
     let trimmed = url.trim().trim_matches('/');
@@ -221,6 +262,16 @@ impl Config {
     /// Return the default locale code, if i18n is enabled.
     pub fn default_locale(&self) -> Option<&str> {
         self.locale.default.as_deref()
+    }
+
+    /// Return the flag emoji for a locale code. Uses `[locale.flags]` override if set,
+    /// otherwise falls back to a built-in language-to-country mapping.
+    pub fn locale_flag(&self, code: &str) -> String {
+        self.locale
+            .flags
+            .get(code)
+            .cloned()
+            .unwrap_or_else(|| default_flag_for_locale(code))
     }
 
     /// Return the display name for a locale code, or the code uppercased if no name is configured.

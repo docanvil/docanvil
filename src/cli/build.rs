@@ -211,7 +211,7 @@ fn build_site(
         let slug_coverage = inventory.slug_locale_coverage();
 
         for locale in &config.locale.enabled {
-            let locale_base_url = format!("{}{}/", root_base_url.trim_end_matches('/'), locale);
+            let locale_base_url = format!("{}{}/", root_base_url, locale);
 
             // Load locale-specific nav
             let nav_config = nav::load_nav_for_locale(project_root, locale)?;
@@ -268,7 +268,7 @@ fn build_site(
                     &inventory,
                     &page.source_path,
                     &registry,
-                    &locale_base_url,
+                    &root_base_url,
                     highlighter.as_ref(),
                     project_root,
                     Some(locale),
@@ -332,6 +332,7 @@ fn build_site(
                     color_mode: config.theme.color_mode.clone(),
                     js_cachebust: js_cachebust.clone(),
                     current_locale: Some(locale.clone()),
+                    current_flag: Some(config.locale_flag(locale)),
                     available_locales,
                     locale_auto_detect: config.locale.auto_detect,
                 };
@@ -466,6 +467,7 @@ fn build_site(
                 color_mode: config.theme.color_mode.clone(),
                 js_cachebust: js_cachebust.clone(),
                 current_locale: None,
+                current_flag: None,
                 available_locales: Vec::new(),
                 locale_auto_detect: false,
             };
@@ -504,7 +506,7 @@ fn build_site(
     {
         let default_locale = config.default_locale().map(String::from);
         let base_url_404 = if let Some(ref locale) = default_locale {
-            format!("{}{}/", root_base_url.trim_end_matches('/'), locale)
+            format!("{}{}/", root_base_url, locale)
         } else {
             root_base_url.clone()
         };
@@ -536,7 +538,7 @@ fn build_site(
                 let display = config.locale_display_name(locale);
                 let locale_home = format!(
                     "{}{}/index.html",
-                    root_base_url.trim_end_matches('/'),
+                    root_base_url,
                     locale
                 );
                 links.push_str(&format!(
@@ -581,6 +583,7 @@ fn build_site(
             color_mode: config.theme.color_mode.clone(),
             js_cachebust: js_cachebust.clone(),
             current_locale: default_locale,
+            current_flag: None,
             available_locales: Vec::new(),
             locale_auto_detect: false,
         };
@@ -614,7 +617,7 @@ fn build_locale_info(
             let url = if has_page {
                 format!(
                     "{}{}/{}.html",
-                    root_base_url.trim_end_matches('/'),
+                    root_base_url,
                     code,
                     base_slug
                 )
@@ -622,13 +625,14 @@ fn build_locale_info(
                 // Link to this locale's home page when the specific page doesn't exist
                 format!(
                     "{}{}/index.html",
-                    root_base_url.trim_end_matches('/'),
+                    root_base_url,
                     code
                 )
             };
             LocaleInfo {
                 code: code.clone(),
                 display_name: config.locale_display_name(code),
+                flag: config.locale_flag(code),
                 url,
                 is_current: code == current_locale,
                 has_page,

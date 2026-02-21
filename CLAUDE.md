@@ -161,7 +161,7 @@ Markdown source
 | Type | File | Purpose |
 |------|------|---------|
 | `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig`, `LocaleConfig` |
-| `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()` |
+| `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale` |
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
@@ -170,8 +170,8 @@ Markdown source
 | `Component` trait | `components/mod.rs` | `name() -> &str` + `render(&ComponentContext) -> Result<String>` |
 | `ComponentContext` | `components/mod.rs` | `attributes: HashMap<String, String>`, `body_raw: String`, `body_html: String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` registers all builtin components. `render_block()` does lookup + render |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `available_locales`, `locale_auto_detect`) |
-| `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `url`, `is_current`, `has_page` |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`) |
+| `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `is_current`, `has_page` |
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
 | `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body` |
 

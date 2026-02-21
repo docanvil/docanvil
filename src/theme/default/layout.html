@@ -58,13 +58,13 @@
       {% if available_locales | length > 0 %}
       <div class="locale-switcher">
         <button class="locale-switcher-trigger" aria-label="Switch language" aria-expanded="false">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span class="locale-switcher-flag">{{ current_flag | default(value="🌐") }}</span>
           <span class="locale-switcher-label">{{ current_locale | default(value="en") | upper }}</span>
         </button>
         <ul class="locale-switcher-menu">
           {% for locale in available_locales %}
           <li class="locale-switcher-item{% if locale.is_current %} locale-switcher-active{% endif %}{% if not locale.has_page %} locale-switcher-unavailable{% endif %}">
-            <a href="{{ locale.url }}" data-locale="{{ locale.code }}">{{ locale.display_name }}</a>
+            <a href="{{ locale.url }}" data-locale="{{ locale.code }}"><span class="locale-switcher-flag">{{ locale.flag }}</span> {{ locale.display_name }}</a>
           </li>
           {% endfor %}
         </ul>

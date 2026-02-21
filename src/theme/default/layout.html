@@ -22,6 +22,26 @@
   {% endif %}
   <meta property="og:title" content="{{ page_title }}">
   <meta property="og:type" content="article">
+  {% if canonical_url %}
+  <link rel="canonical" href="{{ canonical_url }}">
+  <meta property="og:url" content="{{ canonical_url }}">
+  {% endif %}
+  {% if available_locales | length > 0 %}
+  {% for locale in available_locales %}
+  {% if locale.has_page %}
+  <link rel="alternate" hreflang="{{ locale.code }}" href="{{ locale.absolute_url | default(value=locale.url) }}">
+  {% endif %}
+  {% endfor %}
+  {% if x_default_url %}
+  <link rel="alternate" hreflang="x-default" href="{{ x_default_url }}">
+  {% endif %}
+  <meta property="og:locale" content="{{ current_locale }}">
+  {% for locale in available_locales %}
+  {% if not locale.is_current and locale.has_page %}
+  <meta property="og:locale:alternate" content="{{ locale.code }}">
+  {% endif %}
+  {% endfor %}
+  {% endif %}
   <style>{{ default_css | safe }}</style>
   {% if css_overrides %}
   <style>:root { {{ css_overrides }} }</style>

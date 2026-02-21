@@ -300,13 +300,28 @@ fn build_site(
                     prev_next_map.get(base_slug).cloned().unwrap_or((None, None));
 
                 // Build available locales for the language switcher
+                let site_url = config.site_url();
+                let site_url_ref = site_url.as_deref();
                 let available_locales = build_locale_info(
                     config,
                     base_slug,
                     locale,
                     &slug_coverage,
                     &root_base_url,
+                    site_url_ref,
                 );
+
+                let canonical_url = site_url_ref.map(|site| {
+                    let site = site.trim_end_matches('/');
+                    let path = page.output_path.to_string_lossy().replace('\\', "/");
+                    format!("{site}/{path}")
+                });
+
+                let default_locale = config.default_locale().unwrap_or("en");
+                let x_default_url = available_locales
+                    .iter()
+                    .find(|l| l.code == default_locale)
+                    .and_then(|l| l.absolute_url.clone().or(Some(l.url.clone())));
 
                 let ctx = PageContext {
                     page_title: page.title.clone(),
@@ -335,6 +350,8 @@ fn build_site(
                     current_flag: Some(config.locale_flag(locale)),
                     available_locales,
                     locale_auto_detect: config.locale.auto_detect,
+                    canonical_url,
+                    x_default_url,
                 };
 
                 let html = renderer.render_page(&ctx)?;
@@ -443,6 +460,12 @@ fn build_site(
             let (prev_page, next_page) =
                 prev_next_map.get(slug).cloned().unwrap_or((None, None));
 
+            let canonical_url = config.site_url().map(|site| {
+                let site = site.trim_end_matches('/');
+                let path = page.output_path.to_string_lossy().replace('\\', "/");
+                format!("{site}/{path}")
+            });
+
             let ctx = PageContext {
                 page_title: page.title.clone(),
                 project_name: config.project.name.clone(),
@@ -470,6 +493,8 @@ fn build_site(
                 current_flag: None,
                 available_locales: Vec::new(),
                 locale_auto_detect: false,
+                canonical_url,
+                x_default_url: None,
             };
 
             let html = renderer.render_page(&ctx)?;
@@ -497,7 +522,22 @@ fn build_site(
         let robots_path = output_dir.join("robots.txt");
         std::fs::write(&robots_path, robots).map_err(io_context(&robots_path))?;
 
-        let sitemap = seo::generate_sitemap_xml(&inventory, &root_base_url, site_url.as_deref());
+        let locale_config = if config.is_i18n_enabled() {
+            let slug_coverage = inventory.slug_locale_coverage();
+            Some(seo::SitemapLocaleConfig {
+                enabled: config.locale.enabled.clone(),
+                default_locale: config.default_locale().unwrap_or("en").to_string(),
+                slug_coverage,
+            })
+        } else {
+            None
+        };
+        let sitemap = seo::generate_sitemap_xml(
+            &inventory,
+            &root_base_url,
+            site_url.as_deref(),
+            locale_config.as_ref(),
+        );
         let sitemap_path = output_dir.join("sitemap.xml");
         std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
     }
@@ -586,6 +626,8 @@ fn build_site(
             current_flag: None,
             available_locales: Vec::new(),
             locale_auto_detect: false,
+            canonical_url: None,
+            x_default_url: None,
         };
         let html = renderer.render_page(&ctx)?;
         let not_found_path = output_dir.join("404.html");
@@ -605,6 +647,7 @@ fn build_locale_info(
     current_locale: &str,
     slug_coverage: &HashMap<String, HashSet<String>>,
     root_base_url: &str,
+    site_url: Option<&str>,
 ) -> Vec<LocaleInfo> {
     config
         .locale
@@ -629,11 +672,20 @@ fn build_locale_info(
                     code
                 )
             };
+            let absolute_url = site_url.map(|site| {
+                let locale_path = if has_page {
+                    format!("{code}/{base_slug}.html")
+                } else {
+                    format!("{code}/index.html")
+                };
+                format!("{site}{locale_path}")
+            });
             LocaleInfo {
                 code: code.clone(),
                 display_name: config.locale_display_name(code),
                 flag: config.locale_flag(code),
                 url,
+                absolute_url,
                 is_current: code == current_locale,
                 has_page,
             }

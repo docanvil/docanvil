@@ -68,6 +68,11 @@ The `name` field under `[project]` is required. DocAnvil will fail to load witho
 |-----|---------|-------------|
 | `output_dir` | `"dist"` | Directory where the static site is generated |
 | `base_url` | `"/"` | URL path prefix for subfolder deployments (e.g. `"/my-project/"`) |
+| `site_url` | `None` | Full site URL (e.g. `"https://example.com/"`) for canonical URLs, hreflang tags, and sitemap |
+
+:::note{title="Recommended for i18n"}
+Setting `site_url` is strongly recommended when using localisation. It enables absolute hreflang URLs, canonical `<link>` tags, and `og:url` meta tags — all important for multilingual SEO.
+:::
 
 ### `[theme]` Section
 

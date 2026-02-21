@@ -149,14 +149,47 @@ The `docanvil doctor` command also checks translation coverage when i18n is enab
 
 ## SEO
 
-The sitemap includes all pages across all locales, with locale-prefixed URLs:
+DocAnvil generates comprehensive multilingual SEO signals when i18n is enabled:
+
+### hreflang Tags
+
+Each page includes `<link rel="alternate" hreflang="...">` tags pointing to every available translation. These tell search engines which pages are translations of each other, preventing duplicate content issues and ensuring users see results in their language.
+
+An `hreflang="x-default"` tag is also emitted, pointing to the default locale's version of the page. This acts as a fallback for users whose language isn't in your enabled list.
+
+### Canonical URLs and Open Graph
+
+When `site_url` is configured, each page gets:
+
+- `<link rel="canonical">` — the definitive URL for the page
+- `<meta property="og:url">` — the URL used when the page is shared on social media
+- `<meta property="og:locale">` — the current page's locale
+- `<meta property="og:locale:alternate">` — tags for each translation
+
+These tags use absolute URLs derived from `site_url`. Without `site_url`, hreflang tags still work with relative URLs, but canonical and og:url are omitted.
+
+### Sitemap
+
+The sitemap includes all pages across all locales with `xhtml:link` hreflang annotations:
 
 ```xml
-<url><loc>https://example.com/en/guides/setup.html</loc></url>
-<url><loc>https://example.com/fr/guides/setup.html</loc></url>
+<url>
+  <loc>https://example.com/en/guides/setup.html</loc>
+  <xhtml:link rel="alternate" hreflang="en" href="https://example.com/en/guides/setup.html"/>
+  <xhtml:link rel="alternate" hreflang="fr" href="https://example.com/fr/guides/setup.html"/>
+  <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/en/guides/setup.html"/>
+</url>
 ```
 
+Google recommends both in-page hreflang tags and sitemap hreflang annotations — DocAnvil does both automatically.
+
+### HTML lang Attribute
+
 The `<html>` tag includes a `lang` attribute matching the current locale, which helps search engines and screen readers.
+
+:::note{title="Tip"}
+Set `site_url` in your `docanvil.toml` to get the most out of multilingual SEO. Without it, canonical URLs and absolute hreflang links can't be generated.
+:::
 
 ## Backward Compatibility
 

@@ -148,7 +148,7 @@ Markdown source
 - **Popovers**: `^[content]` syntax converted to interactive HTML spans
 - **Navigation**: `nav.json` with support for pages, groups, separators, labels, and autodiscover
 - **Search**: HTML sections extracted by heading for client-side search indexing
-- **SEO**: Auto-generated robots.txt and sitemap.xml from PageInventory
+- **SEO**: Auto-generated robots.txt and sitemap.xml from PageInventory; multilingual hreflang tags (in-page + sitemap), canonical URLs, and og:locale when i18n is enabled
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
@@ -170,8 +170,9 @@ Markdown source
 | `Component` trait | `components/mod.rs` | `name() -> &str` + `render(&ComponentContext) -> Result<String>` |
 | `ComponentContext` | `components/mod.rs` | `attributes: HashMap<String, String>`, `body_raw: String`, `body_html: String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` registers all builtin components. `render_block()` does lookup + render |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`) |
-| `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `is_current`, `has_page` |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`) |
+| `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `absolute_url`, `is_current`, `has_page` |
+| `SitemapLocaleConfig` | `seo.rs` | i18n data for sitemap hreflang: `enabled`, `default_locale`, `slug_coverage` |
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
 | `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body` |
 

@@ -70,7 +70,11 @@ impl PageInventory {
     /// When `enabled_locales` is `Some`, locale suffixes are parsed from filenames
     /// and pages are keyed as `{locale}:{slug}` with locale-prefixed output paths.
     /// When `None`, i18n is disabled and filenames are treated as-is.
-    pub fn scan(content_dir: &Path, enabled_locales: Option<&[String]>, default_locale: Option<&str>) -> Result<Self> {
+    pub fn scan(
+        content_dir: &Path,
+        enabled_locales: Option<&[String]>,
+        default_locale: Option<&str>,
+    ) -> Result<Self> {
         let mut pages = HashMap::new();
         let mut ordered = Vec::new();
         let mut discovered_locales = HashSet::new();
@@ -819,8 +823,14 @@ mod tests {
         assert_eq!(inv.pages["fr:index"].slug, "index");
 
         // Output paths should include locale prefix
-        assert_eq!(inv.pages["en:index"].output_path, PathBuf::from("en/index.html"));
-        assert_eq!(inv.pages["fr:index"].output_path, PathBuf::from("fr/index.html"));
+        assert_eq!(
+            inv.pages["en:index"].output_path,
+            PathBuf::from("en/index.html")
+        );
+        assert_eq!(
+            inv.pages["fr:index"].output_path,
+            PathBuf::from("fr/index.html")
+        );
 
         // Locale should be set
         assert_eq!(inv.pages["en:index"].locale, Some("en".to_string()));

@@ -99,10 +99,7 @@ pub fn load_nav(project_root: &Path) -> Result<Option<Vec<NavEntry>>> {
 }
 
 /// Load locale-specific nav file: tries `nav.{locale}.toml` first, falls back to `nav.toml`.
-pub fn load_nav_for_locale(
-    project_root: &Path,
-    locale: &str,
-) -> Result<Option<Vec<NavEntry>>> {
+pub fn load_nav_for_locale(project_root: &Path, locale: &str) -> Result<Option<Vec<NavEntry>>> {
     let locale_path = project_root.join(format!("nav.{locale}.toml"));
     if locale_path.exists() {
         let content = std::fs::read_to_string(&locale_path)?;
@@ -171,7 +168,11 @@ pub fn nav_tree_from_config_for_locale(
         .collect()
 }
 
-fn item_to_nodes(item: &dyn NavItem, inventory: &PageInventory, locale: Option<&str>) -> Vec<NavNode> {
+fn item_to_nodes(
+    item: &dyn NavItem,
+    inventory: &PageInventory,
+    locale: Option<&str>,
+) -> Vec<NavNode> {
     // Separator entry
     if let Some(sep) = item.separator() {
         return vec![match sep {

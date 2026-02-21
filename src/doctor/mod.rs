@@ -183,8 +183,7 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
     // E. Locale checks (only when i18n is enabled)
     if config.is_i18n_enabled() {
         eprintln!("{}", "Checking translations...".bold());
-        let locale_diags =
-            checks::locale::check_locale(project_root, &config, inventory.as_ref());
+        let locale_diags = checks::locale::check_locale(project_root, &config, inventory.as_ref());
         print_check_results(&locale_diags);
         all.extend(locale_diags);
     }

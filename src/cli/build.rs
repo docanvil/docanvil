@@ -1,5 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::DefaultHasher;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::time::Instant;
@@ -97,7 +97,8 @@ fn build_site(
     } else {
         None
     };
-    let mut inventory = PageInventory::scan(&content_dir, enabled_locales, config.default_locale())?;
+    let mut inventory =
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale())?;
 
     // Pre-pass: read all sources and extract front matter.
     // Override page titles and slugs from front matter before nav/search are built.
@@ -296,8 +297,10 @@ fn build_site(
                     std::fs::create_dir_all(parent)?;
                 }
 
-                let (prev_page, next_page) =
-                    prev_next_map.get(base_slug).cloned().unwrap_or((None, None));
+                let (prev_page, next_page) = prev_next_map
+                    .get(base_slug)
+                    .cloned()
+                    .unwrap_or((None, None));
 
                 // Build available locales for the language switcher
                 let site_url = config.site_url();
@@ -457,8 +460,7 @@ fn build_site(
                 std::fs::create_dir_all(parent)?;
             }
 
-            let (prev_page, next_page) =
-                prev_next_map.get(slug).cloned().unwrap_or((None, None));
+            let (prev_page, next_page) = prev_next_map.get(slug).cloned().unwrap_or((None, None));
 
             let canonical_url = config.site_url().map(|site| {
                 let site = site.trim_end_matches('/');
@@ -553,9 +555,7 @@ fn build_site(
         let nav_tree_404 = if let Some(ref locale) = default_locale {
             let nav_config = nav::load_nav_for_locale(project_root, locale)?;
             match nav_config {
-                Some(entries) => {
-                    nav::nav_tree_from_config_for_locale(&entries, &inventory, locale)
-                }
+                Some(entries) => nav::nav_tree_from_config_for_locale(&entries, &inventory, locale),
                 None => inventory.nav_tree_for_locale(locale),
             }
         } else {
@@ -576,15 +576,8 @@ fn build_site(
             );
             for locale in &config.locale.enabled {
                 let display = config.locale_display_name(locale);
-                let locale_home = format!(
-                    "{}{}/index.html",
-                    root_base_url,
-                    locale
-                );
-                links.push_str(&format!(
-                    "<a href=\"{}\">{}</a> ",
-                    locale_home, display
-                ));
+                let locale_home = format!("{}{}/index.html", root_base_url, locale);
+                links.push_str(&format!("<a href=\"{}\">{}</a> ", locale_home, display));
             }
             links.push_str("</p></div>");
             links
@@ -658,19 +651,10 @@ fn build_locale_info(
                 .get(base_slug)
                 .is_some_and(|locales| locales.contains(code));
             let url = if has_page {
-                format!(
-                    "{}{}/{}.html",
-                    root_base_url,
-                    code,
-                    base_slug
-                )
+                format!("{}{}/{}.html", root_base_url, code, base_slug)
             } else {
                 // Link to this locale's home page when the specific page doesn't exist
-                format!(
-                    "{}{}/index.html",
-                    root_base_url,
-                    code
-                )
+                format!("{}{}/index.html", root_base_url, code)
             };
             let absolute_url = site_url.map(|site| {
                 let locale_path = if has_page {

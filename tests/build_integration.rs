@@ -338,7 +338,10 @@ fn test_i18n_build_output_structure() {
 
     // Verify page content
     let en_html = read_output(dir.path(), "en/index.html");
-    assert!(en_html.contains("Hello world"), "English content should appear");
+    assert!(
+        en_html.contains("Hello world"),
+        "English content should appear"
+    );
 
     let fr_html = read_output(dir.path(), "fr/index.html");
     assert!(
@@ -351,10 +354,7 @@ fn test_i18n_build_output_structure() {
 fn test_i18n_locale_switcher() {
     let dir = create_project(
         I18N_CONFIG,
-        &[
-            ("index.en.md", "# Welcome"),
-            ("index.fr.md", "# Bienvenue"),
-        ],
+        &[("index.en.md", "# Welcome"), ("index.fr.md", "# Bienvenue")],
     );
     build_project(dir.path()).expect("build should succeed");
 
@@ -387,10 +387,7 @@ fn test_i18n_locale_switcher() {
 fn test_i18n_sitemap_includes_all_locales() {
     let dir = create_project(
         I18N_CONFIG,
-        &[
-            ("index.en.md", "# Welcome"),
-            ("index.fr.md", "# Bienvenue"),
-        ],
+        &[("index.en.md", "# Welcome"), ("index.fr.md", "# Bienvenue")],
     );
     build_project(dir.path()).expect("build should succeed");
 
@@ -441,10 +438,7 @@ enabled = ["en", "fr"]
 fn test_i18n_unsuffixed_files_get_default_locale() {
     let dir = create_project(
         I18N_CONFIG,
-        &[
-            ("index.md", "# Welcome"),
-            ("index.fr.md", "# Bienvenue"),
-        ],
+        &[("index.md", "# Welcome"), ("index.fr.md", "# Bienvenue")],
     );
     build_project(dir.path()).expect("build should succeed");
 
@@ -453,7 +447,10 @@ fn test_i18n_unsuffixed_files_get_default_locale() {
     assert!(output_exists(dir.path(), "fr/index.html"));
 
     let en_html = read_output(dir.path(), "en/index.html");
-    assert!(en_html.contains("Welcome"), "unsuffixed file should become default locale page");
+    assert!(
+        en_html.contains("Welcome"),
+        "unsuffixed file should become default locale page"
+    );
 }
 
 #[test]

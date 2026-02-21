@@ -492,7 +492,10 @@ enabled = ["en", "fr"]
         let result = Config::load(dir.path());
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("es"), "error should mention the bad default: {msg}");
+        assert!(
+            msg.contains("es"),
+            "error should mention the bad default: {msg}"
+        );
     }
 
     #[test]
@@ -506,7 +509,10 @@ enabled = ["en", "fr"]
         let result = Config::load(dir.path());
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("default"), "error should mention missing default: {msg}");
+        assert!(
+            msg.contains("default"),
+            "error should mention missing default: {msg}"
+        );
     }
 
     #[test]

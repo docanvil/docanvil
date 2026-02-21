@@ -289,3 +289,197 @@ This is an important note.
         "note component should render with a CSS class"
     );
 }
+
+// ── i18n integration tests ──
+
+const I18N_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+
+[locale.display_names]
+en = "English"
+fr = "Français"
+"#;
+
+#[test]
+fn test_i18n_build_output_structure() {
+    let dir = create_project(
+        I18N_CONFIG,
+        &[
+            ("index.en.md", "# Welcome\n\nHello world."),
+            ("index.fr.md", "# Bienvenue\n\nBonjour le monde."),
+            ("guide.en.md", "# Guide\n\nA guide page."),
+            ("guide.fr.md", "# Guide\n\nUne page de guide."),
+        ],
+    );
+    build_project(dir.path()).expect("i18n build should succeed");
+
+    // English pages
+    assert!(output_exists(dir.path(), "en/index.html"));
+    assert!(output_exists(dir.path(), "en/guide.html"));
+
+    // French pages
+    assert!(output_exists(dir.path(), "fr/index.html"));
+    assert!(output_exists(dir.path(), "fr/guide.html"));
+
+    // Shared assets at root
+    assert!(output_exists(dir.path(), "js/docanvil.js"));
+    assert!(output_exists(dir.path(), "robots.txt"));
+    assert!(output_exists(dir.path(), "sitemap.xml"));
+    assert!(output_exists(dir.path(), "404.html"));
+
+    // Per-locale search indexes
+    assert!(output_exists(dir.path(), "en/search-index.json"));
+    assert!(output_exists(dir.path(), "fr/search-index.json"));
+
+    // Verify page content
+    let en_html = read_output(dir.path(), "en/index.html");
+    assert!(en_html.contains("Hello world"), "English content should appear");
+
+    let fr_html = read_output(dir.path(), "fr/index.html");
+    assert!(
+        fr_html.contains("Bonjour le monde"),
+        "French content should appear"
+    );
+}
+
+#[test]
+fn test_i18n_locale_switcher() {
+    let dir = create_project(
+        I18N_CONFIG,
+        &[
+            ("index.en.md", "# Welcome"),
+            ("index.fr.md", "# Bienvenue"),
+        ],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    let en_html = read_output(dir.path(), "en/index.html");
+    assert!(
+        en_html.contains("locale-switcher"),
+        "language switcher should appear in output"
+    );
+    assert!(
+        en_html.contains("English"),
+        "English display name should appear"
+    );
+    assert!(
+        en_html.contains("Français"),
+        "French display name should appear"
+    );
+    assert!(
+        en_html.contains("lang=\"en\""),
+        "HTML lang attribute should be set to en"
+    );
+
+    let fr_html = read_output(dir.path(), "fr/index.html");
+    assert!(
+        fr_html.contains("lang=\"fr\""),
+        "HTML lang attribute should be set to fr"
+    );
+}
+
+#[test]
+fn test_i18n_sitemap_includes_all_locales() {
+    let dir = create_project(
+        I18N_CONFIG,
+        &[
+            ("index.en.md", "# Welcome"),
+            ("index.fr.md", "# Bienvenue"),
+        ],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    let sitemap = read_output(dir.path(), "sitemap.xml");
+    assert!(
+        sitemap.contains("en/index.html"),
+        "sitemap should include English pages"
+    );
+    assert!(
+        sitemap.contains("fr/index.html"),
+        "sitemap should include French pages"
+    );
+}
+
+#[test]
+fn test_i18n_missing_translation_strict() {
+    let config = r#"
+[project]
+name = "Test Docs"
+
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+"#;
+
+    let dir = create_project(
+        config,
+        &[
+            ("index.en.md", "# Welcome"),
+            ("index.fr.md", "# Bienvenue"),
+            ("guide.en.md", "# Guide"),
+            // guide.fr.md is missing — should produce a warning
+        ],
+    );
+
+    // Non-strict build should succeed
+    build_project(dir.path()).expect("non-strict build should succeed");
+
+    // Strict build should fail due to missing translation warning
+    let strict_result = build_project_strict(dir.path());
+    assert!(
+        strict_result.is_err(),
+        "strict build should fail when translations are missing"
+    );
+}
+
+#[test]
+fn test_i18n_unsuffixed_files_get_default_locale() {
+    let dir = create_project(
+        I18N_CONFIG,
+        &[
+            ("index.md", "# Welcome"),
+            ("index.fr.md", "# Bienvenue"),
+        ],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    // Unsuffixed file should be assigned to default locale (en)
+    assert!(output_exists(dir.path(), "en/index.html"));
+    assert!(output_exists(dir.path(), "fr/index.html"));
+
+    let en_html = read_output(dir.path(), "en/index.html");
+    assert!(en_html.contains("Welcome"), "unsuffixed file should become default locale page");
+}
+
+#[test]
+fn test_backward_compat_no_locale() {
+    // Build without any locale config — should work exactly as before
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home\n\nWelcome."),
+            ("guide.md", "# Guide\n\nA guide."),
+        ],
+    );
+    build_project(dir.path()).expect("backward-compat build should succeed");
+
+    // Pages at root, not under locale prefixes
+    assert!(output_exists(dir.path(), "index.html"));
+    assert!(output_exists(dir.path(), "guide.html"));
+    assert!(!output_exists(dir.path(), "en/index.html"));
+
+    // Search index at root
+    assert!(output_exists(dir.path(), "search-index.json"));
+
+    // No locale switcher dropdown in output (CSS classes may appear in <style>, but no actual element)
+    let html = read_output(dir.path(), "index.html");
+    assert!(
+        !html.contains("data-locale="),
+        "locale switcher elements should not appear without i18n config"
+    );
+}

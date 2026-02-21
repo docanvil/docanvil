@@ -16,3 +16,12 @@ color_mode = "both"
 # [theme.variables]
 # color-primary = "#6366f1"
 # font-body = "Georgia, serif"
+
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+auto_detect = true
+
+[locale.display_names]
+en = "English"
+fr = "Français"

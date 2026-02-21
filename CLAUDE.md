@@ -73,6 +73,7 @@ src/
       mod.rs
       config.rs                # Config validation checks
       content.rs               # Markdown content checks
+      locale.rs                # Translation coverage checks (i18n)
       output.rs                # Output directory checks
       project.rs               # Project structure checks
       theme.rs                 # Theme checks
@@ -151,33 +152,41 @@ Markdown source
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
-- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]` sections; serde deserialization
-- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support
+- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[locale]` sections; serde deserialization
+- **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
+- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled
 
 ### Key Types and Where They Live
 
 | Type | File | Purpose |
 |------|------|---------|
-| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig` |
-| `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug` |
-| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `nav_tree()` |
+| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig`, `LocaleConfig` |
+| `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()` |
+| `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale` |
+| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.json entry: `page`, `label`, `separator`, `group`, `autodiscover` |
 | `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ContentDirNotFound`, `Render`, `StrictWarnings` |
 | `Component` trait | `components/mod.rs` | `name() -> &str` + `render(&ComponentContext) -> Result<String>` |
 | `ComponentContext` | `components/mod.rs` | `attributes: HashMap<String, String>`, `body_raw: String`, `body_html: String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` registers all builtin components. `render_block()` does lookup + render |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `available_locales`, `locale_auto_detect`) |
+| `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `url`, `is_current`, `has_page` |
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
 | `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body` |
 
 ### Build Flow (cli/build.rs)
 
 1. `Config::load(project_root)` → config struct
-2. `PageInventory::scan(content_dir)` → all pages with slugs
-3. `load_nav()` or `inventory.nav_tree()` → `Vec<NavNode>`
-4. Per page: read markdown → `pipeline::process()` → `TemplateRenderer::render_page()` → write HTML
-5. Copy assets, generate search index JSON, generate robots.txt + sitemap.xml
+2. `PageInventory::scan(content_dir, enabled_locales, default_locale)` → all pages with slugs
+3. Pre-pass: read sources, extract front matter, apply slug overrides
+4. **When i18n enabled:** per-locale loop:
+   - `load_nav_for_locale()` or `inventory.nav_tree_for_locale()` → locale-specific nav
+   - Render pages with locale-prefixed URLs and locale-aware wiki-links
+   - Write per-locale search index (`{locale}/search-index.json`)
+   - Emit missing translation warnings
+5. **When i18n disabled:** single-pass rendering (backward compatible)
+6. Copy shared assets (JS, CSS), generate robots.txt + sitemap.xml, 404 page
 
 ### How to Extend
 

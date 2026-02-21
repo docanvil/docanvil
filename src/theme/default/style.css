@@ -184,6 +184,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem 0.75rem;
+  height: 2rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg-secondary);
@@ -224,6 +225,81 @@ body {
   line-height: 1;
   color: var(--color-text-muted);
   box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+}
+
+/* Locale switcher */
+.locale-switcher {
+  position: relative;
+}
+
+.locale-switcher-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.locale-switcher-trigger:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light);
+  background: var(--color-bg);
+}
+
+.locale-switcher-label {
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.locale-switcher-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  padding: 0.25rem 0;
+  margin: 0;
+  list-style: none;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+}
+
+.locale-switcher.open .locale-switcher-menu {
+  display: block;
+}
+
+.locale-switcher-item a {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+}
+
+.locale-switcher-item a:hover {
+  background: var(--color-bg-secondary);
+}
+
+.locale-switcher-active a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.locale-switcher-unavailable a {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 /* Theme toggle */

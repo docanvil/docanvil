@@ -48,6 +48,31 @@ impl<'de> Deserialize<'de> for ColorMode {
     }
 }
 
+/// Localisation configuration for multi-language documentation sites.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct LocaleConfig {
+    /// Default locale code (e.g. "en"). When set, i18n is enabled.
+    pub default: Option<String>,
+    /// Enabled locale codes (e.g. ["en", "fr", "de"]).
+    pub enabled: Vec<String>,
+    /// Human-readable display names for locales (e.g. {"en": "English", "fr": "Français"}).
+    pub display_names: HashMap<String, String>,
+    /// Whether to auto-detect the user's browser language and redirect (default: true).
+    pub auto_detect: bool,
+}
+
+impl Default for LocaleConfig {
+    fn default() -> Self {
+        Self {
+            default: None,
+            enabled: Vec::new(),
+            display_names: HashMap::new(),
+            auto_detect: true,
+        }
+    }
+}
+
 /// Top-level docanvil.toml configuration.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -59,6 +84,7 @@ pub struct Config {
     pub syntax: SyntaxConfig,
     pub charts: ChartsConfig,
     pub search: SearchConfig,
+    pub locale: LocaleConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -187,6 +213,54 @@ impl Config {
         })
     }
 
+    /// Returns `true` when i18n is enabled (default locale is set and enabled list is non-empty).
+    pub fn is_i18n_enabled(&self) -> bool {
+        self.locale.default.is_some() && !self.locale.enabled.is_empty()
+    }
+
+    /// Return the default locale code, if i18n is enabled.
+    pub fn default_locale(&self) -> Option<&str> {
+        self.locale.default.as_deref()
+    }
+
+    /// Return the display name for a locale code, or the code uppercased if no name is configured.
+    pub fn locale_display_name(&self, code: &str) -> String {
+        self.locale
+            .display_names
+            .get(code)
+            .cloned()
+            .unwrap_or_else(|| code.to_uppercase())
+    }
+
+    /// Validate locale configuration. Returns an error if the config is inconsistent.
+    fn validate_locale(&self, config_path: &Path) -> Result<()> {
+        if let Some(ref default) = self.locale.default {
+            if self.locale.enabled.is_empty() {
+                return Err(Error::General(format!(
+                    "{}: locale.default is set to '{}' but locale.enabled is empty — \
+                     add enabled locales or remove the default",
+                    config_path.display(),
+                    default
+                )));
+            }
+            if !self.locale.enabled.contains(default) {
+                return Err(Error::General(format!(
+                    "{}: locale.default '{}' is not in locale.enabled {:?}",
+                    config_path.display(),
+                    default,
+                    self.locale.enabled
+                )));
+            }
+        } else if !self.locale.enabled.is_empty() {
+            return Err(Error::General(format!(
+                "{}: locale.enabled is set but locale.default is missing — \
+                 set a default locale",
+                config_path.display()
+            )));
+        }
+        Ok(())
+    }
+
     /// Load config from a `docanvil.toml` file in the given directory.
     /// Returns default config if the file doesn't exist.
     pub fn load(project_root: &Path) -> Result<Self> {
@@ -196,9 +270,10 @@ impl Config {
         }
         let contents = std::fs::read_to_string(&config_path)?;
         let config: Config = toml::from_str(&contents).map_err(|e| Error::ConfigParse {
-            path: config_path,
+            path: config_path.clone(),
             source: e,
         })?;
+        config.validate_locale(&config_path)?;
         Ok(config)
     }
 }
@@ -322,6 +397,77 @@ color_mode = "purple"
             ..Default::default()
         };
         assert_eq!(config.site_url(), Some("https://example.com/".to_string()));
+    }
+
+    #[test]
+    fn locale_config_defaults() {
+        let config: Config = toml::from_str("").unwrap();
+        assert!(!config.is_i18n_enabled());
+        assert!(config.locale.default.is_none());
+        assert!(config.locale.enabled.is_empty());
+        assert!(config.locale.auto_detect);
+    }
+
+    #[test]
+    fn locale_config_full() {
+        let toml = r#"
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+auto_detect = false
+
+[locale.display_names]
+en = "English"
+fr = "Français"
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert!(config.is_i18n_enabled());
+        assert_eq!(config.default_locale(), Some("en"));
+        assert_eq!(config.locale_display_name("en"), "English");
+        assert_eq!(config.locale_display_name("fr"), "Français");
+        assert_eq!(config.locale_display_name("de"), "DE");
+        assert!(!config.locale.auto_detect);
+    }
+
+    #[test]
+    fn locale_validation_default_not_in_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let toml = r#"
+[locale]
+default = "es"
+enabled = ["en", "fr"]
+"#;
+        std::fs::write(dir.path().join("docanvil.toml"), toml).unwrap();
+        let result = Config::load(dir.path());
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("es"), "error should mention the bad default: {msg}");
+    }
+
+    #[test]
+    fn locale_validation_enabled_without_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let toml = r#"
+[locale]
+enabled = ["en", "fr"]
+"#;
+        std::fs::write(dir.path().join("docanvil.toml"), toml).unwrap();
+        let result = Config::load(dir.path());
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("default"), "error should mention missing default: {msg}");
+    }
+
+    #[test]
+    fn locale_validation_default_without_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let toml = r#"
+[locale]
+default = "en"
+"#;
+        std::fs::write(dir.path().join("docanvil.toml"), toml).unwrap();
+        let result = Config::load(dir.path());
+        assert!(result.is_err());
     }
 
     #[test]

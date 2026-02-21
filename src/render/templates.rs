@@ -12,6 +12,16 @@ pub struct PageLink {
     pub url: String,
 }
 
+/// Information about an available locale for the language switcher.
+#[derive(Debug, Clone, Serialize)]
+pub struct LocaleInfo {
+    pub code: String,
+    pub display_name: String,
+    pub url: String,
+    pub is_current: bool,
+    pub has_page: bool,
+}
+
 /// Tera-based template renderer.
 pub struct TemplateRenderer {
     tera: Tera,
@@ -51,6 +61,9 @@ impl TemplateRenderer {
         context.insert("next_page", &ctx.next_page);
         context.insert("color_mode", &ctx.color_mode);
         context.insert("js_cachebust", &ctx.js_cachebust);
+        context.insert("current_locale", &ctx.current_locale);
+        context.insert("available_locales", &ctx.available_locales);
+        context.insert("locale_auto_detect", &ctx.locale_auto_detect);
 
         self.tera
             .render("layout.html", &context)
@@ -82,4 +95,7 @@ pub struct PageContext {
     pub next_page: Option<PageLink>,
     pub color_mode: ColorMode,
     pub js_cachebust: String,
+    pub current_locale: Option<String>,
+    pub available_locales: Vec<LocaleInfo>,
+    pub locale_auto_detect: bool,
 }

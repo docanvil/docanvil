@@ -60,6 +60,10 @@ Slugs are derived from the file path relative to the content directory, with the
 
 When a slug changes, both the old and new slugs resolve correctly in wiki-links.
 
+### Locale-Aware Resolution
+
+When [[guides/localisation|localisation]] is enabled, wiki-links resolve **within the same locale**. A link like `[[getting-started]]` in a French page points to the French version of that page — you don't need to specify the locale in your links. This means your content can be translated independently without changing any wiki-links.
+
 ### Broken Links
 
 When a wiki-link target doesn't match any page, it renders as a red highlighted span with an error popover. Here is a deliberate example:

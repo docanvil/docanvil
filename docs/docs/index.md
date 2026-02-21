@@ -26,6 +26,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser and start wr
 - **Full-text search** — client-side search powered by MiniSearch.js with a build-time JSON index
 - **Mermaid diagrams** — flowcharts, sequence diagrams, and more via `:::mermaid` blocks
 - **Theming** — CSS variables, custom stylesheets, and full template overrides with Tera
+- **Localisation** — multi-language docs with per-locale URLs, navigation, search, and a language switcher
 - **Live reload** — edit a file and your browser refreshes automatically
 - **Static output** — build to plain HTML and deploy anywhere
 
@@ -36,6 +37,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser and start wr
 | [[guides/getting-started\|Installation]] | Install DocAnvil and create your first project |
 | [[guides/configuration\|Configuration]] | Customize `docanvil.toml` and `nav.toml` |
 | [[guides/theming\|Theming]] | CSS variables, custom CSS, and template overrides |
+| [[guides/localisation\|Localisation]] | Multi-language docs with locale suffixes and language switcher |
 | [[writing/markdown\|Markdown]] | All supported Markdown and GFM features |
 | [[writing/wiki-links\|Links & Popovers]] | Wiki-link syntax and inline popovers |
 | [[writing/components\|Components]] | Notes, warnings, tabs, and code groups |

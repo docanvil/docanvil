@@ -67,7 +67,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guide.md"), "# Guide").unwrap();
 
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"));
 
         assert!(xml.contains("<loc>https://example.com/guide.html</loc>"));
@@ -84,7 +84,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("index.md"), "# Home").unwrap();
 
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/docs/", None);
 
         assert!(xml.contains("<loc>/docs/index.html</loc>"));
@@ -98,7 +98,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
 
-        let inv = PageInventory::scan(&docs).unwrap();
+        let inv = PageInventory::scan(&docs, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"));
 
         assert!(xml.contains("<loc>https://example.com/guides/setup.html</loc>"));

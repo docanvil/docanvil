@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use base64::Engine;
 use regex::Regex;
 
 use serde::Serialize;
@@ -36,6 +37,11 @@ struct PdfContext {
     chapters: Vec<ChapterData>,
     show_cover: bool,
     pdf_author: Option<String>,
+    /// Base64 data URI for the project logo, shown on the cover page when set.
+    /// Encoded here rather than passed as a file path because the template is
+    /// rendered from a temp file, so site-relative URLs and relative paths both
+    /// fail to resolve.  All common raster and SVG formats are supported.
+    cover_logo_data_uri: Option<String>,
     custom_css: Option<String>,
     mermaid_enabled: bool,
     mermaid_version: String,
@@ -46,6 +52,25 @@ struct PdfContext {
     /// Derived from `[theme].variables` in `docanvil.toml`, with defaults that
     /// match the values in `style.css` so the PDF looks coherent out of the box.
     theme_css_vars: String,
+}
+
+/// Read the project logo from disk and return it as a base64 data URI.
+///
+/// Returns `None` if no logo is configured, the file cannot be read, or the
+/// file extension is not a recognised image type.
+fn logo_to_data_uri(project_root: &Path, logo: &str) -> Option<String> {
+    let path = project_root.join(logo);
+    let mime = match path.extension().and_then(|e| e.to_str()) {
+        Some("svg") => "image/svg+xml",
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => return None,
+    };
+    let bytes = std::fs::read(&path).ok()?;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Some(format!("data:{mime};base64,{encoded}"))
 }
 
 /// Build the CSS variable declarations block from the merged theme variable map.
@@ -553,6 +578,12 @@ fn run_single_locale(
         .map(String::as_str);
 
     // ── Assemble PDF HTML ─────────────────────────────────────────────────────
+    let cover_logo_data_uri = config
+        .project
+        .logo
+        .as_deref()
+        .and_then(|logo| logo_to_data_uri(project_root, logo));
+
     let toc_html = render_toc(&nav_tree);
     let ctx = PdfContext {
         project_title: config.project.name.clone(),
@@ -560,6 +591,7 @@ fn run_single_locale(
         chapters,
         show_cover: config.pdf.cover_page,
         pdf_author: config.pdf.author.clone(),
+        cover_logo_data_uri,
         custom_css,
         mermaid_enabled: config.charts.enabled,
         mermaid_version: config.charts.mermaid_version.clone(),
@@ -827,6 +859,7 @@ mod tests {
             chapters: vec![],
             show_cover: false,
             pdf_author: None,
+            cover_logo_data_uri: None,
             custom_css: None,
             mermaid_enabled: false,
             mermaid_version: "11".into(),
@@ -869,6 +902,65 @@ mod tests {
         assert!(html.contains("pdf-cover"));
         assert!(html.contains("Cover Test"));
         assert!(html.contains("Jane Doe"));
+    }
+
+    #[test]
+    fn assemble_pdf_html_cover_logo_rendered() {
+        let ctx = PdfContext {
+            show_cover: true,
+            cover_logo_data_uri: Some("data:image/png;base64,abc123".into()),
+            ..default_ctx()
+        };
+        let html = assemble_pdf_html(&ctx).unwrap();
+        assert!(html.contains("cover-logo"));
+        assert!(html.contains("data:image/png;base64,abc123"));
+    }
+
+    #[test]
+    fn assemble_pdf_html_no_logo_when_no_cover() {
+        // Logo data URI present but cover disabled — img should not appear.
+        // Note: we check for the data URI itself, not the class name, because
+        // the CSS always defines the .cover-logo rule regardless of whether the
+        // cover section is rendered.
+        let ctx = PdfContext {
+            show_cover: false,
+            cover_logo_data_uri: Some("data:image/png;base64,abc123".into()),
+            ..default_ctx()
+        };
+        let html = assemble_pdf_html(&ctx).unwrap();
+        assert!(!html.contains("data:image/png;base64,abc123"));
+    }
+
+    #[test]
+    fn logo_to_data_uri_png() {
+        let dir = tempfile::tempdir().unwrap();
+        let logo_path = dir.path().join("logo.png");
+        // Minimal 1×1 PNG (valid header so MIME resolves correctly)
+        std::fs::write(&logo_path, b"\x89PNG\r\n\x1a\n").unwrap();
+        let uri = logo_to_data_uri(dir.path(), "logo.png").unwrap();
+        assert!(uri.starts_with("data:image/png;base64,"));
+    }
+
+    #[test]
+    fn logo_to_data_uri_svg() {
+        let dir = tempfile::tempdir().unwrap();
+        let logo_path = dir.path().join("logo.svg");
+        std::fs::write(&logo_path, b"<svg></svg>").unwrap();
+        let uri = logo_to_data_uri(dir.path(), "logo.svg").unwrap();
+        assert!(uri.starts_with("data:image/svg+xml;base64,"));
+    }
+
+    #[test]
+    fn logo_to_data_uri_missing_file_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(logo_to_data_uri(dir.path(), "missing.png").is_none());
+    }
+
+    #[test]
+    fn logo_to_data_uri_unknown_extension_returns_none() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("logo.bmp"), b"BM").unwrap();
+        assert!(logo_to_data_uri(dir.path(), "logo.bmp").is_none());
     }
 
     #[test]

@@ -25,3 +25,7 @@ auto_detect = true
 [locale.display_names]
 en = "English"
 fr = "Français"
+
+[pdf]
+cover_page = true
+author = "The DocAnvil Team"

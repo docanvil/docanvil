@@ -119,6 +119,15 @@
       margin: 0;
     }
 
+    .cover-logo {
+      display: block;
+      max-width: 140px;
+      max-height: 80px;
+      object-fit: contain;
+      object-position: left center;
+      margin-bottom: 2em;
+    }
+
     /* ──────────────────────────────────────────────────────────
        Table of contents
        ────────────────────────────────────────────────────────── */
@@ -443,6 +452,9 @@
 
   {% if show_cover %}
   <section class="pdf-cover">
+    {% if cover_logo_data_uri %}
+    <img class="cover-logo" src="{{ cover_logo_data_uri | safe }}" alt="{{ project_title }}">
+    {% endif %}
     <p class="cover-eyebrow">Documentation</p>
     <h1 class="cover-title">{{ project_title }}</h1>
     <hr class="cover-rule">

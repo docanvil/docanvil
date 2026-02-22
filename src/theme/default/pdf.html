@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}"{% if is_rtl %} dir="rtl"{% endif %}>
+<head>
+  <meta charset="UTF-8">
+  <title>{{ project_title }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Theme variables (forwarded from docanvil.toml [theme]) ─── */
+    :root {
+{{ theme_css_vars | safe }}
+    }
+
+    /* ── PDF-specific aliases ─────────────────────────────────── */
+    :root {
+      --pdf-accent:       var(--color-primary,        #6366f1);
+      --pdf-ink:          var(--color-text,            #1e293b);
+      --pdf-ink-muted:    var(--color-text-muted,      #64748b);
+      --pdf-paper:        var(--color-bg,              #ffffff);
+      --pdf-rule:         var(--color-border,          #e2e8f0);
+      --pdf-code-bg:      var(--color-code-bg,         #f1f5f9);
+      --pdf-note-bg:      var(--color-note-bg,         #eef2ff);
+      --pdf-note-border:  var(--color-note-border,     #818cf8);
+      --pdf-warn-bg:      var(--color-warning-bg,      #fff7ed);
+      --pdf-warn-border:  var(--color-warning-border,  #f97316);
+    }
+
+    /* ── Page setup ───────────────────────────────────────────── */
+    @page {
+      size: {{ paper_size_css }};
+      margin: 2cm 2.5cm;
+    }
+
+    /* ── Base ─────────────────────────────────────────────────── */
+    html {
+      background: var(--pdf-paper);
+    }
+
+    body {
+      font-family: 'Lora', Georgia, 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.75;
+      color: var(--pdf-ink);
+      background: var(--pdf-paper);
+      margin: 0;
+      padding: 0;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+    }
+
+    /* ── Page break control ───────────────────────────────────── */
+    .pdf-cover   { break-after: page; }
+    .pdf-toc     { break-after: page; }
+    .pdf-chapter { break-before: page; }
+    .pdf-chapter:first-of-type { break-before: auto; }
+
+    h1, h2, h3, h4 { break-after: avoid; }
+    pre, table, figure, .note, .warning, .lozenge { break-inside: avoid; }
+    img { max-width: 100%; break-inside: avoid; }
+    p { orphans: 3; widows: 3; }
+
+    /* ── Tabs: show all panels stacked, hide tab chrome ──────── */
+    [data-tab-panel]:not(:first-child) { display: block !important; }
+    .tab-bar { display: none; }
+
+    /* ──────────────────────────────────────────────────────────
+       Cover page
+       ────────────────────────────────────────────────────────── */
+    .pdf-cover {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      border-left: 5pt solid var(--pdf-accent);
+      padding-left: 2em;
+    }
+
+    .cover-eyebrow {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 8pt;
+      font-weight: 600;
+      font-style: normal;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--pdf-accent);
+      margin: 0 0 1.5em;
+    }
+
+    .cover-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 34pt;
+      font-weight: 700;
+      line-height: 1.15;
+      color: var(--pdf-ink);
+      margin: 0 0 0.5em;
+      letter-spacing: -0.015em;
+      max-width: 80%;
+    }
+
+    .cover-rule {
+      display: block;
+      width: 2.5em;
+      height: 3pt;
+      background: var(--pdf-accent);
+      border: none;
+      margin: 0.4em 0 1em;
+    }
+
+    .cover-author {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 12pt;
+      font-weight: 400;
+      font-style: italic;
+      color: var(--pdf-ink-muted);
+      margin: 0;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Table of contents
+       ────────────────────────────────────────────────────────── */
+    .pdf-toc {
+      padding-top: 0.5cm;
+    }
+
+    /* When TOC doubles as the title page (no cover) */
+    .toc-project-title {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 22pt;
+      font-weight: 700;
+      color: var(--pdf-ink);
+      margin: 0 0 0.25em;
+      padding-bottom: 0.4em;
+      border-bottom: 2.5pt solid var(--pdf-accent);
+      letter-spacing: -0.01em;
+      break-after: avoid;
+    }
+
+    .toc-contents-label {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--pdf-ink-muted);
+      margin: 1.75em 0 1.25em;
+      padding: 0;
+    }
+
+    /* Only used when show_cover is true */
+    .pdf-toc > h1 {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--pdf-ink-muted);
+      margin: 0 0 1.5em;
+      padding: 0;
+      border: none;
+    }
+
+    .pdf-toc ol {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+    }
+
+    .pdf-toc ol ol {
+      padding-left: 1.25em;
+      margin: 0.15em 0;
+    }
+
+    .pdf-toc > ol > li {
+      padding: 0.45em 0;
+      border-bottom: 1px solid var(--pdf-rule);
+    }
+
+    .pdf-toc ol ol li {
+      padding: 0.2em 0;
+    }
+
+    .pdf-toc a {
+      text-decoration: none;
+      color: var(--pdf-ink);
+    }
+
+    .pdf-toc > ol > li > a {
+      font-weight: 600;
+      font-size: 10.5pt;
+    }
+
+    .pdf-toc ol ol a {
+      font-size: 9.5pt;
+      color: var(--pdf-ink-muted);
+    }
+
+    .toc-separator {
+      list-style: none;
+      padding: 1.25em 0 0.4em !important;
+      border-bottom: none !important;
+      font-size: 7.5pt;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--pdf-accent);
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Chapter sections
+       ────────────────────────────────────────────────────────── */
+    .pdf-chapter {
+      padding-top: 0.5cm;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Headings
+       ────────────────────────────────────────────────────────── */
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Lora', Georgia, serif;
+      line-height: 1.25;
+      font-weight: 700;
+      color: var(--pdf-ink);
+    }
+
+    /* Chapter title — the H1 that opens each page */
+    .pdf-chapter h1 {
+      font-size: 22pt;
+      margin: 0 0 0.75em;
+      padding-bottom: 0.4em;
+      border-bottom: 2.5pt solid var(--pdf-accent);
+      letter-spacing: -0.01em;
+    }
+
+    .pdf-chapter h2 {
+      font-size: 15pt;
+      font-weight: 700;
+      color: var(--pdf-accent);
+      margin: 2.25em 0 0.6em;
+    }
+
+    .pdf-chapter h3 {
+      font-size: 12pt;
+      font-weight: 600;
+      font-style: italic;
+      color: var(--pdf-ink);
+      margin: 1.75em 0 0.4em;
+    }
+
+    .pdf-chapter h4 {
+      font-size: 10pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--pdf-ink-muted);
+      margin: 1.5em 0 0.3em;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Body text
+       ────────────────────────────────────────────────────────── */
+    p {
+      margin: 0 0 0.85em;
+      text-align: justify;
+    }
+
+    strong { font-weight: 700; }
+    em     { font-style: italic; }
+
+    ul, ol {
+      margin: 0.4em 0 0.85em;
+      padding-left: 1.5em;
+    }
+
+    li { margin-bottom: 0.2em; }
+    li > ul, li > ol { margin-top: 0.2em; margin-bottom: 0.2em; }
+
+    /* ──────────────────────────────────────────────────────────
+       Inline code
+       ────────────────────────────────────────────────────────── */
+    code {
+      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 0.84em;
+      background: var(--pdf-code-bg);
+      color: var(--pdf-accent);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      border: 1px solid var(--pdf-rule);
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Code blocks
+       ────────────────────────────────────────────────────────── */
+    pre {
+      background: var(--pdf-code-bg);
+      border: 1px solid var(--pdf-rule);
+      border-left: 3pt solid var(--pdf-accent);
+      border-radius: 0 4px 4px 0;
+      padding: 0.85em 1.1em;
+      font-size: 9pt;
+      line-height: 1.55;
+      overflow-x: auto;
+      margin: 0.75em 0 1.25em;
+    }
+
+    pre code {
+      font-size: inherit;
+      background: none;
+      padding: 0;
+      border: none;
+      color: inherit;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Tables
+       ────────────────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.75em 0 1.25em;
+      font-size: 9.5pt;
+    }
+
+    thead {
+      border-bottom: 2pt solid var(--pdf-accent);
+    }
+
+    th {
+      text-align: left;
+      font-weight: 700;
+      font-size: 8pt;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--pdf-ink-muted);
+      padding: 0.3em 0.8em 0.4em;
+      background: transparent;
+    }
+
+    td {
+      padding: 0.4em 0.8em;
+      border-bottom: 1px solid var(--pdf-rule);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Blockquote
+       ────────────────────────────────────────────────────────── */
+    blockquote {
+      border-left: 3px solid var(--pdf-rule);
+      margin: 1em 0;
+      padding: 0.25em 1.25em;
+      color: var(--pdf-ink-muted);
+      font-style: italic;
+    }
+
+    blockquote p { text-align: left; }
+
+    /* ──────────────────────────────────────────────────────────
+       Callout components
+       ────────────────────────────────────────────────────────── */
+    .note, .warning {
+      padding: 0.7em 1em;
+      margin: 1em 0;
+      border-radius: 0 4px 4px 0;
+      border-left: 3pt solid;
+    }
+
+    .note {
+      border-color: var(--pdf-note-border);
+      background: var(--pdf-note-bg);
+    }
+
+    .warning {
+      border-color: var(--pdf-warn-border);
+      background: var(--pdf-warn-bg);
+    }
+
+    .note p:last-child,
+    .warning p:last-child { margin-bottom: 0; }
+
+    /* ──────────────────────────────────────────────────────────
+       Lozenge
+       ────────────────────────────────────────────────────────── */
+    .lozenge {
+      display: inline-block;
+      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 7.5pt;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.15em 0.5em;
+      border-radius: 3px;
+      border: 1px solid var(--pdf-rule);
+      color: var(--pdf-ink-muted);
+      background: var(--pdf-code-bg);
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Links
+       ────────────────────────────────────────────────────────── */
+    a {
+      color: var(--pdf-accent);
+      text-decoration: none;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Images
+       ────────────────────────────────────────────────────────── */
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 1em auto;
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       Horizontal rule
+       ────────────────────────────────────────────────────────── */
+    hr {
+      border: none;
+      border-top: 1px solid var(--pdf-rule);
+      margin: 2em 0;
+    }
+  </style>
+  {% if mermaid_enabled %}
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@{{ mermaid_version }}/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({ startOnLoad: true });</script>
+  {% endif %}
+  {% if custom_css %}
+  <style>
+  {{ custom_css | safe }}
+  </style>
+  {% endif %}
+</head>
+<body>
+
+  {% if show_cover %}
+  <section class="pdf-cover">
+    <p class="cover-eyebrow">Documentation</p>
+    <h1 class="cover-title">{{ project_title }}</h1>
+    <hr class="cover-rule">
+    {% if pdf_author %}<p class="cover-author">{{ pdf_author }}</p>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="pdf-toc">
+    {% if show_cover %}
+    <h1>Contents</h1>
+    {% else %}
+    <h1 class="toc-project-title">{{ project_title }}</h1>
+    <p class="toc-contents-label">Contents</p>
+    {% endif %}
+    {{ toc_html | safe }}
+  </section>
+
+  {% for chapter in chapters %}
+  <section class="pdf-chapter" id="{{ chapter.slug }}">
+    {{ chapter.content_html | safe }}
+  </section>
+  {% endfor %}
+
+</body>
+</html>

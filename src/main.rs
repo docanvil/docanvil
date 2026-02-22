@@ -27,6 +27,7 @@ fn main() {
             strict,
             path,
         } => docanvil::cli::build::run(path, out, *clean, cli.quiet, *strict),
+        Command::Export(export_args) => docanvil::cli::export::dispatch(export_args, cli.quiet),
     };
 
     if let Err(e) = result {

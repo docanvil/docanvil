@@ -29,13 +29,14 @@ Unit tests are inline `#[cfg(test)]` modules within their respective source file
 
 ## CLI Interface
 
-The binary exposes five subcommands:
+The binary exposes six subcommands:
 
 - `docanvil new <name>` — scaffold a new documentation project
 - `docanvil serve [--host <addr>] [--port <port>] [--path <path>]` — dev server with hot reload (defaults: 127.0.0.1:3000)
 - `docanvil build [--path <path>] [--out <path>] [--clean] [--strict]` — generate static HTML site (default output: `dist/`)
 - `docanvil theme [--path <path>] [--overwrite]` — interactive color theme generator
 - `docanvil doctor [--path <path>] [--fix] [--strict]` — project diagnostics with auto-fix
+- `docanvil export pdf --out <path> [--path <path>] [--locale <code>]` — export docs as a single PDF (requires Chrome/Chromium)
 
 Global flags: `--verbose`, `--quiet`
 
@@ -66,6 +67,10 @@ src/
     theme.rs                   # docanvil theme — interactive color theme generator
     doctor.rs                  # docanvil doctor — runs diagnostic checks
     color.rs                   # Hex/RGB/HSL color conversion (used by theme)
+    export/
+      mod.rs                   # ExportArgs, ExportFormat, dispatch()
+      pdf.rs                   # docanvil export pdf — Chrome-based PDF export
+      cdp.rs                   # Chrome DevTools Protocol session (CDP over WebSocket)
 
   doctor/
     mod.rs                     # Diagnostic runner, severity levels, auto-fix support
@@ -161,12 +166,12 @@ Markdown source
 | Type | File | Purpose |
 |------|------|---------|
 | `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig`, `LocaleConfig` |
-| `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()` |
+| `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale` |
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.json entry: `page`, `label`, `separator`, `group`, `autodiscover` |
-| `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ContentDirNotFound`, `Render`, `StrictWarnings` |
+| `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ContentDirNotFound`, `Render`, `StrictWarnings`, `ChromeNotFound` |
 | `Component` trait | `components/mod.rs` | `name() -> &str` + `render(&ComponentContext) -> Result<String>` |
 | `ComponentContext` | `components/mod.rs` | `attributes: HashMap<String, String>`, `body_raw: String`, `body_html: String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` registers all builtin components. `render_block()` does lookup + render |
@@ -175,6 +180,7 @@ Markdown source
 | `SitemapLocaleConfig` | `seo.rs` | i18n data for sitemap hreflang: `enabled`, `default_locale`, `slug_coverage` |
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
 | `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body` |
+| `PdfConfig` | `config.rs` | PDF export config: `author`, `cover_page`, `custom_css`, `paper_size` (optional, e.g. `"A4"`, `"Letter"`) |
 
 ### Build Flow (cli/build.rs)
 
@@ -242,3 +248,5 @@ Server: `axum` (HTTP + WebSocket), `tokio` (async runtime), `tower-http` (static
 Interactive: `dialoguer` (CLI prompts for theme generator), `toml_edit` (preserving TOML formatting)
 
 Polish: `owo-colors` (colored output)
+
+PDF export: `tungstenite` (sync WebSocket for CDP), `base64` (decode CDP `printToPDF` response)

@@ -76,6 +76,26 @@ impl Default for LocaleConfig {
     }
 }
 
+/// PDF export configuration.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct PdfConfig {
+    /// Author name shown on the cover page.
+    pub author: Option<String>,
+    /// Whether to prepend a cover page before the TOC (default: false).
+    pub cover_page: bool,
+    /// Path to a custom CSS file injected into the PDF (relative to project root).
+    pub custom_css: Option<String>,
+    /// Paper size for PDF export. Recognised values (case-insensitive):
+    /// "A3", "A4" (default), "A5", "Letter", "Legal", "Tabloid".
+    pub paper_size: Option<String>,
+}
+
+/// Returns `true` for right-to-left locales.
+pub fn is_rtl_locale(code: &str) -> bool {
+    matches!(code, "ar" | "he" | "ur" | "fa" | "ug")
+}
+
 /// Top-level docanvil.toml configuration.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -88,6 +108,7 @@ pub struct Config {
     pub charts: ChartsConfig,
     pub search: SearchConfig,
     pub locale: LocaleConfig,
+    pub pdf: PdfConfig,
 }
 
 #[derive(Debug, Deserialize)]

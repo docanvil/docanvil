@@ -5,7 +5,7 @@
 ---
 # CLI Commands
 
-DocAnvil provides five subcommands: `new`, `theme`, `doctor`, `serve`, and `build`.
+DocAnvil provides six subcommands: `new`, `theme`, `doctor`, `serve`, `build`, and `export`.
 
 ## Global Flags
 
@@ -296,6 +296,50 @@ docanvil build --path ../my-docs
 Broken wiki-links are reported as warnings during build. Check the output for any "broken link" messages to find references to pages that don't exist.
 :::
 
+## `docanvil export`
+
+Export your documentation to other formats.
+
+### `docanvil export pdf`
+
+Export docs as a single PDF using Chrome or Chromium.
+
+```bash
+docanvil export pdf --out <path> [--path <dir>] [--locale <code>]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--out` | Yes | — | Output path for the PDF file |
+| `--path` | No | `.` | Path to the project root |
+| `--locale` | No | project default | Locale to export. Pass `all` to generate one PDF per enabled locale — e.g. `guide.pdf` → `guide.en.pdf`, `guide.fr.pdf`. |
+
+Requires Chrome or Chromium. DocAnvil searches common install locations on macOS, Windows, and Linux before falling back to PATH.
+
+:::code-group
+```bash
+# Export the current project
+docanvil export pdf --out guide.pdf
+```
+
+```bash
+# Export a single locale
+docanvil export pdf --out guide-fr.pdf --locale fr
+```
+
+```bash
+# Export all enabled locales (i18n projects)
+docanvil export pdf --out guide.pdf --locale all
+```
+
+```bash
+# Export a project in another directory
+docanvil export pdf --out guide.pdf --path ../my-docs
+```
+:::
+
+PDF output is configured via the `[pdf]` section in `docanvil.toml`. See [[guides/pdf-export|PDF Export]] for the full guide, including cover pages, paper sizes, RTL support, and custom CSS.
+
 ## Exit Codes
 
 All commands return structured exit codes so CI pipelines can distinguish between different failure types:
@@ -330,3 +374,4 @@ Exit code `5` should never happen in normal use. If you see it, please [report t
 
 - [[guides/getting-started|Installation]] — install and create your first project
 - [[guides/configuration|Configuration]] — `docanvil.toml` and `nav.toml` reference
+- [[guides/pdf-export|PDF Export]] — cover pages, paper sizes, RTL support, and per-locale export

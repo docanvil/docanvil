@@ -47,6 +47,11 @@ fr = "Français"
 
 [locale.flags]
 en = "🇺🇸"
+
+[pdf]
+cover_page = true
+author = "Your Name"
+paper_size = "A4"
 ```
 :::
 ::::
@@ -141,6 +146,19 @@ en = "🇺🇸"    # Use US flag instead of default GB
 
 :::note{title="Need details?"}
 See [[guides/localisation|Localisation]] for a complete walkthrough of setting up multi-language docs, including file naming, per-locale navigation, and translation coverage.
+:::
+
+### `[pdf]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `author` | `None` | Author name shown on the cover page and in the running page header |
+| `cover_page` | `false` | Prepend a cover page with the project title and author before the table of contents |
+| `paper_size` | `"A4"` | Paper size: `"A3"`, `"A4"`, `"A5"`, `"Letter"`, `"Legal"`, `"Tabloid"` (case-insensitive) |
+| `custom_css` | `None` | Path (relative to project root) to a CSS file injected into the PDF output |
+
+:::note{title="Need details?"}
+See [[guides/pdf-export|PDF Export]] for the full guide: cover pages, paper sizes, RTL support, per-locale export, and custom CSS.
 :::
 
 ## nav.toml
@@ -245,6 +263,7 @@ If `nav.toml` is absent, DocAnvil auto-discovers all `.md` files in the content 
 ## Related Pages
 
 - [[guides/theming|Theming]] — CSS variables, custom CSS, and template overrides
+- [[guides/pdf-export|PDF Export]] — full PDF export guide
 - [[reference/project-structure|Project Structure]] — how files map to pages and slugs
 
 :::note

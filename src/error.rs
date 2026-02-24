@@ -28,6 +28,12 @@ pub enum Error {
 
     #[error("doctor found {errors} error(s) and {warnings} warning(s)")]
     DoctorFailed { warnings: usize, errors: usize },
+
+    #[error(
+        "Chrome or Chromium is required for PDF export but wasn't found on this machine.\n\
+         Install guide: https://www.google.com/chrome/"
+    )]
+    ChromeNotFound,
 }
 
 impl Error {
@@ -59,7 +65,7 @@ impl Error {
             Error::StrictWarnings(_) => {
                 Some("Fix the warnings above, or build without --strict.".into())
             }
-            Error::General(_) | Error::DoctorFailed { .. } => None,
+            Error::General(_) | Error::DoctorFailed { .. } | Error::ChromeNotFound => None,
         }
     }
 
@@ -78,7 +84,7 @@ impl Error {
             Error::ContentDirNotFound(_)
             | Error::StrictWarnings(_)
             | Error::DoctorFailed { .. } => 3,
-            Error::Render(_) => 4,
+            Error::Render(_) | Error::ChromeNotFound => 4,
         }
     }
 }

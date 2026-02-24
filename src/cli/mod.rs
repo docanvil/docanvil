@@ -1,12 +1,15 @@
 pub mod build;
 pub mod color;
 pub mod doctor;
+pub mod export;
 pub mod new;
 pub mod serve;
 pub mod theme;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+
+use crate::cli::export::ExportArgs;
 
 #[derive(Parser)]
 #[command(
@@ -82,4 +85,6 @@ pub enum Command {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
+    /// Export documentation to another format
+    Export(ExportArgs),
 }

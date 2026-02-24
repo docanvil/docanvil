@@ -52,6 +52,9 @@ en = "🇺🇸"
 cover_page = true
 author = "Your Name"
 paper_size = "A4"
+
+[doctor]
+max_paragraph_words = 150
 ```
 :::
 ::::
@@ -159,6 +162,23 @@ See [[guides/localisation|Localisation]] for a complete walkthrough of setting u
 
 :::note{title="Need details?"}
 See [[guides/pdf-export|PDF Export]] for the full guide: cover pages, paper sizes, RTL support, per-locale export, and custom CSS.
+:::
+
+### `[doctor]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `max_paragraph_words` | `150` | Word count threshold for the `long-paragraph` readability check. Set to `0` to disable the check entirely. |
+
+The `[doctor]` section configures the `docanvil doctor` readability linter. The default settings are intentionally permissive — tighten the threshold for higher-quality writing standards.
+
+```toml
+[doctor]
+max_paragraph_words = 100   # Flag paragraphs over 100 words
+```
+
+:::note{title="Need details?"}
+See [[reference/cli|CLI Commands → Readability checks]] for the full list of checks, their severities, and what each one catches.
 :::
 
 ## nav.toml

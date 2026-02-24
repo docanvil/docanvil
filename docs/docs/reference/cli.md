@@ -161,16 +161,6 @@ docanvil doctor [--fix] [--strict] [--path <dir>]
 | `--strict` | `false` | Exit with code `3` if any warnings or errors are found (for CI) |
 | `--path` | `.` | Path to the project root |
 
-The doctor runs five categories of checks:
-
-1. **Project structure** — config file, content directory, index page
-2. **Configuration** — TOML parsing, file references (logo, favicon), nav.toml validation
-3. **Theme** — custom CSS file existence, layout template Tera syntax
-4. **Content** — broken wiki-links, unclosed directives, front-matter JSON errors, duplicate slugs
-5. **Output** — output directory writability
-
-If no `docanvil.toml` is found, doctor prints a friendly message suggesting `docanvil new` and exits cleanly.
-
 :::code-group
 ```bash
 # Check the current project
@@ -193,6 +183,66 @@ docanvil doctor --path ../my-docs
 ```
 :::
 
+If no `docanvil.toml` is found, doctor prints a friendly message suggesting `docanvil new` and exits cleanly.
+
+### Check categories
+
+The doctor runs six categories of checks (seven when i18n is enabled):
+
+1. **Project structure** — config file, content directory, index page
+2. **Configuration** — TOML parsing, file references (logo, favicon), nav.toml validation
+3. **Theme** — custom CSS file existence, layout template Tera syntax
+4. **Content** — broken wiki-links, unclosed directives, front-matter JSON errors, duplicate slugs
+5. **Readability** — content quality checks across all Markdown source files (see below)
+6. **Translations** *(i18n only)* — translation coverage across enabled locales
+7. **Output** — output directory writability
+
+### Readability checks
+
+These run against raw Markdown source and catch content quality issues before they reach readers. Each diagnostic includes the file path and line number.
+
+**Heading structure**
+
+| Check | Severity | What it catches |
+|-------|----------|-----------------|
+| `multiple-h1` | ⚠️ Warning | More than one H1 heading on the same page |
+| `skipped-heading-level` | ⚠️ Warning | Heading level jump of more than one (e.g. H1 → H3) |
+| `consecutive-headings` | ⚠️ Warning | Two headings with nothing but blank lines between them |
+| `empty-heading` | ✗ Error | A heading with no text (`## `) |
+| `heading-punctuation` | ℹ Info | Heading ends with `.` or `!` — question marks are fine |
+| `duplicate-heading-text` | ⚠️ Warning | Two headings with the same text; produces anchor ID collisions |
+| `emphasis-used-as-heading` | ⚠️ Warning | A line that is entirely `**bold**` — use `## Heading` instead |
+| `no-document-title` | ⚠️ Warning | Page has no H1 and no `"title"` in front matter |
+
+**Links and images**
+
+| Check | Severity | What it catches |
+|-------|----------|-----------------|
+| `missing-alt-text` | ⚠️ Warning | Image with no alt text: `![](photo.jpg)` |
+| `reversed-link-syntax` | ✗ Error | `(text)[url]` instead of `[text](url)` — link won't render |
+| `empty-link` | ✗ Error | `[text]()` (no destination) or `[](url)` (no visible text) |
+| `non-descriptive-link-text` | ⚠️ Warning | Link text is "click here", "here", "read more", etc. |
+| `bare-url` | ⚠️ Warning | Raw URL in prose — wrap it as `<url>` or `[text](url)` |
+
+**Code blocks**
+
+| Check | Severity | What it catches |
+|-------|----------|-----------------|
+| `missing-fenced-code-language` | ℹ Info | Code fence with no language tag — syntax highlighting won't apply |
+
+**Prose quality**
+
+| Check | Severity | What it catches |
+|-------|----------|-----------------|
+| `long-paragraph` | ℹ Info | Paragraph exceeds the word count threshold (default: 150 words) |
+| `repeated-word` | ⚠️ Warning | Consecutive duplicate words: "the the", "is is" |
+| `todo-comment` | ⚠️ Warning | `TODO`, `FIXME`, `HACK`, `XXX`, or `PLACEHOLDER` in prose |
+| `placeholder-text` | ⚠️ Warning | "Lorem ipsum", `TBD`, or `[Insert … here]` in prose |
+
+All checks skip content inside fenced code blocks. Most also strip inline code spans before scanning to avoid false positives.
+
+### Auto-fix
+
 The `--fix` flag applies safe, non-destructive fixes:
 
 | Issue | Fix applied |
@@ -200,6 +250,8 @@ The `--fix` flag applies safe, non-destructive fixes:
 | Content directory missing | Creates the directory |
 | No `index.md` at content root | Creates a minimal index page |
 | Custom CSS file not found | Creates an empty CSS file at the configured path |
+
+Readability issues are never auto-fixed — they require human judgment.
 
 :::note
 Run `docanvil doctor` again after `--fix` to verify all issues are resolved. Some fixes (like creating the content directory) may reveal additional issues on the next run.

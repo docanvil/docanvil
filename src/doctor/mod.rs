@@ -180,7 +180,16 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
         all.extend(content_diags);
     }
 
-    // E. Locale checks (only when i18n is enabled)
+    // E. Readability checks
+    if let Some(ref inv) = inventory {
+        eprintln!("{}", "Checking readability...".bold());
+        let readability_diags =
+            checks::readability::check_readability(project_root, &config, inv);
+        print_check_results(&readability_diags);
+        all.extend(readability_diags);
+    }
+
+    // F. Locale checks (only when i18n is enabled)
     if config.is_i18n_enabled() {
         eprintln!("{}", "Checking translations...".bold());
         let locale_diags = checks::locale::check_locale(project_root, &config, inventory.as_ref());
@@ -188,7 +197,7 @@ pub fn run_checks(project_root: &Path) -> (Vec<Diagnostic>, Summary) {
         all.extend(locale_diags);
     }
 
-    // F. Output checks
+    // G. Output checks
     eprintln!("{}", "Checking output...".bold());
     let output_diags = checks::output::check_output(project_root, &config);
     print_check_results(&output_diags);

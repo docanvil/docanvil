@@ -91,6 +91,23 @@ pub struct PdfConfig {
     pub paper_size: Option<String>,
 }
 
+/// Doctor / linting configuration.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct DoctorConfig {
+    /// Maximum number of words in a single paragraph before a readability
+    /// warning is emitted. Set to 0 to disable the check. (Default: 150)
+    pub max_paragraph_words: usize,
+}
+
+impl Default for DoctorConfig {
+    fn default() -> Self {
+        Self {
+            max_paragraph_words: 150,
+        }
+    }
+}
+
 /// Returns `true` for right-to-left locales.
 pub fn is_rtl_locale(code: &str) -> bool {
     matches!(code, "ar" | "he" | "ur" | "fa" | "ug")
@@ -109,6 +126,7 @@ pub struct Config {
     pub search: SearchConfig,
     pub locale: LocaleConfig,
     pub pdf: PdfConfig,
+    pub doctor: DoctorConfig,
 }
 
 #[derive(Debug, Deserialize)]

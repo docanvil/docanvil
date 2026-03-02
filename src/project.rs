@@ -169,27 +169,40 @@ impl PageInventory {
             return;
         }
         if let Some(mut page) = self.pages.remove(old_slug) {
-            // Compute the full new slug preserving directory prefix
-            let full_new_slug = if let Some(pos) = old_slug.rfind('/') {
-                format!("{}/{}", &old_slug[..pos], new_slug)
+            // Use page.slug (the clean base slug, never locale-prefixed) to find the
+            // directory prefix. Using old_slug here is wrong for i18n keys like
+            // "en:reference/cli" — rfind('/') would match "en:reference/" and embed
+            // the locale code into the slug.
+            let new_base_slug = if let Some(pos) = page.slug.rfind('/') {
+                format!("{}/{}", &page.slug[..pos], new_slug)
             } else {
                 new_slug
             };
 
-            // Update the page's slug and output path
-            page.slug = full_new_slug.clone();
-            page.output_path = PathBuf::from(format!("{}.html", &full_new_slug));
+            // Re-apply the locale prefix to produce the new inventory key.
+            let new_key = match page.locale.as_deref() {
+                Some(locale) => format!("{}:{}", locale, new_base_slug),
+                None => new_base_slug.clone(),
+            };
+
+            // Reconstruct the output path from the locale and the new base slug.
+            let new_output_path = match page.locale.as_deref() {
+                Some(locale) => PathBuf::from(format!("{}/{}.html", locale, new_base_slug)),
+                None => PathBuf::from(format!("{}.html", new_base_slug)),
+            };
+
+            page.slug = new_base_slug;
+            page.output_path = new_output_path;
 
             // Update the ordered vec
             if let Some(entry) = self.ordered.iter_mut().find(|s| *s == old_slug) {
-                *entry = full_new_slug.clone();
+                *entry = new_key.clone();
             }
 
             // Record alias for backward-compatible resolution
-            self.slug_aliases
-                .insert(old_slug.to_string(), full_new_slug.clone());
+            self.slug_aliases.insert(old_slug.to_string(), new_key.clone());
 
-            self.pages.insert(full_new_slug, page);
+            self.pages.insert(new_key, page);
         }
     }
 
@@ -271,6 +284,15 @@ impl PageInventory {
             }
         }
         map
+    }
+
+    /// Return `true` if at least one page (in any locale) lives under `folder/`.
+    ///
+    /// Uses `page.slug` — the clean base slug, never locale-prefixed — so this works
+    /// correctly for both i18n and non-i18n inventories.
+    pub fn folder_has_pages(&self, folder: &str) -> bool {
+        let prefix = format!("{}/", folder.trim_end_matches('/'));
+        self.pages.values().any(|p| p.slug.starts_with(&prefix))
     }
 
     /// Build a navigation subtree for pages within a specific folder.
@@ -646,6 +668,41 @@ mod tests {
         assert_eq!(
             inv.pages["guides/setup-guide"].output_path,
             PathBuf::from("guides/setup-guide.html")
+        );
+    }
+
+    #[test]
+    fn update_slug_i18n_preserves_locale_key_and_output_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(docs.join("reference")).unwrap();
+        fs::write(docs.join("reference/cli.md"), "# CLI").unwrap();
+
+        let locales = vec!["en".to_string()];
+        let mut inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+
+        // Key in i18n mode is "en:reference/cli"
+        assert!(inv.pages.contains_key("en:reference/cli"));
+        inv.update_slug("en:reference/cli", "cli-commands".to_string());
+
+        // Old key gone, new key has locale prefix
+        assert!(!inv.pages.contains_key("en:reference/cli"));
+        assert!(inv.pages.contains_key("en:reference/cli-commands"));
+
+        // page.slug must NOT include the locale prefix
+        assert_eq!(
+            inv.pages["en:reference/cli-commands"].slug,
+            "reference/cli-commands"
+        );
+        // output_path must use "/" not ":" as the locale separator
+        assert_eq!(
+            inv.pages["en:reference/cli-commands"].output_path,
+            PathBuf::from("en/reference/cli-commands.html")
+        );
+        // alias maps old composite key to new composite key
+        assert_eq!(
+            inv.slug_aliases.get("en:reference/cli").map(String::as_str),
+            Some("en:reference/cli-commands")
         );
     }
 

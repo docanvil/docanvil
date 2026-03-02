@@ -262,6 +262,7 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
   if (!overlay || !input || !resultsContainer) return;
 
   var baseUrl = document.body.dataset.baseUrl || '/';
+  var searchIndexUrl = document.body.dataset.searchIndexUrl || (baseUrl + 'search-index.json');
   var miniSearch = null;
   var loaded = false;
   var selectedIndex = -1;
@@ -296,7 +297,7 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
     var script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/minisearch@7/dist/umd/index.min.js';
     script.onload = function() {
-      fetch(baseUrl + 'search-index.json')
+      fetch(searchIndexUrl)
         .then(function(r) { return r.json(); })
         .then(function(data) {
           miniSearch = new MiniSearch({

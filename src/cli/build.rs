@@ -355,6 +355,7 @@ fn build_site(
                     locale_auto_detect: config.locale.auto_detect,
                     canonical_url,
                     x_default_url,
+                    search_index_url: format!("{}search-index.json", locale_base_url),
                 };
 
                 let html = renderer.render_page(&ctx)?;
@@ -497,6 +498,7 @@ fn build_site(
                 locale_auto_detect: false,
                 canonical_url,
                 x_default_url: None,
+                search_index_url: format!("{}search-index.json", base_url),
             };
 
             let html = renderer.render_page(&ctx)?;
@@ -592,6 +594,11 @@ fn build_site(
             )
         };
 
+        let search_index_url_404 = if let Some(ref locale) = default_locale {
+            format!("{}{}/search-index.json", root_base_url, locale)
+        } else {
+            format!("{}search-index.json", root_base_url)
+        };
         let ctx = PageContext {
             page_title: "Page Not Found".to_string(),
             project_name: config.project.name.clone(),
@@ -621,6 +628,7 @@ fn build_site(
             locale_auto_detect: false,
             canonical_url: None,
             x_default_url: None,
+            search_index_url: search_index_url_404,
         };
         let html = renderer.render_page(&ctx)?;
         let not_found_path = output_dir.join("404.html");

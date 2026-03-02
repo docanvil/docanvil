@@ -101,6 +101,16 @@ pub fn check_config(
     diags
 }
 
+/// Check whether a nav slug refers to a page that exists in the inventory.
+///
+/// With i18n enabled, inventory keys are `"{locale}:{slug}"` — not bare slugs — so
+/// a plain `contains_key` check always misses. We fall back to scanning page base
+/// slugs so that locale-suffixed projects don't produce false "missing page" warnings.
+fn nav_slug_exists(slug: &str, inventory: &PageInventory) -> bool {
+    inventory.pages.contains_key(slug)
+        || inventory.pages.values().any(|p| p.slug == slug)
+}
+
 fn check_nav_entries(
     entries: &[nav::NavEntry],
     inventory: &PageInventory,
@@ -108,7 +118,7 @@ fn check_nav_entries(
 ) {
     for entry in entries {
         if let Some(slug) = &entry.page
-            && !inventory.pages.contains_key(slug)
+            && !nav_slug_exists(slug, inventory)
         {
             diags.push(Diagnostic {
                 check: "nav-missing-page",
@@ -133,7 +143,7 @@ fn check_nav_group_items(
 ) {
     for item in items {
         if let Some(slug) = &item.page
-            && !inventory.pages.contains_key(slug)
+            && !nav_slug_exists(slug, inventory)
         {
             diags.push(Diagnostic {
                 check: "nav-missing-page",

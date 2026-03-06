@@ -6,7 +6,7 @@
 ---
 # Feuille de route
 
-DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). La version actuelle est **1.0.0**. Voici où en est le projet et vers quoi il se dirige.
+DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). La version actuelle est **1.1.0**. Voici où en est le projet et vers quoi il se dirige.
 
 ## 1.1.x — Améliorations des fonctionnalités principales
 

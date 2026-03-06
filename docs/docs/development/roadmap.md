@@ -1,6 +1,6 @@
 # Roadmap
 
-DocAnvil follows [Semantic Versioning](https://semver.org). The current release is **1.0.0**. Here's where things stand and where they're headed.
+DocAnvil follows [Semantic Versioning](https://semver.org). The current release is **1.1.0**. Here's where things stand and where they're headed.
 
 ## 1.1.x — Core Feature Enhancements
 

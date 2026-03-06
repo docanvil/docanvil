@@ -81,6 +81,7 @@ src/
       locale.rs                # Translation coverage checks (i18n)
       output.rs                # Output directory checks
       project.rs               # Project structure checks
+      readability.rs           # Markdown readability checks (headings, alt text, paragraph length)
       theme.rs                 # Theme checks
 
   pipeline/
@@ -157,7 +158,7 @@ Markdown source
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
-- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[locale]` sections; serde deserialization
+- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[locale]`, `[doctor]` sections; serde deserialization
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
 - **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled
 
@@ -165,7 +166,7 @@ Markdown source
 
 | Type | File | Purpose |
 |------|------|---------|
-| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig`, `LocaleConfig` |
+| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `DoctorConfig` |
 | `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale` |
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
@@ -181,6 +182,7 @@ Markdown source
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
 | `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body` |
 | `PdfConfig` | `config.rs` | PDF export config: `author`, `cover_page`, `custom_css`, `paper_size` (optional, e.g. `"A4"`, `"Letter"`) |
+| `DoctorConfig` | `config.rs` | Doctor / linting config: `max_paragraph_words` (default: 150; set to 0 to disable) |
 
 ### Build Flow (cli/build.rs)
 

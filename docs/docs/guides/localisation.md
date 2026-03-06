@@ -23,7 +23,7 @@ That's it. DocAnvil will now look for locale suffixes in your filenames and buil
 
 Add the locale code as a suffix before the `.md` extension:
 
-```
+```text
 docs/
   index.en.md          # English home page
   index.fr.md          # French home page
@@ -43,7 +43,7 @@ Only suffixes that match your `enabled` list are recognized as locale codes. A f
 
 Each locale gets its own directory in the build output:
 
-```
+```text
 dist/
   js/docanvil.js        # Shared assets (one copy)
   robots.txt
@@ -64,6 +64,8 @@ dist/
 All locales get URL prefixes — even the default. This keeps URLs consistent and predictable.
 
 ## Navigation
+
+DocAnvil builds a separate navigation tree for each locale, so each language's sidebar only shows pages in that language.
 
 ### Auto-Discovered Nav
 
@@ -126,7 +128,7 @@ When `auto_detect` is `true` (the default), DocAnvil checks the visitor's browse
 1. If the user has previously chosen a language (stored in `localStorage`), that choice is respected
 2. If not, the browser's `navigator.language` is checked against the enabled locales
 3. If it matches a different locale than the current page, the user is redirected
-4. The detected language is saved to `localStorage` to prevent repeated redirects
+4. The detected language is saved to `localStorage`, preventing repeated redirects
 
 Set `auto_detect = false` to disable this behavior entirely.
 
@@ -134,7 +136,7 @@ Set `auto_detect = false` to disable this behavior entirely.
 
 When a page exists in some locales but not all, DocAnvil emits a build warning:
 
-```
+```text
 warning: page 'guides/advanced' has no translation for locale 'fr'
   hint: Create a file with the '.fr.md' suffix to add a translation.
 ```

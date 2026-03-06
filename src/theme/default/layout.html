@@ -54,7 +54,7 @@
   {% endif %}
   {% block head %}{% endblock %}
 </head>
-<body data-base-url="{{ base_url | safe }}"{% if locale_auto_detect %} data-locale-auto-detect="true"{% endif %}>
+<body data-base-url="{{ base_url | safe }}" data-search-index-url="{{ search_index_url | safe }}"{% if locale_auto_detect %} data-locale-auto-detect="true"{% endif %}>
   {% block header %}
   <header class="top-header">
     <div class="top-header-left">

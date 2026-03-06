@@ -137,7 +137,7 @@ fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory, locale: Op
             }
         }
         if let Some(folder) = item.autodiscover()
-            && inventory.nav_tree_for_folder(folder, None).is_empty()
+            && !inventory.folder_has_pages(folder)
         {
             diagnostics::warn_nav_autodiscover_empty(folder);
         }

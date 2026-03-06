@@ -32,7 +32,7 @@ pub fn check_content(
             Err(_) => continue,
         };
 
-        check_broken_wikilinks(&source, &page.source_path, inventory, &mut diags);
+        check_broken_wikilinks(&source, &page.source_path, page.locale.as_deref(), inventory, &mut diags);
         check_unclosed_directives(&source, &page.source_path, &mut diags);
         check_frontmatter(&source, &page.source_path, &mut diags);
     }
@@ -65,6 +65,7 @@ fn check_duplicate_slugs(inventory: &PageInventory, diags: &mut Vec<Diagnostic>)
 fn check_broken_wikilinks(
     source: &str,
     source_path: &Path,
+    locale: Option<&str>,
     inventory: &PageInventory,
     diags: &mut Vec<Diagnostic>,
 ) {
@@ -75,14 +76,23 @@ fn check_broken_wikilinks(
         let after_open = &remaining[start + 2..];
         if let Some(end) = after_open.find("]]") {
             let inner = &after_open[..end];
+            // Find the pipe separator. In Markdown table cells, `\|` escapes the pipe but
+            // still acts as the target/display separator — strip the trailing `\` from the
+            // target so the lookup works correctly.
             let (target, _display) = if let Some(pipe_pos) = inner.find('|') {
-                (&inner[..pipe_pos], &inner[pipe_pos + 1..])
+                (inner[..pipe_pos].trim_end_matches('\\'), &inner[pipe_pos + 1..])
             } else {
                 (inner, inner)
             };
 
             let target = target.trim();
-            if !target.is_empty() && inventory.resolve_link(target).is_none() {
+            let resolved = match locale {
+                Some(loc) => inventory
+                    .resolve_link_in_locale(target, loc)
+                    .or_else(|| inventory.resolve_link(target)),
+                None => inventory.resolve_link(target),
+            };
+            if !target.is_empty() && resolved.is_none() {
                 // Calculate line number
                 let pos = offset + start;
                 let line = source[..pos].matches('\n').count() + 1;

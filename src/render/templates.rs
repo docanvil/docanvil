@@ -69,6 +69,7 @@ impl TemplateRenderer {
         context.insert("locale_auto_detect", &ctx.locale_auto_detect);
         context.insert("canonical_url", &ctx.canonical_url);
         context.insert("x_default_url", &ctx.x_default_url);
+        context.insert("search_index_url", &ctx.search_index_url);
 
         self.tera
             .render("layout.html", &context)
@@ -106,4 +107,6 @@ pub struct PageContext {
     pub locale_auto_detect: bool,
     pub canonical_url: Option<String>,
     pub x_default_url: Option<String>,
+    /// URL to the search index JSON for this page's locale (e.g. `/en/search-index.json`).
+    pub search_index_url: String,
 }

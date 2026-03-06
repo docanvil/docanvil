@@ -469,6 +469,7 @@ fn check_missing_alt_text(
     diags: &mut Vec<Diagnostic>,
 ) {
     for &(line_num, line) in lines {
+        let line = &*INLINE_CODE_RE.replace_all(line, "");
         for caps in IMAGE_RE.captures_iter(line) {
             if caps[1].trim().is_empty() {
                 diags.push(Diagnostic {
@@ -512,6 +513,8 @@ fn check_reversed_link_syntax(
 /// Image links (`![alt](url)`) are excluded — those are covered by `missing-alt-text`.
 fn check_empty_link(lines: &[(usize, &str)], source_path: &Path, diags: &mut Vec<Diagnostic>) {
     for &(line_num, line) in lines {
+        let line_stripped = INLINE_CODE_RE.replace_all(line, "");
+        let line = line_stripped.as_ref();
         for caps in LINK_RE.captures_iter(line) {
             let start = caps.get(0).unwrap().start();
             // Skip image links (preceded by '!').
@@ -688,8 +691,10 @@ fn check_long_paragraph(
 
     for &(line_num, line) in lines {
         let trimmed = line.trim();
-        let is_break =
-            trimmed.is_empty() || HEADING_RE.is_match(line) || trimmed.starts_with(":::");
+        let is_break = trimmed.is_empty()
+            || HEADING_RE.is_match(line)
+            || trimmed.starts_with(":::")
+            || trimmed.starts_with('|');
         if is_break {
             flush(word_count, para_start);
             word_count = 0;

@@ -2,22 +2,22 @@
 
 DocAnvil follows [Semantic Versioning](https://semver.org). Here's where things stand and where they're headed.
 
-**Current version: 1.0.0**
+## Current version: 1.0.0
 
 ---
 
-### 1.1.x — Core Feature Enhancements
+## 1.1.x — Core Feature Enhancements
 
 ✅ Localisation support (multi-language docs, per-locale nav and search, language switcher)
 ✅ PDF export (`docanvil export pdf` — Chrome-based, cover pages, RTL, per-locale, custom paper size)
 ⬜ Doc versioning support
 ⬜ Style linting
 
-### 1.2.x — Extensibility
+## 1.2.x — Extensibility
 
 WASM plugin system (v1), additional CLI flags, more diagnostics, and template enhancements. Fully backward compatible.
 
-### 1.3.x+ — Ecosystem Growth
+## 1.3.x+ — Ecosystem Growth
 
 Plugin hooks, performance optimizations, incremental builds, caching, and a plugin SDK crate. Breaking changes require a major release.
 

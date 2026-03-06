@@ -10,6 +10,8 @@ DocAnvil provides two special inline syntaxes beyond standard Markdown: **wiki-l
 
 ## Wiki-Links
 
+Wiki-links are DocAnvil's built-in cross-page linking syntax — they resolve slugs automatically and warn you about broken references at build time.
+
 ### Basic Syntax
 
 Link to another page using double brackets:
@@ -95,7 +97,7 @@ Use `^[content]` to create a popover:
 DocAnvil uses comrak^[A fast, GFM-compatible Markdown parser written in Rust] for rendering.
 ```
 
-### Live Examples
+### Live Popover Examples
 
 DocAnvil uses comrak^[A fast, GFM-compatible Markdown parser written in Rust] for rendering Markdown.
 
@@ -118,7 +120,7 @@ Each popover uses `role="tooltip"` and `aria-describedby` to connect the trigger
 
 Popover syntax inside inline code (`^[like this]`) and fenced code blocks is left as-is:
 
-```
+```text
 This ^[popover syntax] is not processed inside code blocks.
 ```
 

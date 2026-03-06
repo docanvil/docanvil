@@ -168,7 +168,7 @@ See [[guides/pdf-export|PDF Export]] for the full guide: cover pages, paper size
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `max_paragraph_words` | `150` | Word count threshold for the `long-paragraph` readability check. Set to `0` to disable the check entirely. |
+| `max_paragraph_words` | `150` | Word count threshold for the `long-paragraph` readability check. Use `0` to disable the check entirely. |
 
 The `[doctor]` section configures the `docanvil doctor` readability linter. The default settings are intentionally permissive — tighten the threshold for higher-quality writing standards.
 

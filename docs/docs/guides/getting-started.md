@@ -42,7 +42,7 @@ docanvil new my-docs
 
 This creates the following structure:
 
-```
+```text
 my-docs/
   docanvil.toml        # Project configuration
   nav.toml             # Navigation structure

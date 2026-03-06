@@ -123,7 +123,11 @@ Every page also gets these Open Graph tags automatically, regardless of front ma
 
 ## Examples
 
+Here are a few common front-matter patterns to get you started.
+
 ### Minimal — title only
+
+Just a title is enough to override the filename-derived heading and set the page's `<title>` tag.
 
 ```markdown
 ---
@@ -134,6 +138,8 @@ Every page also gets these Open Graph tags automatically, regardless of front ma
 ```
 
 ### Full metadata
+
+Include `description`, `author`, and `date` to populate Open Graph and `<meta>` tags.
 
 ```markdown
 ---
@@ -147,6 +153,8 @@ Every page also gets these Open Graph tags automatically, regardless of front ma
 ```
 
 ### Custom slug
+
+Use `slug` to control the output URL regardless of the filename.
 
 ```markdown
 ---

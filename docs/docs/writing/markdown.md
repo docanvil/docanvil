@@ -51,6 +51,8 @@ For linking between documentation pages, use [[writing/wiki-links|wiki-links]] i
 
 ## Lists
 
+Both unordered and ordered lists support nesting and task-list checkboxes.
+
 ### Unordered
 
 - First item

@@ -247,7 +247,7 @@ The doctor runs six categories of checks (seven when i18n is enabled):
 
 These run against raw Markdown source and catch content quality issues before they reach readers. Each diagnostic includes the file path and line number.
 
-**Heading structure**
+#### Heading structure
 
 | Check | Severity | What it catches |
 |-------|----------|-----------------|
@@ -260,30 +260,30 @@ These run against raw Markdown source and catch content quality issues before th
 | `emphasis-used-as-heading` | ⚠️ Warning | A line that is entirely `**bold**` — use `## Heading` instead |
 | `no-document-title` | ⚠️ Warning | Page has no H1 and no `"title"` in front matter |
 
-**Links and images**
+#### Links and images
 
 | Check | Severity | What it catches |
 |-------|----------|-----------------|
 | `missing-alt-text` | ⚠️ Warning | Image with no alt text: `![](photo.jpg)` |
 | `reversed-link-syntax` | ✗ Error | `(text)[url]` instead of `[text](url)` — link won't render |
 | `empty-link` | ✗ Error | `[text]()` (no destination) or `[](url)` (no visible text) |
-| `non-descriptive-link-text` | ⚠️ Warning | Link text is "click here", "here", "read more", etc. |
+| `non-descriptive-link-text` | ⚠️ Warning | Link text gives no navigational context: "here", "read more", "learn more", etc. |
 | `bare-url` | ⚠️ Warning | Raw URL in prose — wrap it as `<url>` or `[text](url)` |
 
-**Code blocks**
+#### Code blocks
 
 | Check | Severity | What it catches |
 |-------|----------|-----------------|
 | `missing-fenced-code-language` | ℹ Info | Code fence with no language tag — syntax highlighting won't apply |
 
-**Prose quality**
+#### Prose quality
 
 | Check | Severity | What it catches |
 |-------|----------|-----------------|
 | `long-paragraph` | ℹ Info | Paragraph exceeds the word count threshold (default: 150 words) |
-| `repeated-word` | ⚠️ Warning | Consecutive duplicate words: "the the", "is is" |
+| `repeated-word` | ⚠️ Warning | Consecutive duplicate words: `the the`, `is is` |
 | `todo-comment` | ⚠️ Warning | `TODO`, `FIXME`, `HACK`, `XXX`, or `PLACEHOLDER` in prose |
-| `placeholder-text` | ⚠️ Warning | "Lorem ipsum", `TBD`, or `[Insert … here]` in prose |
+| `placeholder-text` | ⚠️ Warning | `Lorem ipsum`, `TBD`, or `[Insert … here]` in prose |
 
 All checks skip content inside fenced code blocks. Most also strip inline code spans before scanning to avoid false positives.
 

@@ -32,7 +32,13 @@ pub fn check_content(
             Err(_) => continue,
         };
 
-        check_broken_wikilinks(&source, &page.source_path, page.locale.as_deref(), inventory, &mut diags);
+        check_broken_wikilinks(
+            &source,
+            &page.source_path,
+            page.locale.as_deref(),
+            inventory,
+            &mut diags,
+        );
         check_unclosed_directives(&source, &page.source_path, &mut diags);
         check_frontmatter(&source, &page.source_path, &mut diags);
     }
@@ -80,7 +86,10 @@ fn check_broken_wikilinks(
             // still acts as the target/display separator — strip the trailing `\` from the
             // target so the lookup works correctly.
             let (target, _display) = if let Some(pipe_pos) = inner.find('|') {
-                (inner[..pipe_pos].trim_end_matches('\\'), &inner[pipe_pos + 1..])
+                (
+                    inner[..pipe_pos].trim_end_matches('\\'),
+                    &inner[pipe_pos + 1..],
+                )
             } else {
                 (inner, inner)
             };

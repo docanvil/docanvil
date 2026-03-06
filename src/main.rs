@@ -16,9 +16,12 @@ fn main() {
 
     let result = match &cli.command {
         Command::New { name } => docanvil::cli::new::run(name),
-        Command::Doctor { fix, strict, path, format } => {
-            docanvil::cli::doctor::run(path, *fix, *strict, cli.quiet, format)
-        }
+        Command::Doctor {
+            fix,
+            strict,
+            path,
+            format,
+        } => docanvil::cli::doctor::run(path, *fix, *strict, cli.quiet, format),
         Command::Theme { path, overwrite } => docanvil::cli::theme::run(path, *overwrite),
         Command::Serve { host, port, path } => docanvil::cli::serve::run(host, *port, path),
         Command::Build {

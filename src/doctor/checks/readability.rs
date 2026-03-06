@@ -19,20 +19,17 @@ static IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"!\[([^\]]*)\]\([^\)]+\)").unwrap());
 
 // Matches any inline code span on a single line.
-static INLINE_CODE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"`[^`\n]*`").unwrap());
+static INLINE_CODE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"`[^`\n]*`").unwrap());
 
 // Matches Markdown links and images: [text](url) and ![alt](url).
 static MD_LINK_OR_IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"!?\[[^\]]*\]\([^\)]*\)").unwrap());
 
 // Matches angle-bracket URLs: <https://...>.
-static ANGLE_URL_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"<https?://[^>\s]+>").unwrap());
+static ANGLE_URL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<https?://[^>\s]+>").unwrap());
 
 // Matches any bare http(s) URL.
-static BARE_URL_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"https?://\S+").unwrap());
+static BARE_URL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"https?://\S+").unwrap());
 
 // Matches [text](dest), capturing both groups. Used by empty-link and non-descriptive-link-text.
 static LINK_RE: LazyLock<Regex> =
@@ -168,7 +165,10 @@ fn front_matter_has_title(source: &str) -> bool {
     if !trimmed.starts_with("---") {
         return false;
     }
-    let after_open = match trimmed[3..].strip_prefix('\n').or_else(|| trimmed[3..].strip_prefix("\r\n")) {
+    let after_open = match trimmed[3..]
+        .strip_prefix('\n')
+        .or_else(|| trimmed[3..].strip_prefix("\r\n"))
+    {
         Some(s) => s,
         None => return false,
     };
@@ -744,7 +744,10 @@ fn check_todo_comment(lines: &[(usize, &str)], source_path: &Path, diags: &mut V
                 check: "todo-comment",
                 category: "readability",
                 severity: Severity::Warning,
-                message: format!("Editorial annotation in prose: {}", m.as_str().to_uppercase()),
+                message: format!(
+                    "Editorial annotation in prose: {}",
+                    m.as_str().to_uppercase()
+                ),
                 file: Some(source_path.to_path_buf()),
                 line: Some(line_num),
                 fix: None,
@@ -804,7 +807,10 @@ mod tests {
     fn active_lines_plain() {
         let src = "line one\nline two\nline three";
         let lines = active_lines(src);
-        assert_eq!(lines, vec![(1, "line one"), (2, "line two"), (3, "line three")]);
+        assert_eq!(
+            lines,
+            vec![(1, "line one"), (2, "line two"), (3, "line three")]
+        );
     }
 
     #[test]

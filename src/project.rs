@@ -200,7 +200,8 @@ impl PageInventory {
             }
 
             // Record alias for backward-compatible resolution
-            self.slug_aliases.insert(old_slug.to_string(), new_key.clone());
+            self.slug_aliases
+                .insert(old_slug.to_string(), new_key.clone());
 
             self.pages.insert(new_key, page);
         }

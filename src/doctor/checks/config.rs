@@ -107,8 +107,7 @@ pub fn check_config(
 /// a plain `contains_key` check always misses. We fall back to scanning page base
 /// slugs so that locale-suffixed projects don't produce false "missing page" warnings.
 fn nav_slug_exists(slug: &str, inventory: &PageInventory) -> bool {
-    inventory.pages.contains_key(slug)
-        || inventory.pages.values().any(|p| p.slug == slug)
+    inventory.pages.contains_key(slug) || inventory.pages.values().any(|p| p.slug == slug)
 }
 
 fn check_nav_entries(

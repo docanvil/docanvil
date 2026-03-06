@@ -205,8 +205,7 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
         if !silent {
             eprintln!("{}", "Checking readability...".bold());
         }
-        let readability_diags =
-            checks::readability::check_readability(project_root, &config, inv);
+        let readability_diags = checks::readability::check_readability(project_root, &config, inv);
         if !silent {
             print_check_results(&readability_diags);
         }
@@ -267,7 +266,8 @@ pub fn format_checkstyle(diagnostics: &[Diagnostic], project_root: &Path) -> Str
         }
     }
 
-    let mut out = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<checkstyle version=\"4.3\">\n");
+    let mut out =
+        String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<checkstyle version=\"4.3\">\n");
     for (name, diags) in &groups {
         out.push_str(&format!("  <file name=\"{}\">\n", xml_escape(name)));
         for d in diags {
@@ -292,8 +292,15 @@ pub fn format_checkstyle(diagnostics: &[Diagnostic], project_root: &Path) -> Str
 
 /// Format diagnostics as JUnit XML (compatible with test result reporters).
 pub fn format_junit(diagnostics: &[Diagnostic], project_root: &Path) -> String {
-    const KNOWN_CATEGORIES: &[&str] =
-        &["project", "config", "theme", "content", "readability", "locale", "output"];
+    const KNOWN_CATEGORIES: &[&str] = &[
+        "project",
+        "config",
+        "theme",
+        "content",
+        "readability",
+        "locale",
+        "output",
+    ];
 
     // Group by category
     let mut by_category: std::collections::HashMap<&str, Vec<&Diagnostic>> =
@@ -488,7 +495,14 @@ mod tests {
     #[test]
     fn checkstyle_no_file_diagnostic_uses_empty_name() {
         let root = PathBuf::from("/project");
-        let diags = vec![make_diag("check-a", "config", Severity::Warning, "bad config", None, None)];
+        let diags = vec![make_diag(
+            "check-a",
+            "config",
+            Severity::Warning,
+            "bad config",
+            None,
+            None,
+        )];
         let xml = format_checkstyle(&diags, &root);
         assert!(xml.contains("name=\"\""));
     }
@@ -514,7 +528,14 @@ mod tests {
         let root = PathBuf::from("/project");
         let diags = vec![
             make_diag("my-check", "theme", Severity::Info, "just info", None, None),
-            make_diag("other-check", "output", Severity::Error, "error msg", None, None),
+            make_diag(
+                "other-check",
+                "output",
+                Severity::Error,
+                "error msg",
+                None,
+                None,
+            ),
         ];
         let xml = format_checkstyle(&diags, &root);
         assert!(xml.contains("severity=\"info\""));
@@ -531,8 +552,19 @@ mod tests {
         let xml = format_junit(&[], &root);
         assert!(xml.contains("<testsuites"));
         // All 7 known categories should appear
-        for cat in &["project", "config", "theme", "content", "readability", "locale", "output"] {
-            assert!(xml.contains(&format!("name=\"docanvil.{cat}\"")), "missing suite: {cat}");
+        for cat in &[
+            "project",
+            "config",
+            "theme",
+            "content",
+            "readability",
+            "locale",
+            "output",
+        ] {
+            assert!(
+                xml.contains(&format!("name=\"docanvil.{cat}\"")),
+                "missing suite: {cat}"
+            );
         }
         // Every suite has a passing testcase
         assert!(xml.contains("name=\"all-checks-passed\""));
@@ -587,7 +619,10 @@ mod tests {
         assert!(xml.contains("skipped=\"1\""));
         // tests count: 3 real + 4 passing = 7
         let first_line = xml.lines().find(|l| l.contains("<testsuites")).unwrap();
-        assert!(first_line.contains("tests=\"7\""), "unexpected: {first_line}");
+        assert!(
+            first_line.contains("tests=\"7\""),
+            "unexpected: {first_line}"
+        );
     }
 }
 

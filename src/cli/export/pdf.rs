@@ -81,17 +81,17 @@ fn logo_to_data_uri(project_root: &Path, logo: &str) -> Option<String> {
 /// CSS file and referenced by `[pdf].custom_css` are available in `:root`.
 fn build_theme_css_vars(variables: &HashMap<String, String>) -> String {
     const DEFAULTS: &[(&str, &str)] = &[
-        ("--color-primary",        "#6366f1"),
-        ("--color-primary-light",  "#818cf8"),
-        ("--color-bg",             "#ffffff"),
-        ("--color-bg-secondary",   "#f8fafc"),
-        ("--color-text",           "#1e293b"),
-        ("--color-text-muted",     "#64748b"),
-        ("--color-border",         "#e2e8f0"),
-        ("--color-code-bg",        "#f1f5f9"),
-        ("--color-note-bg",        "#eef2ff"),
-        ("--color-note-border",    "#818cf8"),
-        ("--color-warning-bg",     "#fff7ed"),
+        ("--color-primary", "#6366f1"),
+        ("--color-primary-light", "#818cf8"),
+        ("--color-bg", "#ffffff"),
+        ("--color-bg-secondary", "#f8fafc"),
+        ("--color-text", "#1e293b"),
+        ("--color-text-muted", "#64748b"),
+        ("--color-border", "#e2e8f0"),
+        ("--color-code-bg", "#f1f5f9"),
+        ("--color-note-bg", "#eef2ff"),
+        ("--color-note-border", "#818cf8"),
+        ("--color-warning-bg", "#fff7ed"),
         ("--color-warning-border", "#f97316"),
     ];
 
@@ -573,9 +573,7 @@ fn run_single_locale(
         }
     }
     let theme_css_vars = build_theme_css_vars(&merged_theme_vars);
-    let accent_color = merged_theme_vars
-        .get("--color-primary")
-        .map(String::as_str);
+    let accent_color = merged_theme_vars.get("--color-primary").map(String::as_str);
 
     // ── Assemble PDF HTML ─────────────────────────────────────────────────────
     let cover_logo_data_uri = config
@@ -698,7 +696,10 @@ mod tests {
     fn extract_css_vars_simple_root_block() {
         let css = ":root {\n  --color-primary: #e63946;\n  --color-bg: #f1faee;\n}";
         let vars = extract_css_vars_from_file(css);
-        assert_eq!(vars.get("--color-primary").map(String::as_str), Some("#e63946"));
+        assert_eq!(
+            vars.get("--color-primary").map(String::as_str),
+            Some("#e63946")
+        );
         assert_eq!(vars.get("--color-bg").map(String::as_str), Some("#f1faee"));
     }
 
@@ -706,13 +707,17 @@ mod tests {
     fn extract_css_vars_multiple_root_blocks() {
         let css = ":root { --color-primary: #abc; }\n\n:root { --color-bg: #fff; }";
         let vars = extract_css_vars_from_file(css);
-        assert_eq!(vars.get("--color-primary").map(String::as_str), Some("#abc"));
+        assert_eq!(
+            vars.get("--color-primary").map(String::as_str),
+            Some("#abc")
+        );
         assert_eq!(vars.get("--color-bg").map(String::as_str), Some("#fff"));
     }
 
     #[test]
     fn extract_css_vars_ignores_outside_root() {
-        let css = "--color-primary: #bad;\nbody { --color-text: #333; }\n:root { --color-bg: #fff; }";
+        let css =
+            "--color-primary: #bad;\nbody { --color-text: #333; }\n:root { --color-bg: #fff; }";
         let vars = extract_css_vars_from_file(css);
         // Only the :root block variable is captured
         assert!(vars.get("--color-primary").is_none());
@@ -724,7 +729,10 @@ mod tests {
     fn extract_css_vars_trims_whitespace() {
         let css = ":root {\n  --color-primary :   #abc123  ;\n}";
         let vars = extract_css_vars_from_file(css);
-        assert_eq!(vars.get("--color-primary").map(String::as_str), Some("#abc123"));
+        assert_eq!(
+            vars.get("--color-primary").map(String::as_str),
+            Some("#abc123")
+        );
     }
 
     #[test]

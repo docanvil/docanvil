@@ -1,3 +1,9 @@
+---
+{
+  "title": "Structure du projet",
+  "slug": "project-structure"
+}
+---
 # Structure du projet
 
 Un projet DocAnvil a une organisation de répertoires simple. Voici la structure complète :

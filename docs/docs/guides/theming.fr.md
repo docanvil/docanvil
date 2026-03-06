@@ -1,3 +1,9 @@
+---
+{
+  "title": "Thèmes",
+  "slug": "theming"
+}
+---
 # Thèmes
 
 L'apparence de DocAnvil est personnalisable via trois couches, chacune s'appuyant sur la précédente :

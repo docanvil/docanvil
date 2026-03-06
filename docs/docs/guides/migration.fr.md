@@ -1,3 +1,9 @@
+---
+{
+  "title": "Guide de migration",
+  "slug": "migration"
+}
+---
 # Guide de migration
 
 DocAnvil est en version pré-1.0, ce qui signifie que des changements incompatibles peuvent survenir entre les versions mineures. Cette page documentera les étapes de migration au fur et à mesure.

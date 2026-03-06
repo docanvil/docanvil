@@ -1,3 +1,9 @@
+---
+{
+  "title": "Feuille de route",
+  "slug": "roadmap"
+}
+---
 # Feuille de route
 
 DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). Voici où en est le projet et vers quoi il se dirige.

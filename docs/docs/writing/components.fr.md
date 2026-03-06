@@ -1,3 +1,9 @@
+---
+{
+  "title": "Composants",
+  "slug": "components"
+}
+---
 # Composants
 
 DocAnvil propose des composants intégrés rendus via des directives délimitées. Ils sont traités avant le rendu Markdown, donc vous pouvez utiliser du Markdown à l'intérieur.

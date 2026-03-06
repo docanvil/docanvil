@@ -260,6 +260,7 @@ Ces vérifications s'exécutent sur les sources Markdown brutes et détectent le
 | `duplicate-heading-text` | ⚠️ Avertissement | Deux titres avec le même texte ; produit des collisions d'ID d'ancre |
 | `emphasis-used-as-heading` | ⚠️ Avertissement | Une ligne entièrement en `**gras**` — utilisez `## Titre` à la place |
 | `no-document-title` | ⚠️ Avertissement | La page n'a pas de H1 et pas de `"title"` dans le front matter |
+| `heading-adjacent-separator` | ⚠️ Avertissement | Un titre est immédiatement adjacent à une règle horizontale — les titres créent déjà des ruptures visuelles, le séparateur est donc redondant |
 
 #### Liens et images
 

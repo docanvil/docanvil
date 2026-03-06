@@ -259,6 +259,7 @@ These run against raw Markdown source and catch content quality issues before th
 | `duplicate-heading-text` | ⚠️ Warning | Two headings with the same text; produces anchor ID collisions |
 | `emphasis-used-as-heading` | ⚠️ Warning | A line that is entirely `**bold**` — use `## Heading` instead |
 | `no-document-title` | ⚠️ Warning | Page has no H1 and no `"title"` in front matter |
+| `heading-adjacent-separator` | ⚠️ Warning | A heading is immediately adjacent to a horizontal rule — headings already create visual breaks, so the separator is redundant |
 
 #### Links and images
 

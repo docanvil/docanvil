@@ -51,7 +51,6 @@ static TODO_RE: LazyLock<Regex> =
 static PLACEHOLDER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(lorem ipsum|\bTBD\b|\[insert .{0,40} here\])").unwrap());
 
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -519,7 +518,8 @@ fn check_heading_adjacent_separator(
         // Check nearest preceding non-blank active line.
         if let Some(&(sep_num, sep_line)) =
             lines[..i].iter().rev().find(|(_, l)| !l.trim().is_empty())
-            && is_hr(sep_line) && !is_setext_underline(sep_line, sep_num, &raw_lines)
+            && is_hr(sep_line)
+            && !is_setext_underline(sep_line, sep_num, &raw_lines)
         {
             diags.push(Diagnostic {
                 check: "heading-adjacent-separator",
@@ -536,8 +536,7 @@ fn check_heading_adjacent_separator(
 
         // Check nearest following non-blank active line.
         // ATX headings can never be setext underline targets, so no setext check needed here.
-        if let Some(&(_, next_line)) =
-            lines[i + 1..].iter().find(|(_, l)| !l.trim().is_empty())
+        if let Some(&(_, next_line)) = lines[i + 1..].iter().find(|(_, l)| !l.trim().is_empty())
             && is_hr(next_line)
         {
             diags.push(Diagnostic {
@@ -1752,7 +1751,13 @@ mod tests {
         let src = "Intro text.\n\n---\n\n## Heading";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].check, "heading-adjacent-separator");
         assert!(diags[0].message.contains("preceded"));
@@ -1767,7 +1772,13 @@ mod tests {
         // not plain text, so is_setext_underline returns false).
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].check, "heading-adjacent-separator");
         assert!(diags[0].message.contains("followed"));
@@ -1778,7 +1789,13 @@ mod tests {
         let src = "## Heading\n\n---";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
         assert_eq!(diags.len(), 1);
         assert!(diags[0].message.contains("followed"));
     }
@@ -1789,8 +1806,17 @@ mod tests {
         let src = "Some Text\n---\n## ATX Heading";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
-        assert!(diags.is_empty(), "setext underline should not be flagged: {diags:?}");
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
+        assert!(
+            diags.is_empty(),
+            "setext underline should not be flagged: {diags:?}"
+        );
     }
 
     #[test]
@@ -1798,7 +1824,13 @@ mod tests {
         let src = "## Heading\n\nOther text";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
         assert!(diags.is_empty());
     }
 
@@ -1807,7 +1839,13 @@ mod tests {
         let src = "***\n## Heading";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
         assert_eq!(diags.len(), 1);
     }
 
@@ -1816,7 +1854,13 @@ mod tests {
         let src = "___\n## Heading";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(true),
+            &mut diags,
+        );
         assert_eq!(diags.len(), 1);
     }
 
@@ -1825,7 +1869,13 @@ mod tests {
         let src = "---\n## Heading\n---";
         let lines = active_lines(src);
         let mut diags = Vec::new();
-        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(false), &mut diags);
+        check_heading_adjacent_separator(
+            src,
+            &lines,
+            &fake_path(),
+            &heading_sep_config(false),
+            &mut diags,
+        );
         assert!(diags.is_empty());
     }
 }

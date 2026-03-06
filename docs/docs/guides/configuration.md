@@ -55,6 +55,7 @@ paper_size = "A4"
 
 [doctor]
 max_paragraph_words = 150
+heading_adjacent_separator = true
 ```
 :::
 ::::
@@ -169,12 +170,14 @@ See [[guides/pdf-export|PDF Export]] for the full guide: cover pages, paper size
 | Key | Default | Description |
 |-----|---------|-------------|
 | `max_paragraph_words` | `150` | Word count threshold for the `long-paragraph` readability check. Use `0` to disable the check entirely. |
+| `heading_adjacent_separator` | `true` | Warn when a heading is directly adjacent to a horizontal rule. Set `false` to opt out. |
 
 The `[doctor]` section configures the `docanvil doctor` readability linter. The default settings are intentionally permissive — tighten the threshold for higher-quality writing standards.
 
 ```toml
 [doctor]
-max_paragraph_words = 100   # Flag paragraphs over 100 words
+max_paragraph_words = 100          # Flag paragraphs over 100 words
+heading_adjacent_separator = false # Disable the separator-next-to-heading check
 ```
 
 :::note{title="Need details?"}

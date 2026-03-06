@@ -55,6 +55,7 @@ paper_size = "A4"
 
 [doctor]
 max_paragraph_words = 150
+heading_adjacent_separator = true
 ```
 :::
 ::::
@@ -169,12 +170,14 @@ Consultez [[guides/pdf-export|Export PDF]] pour le guide complet : pages de couv
 | Clé | Défaut | Description |
 |-----|---------|-------------|
 | `max_paragraph_words` | `150` | Seuil de nombre de mots pour la vérification de lisibilité `long-paragraph`. Utilisez `0` pour désactiver la vérification entièrement. |
+| `heading_adjacent_separator` | `true` | Avertit quand un titre est directement adjacent à une règle horizontale. Définissez à `false` pour désactiver. |
 
 La section `[doctor]` configure le linter de lisibilité `docanvil doctor`. Les paramètres par défaut sont intentionnellement permissifs — réduisez le seuil pour des standards d'écriture plus stricts.
 
 ```toml
 [doctor]
-max_paragraph_words = 100   # Signaler les paragraphes de plus de 100 mots
+max_paragraph_words = 100              # Signaler les paragraphes de plus de 100 mots
+heading_adjacent_separator = false     # Désactiver la vérification séparateur adjacent à un titre
 ```
 
 :::note{title="Besoin de détails ?"}

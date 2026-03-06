@@ -48,6 +48,20 @@ impl<'de> Deserialize<'de> for ColorMode {
     }
 }
 
+/// Versioning configuration for multi-version documentation sites.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct VersionConfig {
+    /// The current/latest version (used for the root redirect and version banner).
+    /// Defaults to the last entry in `enabled` if not set.
+    pub current: Option<String>,
+    /// All versions to build (e.g. ["v1", "v2"]). Each must have a matching
+    /// subdirectory inside the content directory.
+    pub enabled: Vec<String>,
+    /// Human-readable display names for versions (e.g. {"v1": "v1.0", "v2": "v2.0 (latest)"}).
+    pub display_names: HashMap<String, String>,
+}
+
 /// Localisation configuration for multi-language documentation sites.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -130,6 +144,7 @@ pub struct Config {
     pub charts: ChartsConfig,
     pub search: SearchConfig,
     pub locale: LocaleConfig,
+    pub version: VersionConfig,
     pub pdf: PdfConfig,
     pub doctor: DoctorConfig,
 }
@@ -298,6 +313,31 @@ impl Config {
         })
     }
 
+    /// Returns `true` when versioning is enabled (at least one version is configured).
+    pub fn is_versioning_enabled(&self) -> bool {
+        !self.version.enabled.is_empty()
+    }
+
+    /// Return the current/latest version code.
+    ///
+    /// Uses `version.current` if set; otherwise falls back to the last entry in
+    /// `version.enabled`. Returns `None` if versioning is not enabled.
+    pub fn current_version(&self) -> Option<&str> {
+        self.version
+            .current
+            .as_deref()
+            .or_else(|| self.version.enabled.last().map(|s| s.as_str()))
+    }
+
+    /// Return the display name for a version code, or the code itself if no name is configured.
+    pub fn version_display_name(&self, code: &str) -> String {
+        self.version
+            .display_names
+            .get(code)
+            .cloned()
+            .unwrap_or_else(|| code.to_string())
+    }
+
     /// Returns `true` when i18n is enabled (default locale is set and enabled list is non-empty).
     pub fn is_i18n_enabled(&self) -> bool {
         self.locale.default.is_some() && !self.locale.enabled.is_empty()
@@ -325,6 +365,29 @@ impl Config {
             .get(code)
             .cloned()
             .unwrap_or_else(|| code.to_uppercase())
+    }
+
+    /// Validate version configuration. Returns an error if the config is inconsistent.
+    fn validate_version(&self, config_path: &Path) -> Result<()> {
+        if let Some(ref current) = self.version.current {
+            if self.version.enabled.is_empty() {
+                return Err(Error::General(format!(
+                    "{}: version.current is set to '{}' but version.enabled is empty — \
+                     add enabled versions or remove the current setting",
+                    config_path.display(),
+                    current
+                )));
+            }
+            if !self.version.enabled.contains(current) {
+                return Err(Error::General(format!(
+                    "{}: version.current '{}' is not in version.enabled {:?}",
+                    config_path.display(),
+                    current,
+                    self.version.enabled
+                )));
+            }
+        }
+        Ok(())
     }
 
     /// Validate locale configuration. Returns an error if the config is inconsistent.
@@ -369,6 +432,7 @@ impl Config {
             source: e,
         })?;
         config.validate_locale(&config_path)?;
+        config.validate_version(&config_path)?;
         Ok(config)
     }
 }

@@ -5,3 +5,4 @@ pub mod output;
 pub mod project;
 pub mod readability;
 pub mod theme;
+pub mod version;

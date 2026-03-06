@@ -131,7 +131,7 @@ mod tests {
         // guide.fr.md is missing
 
         let locales = vec!["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
 
         let config: Config = toml::from_str(
             r#"
@@ -161,7 +161,7 @@ enabled = ["en", "fr"]
         // No .en.md files at all
 
         let locales = vec!["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
 
         let config: Config = toml::from_str(
             r#"

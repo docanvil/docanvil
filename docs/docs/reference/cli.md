@@ -225,7 +225,7 @@ docanvil doctor --format junit > test-results/doctor.xml
 - `line` — source line number (`0` when not applicable)
 - `source` — `docanvil.{category}.{check}` (e.g. `docanvil.readability.long-paragraph`)
 
-**JUnit XML** maps each check category to a `<testsuite>`. All seven categories are always emitted — categories with no issues produce a single passing `<testcase name="all-checks-passed"/>`. Warnings and errors appear as `<failure>` elements; info diagnostics appear as `<skipped/>`.
+**JUnit XML** maps each check category to a `<testsuite>`. All eight categories are always emitted — categories with no issues produce a single passing `<testcase name="all-checks-passed"/>`. Warnings and errors appear as `<failure>` elements; info diagnostics appear as `<skipped/>`.
 
 :::note
 `--quiet` suppresses the human-readable summary but does not suppress XML output — machine formats always write to stdout regardless of `--quiet`.
@@ -233,15 +233,16 @@ docanvil doctor --format junit > test-results/doctor.xml
 
 ### Check categories
 
-The doctor runs six categories of checks (seven when i18n is enabled):
+The doctor runs six categories of checks, expanding to eight when versioning and/or i18n is enabled:
 
 1. **Project structure** — config file, content directory, index page
 2. **Configuration** — TOML parsing, file references (logo, favicon), nav.toml validation
 3. **Theme** — custom CSS file existence, layout template Tera syntax
 4. **Content** — broken wiki-links, unclosed directives, front-matter JSON errors, duplicate slugs
 5. **Readability** — content quality checks across all Markdown source files (see below)
-6. **Translations** *(i18n only)* — translation coverage across enabled locales
-7. **Output** — output directory writability
+6. **Versions** *(versioning only)* — version configuration and directory health
+7. **Translations** *(i18n only)* — translation coverage across enabled locales
+8. **Output** — output directory writability
 
 ### Readability checks
 
@@ -288,6 +289,16 @@ These run against raw Markdown source and catch content quality issues before th
 
 All checks skip content inside fenced code blocks. Most also strip inline code spans before scanning to avoid false positives.
 
+### Version checks
+
+These run when `version.enabled` is non-empty in `docanvil.toml`.
+
+| Check | Severity | What it catches |
+|-------|----------|-----------------|
+| `current-not-in-enabled` | ✗ Error | `version.current` specifies a version not in the `enabled` list |
+| `version-dir-missing` | ✗ Error | An enabled version has no matching subdirectory in the content directory — `--fix` creates it |
+| `empty-version` | ⚠️ Warning | A version directory exists but contains no `.md` files |
+
 ### Auto-fix
 
 The `--fix` flag applies safe, non-destructive fixes:
@@ -297,6 +308,7 @@ The `--fix` flag applies safe, non-destructive fixes:
 | Content directory missing | Creates the directory |
 | No `index.md` at content root | Creates a minimal index page |
 | Custom CSS file not found | Creates an empty CSS file at the configured path |
+| Version directory missing | Creates the missing version subdirectory in the content directory |
 
 Readability issues are never auto-fixed — they require human judgment.
 

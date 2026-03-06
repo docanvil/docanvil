@@ -4,6 +4,36 @@ use integration_helpers::{
     DEFAULT_CONFIG, build_project, build_project_strict, create_project, output_exists, read_output,
 };
 
+const VERSION_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[version.display_names]
+v1 = "v1.0"
+v2 = "v2.0 (latest)"
+"#;
+
+const VERSION_I18N_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+
+[locale.display_names]
+en = "English"
+fr = "Français"
+"#;
+
 #[test]
 fn test_basic_build() {
     let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Welcome\n\nHello world.")]);
@@ -336,6 +366,21 @@ fn test_i18n_build_output_structure() {
     assert!(output_exists(dir.path(), "en/search-index.json"));
     assert!(output_exists(dir.path(), "fr/search-index.json"));
 
+    // Root redirect to default locale
+    assert!(
+        output_exists(dir.path(), "index.html"),
+        "root index.html redirect should be generated when i18n is enabled"
+    );
+    let root_html = read_output(dir.path(), "index.html");
+    assert!(
+        root_html.contains("http-equiv=\"refresh\""),
+        "root index.html should be a meta-refresh redirect"
+    );
+    assert!(
+        root_html.contains("en/index.html"),
+        "root redirect should point to the default locale"
+    );
+
     // Verify page content
     let en_html = read_output(dir.path(), "en/index.html");
     assert!(
@@ -478,5 +523,132 @@ fn test_backward_compat_no_locale() {
     assert!(
         !html.contains("data-locale="),
         "locale switcher elements should not appear without i18n config"
+    );
+}
+
+#[test]
+fn test_versioned_build_output_structure() {
+    let dir = create_project(
+        VERSION_CONFIG,
+        &[
+            ("v1/index.md", "# Home v1\n\nWelcome to v1."),
+            ("v1/guide.md", "# Guide v1\n\nA guide for v1."),
+            ("v2/index.md", "# Home v2\n\nWelcome to v2."),
+            ("v2/guide.md", "# Guide v2\n\nA guide for v2."),
+            ("v2/new-feature.md", "# New Feature\n\nOnly in v2."),
+        ],
+    );
+    build_project(dir.path()).expect("versioned build should succeed");
+
+    // Per-version output directories exist
+    assert!(output_exists(dir.path(), "v1/index.html"));
+    assert!(output_exists(dir.path(), "v1/guide.html"));
+    assert!(output_exists(dir.path(), "v2/index.html"));
+    assert!(output_exists(dir.path(), "v2/guide.html"));
+    assert!(output_exists(dir.path(), "v2/new-feature.html"));
+
+    // Per-version search indexes
+    assert!(output_exists(dir.path(), "v1/search-index.json"));
+    assert!(output_exists(dir.path(), "v2/search-index.json"));
+
+    // Root redirect to current version (v2)
+    assert!(output_exists(dir.path(), "index.html"));
+    let root_html = read_output(dir.path(), "index.html");
+    assert!(
+        root_html.contains("http-equiv=\"refresh\""),
+        "root index.html should be a meta-refresh redirect"
+    );
+    assert!(
+        root_html.contains("v2/index.html"),
+        "root redirect should point to current version"
+    );
+
+    // Shared assets at root
+    assert!(output_exists(dir.path(), "js/docanvil.js"));
+    assert!(output_exists(dir.path(), "sitemap.xml"));
+
+    // Version switcher present in current version output — check for the trigger
+    // button element, not the CSS class which is always in the stylesheet.
+    let v2_html = read_output(dir.path(), "v2/index.html");
+    assert!(
+        v2_html.contains("version-switcher-trigger"),
+        "version switcher button should appear when multiple versions are configured"
+    );
+
+    // No older-version banner on current (latest) version — check for the unique
+    // rendered text rather than the CSS class which is always present in the stylesheet.
+    assert!(
+        !v2_html.contains("viewing docs for"),
+        "latest version should not show the outdated-version banner"
+    );
+
+    // Older-version banner shown on non-current version
+    let v1_html = read_output(dir.path(), "v1/index.html");
+    assert!(
+        v1_html.contains("viewing docs for"),
+        "older version should show the outdated-version banner"
+    );
+
+    // Page content correct
+    assert!(
+        v2_html.contains("Welcome to v2"),
+        "v2 index should contain v2 content"
+    );
+    assert!(
+        v1_html.contains("Welcome to v1"),
+        "v1 index should contain v1 content"
+    );
+}
+
+#[test]
+fn test_versioned_i18n_build_output_structure() {
+    let dir = create_project(
+        VERSION_I18N_CONFIG,
+        &[
+            ("v1/index.en.md", "# Home v1 EN\n\nWelcome v1 English."),
+            (
+                "v1/index.fr.md",
+                "# Accueil v1 FR\n\nBienvenue v1 Français.",
+            ),
+            ("v2/index.en.md", "# Home v2 EN\n\nWelcome v2 English."),
+            (
+                "v2/index.fr.md",
+                "# Accueil v2 FR\n\nBienvenue v2 Français.",
+            ),
+        ],
+    );
+    build_project(dir.path()).expect("versioned + i18n build should succeed");
+
+    // Pages exist under version/locale directories
+    assert!(output_exists(dir.path(), "v1/en/index.html"));
+    assert!(output_exists(dir.path(), "v1/fr/index.html"));
+    assert!(output_exists(dir.path(), "v2/en/index.html"));
+    assert!(output_exists(dir.path(), "v2/fr/index.html"));
+
+    // Per-version per-locale search indexes
+    assert!(output_exists(dir.path(), "v1/en/search-index.json"));
+    assert!(output_exists(dir.path(), "v1/fr/search-index.json"));
+    assert!(output_exists(dir.path(), "v2/en/search-index.json"));
+    assert!(output_exists(dir.path(), "v2/fr/search-index.json"));
+
+    // Root redirect to current version
+    assert!(output_exists(dir.path(), "index.html"));
+    let root_html = read_output(dir.path(), "index.html");
+    assert!(
+        root_html.contains("http-equiv=\"refresh\""),
+        "root index.html should be a meta-refresh redirect"
+    );
+
+    // Content is correct per locale
+    let v2_en_html = read_output(dir.path(), "v2/en/index.html");
+    assert!(
+        v2_en_html.contains("Welcome v2 English"),
+        "v2/en should contain English content"
+    );
+
+    let v2_fr_html = read_output(dir.path(), "v2/fr/index.html");
+    assert!(
+        v2_fr_html.contains("Bienvenue v2"),
+        "v2/fr should contain French content"
     );
 }

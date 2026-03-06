@@ -307,6 +307,99 @@ body {
   pointer-events: none;
 }
 
+/* Version switcher */
+.version-switcher {
+  position: relative;
+}
+
+.version-switcher-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.version-switcher-trigger:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary-light);
+  background: var(--color-bg);
+}
+
+.version-switcher-chevron {
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.version-switcher-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  padding: 0.25rem 0;
+  margin: 0;
+  list-style: none;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 100;
+}
+
+.version-switcher.open .version-switcher-menu {
+  display: block;
+}
+
+.version-switcher-item a {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.version-switcher-item a:hover {
+  background: var(--color-bg-secondary);
+}
+
+.version-switcher-active a {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.version-switcher-unavailable a {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Older-version banner */
+.version-banner {
+  margin: 0 0 1.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-warning, #f59e0b) 12%, var(--color-bg));
+  border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 35%, var(--color-border));
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+.version-banner a {
+  color: var(--color-primary);
+  font-weight: 500;
+  margin-left: 0.35rem;
+}
+
 /* Theme toggle */
 .theme-toggle {
   display: flex;

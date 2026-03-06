@@ -95,6 +95,56 @@ mon-projet/
 
 Consultez [[guides/localisation|Localisation]] pour un guide complet sur la mise en place de docs multilingues.
 
+### Organisation versionnée
+
+Quand le versionnement est activé, le contenu se trouve dans des sous-répertoires nommés par version et la sortie est répartie par version :
+
+```text
+mon-projet/
+  docanvil.toml           # Inclut la section [version]
+  nav.toml                # Navigation par défaut (repli pour toutes les versions)
+  nav.v1.toml             # Navigation spécifique à v1 (optionnel)
+  nav.v2.toml             # Navigation spécifique à v2 (optionnel)
+  docs/
+    v1/
+      index.md
+      getting-started.md
+    v2/
+      index.md
+      getting-started.md
+      new-feature.md
+  dist/                   # Sortie de compilation
+    index.html            # Redirection meta-refresh vers /v2/index.html
+    js/docanvil.js        # Ressources partagées (une seule copie)
+    robots.txt
+    sitemap.xml           # Toutes les versions incluses
+    404.html
+    v1/
+      index.html
+      getting-started.html
+      search-index.json   # Index de recherche v1
+    v2/
+      index.html
+      getting-started.html
+      new-feature.html
+      search-index.json   # Index de recherche v2
+```
+
+Quand versionnement et i18n sont tous les deux activés, les répertoires de locale s'imbriquent dans les répertoires de version :
+
+```text
+dist/
+  v2/
+    en/
+      index.html
+      search-index.json
+    fr/
+      index.html
+      search-index.json
+```
+
+Consultez [[guides/versioning|Versionnement]] pour un guide complet sur la mise en place de docs multi-versions, incluant la navigation, le sélecteur de version, et la combinaison avec l'i18n.
+
 ## Découverte des pages
 
 DocAnvil découvre les pages en parcourant récursivement le répertoire de contenu et en collectant tous les fichiers `.md`. Chaque fichier devient une page avec un slug, un titre, et un chemin de sortie.
@@ -163,5 +213,6 @@ Les fichiers sont triés par chemin lors de la découverte, garantissant un ordr
 ## Pages associées
 
 - [[guides/configuration|Configuration]] — options `docanvil.toml` et `nav.toml`
+- [[guides/versioning|Versionnement]] — organisation des répertoires multi-versions et sortie de compilation
 - [[guides/theming|Thèmes]] — variables CSS, feuilles de style personnalisées, et surcharges de templates
 - [[guides/getting-started|Installation]] — créer votre premier projet

@@ -75,6 +75,21 @@
         <kbd class="search-trigger-kbd">/</kbd>
       </button>
       {% endif %}
+      {% if available_versions | length > 1 %}
+      <div class="version-switcher">
+        <button class="version-switcher-trigger" aria-label="Switch version" aria-expanded="false">
+          <span class="version-switcher-label">{{ current_version | default(value="latest") }}</span>
+          <svg class="version-switcher-chevron" viewBox="0 0 16 16" width="10" height="10"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <ul class="version-switcher-menu">
+          {% for ver in available_versions %}
+          <li class="version-switcher-item{% if ver.is_current %} version-switcher-active{% endif %}{% if not ver.has_page %} version-switcher-unavailable{% endif %}">
+            <a href="{{ ver.url }}">{{ ver.display_name }}</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {% if available_locales | length > 0 %}
       <div class="locale-switcher">
         <button class="locale-switcher-trigger" aria-label="Switch language" aria-expanded="false">
@@ -107,6 +122,15 @@
   {% endblock %}
 
   <main class="content">
+    {% if current_version and current_version != latest_version %}
+    <div class="version-banner" role="alert">
+      ⚠️ You're viewing docs for <strong>{{ current_version }}</strong>.
+      {% if latest_version_url %}
+      <a href="{{ latest_version_url }}">Switch to latest ({{ latest_version }})</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% block content %}
     {{ content | safe }}
     {% endblock %}

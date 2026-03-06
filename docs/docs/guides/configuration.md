@@ -48,6 +48,14 @@ fr = "Français"
 [locale.flags]
 en = "🇺🇸"
 
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[version.display_names]
+v1 = "v1.0"
+v2 = "v2.0 (latest)"
+
 [pdf]
 cover_page = true
 author = "Your Name"
@@ -150,6 +158,30 @@ en = "🇺🇸"    # Use US flag instead of default GB
 
 :::note{title="Need details?"}
 See [[guides/localisation|Localisation]] for a complete walkthrough of setting up multi-language docs, including file naming, per-locale navigation, and translation coverage.
+:::
+
+### `[version]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `current` | *(last in `enabled`)* | The current/latest version code — used for the root redirect and the older-version banner. Defaults to the last entry in `enabled` when not set. |
+| `enabled` | `[]` | List of version directory names to build (e.g. `["v1", "v2"]`). Each must have a matching subdirectory in your content directory. |
+| `display_names` | `{}` | Human-readable names shown in the version switcher (e.g. `{"v2": "v2.0 (latest)"}`) |
+
+When `enabled` is non-empty, DocAnvil switches to multi-version mode: each version gets its own URL prefix (`/v1/`, `/v2/`), its own navigation and search index, and a version switcher appears in the header. Pages in older versions automatically show a banner linking to the latest version.
+
+```toml
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[version.display_names]
+v1 = "v1.0"
+v2 = "v2.0 (latest)"
+```
+
+:::note{title="Need details?"}
+See [[guides/versioning|Versioning]] for a complete walkthrough of setting up multi-version docs, including directory layout, per-version navigation, the version switcher, and composing versioning with i18n.
 :::
 
 ### `[pdf]` Section
@@ -287,6 +319,7 @@ If `nav.toml` is absent, DocAnvil auto-discovers all `.md` files in the content 
 
 - [[guides/theming|Theming]] — CSS variables, custom CSS, and template overrides
 - [[guides/pdf-export|PDF Export]] — full PDF export guide
+- [[guides/versioning|Versioning]] — multi-version docs setup and version switcher
 - [[reference/project-structure|Project Structure]] — how files map to pages and slugs
 
 :::note

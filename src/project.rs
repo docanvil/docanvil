@@ -18,10 +18,12 @@ pub struct PageInfo {
     pub slug: String,
     /// Locale code for this page (e.g. "en"), if i18n is enabled.
     pub locale: Option<String>,
+    /// Version code for this page (e.g. "v2"), if versioning is enabled.
+    pub version: Option<String>,
 }
 
 /// Ordered collection of all pages in the docs directory.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PageInventory {
     /// Slug → PageInfo lookup. When i18n is enabled, keys are composite `{locale}:{slug}`.
     pub pages: HashMap<String, PageInfo>,
@@ -70,10 +72,14 @@ impl PageInventory {
     /// When `enabled_locales` is `Some`, locale suffixes are parsed from filenames
     /// and pages are keyed as `{locale}:{slug}` with locale-prefixed output paths.
     /// When `None`, i18n is disabled and filenames are treated as-is.
+    ///
+    /// When `version` is `Some`, all output paths are prefixed with `{version}/`
+    /// (e.g. `v2/guide.html` or `v2/en/guide.html`).
     pub fn scan(
         content_dir: &Path,
         enabled_locales: Option<&[String]>,
         default_locale: Option<&str>,
+        version: Option<&str>,
     ) -> Result<Self> {
         let mut pages = HashMap::new();
         let mut ordered = Vec::new();
@@ -115,8 +121,13 @@ impl PageInventory {
 
                 discovered_locales.insert(locale_code.clone());
 
-                // Output path includes locale prefix: {locale}/{base_slug}.html
-                let output_path = PathBuf::from(format!("{}/{}.html", locale_code, base_slug));
+                // Output path includes locale prefix (and optional version prefix):
+                // {locale}/{base_slug}.html  or  {version}/{locale}/{base_slug}.html
+                let output_path = if let Some(ver) = version {
+                    PathBuf::from(format!("{}/{}/{}.html", ver, locale_code, base_slug))
+                } else {
+                    PathBuf::from(format!("{}/{}.html", locale_code, base_slug))
+                };
 
                 let title = title_from_slug(&base_slug);
 
@@ -129,13 +140,19 @@ impl PageInventory {
                     title,
                     slug: base_slug,
                     locale: Some(locale_code.clone()),
+                    version: version.map(String::from),
                 };
 
                 ordered.push(key.clone());
                 pages.insert(key, info);
             } else {
                 // i18n disabled: treat filenames as-is (backward compat)
-                let output_path = relative.with_extension("html");
+                // Optionally prefix output path with version: {version}/{slug}.html
+                let output_path = if let Some(ver) = version {
+                    PathBuf::from(format!("{}/{}.html", ver, raw_slug))
+                } else {
+                    relative.with_extension("html")
+                };
                 let title = title_from_slug(&raw_slug);
 
                 let info = PageInfo {
@@ -144,6 +161,7 @@ impl PageInventory {
                     title,
                     slug: raw_slug.clone(),
                     locale: None,
+                    version: version.map(String::from),
                 };
 
                 ordered.push(raw_slug.clone());
@@ -185,10 +203,14 @@ impl PageInventory {
                 None => new_base_slug.clone(),
             };
 
-            // Reconstruct the output path from the locale and the new base slug.
-            let new_output_path = match page.locale.as_deref() {
-                Some(locale) => PathBuf::from(format!("{}/{}.html", locale, new_base_slug)),
-                None => PathBuf::from(format!("{}.html", new_base_slug)),
+            // Reconstruct the output path from the version, locale, and new base slug.
+            let new_output_path = match (page.version.as_deref(), page.locale.as_deref()) {
+                (Some(ver), Some(locale)) => {
+                    PathBuf::from(format!("{}/{}/{}.html", ver, locale, new_base_slug))
+                }
+                (Some(ver), None) => PathBuf::from(format!("{}/{}.html", ver, new_base_slug)),
+                (None, Some(locale)) => PathBuf::from(format!("{}/{}.html", locale, new_base_slug)),
+                (None, None) => PathBuf::from(format!("{}.html", new_base_slug)),
             };
 
             page.slug = new_base_slug;
@@ -617,7 +639,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guides/setup.md"), "# Setup Guide").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         assert_eq!(inv.pages.len(), 2);
 
         // Exact match
@@ -635,7 +657,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("01-intro.md"), "# Intro").unwrap();
 
-        let mut inv = PageInventory::scan(&docs, None, None).unwrap();
+        let mut inv = PageInventory::scan(&docs, None, None, None).unwrap();
         assert!(inv.pages.contains_key("01-intro"));
 
         inv.update_slug("01-intro", "introduction".to_string());
@@ -661,7 +683,7 @@ mod tests {
         fs::create_dir_all(docs.join("guides")).unwrap();
         fs::write(docs.join("guides/01-setup.md"), "# Setup").unwrap();
 
-        let mut inv = PageInventory::scan(&docs, None, None).unwrap();
+        let mut inv = PageInventory::scan(&docs, None, None, None).unwrap();
         inv.update_slug("guides/01-setup", "setup-guide".to_string());
 
         assert!(inv.pages.contains_key("guides/setup-guide"));
@@ -680,7 +702,7 @@ mod tests {
         fs::write(docs.join("reference/cli.md"), "# CLI").unwrap();
 
         let locales = vec!["en".to_string()];
-        let mut inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let mut inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
 
         // Key in i18n mode is "en:reference/cli"
         assert!(inv.pages.contains_key("en:reference/cli"));
@@ -714,7 +736,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("01-intro.md"), "# Intro").unwrap();
 
-        let mut inv = PageInventory::scan(&docs, None, None).unwrap();
+        let mut inv = PageInventory::scan(&docs, None, None, None).unwrap();
         inv.update_slug("01-intro", "introduction".to_string());
 
         // New slug resolves
@@ -732,7 +754,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         let tree = inv.nav_tree();
 
         // Should have "Guides" directory node and "Home" page node
@@ -748,7 +770,7 @@ mod tests {
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
         fs::write(docs.join("guides/config.md"), "# Config").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         let tree = inv.nav_tree();
 
         // When viewing a page outside the group, group should be collapsed
@@ -869,7 +891,7 @@ mod tests {
         fs::write(docs.join("guide.en.md"), "# Guide").unwrap();
 
         let locales = vec!["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
 
         assert_eq!(inv.pages.len(), 3);
         assert!(inv.pages.contains_key("en:index"));
@@ -903,7 +925,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
 
         let locales = vec!["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
 
         assert_eq!(inv.pages.len(), 1);
         assert!(inv.pages.contains_key("en:index"));
@@ -919,7 +941,7 @@ mod tests {
         fs::write(docs.join("guide.fr.md"), "# Guide FR").unwrap();
 
         let locales = vec!["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
 
         let en_page = inv.resolve_link_in_locale("guide", "en");
         assert!(en_page.is_some());
@@ -943,7 +965,7 @@ mod tests {
         fs::write(docs.join("guide.en.md"), "# Guide").unwrap();
 
         let locales = vec!["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(&locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
         let coverage = inv.slug_locale_coverage();
 
         assert_eq!(coverage["index"].len(), 2);

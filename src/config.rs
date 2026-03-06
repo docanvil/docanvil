@@ -98,12 +98,17 @@ pub struct DoctorConfig {
     /// Maximum number of words in a single paragraph before a readability
     /// warning is emitted. Set to 0 to disable the check. (Default: 150)
     pub max_paragraph_words: usize,
+    /// Warn when a heading is directly adjacent to a horizontal rule.
+    /// Separators next to headings are usually redundant.
+    /// Set to `false` to disable. (Default: true)
+    pub heading_adjacent_separator: bool,
 }
 
 impl Default for DoctorConfig {
     fn default() -> Self {
         Self {
             max_paragraph_words: 150,
+            heading_adjacent_separator: true,
         }
     }
 }

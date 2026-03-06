@@ -6,11 +6,7 @@
 ---
 # Feuille de route
 
-DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). Voici où en est le projet et vers quoi il se dirige.
-
-## Version actuelle : 1.0.0
-
----
+DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). La version actuelle est **1.0.0**. Voici où en est le projet et vers quoi il se dirige.
 
 ## 1.1.x — Améliorations des fonctionnalités principales
 
@@ -26,8 +22,6 @@ Système de plugins WASM (v1), options CLI supplémentaires, plus de diagnostics
 ## 1.3.x et plus — Croissance de l'écosystème
 
 Hooks pour plugins, optimisations des performances, compilations incrémentales, mise en cache, et un crate SDK pour les plugins. Les changements incompatibles nécessitent une version majeure.
-
----
 
 ## 2.0 et au-delà
 

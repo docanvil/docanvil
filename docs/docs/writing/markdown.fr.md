@@ -154,8 +154,6 @@ Consultez [[writing/front-matter|Front Matter]] pour la liste complète des cham
 
 Trois tirets ou plus, astérisques, ou underscores créent une règle horizontale :
 
----
-
 ```markdown
 ---
 ```

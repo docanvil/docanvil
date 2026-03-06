@@ -51,6 +51,7 @@ static TODO_RE: LazyLock<Regex> =
 static PLACEHOLDER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(lorem ipsum|\bTBD\b|\[insert .{0,40} here\])").unwrap());
 
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -187,6 +188,42 @@ fn front_matter_has_title(source: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Returns true when `line` (trimmed) is a CommonMark thematic break.
+/// A thematic break is 3 or more identical characters (`-`, `*`, or `_`)
+/// optionally separated by spaces or tabs, with nothing else on the line.
+fn is_hr(line: &str) -> bool {
+    let t = line.trim();
+    let first = match t.chars().next() {
+        Some(c) if matches!(c, '-' | '*' | '_') => c,
+        _ => return false,
+    };
+    let mut count = 0usize;
+    for c in t.chars() {
+        if c == first {
+            count += 1;
+        } else if c != ' ' && c != '\t' {
+            return false;
+        }
+    }
+    count >= 3
+}
+
+/// Returns true when `line` at `line_num` (1-indexed) is a setext heading
+/// underline rather than a standalone horizontal rule. A setext underline is
+/// only `---` or `===`, and it immediately follows a non-blank, non-heading,
+/// non-separator line in the raw source.
+fn is_setext_underline(line: &str, line_num: usize, raw_lines: &[&str]) -> bool {
+    let t = line.trim();
+    if !t.chars().all(|c| c == '-' || c == '=') || t.len() < 2 {
+        return false;
+    }
+    if line_num < 2 {
+        return false;
+    }
+    let prev = raw_lines[line_num - 2].trim();
+    !prev.is_empty() && !is_hr(prev) && !HEADING_RE.is_match(prev)
+}
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
@@ -215,6 +252,7 @@ pub fn check_readability(
         check_duplicate_heading_text(&lines, &page.source_path, &mut diags);
         check_emphasis_used_as_heading(&lines, &page.source_path, &mut diags);
         check_no_document_title(&source, &lines, &page.source_path, &mut diags);
+        check_heading_adjacent_separator(&source, &lines, &page.source_path, config, &mut diags);
 
         // Links and images
         check_missing_alt_text(&lines, &page.source_path, &mut diags);
@@ -455,6 +493,66 @@ fn check_no_document_title(
         line: None,
         fix: None,
     });
+}
+
+/// Warn when an ATX heading is immediately adjacent to a horizontal rule
+/// (the nearest preceding or following non-blank active line is a separator).
+/// The check is disabled when `config.doctor.heading_adjacent_separator` is false.
+fn check_heading_adjacent_separator(
+    source: &str,
+    lines: &[(usize, &str)],
+    source_path: &Path,
+    config: &Config,
+    diags: &mut Vec<Diagnostic>,
+) {
+    if !config.doctor.heading_adjacent_separator {
+        return;
+    }
+
+    let raw_lines: Vec<&str> = source.lines().collect();
+
+    for (i, &(line_num, line)) in lines.iter().enumerate() {
+        if !HEADING_RE.is_match(line) {
+            continue;
+        }
+
+        // Check nearest preceding non-blank active line.
+        if let Some(&(sep_num, sep_line)) =
+            lines[..i].iter().rev().find(|(_, l)| !l.trim().is_empty())
+            && is_hr(sep_line) && !is_setext_underline(sep_line, sep_num, &raw_lines)
+        {
+            diags.push(Diagnostic {
+                check: "heading-adjacent-separator",
+                category: "readability",
+                severity: Severity::Warning,
+                message:
+                    "Heading preceded by a horizontal rule — separators before headings are redundant"
+                        .to_string(),
+                file: Some(source_path.to_path_buf()),
+                line: Some(line_num),
+                fix: None,
+            });
+        }
+
+        // Check nearest following non-blank active line.
+        // ATX headings can never be setext underline targets, so no setext check needed here.
+        if let Some(&(_, next_line)) =
+            lines[i + 1..].iter().find(|(_, l)| !l.trim().is_empty())
+            && is_hr(next_line)
+        {
+            diags.push(Diagnostic {
+                check: "heading-adjacent-separator",
+                category: "readability",
+                severity: Severity::Warning,
+                message:
+                    "Heading followed by a horizontal rule — separators after headings are redundant"
+                        .to_string(),
+                file: Some(source_path.to_path_buf()),
+                line: Some(line_num),
+                fix: None,
+            });
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1637,6 +1735,97 @@ mod tests {
         let lines = active_lines(src);
         let mut diags = Vec::new();
         check_placeholder_text(&lines, &fake_path(), &mut diags);
+        assert!(diags.is_empty());
+    }
+
+    // --- check_heading_adjacent_separator ---
+
+    fn heading_sep_config(enabled: bool) -> Config {
+        let mut c = Config::default();
+        c.doctor.heading_adjacent_separator = enabled;
+        c
+    }
+
+    #[test]
+    fn heading_preceded_by_separator_flagged() {
+        // Use non-empty intro so the leading "---" isn't treated as front matter.
+        let src = "Intro text.\n\n---\n\n## Heading";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].check, "heading-adjacent-separator");
+        assert!(diags[0].message.contains("preceded"));
+    }
+
+    #[test]
+    fn heading_followed_by_separator_flagged() {
+        let src = "## Heading\n---";
+        // "---" immediately follows a non-blank, non-heading line... wait, it follows
+        // the heading. The active_lines for "## Heading\n---" would include both.
+        // But the "---" here is actually an HR (since the line before it is a heading,
+        // not plain text, so is_setext_underline returns false).
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].check, "heading-adjacent-separator");
+        assert!(diags[0].message.contains("followed"));
+    }
+
+    #[test]
+    fn heading_followed_by_separator_blank_line_between_flagged() {
+        let src = "## Heading\n\n---";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert_eq!(diags.len(), 1);
+        assert!(diags[0].message.contains("followed"));
+    }
+
+    #[test]
+    fn setext_heading_underline_not_flagged() {
+        // "Some Text\n---" — the "---" is a setext underline, not a HR.
+        let src = "Some Text\n---\n## ATX Heading";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert!(diags.is_empty(), "setext underline should not be flagged: {diags:?}");
+    }
+
+    #[test]
+    fn heading_no_adjacent_separator_not_flagged() {
+        let src = "## Heading\n\nOther text";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn heading_adjacent_separator_stars_flagged() {
+        let src = "***\n## Heading";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert_eq!(diags.len(), 1);
+    }
+
+    #[test]
+    fn heading_adjacent_separator_underscores_flagged() {
+        let src = "___\n## Heading";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(true), &mut diags);
+        assert_eq!(diags.len(), 1);
+    }
+
+    #[test]
+    fn heading_adjacent_separator_disabled_by_config() {
+        let src = "---\n## Heading\n---";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_heading_adjacent_separator(src, &lines, &fake_path(), &heading_sep_config(false), &mut diags);
         assert!(diags.is_empty());
     }
 }

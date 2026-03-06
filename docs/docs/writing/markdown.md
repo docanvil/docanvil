@@ -154,8 +154,6 @@ See [[writing/front-matter|Front Matter]] for the full list of supported fields 
 
 Three or more hyphens, asterisks, or underscores create a horizontal rule:
 
----
-
 ```markdown
 ---
 ```

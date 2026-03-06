@@ -1,6 +1,7 @@
 ---
 {
-  "title": "Commandes CLI"
+  "title": "Commandes CLI",
+  "slug": "cli-commands"
 }
 ---
 # Commandes CLI

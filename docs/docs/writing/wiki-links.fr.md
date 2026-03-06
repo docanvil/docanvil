@@ -1,6 +1,7 @@
 ---
 {
-  "title": "Liens & Popovers"
+  "title": "Liens & Popovers",
+  "slug": "links-popovers"
 }
 ---
 

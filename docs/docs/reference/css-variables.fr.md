@@ -1,6 +1,7 @@
 ---
 {
-  "title": "Variables CSS"
+  "title": "Variables CSS",
+  "slug": "css-variables"
 }
 ---
 # Variables CSS

@@ -1,6 +1,7 @@
 ---
 {
-  "title": "Export PDF"
+  "title": "Export PDF",
+  "slug": "pdf-export"
 }
 ---
 # Export PDF

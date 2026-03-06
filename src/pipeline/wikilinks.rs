@@ -74,7 +74,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("setup.md"), "# Setup").unwrap();
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         (dir, inv)
     }
 

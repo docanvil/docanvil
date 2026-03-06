@@ -2,6 +2,22 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [1.1.1] - 2026-03-06
+
+### Added
+
+- **Versioning** — multi-version documentation support
+  - Directory-based versioning: each version lives as a subdirectory inside the content directory (`docs/v1/`, `docs/v2/`)
+  - Version-prefixed output paths (`/v1/page.html`, `/v2/page.html`) with per-version navigation and search index
+  - Version switcher dropdown in the header, showing all enabled versions with display names
+  - Automatic older-version banner on non-current versions, linking readers to the latest version
+  - Root `index.html` is a meta-refresh redirect to the current/latest version
+  - `[version]` config section: `current`, `enabled`, `display_names`
+  - Per-version `nav.{version}.toml` files with fallback to `nav.toml`
+  - Composable with i18n: `docs/v2/index.en.md` → `dist/v2/en/index.html`
+  - Version doctor checks: `current-not-in-enabled`, `version-dir-missing` (auto-fixable), `empty-version`
+- **i18n root redirect** — when localisation is enabled, a root `index.html` meta-refresh redirect to the default locale is now generated (e.g. redirects to `/en/index.html`), consistent with the versioning redirect behaviour
+
 ## [1.1.0] - 2026-03-06
 
 ### Added

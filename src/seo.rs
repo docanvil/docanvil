@@ -118,7 +118,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guide.md"), "# Guide").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"), None);
 
         assert!(xml.contains("<loc>https://example.com/guide.html</loc>"));
@@ -135,7 +135,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("index.md"), "# Home").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/docs/", None, None);
 
         assert!(xml.contains("<loc>/docs/index.html</loc>"));
@@ -149,7 +149,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"), None);
 
         assert!(xml.contains("<loc>https://example.com/guides/setup.html</loc>"));
@@ -165,7 +165,7 @@ mod tests {
         fs::write(docs.join("guide.en.md"), "# Guide").unwrap();
 
         let locales = &["en".to_string(), "fr".to_string()];
-        let inv = PageInventory::scan(&docs, Some(locales), Some("en")).unwrap();
+        let inv = PageInventory::scan(&docs, Some(locales), Some("en"), None).unwrap();
         let slug_coverage = inv.slug_locale_coverage();
 
         let locale_config = SitemapLocaleConfig {
@@ -199,7 +199,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("index.md"), "# Home").unwrap();
 
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         let xml = generate_sitemap_xml(&inv, "/", None, None);
 
         assert!(!xml.contains("xmlns:xhtml="));

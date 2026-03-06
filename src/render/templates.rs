@@ -12,6 +12,18 @@ pub struct PageLink {
     pub url: String,
 }
 
+/// Information about an available version for the version switcher.
+#[derive(Debug, Clone, Serialize)]
+pub struct VersionInfo {
+    pub code: String,
+    pub display_name: String,
+    /// URL to this page in the given version, or the version's home page if `has_page` is false.
+    pub url: String,
+    pub is_current: bool,
+    /// `false` when the current page doesn't exist in this version — link falls back to version home.
+    pub has_page: bool,
+}
+
 /// Information about an available locale for the language switcher.
 #[derive(Debug, Clone, Serialize)]
 pub struct LocaleInfo {
@@ -70,6 +82,10 @@ impl TemplateRenderer {
         context.insert("canonical_url", &ctx.canonical_url);
         context.insert("x_default_url", &ctx.x_default_url);
         context.insert("search_index_url", &ctx.search_index_url);
+        context.insert("current_version", &ctx.current_version);
+        context.insert("available_versions", &ctx.available_versions);
+        context.insert("latest_version", &ctx.latest_version);
+        context.insert("latest_version_url", &ctx.latest_version_url);
 
         self.tera
             .render("layout.html", &context)
@@ -109,4 +125,12 @@ pub struct PageContext {
     pub x_default_url: Option<String>,
     /// URL to the search index JSON for this page's locale (e.g. `/en/search-index.json`).
     pub search_index_url: String,
+    /// Version code for the current page (e.g. "v2"), if versioning is enabled.
+    pub current_version: Option<String>,
+    /// All available versions for the version switcher.
+    pub available_versions: Vec<VersionInfo>,
+    /// The current/latest version code (from `version.current` config).
+    pub latest_version: Option<String>,
+    /// URL to the equivalent page (or version home) in the latest version.
+    pub latest_version_url: Option<String>,
 }

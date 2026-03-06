@@ -48,6 +48,14 @@ fr = "Français"
 [locale.flags]
 en = "🇺🇸"
 
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[version.display_names]
+v1 = "v1.0"
+v2 = "v2.0 (latest)"
+
 [pdf]
 cover_page = true
 author = "Votre nom"
@@ -150,6 +158,30 @@ en = "🇺🇸"    # Utiliser le drapeau américain plutôt que le drapeau brita
 
 :::note{title="Besoin de détails ?"}
 Consultez [[guides/localisation|Localisation]] pour un guide complet sur la mise en place de docs multilingues, incluant le nommage des fichiers, la navigation par locale, et la couverture des traductions.
+:::
+
+### Section `[version]`
+
+| Clé | Défaut | Description |
+|-----|---------|-------------|
+| `current` | *(dernier de `enabled`)* | Le code de version actuelle/dernière — utilisé pour la redirection racine et la bannière de version obsolète. Par défaut, le dernier élément de `enabled` si non défini. |
+| `enabled` | `[]` | Liste des noms de répertoires de versions à compiler (ex. `["v1", "v2"]`). Chacun doit avoir un sous-répertoire correspondant dans le répertoire de contenu. |
+| `display_names` | `{}` | Noms lisibles affichés dans le sélecteur de version (ex. `{"v2": "v2.0 (latest)"}`) |
+
+Lorsque `enabled` est non vide, DocAnvil passe en mode multi-version : chaque version obtient son propre préfixe d'URL (`/v1/`, `/v2/`), sa propre navigation et son propre index de recherche, et un sélecteur de version apparaît dans l'en-tête. Les pages des versions antérieures affichent automatiquement une bannière redirigeant vers la dernière version.
+
+```toml
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[version.display_names]
+v1 = "v1.0"
+v2 = "v2.0 (latest)"
+```
+
+:::note{title="Besoin de détails ?"}
+Consultez [[guides/versioning|Versionnement]] pour un guide complet sur la mise en place de docs multi-versions, incluant l'organisation des répertoires, la navigation par version, le sélecteur de version, et la combinaison avec l'i18n.
 :::
 
 ### Section `[pdf]`
@@ -287,6 +319,7 @@ Si `nav.toml` est absent, DocAnvil découvre automatiquement tous les fichiers `
 
 - [[guides/theming|Thèmes]] — variables CSS, feuilles de style personnalisées, et surcharges de templates
 - [[guides/pdf-export|Export PDF]] — guide complet d'export PDF
+- [[guides/versioning|Versionnement]] — mise en place de docs multi-versions et sélecteur de version
 - [[reference/project-structure|Structure du projet]] — comment les fichiers sont mappés aux pages et aux slugs
 
 :::note

@@ -89,6 +89,56 @@ my-project/
 
 See [[guides/localisation|Localisation]] for a complete guide to setting up multi-language docs.
 
+### Versioned Project Layout
+
+When versioning is enabled, content lives in version-named subdirectories and the build output is split per version:
+
+```text
+my-project/
+  docanvil.toml           # Includes [version] section
+  nav.toml                # Default navigation (fallback for all versions)
+  nav.v1.toml             # v1-specific navigation (optional)
+  nav.v2.toml             # v2-specific navigation (optional)
+  docs/
+    v1/
+      index.md
+      getting-started.md
+    v2/
+      index.md
+      getting-started.md
+      new-feature.md
+  dist/                   # Build output
+    index.html            # Meta-refresh redirect to /v2/index.html
+    js/docanvil.js        # Shared assets (one copy)
+    robots.txt
+    sitemap.xml           # All versions included
+    404.html
+    v1/
+      index.html
+      getting-started.html
+      search-index.json   # v1 search index
+    v2/
+      index.html
+      getting-started.html
+      new-feature.html
+      search-index.json   # v2 search index
+```
+
+When versioning and i18n are both enabled, locale directories nest inside version directories:
+
+```text
+dist/
+  v2/
+    en/
+      index.html
+      search-index.json
+    fr/
+      index.html
+      search-index.json
+```
+
+See [[guides/versioning|Versioning]] for a complete guide to setting up multi-version docs, including navigation, the version switcher, and composing with i18n.
+
 ## Page Discovery
 
 DocAnvil discovers pages by walking the content directory recursively and collecting all `.md` files. Each file becomes a page with a slug, title, and output path.
@@ -157,5 +207,6 @@ Files are sorted by path during discovery, ensuring deterministic navigation ord
 ## Related Pages
 
 - [[guides/configuration|Configuration]] — `docanvil.toml` and `nav.toml` options
+- [[guides/versioning|Versioning]] — multi-version directory layout and build output
 - [[guides/theming|Theming]] — CSS variables, custom CSS, and template overrides
 - [[guides/getting-started|Installation]] — creating your first project

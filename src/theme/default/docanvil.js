@@ -190,6 +190,27 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
   });
 })();
 
+// Version switcher
+(function() {
+  var switcher = document.querySelector('.version-switcher');
+  if (!switcher) return;
+
+  var trigger = switcher.querySelector('.version-switcher-trigger');
+
+  trigger.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var isOpen = switcher.classList.toggle('open');
+    trigger.setAttribute('aria-expanded', isOpen);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!switcher.contains(e.target)) {
+      switcher.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+  });
+})();
+
 // Locale switcher
 (function() {
   var switcher = document.querySelector('.locale-switcher');

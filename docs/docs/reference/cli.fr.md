@@ -226,7 +226,7 @@ docanvil doctor --format junit > test-results/doctor.xml
 - `line` — numéro de ligne source (`0` quand non applicable)
 - `source` — `docanvil.{catégorie}.{vérification}` (ex. `docanvil.readability.long-paragraph`)
 
-**JUnit XML** mappe chaque catégorie de vérification à un `<testsuite>`. Les sept catégories sont toujours émises — les catégories sans problème produisent un seul `<testcase name="all-checks-passed"/>` réussi. Les avertissements et erreurs apparaissent comme éléments `<failure>` ; les diagnostics info apparaissent comme `<skipped/>`.
+**JUnit XML** mappe chaque catégorie de vérification à un `<testsuite>`. Les huit catégories sont toujours émises — les catégories sans problème produisent un seul `<testcase name="all-checks-passed"/>` réussi. Les avertissements et erreurs apparaissent comme éléments `<failure>` ; les diagnostics info apparaissent comme `<skipped/>`.
 
 :::note
 `--quiet` supprime le résumé lisible par les humains mais ne supprime pas la sortie XML — les formats machine écrivent toujours sur stdout indépendamment de `--quiet`.
@@ -234,15 +234,16 @@ docanvil doctor --format junit > test-results/doctor.xml
 
 ### Catégories de vérifications
 
-Doctor exécute six catégories de vérifications (sept quand l'i18n est activé) :
+Doctor exécute six catégories de vérifications, jusqu'à huit quand le versionnement et/ou l'i18n sont activés :
 
 1. **Structure du projet** — fichier de configuration, répertoire de contenu, page index
 2. **Configuration** — analyse TOML, références de fichiers (logo, favicon), validation nav.toml
 3. **Thème** — existence du fichier CSS personnalisé, syntaxe Tera du template de mise en page
 4. **Contenu** — wiki-links cassés, directives non fermées, erreurs JSON dans le front matter, slugs dupliqués
 5. **Lisibilité** — vérifications de qualité du contenu sur tous les fichiers Markdown sources (voir ci-dessous)
-6. **Traductions** *(i18n uniquement)* — couverture des traductions dans les locales activées
-7. **Sortie** — accessibilité en écriture du répertoire de sortie
+6. **Versions** *(versionnement uniquement)* — configuration des versions et intégrité des répertoires
+7. **Traductions** *(i18n uniquement)* — couverture des traductions dans les locales activées
+8. **Sortie** — accessibilité en écriture du répertoire de sortie
 
 ### Vérifications de lisibilité
 
@@ -289,6 +290,16 @@ Ces vérifications s'exécutent sur les sources Markdown brutes et détectent le
 
 Toutes les vérifications ignorent le contenu à l'intérieur des blocs de code délimités. La plupart suppriment aussi les spans de code inline avant l'analyse pour éviter les faux positifs.
 
+### Vérifications des versions
+
+Ces vérifications s'exécutent quand `version.enabled` est non vide dans `docanvil.toml`.
+
+| Vérification | Sévérité | Ce qu'elle détecte |
+|-------|----------|-----------------|
+| `current-not-in-enabled` | ✗ Erreur | `version.current` spécifie une version absente de la liste `enabled` |
+| `version-dir-missing` | ✗ Erreur | Une version activée n'a pas de sous-répertoire correspondant dans le répertoire de contenu — `--fix` le crée |
+| `empty-version` | ⚠️ Avertissement | Un répertoire de version existe mais ne contient aucun fichier `.md` |
+
 ### Correction automatique
 
 L'option `--fix` applique des corrections sûres et non destructives :
@@ -298,6 +309,7 @@ L'option `--fix` applique des corrections sûres et non destructives :
 | Répertoire de contenu manquant | Crée le répertoire |
 | Pas de `index.md` à la racine du contenu | Crée une page index minimale |
 | Fichier CSS personnalisé introuvable | Crée un fichier CSS vide au chemin configuré |
+| Répertoire de version manquant | Crée le sous-répertoire de version manquant dans le répertoire de contenu |
 
 Les problèmes de lisibilité ne sont jamais corrigés automatiquement — ils nécessitent un jugement humain.
 

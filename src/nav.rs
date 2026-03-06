@@ -98,6 +98,61 @@ pub fn load_nav(project_root: &Path) -> Result<Option<Vec<NavEntry>>> {
     Ok(Some(nav_file.nav))
 }
 
+/// Load version-specific nav file: tries `nav.{version}.toml` first, falls back to `nav.toml`.
+pub fn load_nav_for_version(project_root: &Path, version: &str) -> Result<Option<Vec<NavEntry>>> {
+    let version_path = project_root.join(format!("nav.{version}.toml"));
+    if version_path.exists() {
+        let content = std::fs::read_to_string(&version_path)?;
+        let nav_file: NavFile =
+            toml::from_str(&content).map_err(|e| crate::error::Error::ConfigParse {
+                path: version_path.clone(),
+                source: e,
+            })?;
+        return Ok(Some(nav_file.nav));
+    }
+
+    // Fall back to the default nav.toml
+    load_nav(project_root)
+}
+
+/// Load nav for a specific version and locale combination.
+///
+/// Tries these paths in order:
+/// 1. `nav.{version}.{locale}.toml`
+/// 2. `nav.{version}.toml`
+/// 3. `nav.{locale}.toml`
+/// 4. `nav.toml`
+pub fn load_nav_for_version_and_locale(
+    project_root: &Path,
+    version: &str,
+    locale: &str,
+) -> Result<Option<Vec<NavEntry>>> {
+    let vl_path = project_root.join(format!("nav.{version}.{locale}.toml"));
+    if vl_path.exists() {
+        let content = std::fs::read_to_string(&vl_path)?;
+        let nav_file: NavFile =
+            toml::from_str(&content).map_err(|e| crate::error::Error::ConfigParse {
+                path: vl_path.clone(),
+                source: e,
+            })?;
+        return Ok(Some(nav_file.nav));
+    }
+
+    let v_path = project_root.join(format!("nav.{version}.toml"));
+    if v_path.exists() {
+        let content = std::fs::read_to_string(&v_path)?;
+        let nav_file: NavFile =
+            toml::from_str(&content).map_err(|e| crate::error::Error::ConfigParse {
+                path: v_path.clone(),
+                source: e,
+            })?;
+        return Ok(Some(nav_file.nav));
+    }
+
+    // Fall back to locale-specific or global nav
+    load_nav_for_locale(project_root, locale)
+}
+
 /// Load locale-specific nav file: tries `nav.{locale}.toml` first, falls back to `nav.toml`.
 pub fn load_nav_for_locale(project_root: &Path, locale: &str) -> Result<Option<Vec<NavEntry>>> {
     let locale_path = project_root.join(format!("nav.{locale}.toml"));
@@ -351,7 +406,7 @@ page = "guide"
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("guide.md"), "# Guide").unwrap();
 
-        let inventory = PageInventory::scan(&docs, None, None).unwrap();
+        let inventory = PageInventory::scan(&docs, None, None, None).unwrap();
 
         let entries = vec![
             NavEntry {

@@ -377,7 +377,7 @@ fn run_single_locale(
         eprintln!("Scanning pages…");
     }
     let mut inventory =
-        PageInventory::scan(&content_dir, enabled_locales, config.default_locale())?;
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None)?;
 
     // Determine the locale to export (None when i18n is disabled).
     let export_locale: Option<&str> = if config.is_i18n_enabled() {
@@ -1050,7 +1050,7 @@ mod tests {
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("index.md"), "# Home").unwrap();
         fs::write(docs.join("setup.md"), "# Setup").unwrap();
-        let inv = PageInventory::scan(&docs, None, None).unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
         (dir, inv)
     }
 

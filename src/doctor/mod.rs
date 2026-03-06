@@ -155,7 +155,7 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
         None
     };
     let inventory = if has_content_dir {
-        PageInventory::scan(&content_dir, enabled_locales, config.default_locale()).ok()
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None).ok()
     } else {
         None
     };
@@ -222,6 +222,18 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
             print_check_results(&locale_diags);
         }
         all.extend(locale_diags);
+    }
+
+    // G1. Version checks (only when versioning is enabled)
+    if config.is_versioning_enabled() {
+        if !silent {
+            eprintln!("{}", "Checking versions...".bold());
+        }
+        let version_diags = checks::version::check_version(project_root, &config);
+        if !silent {
+            print_check_results(&version_diags);
+        }
+        all.extend(version_diags);
     }
 
     // G. Output checks
@@ -299,6 +311,7 @@ pub fn format_junit(diagnostics: &[Diagnostic], project_root: &Path) -> String {
         "content",
         "readability",
         "locale",
+        "version",
         "output",
     ];
 
@@ -551,7 +564,7 @@ mod tests {
         let root = PathBuf::from("/project");
         let xml = format_junit(&[], &root);
         assert!(xml.contains("<testsuites"));
-        // All 7 known categories should appear
+        // All 8 known categories should appear
         for cat in &[
             "project",
             "config",
@@ -559,6 +572,7 @@ mod tests {
             "content",
             "readability",
             "locale",
+            "version",
             "output",
         ] {
             assert!(
@@ -614,13 +628,13 @@ mod tests {
             make_diag("c3", "theme", Severity::Info, "i1", None, None),
         ];
         let xml = format_junit(&diags, &root);
-        // 3 diagnostics + 4 empty categories (each gets 1 passing testcase) = 7 total tests
+        // 3 diagnostics + 5 empty categories (each gets 1 passing testcase) = 8 total tests
         assert!(xml.contains("failures=\"2\""));
         assert!(xml.contains("skipped=\"1\""));
-        // tests count: 3 real + 4 passing = 7
+        // tests count: 3 real + 5 passing = 8
         let first_line = xml.lines().find(|l| l.contains("<testsuites")).unwrap();
         assert!(
-            first_line.contains("tests=\"7\""),
+            first_line.contains("tests=\"8\""),
             "unexpected: {first_line}"
         );
     }

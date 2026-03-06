@@ -23,5 +23,14 @@ separator = "Reference"
 autodiscover = "reference"
 
 [[nav]]
+separator = true
+
+[[nav]]
+separator = "Deployment"
+
+[[nav]]
+autodiscover = "deployment"
+
+[[nav]]
 label = "Development"
 autodiscover = "development"

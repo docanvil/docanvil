@@ -25,26 +25,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install tool
+      - name: Install docanvil from latest release
         run: |
-          if ! command -v docanvil >/dev/null 2>&1; then 
-            cargo install docanvil
-          else 
-            echo "docanvil already installed"
-          fi
+          LATEST=$(curl -sSf https://api.github.com/repos/docanvil/docanvil/releases/latest \
+            | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')
+          VERSION=${LATEST#v}
+          curl -sSfL "https://github.com/docanvil/docanvil/releases/download/${LATEST}/docanvil-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C /usr/local/bin
 
       - name: Run tool
         working-directory: ./docs

@@ -11,7 +11,7 @@ DocAnvil follows [Semantic Versioning](https://semver.org). Here's where things 
 ✅ Localisation support (multi-language docs, per-locale nav and search, language switcher)
 ✅ PDF export (`docanvil export pdf` — Chrome-based, cover pages, RTL, per-locale, custom paper size)
 ⬜ Doc versioning support
-⬜ Style linting
+✅ Style linting (`docanvil doctor` — readability checks, heading structure, link quality, and more)
 
 ## 1.2.x — Extensibility
 

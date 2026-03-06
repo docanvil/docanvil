@@ -314,10 +314,10 @@ fn get_page_ws_url(port: u16) -> Result<String> {
         if line == "\r\n" || line.is_empty() {
             break;
         }
-        if line.to_ascii_lowercase().starts_with("content-length:") {
-            if let Some(v) = line.splitn(2, ':').nth(1) {
-                content_length = v.trim().parse().ok();
-            }
+        if line.to_ascii_lowercase().starts_with("content-length:")
+            && let Some((_, v)) = line.split_once(':')
+        {
+            content_length = v.trim().parse().ok();
         }
     }
 
@@ -405,6 +405,16 @@ fn paper_dimensions(size: &str) -> (f64, f64) {
     }
 }
 
+/// Options for [`render_to_pdf_cdp`].
+pub struct PdfRenderOptions<'a> {
+    pub project_title: &'a str,
+    pub pdf_author: Option<&'a str>,
+    pub wait_mermaid: bool,
+    pub paper_size: Option<&'a str>,
+    pub accent_color: Option<&'a str>,
+    pub quiet: bool,
+}
+
 /// Use Chrome DevTools Protocol to navigate to `html_path` and print it as a PDF.
 ///
 /// Handles Mermaid polling (when `wait_mermaid` is `true`), running headers,
@@ -413,13 +423,16 @@ pub fn render_to_pdf_cdp(
     chrome: &Path,
     html_path: &Path,
     out_path: &Path,
-    project_title: &str,
-    pdf_author: Option<&str>,
-    wait_mermaid: bool,
-    paper_size: Option<&str>,
-    accent_color: Option<&str>,
-    quiet: bool,
+    opts: PdfRenderOptions<'_>,
 ) -> Result<()> {
+    let PdfRenderOptions {
+        project_title,
+        pdf_author,
+        wait_mermaid,
+        paper_size,
+        accent_color,
+        quiet,
+    } = opts;
     if !quiet {
         eprintln!("Launching Chrome…");
     }

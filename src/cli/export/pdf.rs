@@ -626,12 +626,14 @@ fn run_single_locale(
         &chrome,
         &tmp_path,
         out,
-        &config.project.name,
-        config.pdf.author.as_deref(),
-        config.charts.enabled,
-        config.pdf.paper_size.as_deref(),
-        accent_color,
-        quiet,
+        cdp::PdfRenderOptions {
+            project_title: &config.project.name,
+            pdf_author: config.pdf.author.as_deref(),
+            wait_mermaid: config.charts.enabled,
+            paper_size: config.pdf.paper_size.as_deref(),
+            accent_color,
+            quiet,
+        },
     );
 
     // Always clean up the temp file, even on error

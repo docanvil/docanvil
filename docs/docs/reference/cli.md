@@ -152,13 +152,14 @@ After generating a theme, run `docanvil serve` to preview the result. You can ed
 Diagnose project configuration and content issues before building.
 
 ```bash
-docanvil doctor [--fix] [--strict] [--path <dir>]
+docanvil doctor [--fix] [--strict] [--format <fmt>] [--path <dir>]
 ```
 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--fix` | `false` | Automatically apply safe fixes (create missing dirs, files) |
 | `--strict` | `false` | Exit with code `3` if any warnings or errors are found (for CI) |
+| `--format` | `human` | Output format: `human`, `checkstyle`, or `junit` |
 | `--path` | `.` | Path to the project root |
 
 :::code-group
@@ -184,6 +185,51 @@ docanvil doctor --path ../my-docs
 :::
 
 If no `docanvil.toml` is found, doctor prints a friendly message suggesting `docanvil new` and exits cleanly.
+
+### Machine-readable output
+
+The `--format` flag switches from the default coloured terminal output to structured XML, which is useful for integrating with CI annotation tools or test reporters. Machine-readable output is written to **stdout**; progress messages are suppressed entirely.
+
+| Format | Description |
+|--------|-------------|
+| `human` | Coloured, human-readable output to stderr (default) |
+| `checkstyle` | [Checkstyle XML](https://checkstyle.org/) — compatible with reviewdog, GitHub Actions problem matchers, and most Java/linting CI tooling |
+| `junit` | JUnit XML — compatible with GitHub Actions test summary, GitLab CI, CircleCI, and most test result reporters |
+
+:::code-group
+```bash
+# Output Checkstyle XML (e.g. pipe to reviewdog)
+docanvil doctor --format checkstyle
+```
+
+```bash
+# Output JUnit XML (e.g. for GitHub Actions test summary)
+docanvil doctor --format junit
+```
+
+```bash
+# Fail CI and emit Checkstyle XML
+docanvil doctor --format checkstyle --strict
+```
+
+```bash
+# Save JUnit results to a file
+docanvil doctor --format junit > test-results/doctor.xml
+```
+:::
+
+**Checkstyle XML** groups diagnostics by file. Each `<error>` element carries:
+
+- `severity` — `info`, `warning`, or `error`
+- `message` — the diagnostic message
+- `line` — source line number (`0` when not applicable)
+- `source` — `docanvil.{category}.{check}` (e.g. `docanvil.readability.long-paragraph`)
+
+**JUnit XML** maps each check category to a `<testsuite>`. All seven categories are always emitted — categories with no issues produce a single passing `<testcase name="all-checks-passed"/>`. Warnings and errors appear as `<failure>` elements; info diagnostics appear as `<skipped/>`.
+
+:::note
+`--quiet` suppresses the human-readable summary but does not suppress XML output — machine formats always write to stdout regardless of `--quiet`.
+:::
 
 ### Check categories
 

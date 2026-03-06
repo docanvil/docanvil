@@ -11,6 +11,17 @@ use std::path::PathBuf;
 
 use crate::cli::export::ExportArgs;
 
+#[derive(Clone, Debug, Default, clap::ValueEnum)]
+pub enum OutputFormat {
+    /// Human-readable coloured output (default)
+    #[default]
+    Human,
+    /// Checkstyle XML (compatible with reviewdog, GitHub Actions)
+    Checkstyle,
+    /// JUnit XML (compatible with test result reporters)
+    Junit,
+}
+
 #[derive(Parser)]
 #[command(
     name = "docanvil",
@@ -60,6 +71,9 @@ pub enum Command {
         /// Path to the project root
         #[arg(long, default_value = ".")]
         path: PathBuf,
+        /// Output format for diagnostics
+        #[arg(long, value_enum, default_value_t = OutputFormat::Human)]
+        format: OutputFormat,
     },
     /// Generate a custom color theme interactively
     Theme {

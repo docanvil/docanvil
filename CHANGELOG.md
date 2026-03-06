@@ -2,6 +2,36 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [1.1.0] - 2026-03-06
+
+### Added
+
+- **Localisation** — full multi-language documentation support
+  - Filename suffix convention (`page.en.md`, `page.fr.md`) for per-locale source files
+  - Locale-prefixed output paths (`/en/page.html`, `/fr/page.html`) with per-locale nav and search index
+  - Language switcher in the header with browser language auto-detection and localStorage persistence
+  - `[locale]` config section: `default`, `enabled`, `display_names`, `flags`, `auto_detect`
+  - Multilingual SEO: per-locale `hreflang` tags (in-page + sitemap), `og:locale`, canonical URLs
+  - RTL layout support for Arabic, Hebrew, Farsi, Uyghur, and Urdu
+  - Translation coverage checks in `docanvil doctor` — warns when a page exists in one locale but not another
+  - `[[link]]` wiki-link resolution respects the current locale, falling back to the default locale
+- **PDF export** — `docanvil export pdf --out <file>` command
+  - Chrome/Chromium-based rendering via the Chrome DevTools Protocol (CDP) — no additional dependencies
+  - Exports the full documentation site as a single paginated PDF
+  - Optional cover page with project title, logo, and author name
+  - Configurable paper size: `A3`, `A4` (default), `A5`, `Letter`, `Legal`, `Tabloid`
+  - Per-locale export via `--locale` flag
+  - Custom CSS injection for print-specific styles via `[pdf] custom_css`
+  - `[pdf]` config section: `cover_page`, `author`, `paper_size`, `custom_css`
+- **Readability linting** — extended `docanvil doctor` with a new readability check category
+  - Heading structure: `multiple-h1`, `skipped-heading-level`, `consecutive-headings`, `empty-heading`, `heading-punctuation`, `duplicate-heading-text`, `emphasis-used-as-heading`, `no-document-title`, `heading-adjacent-separator`
+  - Links and images: `missing-alt-text`, `reversed-link-syntax`, `empty-link`, `non-descriptive-link-text`, `bare-url`
+  - Code blocks: `missing-fenced-code-language`
+  - Prose quality: `long-paragraph`, `repeated-word`, `todo-comment`, `placeholder-text`
+  - All checks include file path and line number; all respect `--strict` mode
+  - `[doctor]` config section for opt-out and threshold tuning: `max_paragraph_words`, `heading_adjacent_separator`
+  - Machine-readable output via `--format checkstyle` (reviewdog/GitHub Actions compatible) and `--format junit`
+
 ## [1.0.0] - 2026-02-20
 
 ### Changed

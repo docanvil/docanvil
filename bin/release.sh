@@ -5,10 +5,10 @@ set -euo pipefail
 ############################################
 # Usage
 ############################################
-# ./release.sh 1.2.3
-# ./release.sh patch
-# ./release.sh minor
-# ./release.sh major
+# ./bin/release.sh 1.2.3
+# ./bin/release.sh patch
+# ./bin/release.sh minor
+# ./bin/release.sh major
 
 ############################################
 # Helpers
@@ -126,31 +126,31 @@ if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
 fi
 
 ############################################
-# Check crates.io for existing version
+# Confirm release
 ############################################
 
 CRATE_NAME=$(grep '^name =' Cargo.toml | head -1 | sed -E 's/name = "(.*)"/\1/')
 
-if cargo search "$CRATE_NAME" | grep -q "$NEW_VERSION"; then
-  error "Version $NEW_VERSION already appears to exist on crates.io"
-fi
-
-############################################
-# Confirm release
-############################################
-
 echo ""
-echo "About to release:"
+echo "About to open a release PR:"
 echo "  Crate:   $CRATE_NAME"
 echo "  Current: $CURRENT_VERSION"
 echo "  New:     $NEW_VERSION"
+echo "  Branch:  release/v$NEW_VERSION"
 echo ""
 
-read -p "Continue with release? (y/N): " CONFIRM
+read -p "Continue? (y/N): " CONFIRM
 if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
   echo "Aborted."
   exit 0
 fi
+
+############################################
+# Create release branch
+############################################
+
+echo "Creating branch release/v$NEW_VERSION..."
+git checkout -b "release/v$NEW_VERSION"
 
 ############################################
 # Update Cargo.toml (macOS safe)
@@ -167,7 +167,7 @@ echo "Updating Cargo.lock..."
 cargo check > /dev/null
 
 ############################################
-# Stage version changes
+# Stage and commit version changes
 ############################################
 
 git add Cargo.toml
@@ -176,48 +176,41 @@ if [ -f Cargo.lock ]; then
   git add Cargo.lock
 fi
 
-############################################
-# Commit version bump
-############################################
-
 git commit -m "Release v$NEW_VERSION"
 
 ############################################
-# Run tests
+# Push branch to origin
 ############################################
 
-echo "Running tests..."
-cargo test
+echo "Pushing branch to origin..."
+git push -u origin "release/v$NEW_VERSION"
 
 ############################################
-# Dry run publish
+# Open release PR
 ############################################
 
-echo "Running cargo publish --dry-run..."
-cargo publish --dry-run
+echo "Opening release PR..."
+gh pr create \
+  --title "Release v$NEW_VERSION" \
+  --base master \
+  --body "## Release v$NEW_VERSION
 
-############################################
-# Publish
-############################################
+Bumps version from \`$CURRENT_VERSION\` to \`$NEW_VERSION\`.
 
-echo "Publishing to crates.io..."
-cargo publish
+### Checklist
+- [ ] CHANGELOG.md updated for this version
+- [ ] Tests pass (see CI)
+- [ ] Ready to merge and tag
 
-echo "Publish successful."
+---
+After merging, create and push the release tag to trigger the release workflow:
 
-############################################
-# Create annotated tag
-############################################
-
-git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"
-
-############################################
-# Push commit + tag
-############################################
-
-echo "Pushing to origin..."
-git push origin master
-git push origin "v$NEW_VERSION"
+\`\`\`bash
+git tag -a v$NEW_VERSION -m \"Release v$NEW_VERSION\" && git push origin v$NEW_VERSION
+\`\`\`"
 
 echo ""
-echo "Release v$NEW_VERSION complete."
+echo "Release PR for v$NEW_VERSION opened. CI will run automatically."
+echo ""
+echo "After review and merge, tag the release:"
+echo "  git tag -a v$NEW_VERSION -m \"Release v$NEW_VERSION\" && git push origin v$NEW_VERSION"

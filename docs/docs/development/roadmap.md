@@ -1,12 +1,12 @@
 # Roadmap
 
-DocAnvil follows [Semantic Versioning](https://semver.org). The current release is **1.1.0**. Here's where things stand and where they're headed.
+DocAnvil follows [Semantic Versioning](https://semver.org). The current release is **1.1.1**. Here's where things stand and where they're headed.
 
 ## 1.1.x — Core Feature Enhancements
 
 - ✅ Localisation support (multi-language docs, per-locale nav and search, language switcher)
 - ✅ PDF export (`docanvil export pdf` — Chrome-based, cover pages, RTL, per-locale, custom paper size)
-- ⬜ Doc versioning support
+- ✅ Doc versioning support
 - ✅ Style linting (`docanvil doctor` — readability checks, heading structure, link quality, and more)
 
 ## 1.2.x — Extensibility

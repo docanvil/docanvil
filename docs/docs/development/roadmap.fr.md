@@ -6,13 +6,13 @@
 ---
 # Feuille de route
 
-DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). La version actuelle est **1.1.0**. Voici où en est le projet et vers quoi il se dirige.
+DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/). La version actuelle est **1.1.1**. Voici où en est le projet et vers quoi il se dirige.
 
 ## 1.1.x — Améliorations des fonctionnalités principales
 
 - ✅ Support de la localisation (docs multilingues, navigation et recherche par locale, sélecteur de langue)
 - ✅ Export PDF (`docanvil export pdf` — basé sur Chrome, pages de couverture, RTL, par locale, taille de papier personnalisée)
-- ⬜ Support du versionnage de la documentation
+- ✅ Support du versionnage de la documentation
 - ✅ Linting de style (`docanvil doctor` — vérifications de lisibilité, structure des titres, qualité des liens, et plus)
 
 ## 1.2.x — Extensibilité

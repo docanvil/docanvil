@@ -1,16 +1,19 @@
 use regex::Regex;
+use std::cell::Cell;
 use std::sync::LazyLock;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 static POPOVER_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\^\[([^\]]+)\]").unwrap());
 
-static POPOVER_ID: AtomicUsize = AtomicUsize::new(0);
+// Thread-local so concurrent builds each get their own ID sequence.
+thread_local! {
+    static POPOVER_ID: Cell<usize> = const { Cell::new(0) };
+}
 
 use crate::util::html_escape;
 
 /// Reset the popover ID counter to zero (call between builds).
 pub fn reset_popover_ids() {
-    POPOVER_ID.store(0, Ordering::Relaxed);
+    POPOVER_ID.with(|c| c.set(0));
 }
 
 /// Pre-comrak pass: convert `^[content]` to inline popover HTML spans.
@@ -86,7 +89,7 @@ fn replace_popovers_in_text(text: &str) -> String {
     POPOVER_RE
         .replace_all(text, |caps: &regex::Captures| {
             let content = html_escape(&caps[1]);
-            let id = POPOVER_ID.fetch_add(1, Ordering::Relaxed);
+            let id = POPOVER_ID.with(|c| c.replace(c.get() + 1));
             format!(
                 "<span class=\"popover-trigger\" tabindex=\"0\" aria-describedby=\"popover-{id}\">\
                  <span class=\"popover-indicator\"></span>\
@@ -100,6 +103,23 @@ fn replace_popovers_in_text(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn popover_ids_are_isolated_per_thread() {
+        reset_popover_ids();
+        process_popovers("first^[a]");
+
+        // A concurrent build on another thread must not advance our ID sequence.
+        std::thread::spawn(|| {
+            reset_popover_ids();
+            process_popovers("^[x] ^[y] ^[z]");
+        })
+        .join()
+        .unwrap();
+
+        let result = process_popovers("second^[b]");
+        assert!(result.contains("id=\"popover-1\""), "got: {result}");
+    }
 
     #[test]
     fn basic_popover() {

@@ -448,6 +448,59 @@ pub fn print_diagnostics(diagnostics: &[Diagnostic]) {
     let _ = diagnostics;
 }
 
+/// Apply all safe fixes from the diagnostics, returning the number of fixes applied.
+pub fn apply_fixes(diagnostics: &[Diagnostic]) -> usize {
+    let mut fixed = 0;
+
+    let fixable: Vec<_> = diagnostics.iter().filter(|d| d.fix.is_some()).collect();
+    if fixable.is_empty() {
+        return 0;
+    }
+
+    eprintln!();
+    eprintln!("{}", "Applying fixes...".bold());
+
+    for d in fixable {
+        match d.fix.as_ref().unwrap() {
+            Fix::CreateDir(path) => {
+                if let Err(e) = std::fs::create_dir_all(path) {
+                    eprintln!(
+                        "  {} Failed to create directory {}: {}",
+                        "✗".red().bold(),
+                        path.display(),
+                        e
+                    );
+                } else {
+                    eprintln!(
+                        "  {} Created directory {}",
+                        "✓".green().bold(),
+                        path.display()
+                    );
+                    fixed += 1;
+                }
+            }
+            Fix::CreateFile { path, content } => {
+                if let Some(parent) = path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                if let Err(e) = std::fs::write(path, content) {
+                    eprintln!(
+                        "  {} Failed to create {}: {}",
+                        "✗".red().bold(),
+                        path.display(),
+                        e
+                    );
+                } else {
+                    eprintln!("  {} Created {}", "✓".green().bold(), path.display());
+                    fixed += 1;
+                }
+            }
+        }
+    }
+
+    fixed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -638,57 +691,4 @@ mod tests {
             "unexpected: {first_line}"
         );
     }
-}
-
-/// Apply all safe fixes from the diagnostics, returning the number of fixes applied.
-pub fn apply_fixes(diagnostics: &[Diagnostic]) -> usize {
-    let mut fixed = 0;
-
-    let fixable: Vec<_> = diagnostics.iter().filter(|d| d.fix.is_some()).collect();
-    if fixable.is_empty() {
-        return 0;
-    }
-
-    eprintln!();
-    eprintln!("{}", "Applying fixes...".bold());
-
-    for d in fixable {
-        match d.fix.as_ref().unwrap() {
-            Fix::CreateDir(path) => {
-                if let Err(e) = std::fs::create_dir_all(path) {
-                    eprintln!(
-                        "  {} Failed to create directory {}: {}",
-                        "✗".red().bold(),
-                        path.display(),
-                        e
-                    );
-                } else {
-                    eprintln!(
-                        "  {} Created directory {}",
-                        "✓".green().bold(),
-                        path.display()
-                    );
-                    fixed += 1;
-                }
-            }
-            Fix::CreateFile { path, content } => {
-                if let Some(parent) = path.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                if let Err(e) = std::fs::write(path, content) {
-                    eprintln!(
-                        "  {} Failed to create {}: {}",
-                        "✗".red().bold(),
-                        path.display(),
-                        e
-                    );
-                } else {
-                    eprintln!("  {} Created {}", "✓".green().bold(), path.display());
-                    fixed += 1;
-                }
-            }
-        }
-    }
-
-    fixed
 }

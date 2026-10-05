@@ -1,3 +1,7 @@
+// Each test crate compiles its own copy of this module and uses only some of
+// the helpers, so unused ones would otherwise warn per crate.
+#![allow(dead_code)]
+
 use std::fs;
 use std::path::Path;
 

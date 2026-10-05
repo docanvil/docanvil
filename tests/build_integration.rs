@@ -292,7 +292,7 @@ How to set up."#;
     assert!(
         html.contains("href=\"/setup-guide.html\""),
         "wikilink using old slug should resolve to new slug URL, got nav section: {}",
-        &html
+        html
     );
 }
 

@@ -49,7 +49,7 @@ pub fn inject_attributes(html: &str) -> String {
                     "{}{}>{}\n",
                     &result[..open_tag_end],
                     attrs,
-                    &result[open_tag_end + 1..start].trim_end(),
+                    result[open_tag_end + 1..start].trim_end(),
                 );
                 result = format!("{}{}", new_result, &result[end..]);
             }

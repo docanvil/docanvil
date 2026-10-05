@@ -18,6 +18,7 @@ All notable changes to DocAnvil will be documented in this file.
 - Renamed or deleted pages no longer linger in the output directory. Builds now render into a staging directory and sync it into place, removing anything the build didn't produce (hidden entries like `.git` are kept). A failed build leaves the previous output untouched. Put extra root files such as `CNAME` in `static/` (#14)
 - `docanvil serve` now builds into a temporary directory instead of `dist/`, so a dev build (with the live-reload script and a `/` base URL) can no longer end up deployed (#13)
 - Live reload now follows a custom `content_dir` instead of always watching `docs/`, and picks up changes to `static/` and per-locale/per-version nav files (`nav.fr.toml`, `nav.v2.toml`) (#20)
+- `docanvil serve` now shows the generated 404 page for missing URLs instead of an empty response (#19)
 
 ## [1.1.2] - 2026-10-05
 

@@ -11,8 +11,25 @@ permissions:
   contents: write
 
 jobs:
+  # Release names, tags and asset names all come from the ref name, so a manual
+  # run against a branch would publish a release named after the branch.
+  check-ref:
+    name: Check release ref
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure running on a version tag
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" != "tag" || "$REF_NAME" != v* ]]; then
+            echo "::error::Releases must run on a version tag (e.g. v1.2.3), not $REF_TYPE '$REF_NAME'. When running manually, pick the tag in the 'Use workflow from' dropdown."
+            exit 1
+          fi
+
   build:
     name: Build (${{ matrix.target }})
+    needs: check-ref
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

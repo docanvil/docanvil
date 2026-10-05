@@ -200,17 +200,12 @@ Bumps version from \`$CURRENT_VERSION\` to \`$NEW_VERSION\`.
 ### Checklist
 - [ ] CHANGELOG.md updated for this version
 - [ ] Tests pass (see CI)
-- [ ] Ready to merge and tag
+- [ ] Ready to merge
 
 ---
-After merging, create and push the release tag to trigger the release workflow:
-
-\`\`\`bash
-git tag -a v$NEW_VERSION -m \"Release v$NEW_VERSION\" && git push origin v$NEW_VERSION
-\`\`\`"
+Merging this PR automatically tags \`v$NEW_VERSION\` and runs the release workflow (see \`.github/workflows/tag-release.yml\`). No manual tagging needed."
 
 echo ""
 echo "Release PR for v$NEW_VERSION opened. CI will run automatically."
 echo ""
-echo "After review and merge, tag the release:"
-echo "  git tag -a v$NEW_VERSION -m \"Release v$NEW_VERSION\" && git push origin v$NEW_VERSION"
+echo "Once merged, v$NEW_VERSION is tagged and released automatically 🚀"

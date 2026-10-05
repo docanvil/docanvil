@@ -18,9 +18,10 @@ jobs:
 
       - name: Create and push tag
         id: tag
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          VERSION="${{ github.event.pull_request.head.ref }}"
-          VERSION="${VERSION#release/}"
+          VERSION="${HEAD_REF#release/}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$VERSION" -m "Release $VERSION"

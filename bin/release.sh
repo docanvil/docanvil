@@ -127,6 +127,28 @@ if git rev-parse "v$NEW_VERSION" >/dev/null 2>&1; then
 fi
 
 ############################################
+# Ensure CHANGELOG.md documents the release
+############################################
+
+CHANGELOG="CHANGELOG.md"
+UNRELEASED_HEADING="## [Unreleased]"
+
+if ! grep -qxF "$UNRELEASED_HEADING" "$CHANGELOG"; then
+  error "$CHANGELOG has no '$UNRELEASED_HEADING' section. Add one listing the changes in this release."
+fi
+
+# Non-blank lines between the Unreleased heading and the next version heading
+UNRELEASED_NOTES=$(awk -v h="$UNRELEASED_HEADING" '
+  $0 == h { found = 1; next }
+  found && /^## \[/ { exit }
+  found && NF { print }
+' "$CHANGELOG")
+
+if [ -z "$UNRELEASED_NOTES" ]; then
+  error "The '$UNRELEASED_HEADING' section in $CHANGELOG is empty. Document the changes before releasing."
+fi
+
+############################################
 # Confirm release
 ############################################
 
@@ -138,6 +160,9 @@ echo "  Crate:   $CRATE_NAME"
 echo "  Current: $CURRENT_VERSION"
 echo "  New:     $NEW_VERSION"
 echo "  Branch:  release/v$NEW_VERSION"
+echo ""
+echo "Changelog entries:"
+echo "$UNRELEASED_NOTES" | sed 's/^/  /'
 echo ""
 
 read -p "Continue? (y/N): " CONFIRM
@@ -168,10 +193,22 @@ echo "Updating Cargo.lock..."
 cargo check > /dev/null
 
 ############################################
+# Move Unreleased changelog entries under the new version
+############################################
+
+echo "Updating $CHANGELOG..."
+RELEASE_DATE=$(date +%Y-%m-%d)
+awk -v h="$UNRELEASED_HEADING" -v v="## [$NEW_VERSION] - $RELEASE_DATE" '
+  $0 == h && !done { print h; print ""; print v; done = 1; next }
+  { print }
+' "$CHANGELOG" > "$CHANGELOG.tmp"
+mv "$CHANGELOG.tmp" "$CHANGELOG"
+
+############################################
 # Stage and commit version changes
 ############################################
 
-git add Cargo.toml
+git add Cargo.toml "$CHANGELOG"
 
 if [ -f Cargo.lock ]; then
   git add Cargo.lock
@@ -199,7 +236,7 @@ gh pr create \
 Bumps version from \`$CURRENT_VERSION\` to \`$NEW_VERSION\`.
 
 ### Checklist
-- [ ] CHANGELOG.md updated for this version
+- [ ] CHANGELOG.md entries for this version reviewed (moved from [Unreleased] by the release script)
 - [ ] Tests pass (see CI)
 - [ ] Ready to merge
 

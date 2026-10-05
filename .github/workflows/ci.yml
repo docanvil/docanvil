@@ -36,6 +36,32 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
+  # Release notes are extracted from CHANGELOG.md, so a release PR must carry
+  # a non-empty section for its version (bin/release.sh normally creates it).
+  changelog:
+    name: Changelog
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check changelog has entries for this release
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          VERSION="${HEAD_REF#release/v}"
+          NOTES=$(awk -v h="## [${VERSION}]" '
+            index($0, h) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found && NF { print }
+          ' CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            echo "::error file=CHANGELOG.md::No entries under '## [${VERSION}]'. Release with bin/release.sh, or move the [Unreleased] entries under this version."
+            exit 1
+          fi
+          echo "Found changelog entries for ${VERSION}:"
+          echo "$NOTES"
+
   build:
     name: Build & Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

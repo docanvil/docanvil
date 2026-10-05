@@ -71,6 +71,7 @@ When submitting a PR:
 - Keep changes focused and minimal.
 - Avoid unrelated refactoring.
 - Provide a clear summary of changes.
+- Add a line describing user-facing changes under `## [Unreleased]` in `CHANGELOG.md`. The release script moves these entries under the new version when we release, and won't release without them.
 
 All PRs require review from the core team before merging.
 

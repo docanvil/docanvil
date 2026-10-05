@@ -706,3 +706,23 @@ fn test_failed_build_leaves_previous_output() {
     assert!(output_exists(dir.path(), "index.html"));
     assert!(!dir.path().join(".dist.docanvil-staging").exists());
 }
+
+#[test]
+fn test_dev_build_does_not_touch_output_dir() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    let dev_out = tempfile::tempdir().unwrap();
+
+    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true)
+        .expect("dev build should succeed");
+
+    let html = fs::read_to_string(dev_out.path().join("index.html")).unwrap();
+    assert!(html.contains("__docanvil_ws"));
+    assert!(!dir.path().join("dist").exists());
+}
+
+#[test]
+fn test_serve_output_dir_is_not_build_output_dir() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    let dev_out = docanvil::cli::serve::dev_output_dir(dir.path());
+    assert!(!dev_out.starts_with(dir.path()));
+}

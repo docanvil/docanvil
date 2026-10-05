@@ -333,7 +333,7 @@ docanvil serve [--host <adresse>] [--port <port>] [--path <rép>]
 
 Le serveur :
 
-- Compile le site au démarrage
+- Compile le site au démarrage dans un répertoire temporaire — votre dossier `dist/` n'est jamais modifié, donc une compilation de développement ne peut pas être déployée par erreur
 - Surveille tous les fichiers du projet pour les modifications (Markdown, TOML, CSS, templates)
 - Recompile les pages affectées lors d'un changement de fichier
 - Notifie le navigateur via WebSocket à `/__docanvil_ws`

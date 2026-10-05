@@ -1,22 +1,27 @@
+use std::cell::Cell;
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use owo_colors::OwoColorize;
 
-static WARNING_COUNT: AtomicUsize = AtomicUsize::new(0);
+// Thread-local so each build counts only its own warnings. A build runs start to
+// finish on one thread, so concurrent builds (parallel tests, the dev server's
+// rebuilds) can't reset or inflate each other's counts.
+thread_local! {
+    static WARNING_COUNT: Cell<usize> = const { Cell::new(0) };
+}
 
 fn increment() {
-    WARNING_COUNT.fetch_add(1, Ordering::Relaxed);
+    WARNING_COUNT.with(|c| c.set(c.get() + 1));
 }
 
-/// Return the number of warnings emitted since the last reset.
+/// Return the number of warnings emitted on this thread since the last reset.
 pub fn warning_count() -> usize {
-    WARNING_COUNT.load(Ordering::Relaxed)
+    WARNING_COUNT.with(Cell::get)
 }
 
-/// Reset the warning counter to zero.
+/// Reset this thread's warning counter to zero.
 pub fn reset_warnings() {
-    WARNING_COUNT.store(0, Ordering::Relaxed);
+    WARNING_COUNT.with(|c| c.set(0));
 }
 
 /// Emit a warning about a broken wiki-link.
@@ -144,4 +149,26 @@ pub fn warn_custom_css_not_found(path: &str) {
         "  {}: Check the path in docanvil.toml, or run 'docanvil doctor --fix' to create it.",
         "hint".dimmed()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warning_count_is_isolated_per_thread() {
+        reset_warnings();
+        warn_no_site_url();
+
+        // A concurrent build on another thread must not reset or inflate our count.
+        std::thread::spawn(|| {
+            reset_warnings();
+            warn_no_site_url();
+            warn_no_site_url();
+        })
+        .join()
+        .unwrap();
+
+        assert_eq!(warning_count(), 1);
+    }
 }

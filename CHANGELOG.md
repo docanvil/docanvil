@@ -19,6 +19,7 @@ All notable changes to DocAnvil will be documented in this file.
 - `docanvil serve` now builds into a temporary directory instead of `dist/`, so a dev build (with the live-reload script and a `/` base URL) can no longer end up deployed (#13)
 - Live reload now follows a custom `content_dir` instead of always watching `docs/`, and picks up changes to `static/` and per-locale/per-version nav files (`nav.fr.toml`, `nav.v2.toml`) (#20)
 - `docanvil serve` now shows the generated 404 page for missing URLs instead of an empty response (#19)
+- Sidebar labels containing `&`, `<` or `>` (e.g. a page titled `Vec<T> basics`) are now HTML-escaped instead of producing broken markup (#17)
 
 ## [1.1.2] - 2026-10-05
 

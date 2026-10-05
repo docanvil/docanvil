@@ -726,3 +726,21 @@ fn test_serve_output_dir_is_not_build_output_dir() {
     let dev_out = docanvil::cli::serve::dev_output_dir(dir.path());
     assert!(!dev_out.starts_with(dir.path()));
 }
+
+#[test]
+fn test_nav_labels_are_escaped() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            (
+                "generics.md",
+                "---\n{\"title\": \"Vec<T> & friends\"}\n---\n# Generics",
+            ),
+        ],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("Vec&lt;T&gt; &amp; friends</a>"));
+}

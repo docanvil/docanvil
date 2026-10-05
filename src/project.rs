@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::error::Result;
+use crate::util::html_escape;
 
 /// Metadata for a single documentation page.
 #[derive(Debug, Clone)]
@@ -573,6 +574,7 @@ fn render_nav_node(
 
     match node {
         NavNode::Page { label, slug } => {
+            let label = html_escape(label);
             let href = format!("{}{}.html", base_url, slug);
             let class = if slug == current_slug {
                 "nav-item active"
@@ -589,6 +591,7 @@ fn render_nav_node(
             children,
         } => {
             let is_open = section_contains_active(node, current_slug);
+            let label = html_escape(label);
             let open_class = if is_open { " open" } else { "" };
             let aria = if is_open { "true" } else { "false" };
             let header_html = if let Some(s) = slug {
@@ -596,7 +599,7 @@ fn render_nav_node(
                 let link_class = if s == current_slug { " active" } else { "" };
                 format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
             } else {
-                label.clone()
+                label
             };
             html.push_str(&format!(
                 "{indent}<li class=\"nav-group{open_class}\">\n{inner}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n{deep}<svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n{deep}{header_html}\n{inner}</button>\n",
@@ -609,6 +612,7 @@ fn render_nav_node(
         }
         NavNode::Separator { label } => {
             if let Some(text) = label {
+                let text = html_escape(text);
                 html.push_str(&format!(
                     "{indent}<li class=\"nav-separator nav-separator-labeled\">{text}</li>\n"
                 ));
@@ -759,6 +763,35 @@ mod tests {
 
         // Should have "Guides" directory node and "Home" page node
         assert!(tree.len() >= 2);
+    }
+
+    #[test]
+    fn render_nav_escapes_labels() {
+        let tree = vec![
+            NavNode::Page {
+                label: "Q&A".into(),
+                slug: "qa".into(),
+            },
+            NavNode::Separator {
+                label: Some("<Advanced>".into()),
+            },
+            NavNode::Group {
+                label: "Vec<T> basics".into(),
+                slug: Some("vec".into()),
+                children: vec![NavNode::Page {
+                    label: "Using <details>".into(),
+                    slug: "details".into(),
+                }],
+            },
+        ];
+
+        let html = render_nav(&tree, "qa", "/");
+        assert!(html.contains(">Q&amp;A</a>"));
+        assert!(html.contains("&lt;Advanced&gt;"));
+        assert!(html.contains("Vec&lt;T&gt; basics"));
+        assert!(html.contains("Using &lt;details&gt;"));
+        assert!(!html.contains("<T>"));
+        assert!(!html.contains("<details>"));
     }
 
     #[test]

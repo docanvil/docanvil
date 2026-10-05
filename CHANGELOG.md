@@ -2,6 +2,18 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- `bin/release.sh` now moves the `[Unreleased]` changelog section under the new version automatically, and refuses to release if that section is missing or empty
+- CI checks that `release/v*` PRs have a matching changelog section
+
+### Fixed
+
+- The release tag workflow can now trigger the Release workflow itself (it was missing the `actions: write` permission)
+- `bin/release.sh` no longer fails its master-branch check when a tag named `master` also exists
+
 ## [1.1.2] - 2026-10-05
 
 ### Fixed

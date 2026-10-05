@@ -337,6 +337,7 @@ The server:
 - Rebuilds affected pages on file change
 - Notifies the browser via WebSocket at `/__docanvil_ws`
 - The browser reloads automatically — no manual refresh needed
+- Missing pages show your site's `404.html`, just like most static hosts in production
 
 :::code-group
 ```bash

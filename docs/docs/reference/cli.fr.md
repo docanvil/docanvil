@@ -338,6 +338,7 @@ Le serveur :
 - Recompile les pages affectées lors d'un changement de fichier
 - Notifie le navigateur via WebSocket à `/__docanvil_ws`
 - Le navigateur recharge automatiquement — pas besoin de rafraîchissement manuel
+- Les pages manquantes affichent le `404.html` de votre site, comme la plupart des hébergeurs statiques en production
 
 :::code-group
 ```bash

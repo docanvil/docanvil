@@ -2,6 +2,15 @@
 
 All notable changes to DocAnvil will be documented in this file.
 
+## [1.1.2] - 2026-10-05
+
+### Fixed
+
+- Strict builds (`--strict`) no longer miss or miscount warnings when several builds run at once. The warning counter and popover IDs are now tracked per build instead of shared across the whole process, which fixes an intermittent `--strict` test failure in CI
+- Resolved clippy warnings in test code and from newer clippy releases; CI now lints test targets too
+- The Release workflow now refuses to run unless it's on a `v*` version tag, so it can't publish a release named after a branch
+- `bin/release.sh` no longer tells you to tag manually after merging; the tag is created automatically when the release PR merges
+
 ## [1.1.1] - 2026-03-06
 
 ### Added

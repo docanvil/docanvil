@@ -333,7 +333,7 @@ docanvil serve [--host <address>] [--port <port>] [--path <dir>]
 The server:
 
 - Builds the site on startup into a temporary directory — your `dist/` folder is never touched, so a dev build can't be deployed by accident
-- Watches all project files for changes (Markdown, TOML, CSS, templates)
+- Watches your content directory (`content_dir`), `theme/`, `assets/`, `static/`, `docanvil.toml` and every `nav*.toml` (including per-locale and per-version nav files)
 - Rebuilds affected pages on file change
 - Notifies the browser via WebSocket at `/__docanvil_ws`
 - The browser reloads automatically — no manual refresh needed

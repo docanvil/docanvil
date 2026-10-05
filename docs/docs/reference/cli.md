@@ -371,7 +371,7 @@ docanvil build [--out <path>] [--clean] [--path <dir>]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--out` | `[build] output_dir` (`dist`) | Output directory for the generated site. Overrides `output_dir` in `docanvil.toml` |
-| `--clean` | `false` | Remove the output directory before building |
+| `--clean` | `false` | Remove the output directory before building. Refuses if the directory contains the project root, content, theme or assets |
 | `--strict` | `false` | Emit warnings as errors and exit with code `3` |
 | `--path` | `.` | Path to the project root |
 

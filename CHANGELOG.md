@@ -14,6 +14,7 @@ All notable changes to DocAnvil will be documented in this file.
 - The release tag workflow can now trigger the Release workflow itself (it was missing the `actions: write` permission)
 - `bin/release.sh` no longer fails its master-branch check when a tag named `master` also exists
 - `docanvil build --out dist` now builds to `dist/` even when `[build] output_dir` in `docanvil.toml` is set to something else — an explicit `--out` always wins (#16)
+- `docanvil build --clean` now refuses to delete an output directory that contains the project root, its content, theme or assets, or another DocAnvil project — so a mistyped `--out .` can no longer wipe your docs (#15)
 
 ## [1.1.2] - 2026-10-05
 

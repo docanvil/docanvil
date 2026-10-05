@@ -23,6 +23,9 @@ pub enum Error {
     #[error("{0}")]
     General(String),
 
+    #[error("refusing to remove output directory {path}: {reason}")]
+    UnsafeOutputDir { path: PathBuf, reason: String },
+
     #[error("{0} warning(s) emitted during strict-mode build")]
     StrictWarnings(usize),
 
@@ -62,6 +65,9 @@ impl Error {
             Error::Render(_) => Some(
                 "Check your layout template for syntax errors. Run 'docanvil doctor' to validate.".into(),
             ),
+            Error::UnsafeOutputDir { .. } => Some(
+                "Point --out or [build] output_dir in docanvil.toml at a dedicated folder, such as dist/.".into(),
+            ),
             Error::StrictWarnings(_) => {
                 Some("Fix the warnings above, or build without --strict.".into())
             }
@@ -80,7 +86,9 @@ impl Error {
     pub fn exit_code(&self) -> i32 {
         match self {
             Error::Io(_) | Error::General(_) => 1,
-            Error::ConfigParse { .. } | Error::ConfigNotFound(_) => 2,
+            Error::ConfigParse { .. }
+            | Error::ConfigNotFound(_)
+            | Error::UnsafeOutputDir { .. } => 2,
             Error::ContentDirNotFound(_)
             | Error::StrictWarnings(_)
             | Error::DoctorFailed { .. } => 3,

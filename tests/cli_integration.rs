@@ -85,3 +85,22 @@ fn test_cli_build_explicit_out_overrides_config() {
     assert!(dir.path().join("dist/index.html").exists());
     assert!(!dir.path().join("public").exists());
 }
+
+#[test]
+fn test_cli_build_clean_refuses_project_root() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Hello")]);
+
+    docanvil_cmd()
+        .current_dir(dir.path())
+        .args(["build", "--out", ".", "--clean", "--quiet"])
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "refusing to remove output directory",
+        ));
+
+    // Nothing was deleted.
+    assert!(dir.path().join("docanvil.toml").exists());
+    assert!(dir.path().join("docs/index.md").exists());
+}

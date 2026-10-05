@@ -372,7 +372,7 @@ docanvil build [--out <chemin>] [--clean] [--path <rép>]
 | Option | Défaut | Description |
 |--------|---------|-------------|
 | `--out` | `[build] output_dir` (`dist`) | Répertoire de sortie pour le site généré. Remplace `output_dir` de `docanvil.toml` |
-| `--clean` | `false` | Supprimer le répertoire de sortie avant la compilation |
+| `--clean` | `false` | Supprimer le répertoire de sortie avant la compilation. Refuse si le répertoire contient la racine du projet, le contenu, le thème ou les assets |
 | `--strict` | `false` | Émettre les avertissements comme erreurs et quitter avec le code `3` |
 | `--path` | `.` | Chemin vers la racine du projet |
 

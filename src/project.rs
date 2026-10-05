@@ -594,16 +594,21 @@ fn render_nav_node(
             let label = html_escape(label);
             let open_class = if is_open { " open" } else { "" };
             let aria = if is_open { "true" } else { "false" };
-            let header_html = if let Some(s) = slug {
+            let chevron = "<svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>";
+            html.push_str(&format!("{indent}<li class=\"nav-group{open_class}\">\n"));
+            if let Some(s) = slug {
+                // A linked group gets a chevron-only toggle button next to the
+                // link: interactive content can't be nested inside a <button>.
                 let href = format!("{}{}.html", base_url, s);
                 let link_class = if s == current_slug { " active" } else { "" };
-                format!("<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>")
+                html.push_str(&format!(
+                    "{inner}<div class=\"nav-group-header\">\n{deep}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\" aria-label=\"Toggle {label} section\">{chevron}</button>\n{deep}<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>\n{inner}</div>\n",
+                ));
             } else {
-                label
-            };
-            html.push_str(&format!(
-                "{indent}<li class=\"nav-group{open_class}\">\n{inner}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n{deep}<svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>\n{deep}{header_html}\n{inner}</button>\n",
-            ));
+                html.push_str(&format!(
+                    "{inner}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n{deep}{chevron}\n{deep}{label}\n{inner}</button>\n",
+                ));
+            }
             html.push_str(&format!("{inner}<ul class=\"nav-group-children\">\n"));
             for child in children {
                 render_nav_node(child, current_slug, base_url, depth + 1, html);
@@ -763,6 +768,40 @@ mod tests {
 
         // Should have "Guides" directory node and "Home" page node
         assert!(tree.len() >= 2);
+    }
+
+    #[test]
+    fn render_nav_linked_group_keeps_link_outside_button() {
+        let tree = vec![
+            NavNode::Group {
+                label: "Advanced".into(),
+                slug: Some("advanced/index".into()),
+                children: vec![NavNode::Page {
+                    label: "Plugins".into(),
+                    slug: "advanced/plugins".into(),
+                }],
+            },
+            NavNode::Group {
+                label: "API".into(),
+                slug: None,
+                children: vec![],
+            },
+        ];
+
+        let html = render_nav(&tree, "advanced/index", "/");
+
+        // No <button> may contain an <a>.
+        for button in html.split("<button").skip(1) {
+            let inner = button.split("</button>").next().unwrap();
+            assert!(!inner.contains("<a "), "link nested in button: {inner}");
+        }
+        assert!(html.contains("<div class=\"nav-group-header\">"));
+        assert!(html.contains("aria-label=\"Toggle Advanced section\""));
+        assert!(html.contains(
+            "<a href=\"/advanced/index.html\" class=\"nav-group-link active\">Advanced</a>"
+        ));
+        // Unlinked groups keep the label inside the toggle.
+        assert!(html.contains("API\n"));
     }
 
     #[test]

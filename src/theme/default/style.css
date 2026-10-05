@@ -611,8 +611,30 @@ body {
   transition: transform var(--transition-normal);
 }
 
-.nav-group.open > .nav-group-toggle .nav-chevron {
+.nav-group.open > .nav-group-toggle .nav-chevron,
+.nav-group.open > .nav-group-header .nav-chevron {
   transform: rotate(90deg);
+}
+
+/* Linked group header: chevron toggle button + sibling link */
+.nav-group-header {
+  display: flex;
+  align-items: center;
+}
+
+.nav-group-header > .nav-group-toggle {
+  width: auto;
+  flex-shrink: 0;
+  padding: 0.4rem 0.35rem;
+}
+
+.nav-group-header > .nav-group-link {
+  flex: 1;
+  min-width: 0;
+  /* Match the unlinked group header text, which these used to inherit from the button */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .nav-group-children {

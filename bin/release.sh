@@ -111,7 +111,8 @@ fi
 # Ensure correct branch (master)
 ############################################
 
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# --show-current prints the plain branch name even if a tag shares it
+CURRENT_BRANCH=$(git branch --show-current)
 
 if [ "$CURRENT_BRANCH" != "master" ]; then
   error "Releases must be made from master branch (current: $CURRENT_BRANCH)"

@@ -86,9 +86,9 @@ pub enum Command {
     },
     /// Build static HTML site
     Build {
-        /// Output directory
-        #[arg(long, default_value = "dist")]
-        out: PathBuf,
+        /// Output directory (defaults to `[build] output_dir` in docanvil.toml, usually `dist/`)
+        #[arg(long)]
+        out: Option<PathBuf>,
         /// Remove output directory before building
         #[arg(long)]
         clean: bool,

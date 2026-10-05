@@ -47,3 +47,41 @@ fn test_cli_build_strict_broken_link() {
         .failure()
         .stderr(predicate::str::contains("warning"));
 }
+
+const PUBLIC_OUTPUT_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[build]
+output_dir = "public"
+"#;
+
+#[test]
+fn test_cli_build_uses_config_output_dir_by_default() {
+    let dir = create_project(PUBLIC_OUTPUT_CONFIG, &[("index.md", "# Hello")]);
+
+    docanvil_cmd()
+        .args(["build", "--path"])
+        .arg(dir.path())
+        .arg("--quiet")
+        .assert()
+        .success();
+
+    assert!(dir.path().join("public/index.html").exists());
+    assert!(!dir.path().join("dist").exists());
+}
+
+#[test]
+fn test_cli_build_explicit_out_overrides_config() {
+    let dir = create_project(PUBLIC_OUTPUT_CONFIG, &[("index.md", "# Hello")]);
+
+    // `--out dist` matches the old clap default, which used to be ignored.
+    docanvil_cmd()
+        .current_dir(dir.path())
+        .args(["build", "--out", "dist", "--quiet"])
+        .assert()
+        .success();
+
+    assert!(dir.path().join("dist/index.html").exists());
+    assert!(!dir.path().join("public").exists());
+}

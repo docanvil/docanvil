@@ -40,13 +40,13 @@ pub fn create_project(config_toml: &str, pages: &[(&str, &str)]) -> TempDir {
 /// Run the build pipeline on a project directory.
 pub fn build_project(dir: &Path) -> docanvil::error::Result<()> {
     let out = dir.join("dist");
-    docanvil::cli::build::run(dir, &out, false, true, false)
+    docanvil::cli::build::run(dir, Some(&out), false, true, false)
 }
 
 /// Run the build pipeline in strict mode.
 pub fn build_project_strict(dir: &Path) -> docanvil::error::Result<()> {
     let out = dir.join("dist");
-    docanvil::cli::build::run(dir, &out, false, true, true)
+    docanvil::cli::build::run(dir, Some(&out), false, true, true)
 }
 
 /// Read a file from the build output directory.

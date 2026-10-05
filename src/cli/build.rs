@@ -25,15 +25,23 @@ fn io_context(path: &Path) -> impl FnOnce(std::io::Error) -> Error + '_ {
 }
 
 /// Run the build command from CLI.
-pub fn run(project_root: &Path, out: &Path, clean: bool, quiet: bool, strict: bool) -> Result<()> {
+///
+/// `out` is the `--out` flag: when given it wins, otherwise `[build] output_dir`
+/// from the config is used (relative to the project root).
+pub fn run(
+    project_root: &Path,
+    out: Option<&Path>,
+    clean: bool,
+    quiet: bool,
+    strict: bool,
+) -> Result<()> {
     let start = Instant::now();
     let config = Config::load(project_root)?;
 
     // Resolve output directory
-    let output_dir = if out != Path::new("dist") {
-        out.to_path_buf()
-    } else {
-        project_root.join(&config.build.output_dir)
+    let output_dir = match out {
+        Some(out) => out.to_path_buf(),
+        None => project_root.join(&config.build.output_dir),
     };
 
     // Clean output directory if requested

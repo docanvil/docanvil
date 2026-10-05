@@ -46,6 +46,7 @@ pub fn run(
 
     // Clean output directory if requested
     if clean && output_dir.exists() {
+        ensure_safe_to_remove(project_root, &config, &output_dir)?;
         std::fs::remove_dir_all(&output_dir)?;
     }
 
@@ -65,6 +66,50 @@ pub fn run(
             if count == 1 { "" } else { "s" },
             elapsed
         );
+    }
+
+    Ok(())
+}
+
+/// Refuse to delete an output directory that would take project files with it.
+///
+/// Guards against a mistyped `--out` or `[build] output_dir` (e.g. `.` or `..`)
+/// wiping the project root, its content or theme, or another DocAnvil project.
+pub(crate) fn ensure_safe_to_remove(
+    project_root: &Path,
+    config: &Config,
+    output_dir: &Path,
+) -> Result<()> {
+    let unsafe_dir = |reason: &str| Error::UnsafeOutputDir {
+        path: output_dir.to_path_buf(),
+        reason: reason.to_string(),
+    };
+
+    // Canonicalize so `.`, `..`, symlinks and relative paths compare correctly.
+    let output = output_dir.canonicalize()?;
+    let root = project_root.canonicalize()?;
+
+    if root.starts_with(&output) {
+        return Err(unsafe_dir("it contains the project root"));
+    }
+
+    let protected = [
+        (config.project.content_dir.as_path(), "content directory"),
+        (Path::new("theme"), "theme directory"),
+        (Path::new("assets"), "assets directory"),
+    ];
+    for (dir, name) in protected {
+        if let Ok(dir) = root.join(dir).canonicalize()
+            && dir.starts_with(&output)
+        {
+            return Err(unsafe_dir(&format!("it contains the project's {name}")));
+        }
+    }
+
+    if output.join("docanvil.toml").exists() {
+        return Err(unsafe_dir(
+            "it looks like a DocAnvil project (has docanvil.toml)",
+        ));
     }
 
     Ok(())
@@ -1400,4 +1445,103 @@ fn minify_js_source(source: &str) -> String {
         .with_scoping(ret.scoping)
         .build(&program)
         .code
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn project() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join("docanvil.toml"),
+            "[project]\nname = \"T\"\n",
+        )
+        .unwrap();
+        fs::create_dir_all(dir.path().join("docs")).unwrap();
+        fs::create_dir_all(dir.path().join("theme")).unwrap();
+        fs::create_dir_all(dir.path().join("dist")).unwrap();
+        dir
+    }
+
+    fn is_unsafe(result: Result<()>) -> bool {
+        matches!(result, Err(Error::UnsafeOutputDir { .. }))
+    }
+
+    #[test]
+    fn safe_to_remove_regular_output_dir() {
+        let dir = project();
+        let config = Config::default();
+        assert!(ensure_safe_to_remove(dir.path(), &config, &dir.path().join("dist")).is_ok());
+    }
+
+    #[test]
+    fn refuses_project_root() {
+        let dir = project();
+        let config = Config::default();
+        assert!(is_unsafe(ensure_safe_to_remove(
+            dir.path(),
+            &config,
+            dir.path()
+        )));
+        // Relative spellings resolve to the same directory.
+        assert!(is_unsafe(ensure_safe_to_remove(
+            dir.path(),
+            &config,
+            &dir.path().join("dist/..")
+        )));
+    }
+
+    #[test]
+    fn refuses_parent_of_project_root() {
+        let dir = project();
+        let nested = dir.path().join("site");
+        fs::create_dir_all(nested.join("docs")).unwrap();
+        let config = Config::default();
+        assert!(is_unsafe(ensure_safe_to_remove(
+            &nested,
+            &config,
+            dir.path()
+        )));
+    }
+
+    #[test]
+    fn refuses_content_and_theme_dirs() {
+        let dir = project();
+        let config = Config::default();
+        for sub in ["docs", "theme"] {
+            assert!(is_unsafe(ensure_safe_to_remove(
+                dir.path(),
+                &config,
+                &dir.path().join(sub)
+            )));
+        }
+    }
+
+    #[test]
+    fn refuses_custom_content_dir() {
+        let dir = project();
+        fs::create_dir_all(dir.path().join("content")).unwrap();
+        let mut config = Config::default();
+        config.project.content_dir = "content".into();
+        assert!(is_unsafe(ensure_safe_to_remove(
+            dir.path(),
+            &config,
+            &dir.path().join("content")
+        )));
+    }
+
+    #[test]
+    fn refuses_another_docanvil_project() {
+        let dir = project();
+        let other = tempfile::tempdir().unwrap();
+        fs::write(other.path().join("docanvil.toml"), "").unwrap();
+        let config = Config::default();
+        assert!(is_unsafe(ensure_safe_to_remove(
+            dir.path(),
+            &config,
+            other.path()
+        )));
+    }
 }

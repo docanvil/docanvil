@@ -722,8 +722,8 @@ mod tests {
             "--color-primary: #bad;\nbody { --color-text: #333; }\n:root { --color-bg: #fff; }";
         let vars = extract_css_vars_from_file(css);
         // Only the :root block variable is captured
-        assert!(vars.get("--color-primary").is_none());
-        assert!(vars.get("--color-text").is_none());
+        assert!(!vars.contains_key("--color-primary"));
+        assert!(!vars.contains_key("--color-text"));
         assert_eq!(vars.get("--color-bg").map(String::as_str), Some("#fff"));
     }
 

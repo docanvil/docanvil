@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-10-05
+
 ### Changed
 
 - `bin/release.sh` now moves the `[Unreleased]` changelog section under the new version automatically, and refuses to release if that section is missing or empty

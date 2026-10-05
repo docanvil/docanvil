@@ -55,7 +55,7 @@ jobs:
             found && /^## \[/ { exit }
             found && NF { print }
           ' CHANGELOG.md)
-          if [ -z "$NOTES" ]; then
+          if ! echo "$NOTES" | grep -qv '^#'; then
             echo "::error file=CHANGELOG.md::No entries under '## [${VERSION}]'. Release with bin/release.sh, or move the [Unreleased] entries under this version."
             exit 1
           fi

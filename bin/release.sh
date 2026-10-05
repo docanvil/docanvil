@@ -144,7 +144,8 @@ UNRELEASED_NOTES=$(awk -v h="$UNRELEASED_HEADING" '
   found && NF { print }
 ' "$CHANGELOG")
 
-if [ -z "$UNRELEASED_NOTES" ]; then
+# Subheadings alone (e.g. an empty "### Fixed") don't count as documented changes
+if ! echo "$UNRELEASED_NOTES" | grep -qv '^#'; then
   error "The '$UNRELEASED_HEADING' section in $CHANGELOG is empty. Document the changes before releasing."
 fi
 

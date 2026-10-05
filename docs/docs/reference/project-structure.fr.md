@@ -59,7 +59,7 @@ Le répertoire `theme/` contient les fichiers de personnalisation :
 
 ### Répertoire de sortie
 
-Le répertoire `dist/` (configurable via `output_dir`) est généré par `docanvil build`. Il contient le site statique complet prêt pour le déploiement, incluant un fichier `search-index.json` quand la recherche est activée. Utilisez `--clean` pour le supprimer avant de recompiler.
+Le répertoire `dist/` (configurable via `output_dir`) est généré par `docanvil build`. Il contient le site statique complet prêt pour le déploiement, incluant un fichier `search-index.json` quand la recherche est activée. DocAnvil gère ce répertoire : chaque compilation supprime les fichiers qu'elle n'a pas produits (comme les pages renommées ou supprimées), tandis que les entrées cachées comme `.git` sont conservées. Pour publier des fichiers supplémentaires à la racine du site — un `CNAME`, `.nojekyll` ou fichier de vérification — placez-les dans un répertoire `static/` à la racine du projet ; ils seront copiés à chaque compilation.
 
 ### Organisation i18n
 

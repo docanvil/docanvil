@@ -385,7 +385,7 @@ Le pipeline de compilation traite chaque page en passant par :
 5. Injection des attributs inline
 6. Encapsulation de template (mise en page Tera)
 
-Les ressources statiques (CSS personnalisé, images) sont copiées dans le répertoire de sortie.
+Les ressources statiques (CSS personnalisé, `assets/` et tout le contenu de `static/`) sont copiées dans le répertoire de sortie. Les fichiers restants des compilations précédentes — comme les pages renommées ou supprimées — sont supprimés ; les entrées cachées comme `.git` sont conservées.
 
 :::code-group
 ```bash

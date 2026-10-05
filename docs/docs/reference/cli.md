@@ -332,7 +332,7 @@ docanvil serve [--host <address>] [--port <port>] [--path <dir>]
 
 The server:
 
-- Builds the site on startup
+- Builds the site on startup into a temporary directory — your `dist/` folder is never touched, so a dev build can't be deployed by accident
 - Watches all project files for changes (Markdown, TOML, CSS, templates)
 - Rebuilds affected pages on file change
 - Notifies the browser via WebSocket at `/__docanvil_ws`

@@ -118,15 +118,14 @@ pub(crate) fn ensure_safe_to_remove(
     Ok(())
 }
 
-/// Build with live_reload enabled (used by the dev server).
-pub fn run_with_options(project_root: &Path, live_reload: bool) -> Result<()> {
+/// Build into `output_dir`, optionally with live reload (used by the dev server).
+pub fn run_with_options(project_root: &Path, output_dir: &Path, live_reload: bool) -> Result<()> {
     let config = Config::load(project_root)?;
-    let output_dir = project_root.join(&config.build.output_dir);
 
     reset_warnings();
     crate::pipeline::popovers::reset_popover_ids();
 
-    let count = build_into(project_root, &config, &output_dir, live_reload)?;
+    let count = build_into(project_root, &config, output_dir, live_reload)?;
     eprintln!("Built {count} page{}", if count == 1 { "" } else { "s" });
     Ok(())
 }

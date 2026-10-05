@@ -1,8 +1,10 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
+
+use walkdir::WalkDir;
 
 use crate::components::ComponentRegistry;
 use crate::config::Config;
@@ -53,7 +55,7 @@ pub fn run(
     reset_warnings();
     crate::pipeline::popovers::reset_popover_ids();
 
-    let count = build_site(project_root, &config, &output_dir, false)?;
+    let count = build_into(project_root, &config, &output_dir, false)?;
 
     if strict && warning_count() > 0 {
         return Err(Error::StrictWarnings(warning_count()));
@@ -97,6 +99,7 @@ pub(crate) fn ensure_safe_to_remove(
         (config.project.content_dir.as_path(), "content directory"),
         (Path::new("theme"), "theme directory"),
         (Path::new("assets"), "assets directory"),
+        (Path::new("static"), "static directory"),
     ];
     for (dir, name) in protected {
         if let Ok(dir) = root.join(dir).canonicalize()
@@ -123,8 +126,104 @@ pub fn run_with_options(project_root: &Path, live_reload: bool) -> Result<()> {
     reset_warnings();
     crate::pipeline::popovers::reset_popover_ids();
 
-    let count = build_site(project_root, &config, &output_dir, live_reload)?;
+    let count = build_into(project_root, &config, &output_dir, live_reload)?;
     eprintln!("Built {count} page{}", if count == 1 { "" } else { "s" });
+    Ok(())
+}
+
+/// Build the site into a staging directory, then sync it into `output_dir`.
+///
+/// Files in `output_dir` that the build didn't produce (e.g. pages that were
+/// renamed or deleted) are removed, so the output always matches the sources.
+/// Hidden top-level entries such as `.git` (a gh-pages worktree) or
+/// `.well-known` are left alone. If the build fails, `output_dir` is untouched.
+fn build_into(
+    project_root: &Path,
+    config: &Config,
+    output_dir: &Path,
+    live_reload: bool,
+) -> Result<usize> {
+    if output_dir.exists() {
+        ensure_safe_to_remove(project_root, config, output_dir)?;
+    }
+
+    let name = output_dir
+        .canonicalize()
+        .unwrap_or_else(|_| output_dir.to_path_buf())
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "dist".to_string());
+    let staging = output_dir.with_file_name(format!(".{name}.docanvil-staging"));
+    if staging.exists() {
+        std::fs::remove_dir_all(&staging).map_err(io_context(&staging))?;
+    }
+
+    let count = match build_site(project_root, config, &staging, live_reload) {
+        Ok(count) => count,
+        Err(e) => {
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(e);
+        }
+    };
+
+    sync_output(&staging, output_dir)?;
+    std::fs::remove_dir_all(&staging).map_err(io_context(&staging))?;
+    Ok(count)
+}
+
+/// Move everything from `staging` into `output_dir`, then delete whatever in
+/// `output_dir` wasn't in `staging` (skipping hidden top-level entries).
+fn sync_output(staging: &Path, output_dir: &Path) -> Result<()> {
+    std::fs::create_dir_all(output_dir).map_err(io_context(output_dir))?;
+
+    let mut fresh: HashSet<PathBuf> = HashSet::new();
+    for entry in WalkDir::new(staging).min_depth(1) {
+        let entry = entry.map_err(std::io::Error::from)?;
+        let rel = entry.path().strip_prefix(staging).unwrap_or(entry.path());
+        let dest = output_dir.join(rel);
+        fresh.insert(rel.to_path_buf());
+
+        if entry.file_type().is_dir() {
+            if dest.is_file() || dest.is_symlink() {
+                std::fs::remove_file(&dest).map_err(io_context(&dest))?;
+            }
+            std::fs::create_dir_all(&dest).map_err(io_context(&dest))?;
+        } else {
+            if dest.is_dir() && !dest.is_symlink() {
+                std::fs::remove_dir_all(&dest).map_err(io_context(&dest))?;
+            }
+            // rename is cheap and atomic; fall back to copying when the output
+            // directory is on another filesystem (e.g. a mounted volume).
+            if std::fs::rename(entry.path(), &dest).is_err() {
+                std::fs::copy(entry.path(), &dest).map_err(io_context(&dest))?;
+            }
+        }
+    }
+
+    for top in std::fs::read_dir(output_dir).map_err(io_context(output_dir))? {
+        let top = top?;
+        if top.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
+        // Children come before their parent, so stale directories are empty by
+        // the time we reach them.
+        for entry in WalkDir::new(top.path()).contents_first(true) {
+            let entry = entry.map_err(std::io::Error::from)?;
+            let rel = entry
+                .path()
+                .strip_prefix(output_dir)
+                .unwrap_or(entry.path());
+            if fresh.contains(rel) {
+                continue;
+            }
+            if entry.file_type().is_dir() {
+                std::fs::remove_dir(entry.path()).map_err(io_context(entry.path()))?;
+            } else {
+                std::fs::remove_file(entry.path()).map_err(io_context(entry.path()))?;
+            }
+        }
+    }
+
     Ok(())
 }
 

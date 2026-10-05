@@ -1,5 +1,7 @@
 mod integration_helpers;
 
+use std::fs;
+
 use integration_helpers::{
     DEFAULT_CONFIG, build_project, build_project_strict, create_project, output_exists, read_output,
 };
@@ -651,4 +653,56 @@ fn test_versioned_i18n_build_output_structure() {
         v2_fr_html.contains("Bienvenue v2"),
         "v2/fr should contain French content"
     );
+}
+
+#[test]
+fn test_rebuild_removes_stale_pages() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            ("old-page.md", "# Old"),
+            ("guides/legacy.md", "# Legacy"),
+        ],
+    );
+    build_project(dir.path()).expect("first build should succeed");
+    assert!(output_exists(dir.path(), "old-page.html"));
+    assert!(output_exists(dir.path(), "guides/legacy.html"));
+
+    fs::remove_file(dir.path().join("docs/old-page.md")).unwrap();
+    fs::remove_dir_all(dir.path().join("docs/guides")).unwrap();
+    build_project(dir.path()).expect("rebuild should succeed");
+
+    assert!(output_exists(dir.path(), "index.html"));
+    assert!(!output_exists(dir.path(), "old-page.html"));
+    assert!(!output_exists(dir.path(), "guides/legacy.html"));
+    assert!(!output_exists(dir.path(), "guides"));
+    assert!(!dir.path().join(".dist.docanvil-staging").exists());
+}
+
+#[test]
+fn test_rebuild_keeps_hidden_top_level_entries() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    let dist = dir.path().join("dist");
+    fs::create_dir_all(dist.join(".git")).unwrap();
+    fs::write(dist.join(".git/HEAD"), "ref: refs/heads/gh-pages").unwrap();
+    fs::write(dist.join("stray.html"), "stale").unwrap();
+
+    build_project(dir.path()).expect("build should succeed");
+
+    assert!(dist.join(".git/HEAD").exists());
+    assert!(!dist.join("stray.html").exists());
+    assert!(output_exists(dir.path(), "index.html"));
+}
+
+#[test]
+fn test_failed_build_leaves_previous_output() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    build_project(dir.path()).expect("first build should succeed");
+
+    fs::remove_dir_all(dir.path().join("docs")).unwrap();
+    assert!(build_project(dir.path()).is_err());
+
+    assert!(output_exists(dir.path(), "index.html"));
+    assert!(!dir.path().join(".dist.docanvil-staging").exists());
 }

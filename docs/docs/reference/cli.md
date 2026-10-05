@@ -384,7 +384,7 @@ The build pipeline processes each page through:
 5. Inline attribute injection
 6. Template wrapping (Tera layout)
 
-Static assets (custom CSS, images) are copied to the output directory.
+Static assets (custom CSS, `assets/`, and everything in `static/`) are copied to the output directory. Files left over from previous builds — like pages you've renamed or deleted — are removed; hidden entries such as `.git` are kept.
 
 :::code-group
 ```bash

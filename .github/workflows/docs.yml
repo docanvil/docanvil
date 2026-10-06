@@ -30,3 +30,6 @@ jobs:
 
       - name: Build docs site
         run: cargo run --quiet -- build --strict --path docs --out "$RUNNER_TEMP/docs-site"
+
+      - name: Lint docs site
+        run: cargo run --quiet -- doctor --strict --path docs

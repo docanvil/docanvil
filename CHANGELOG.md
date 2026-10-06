@@ -4,10 +4,14 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `docanvil doctor` no longer reports "Link has no visible text" for links whose text is inline code (e.g. ``[`docanvil update`](#docanvil-update)``), or missing alt text for images whose alt is inline code. Words either side of an inline code span are no longer flagged as a repeated word, and link examples inside inline code are no longer flagged as non-descriptive link text
+
 ### Changed
 
 - Releases only publish to crates.io after the GitHub Release (binaries and `SHA256SUMS`) has been created, so a failed release can't leave a crates.io version with no binaries
-- A new Docs workflow builds the project's own docs site with `docanvil build --strict` on every PR, including docs-only ones
+- A new Docs workflow builds the project's own docs site with `docanvil build --strict` on every PR, including docs-only ones, and lints it with `docanvil doctor --strict`
 
 ## [1.1.4] - 2026-10-06
 

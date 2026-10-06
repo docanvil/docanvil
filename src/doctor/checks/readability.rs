@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -54,6 +55,15 @@ static PLACEHOLDER_RE: LazyLock<Regex> =
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Replaces each inline code span with `#` characters of the same length.
+///
+/// Masking (rather than deleting) keeps link text that is itself a code span
+/// non-empty, stops the words either side of a span from running together,
+/// and leaves byte offsets unchanged.
+fn mask_inline_code(line: &str) -> Cow<'_, str> {
+    INLINE_CODE_RE.replace_all(line, |caps: &regex::Captures| "#".repeat(caps[0].len()))
+}
 
 /// Returns the 0-based line index at which the document body starts,
 /// skipping any front matter block (`---` … `---`).
@@ -566,7 +576,7 @@ fn check_missing_alt_text(
     diags: &mut Vec<Diagnostic>,
 ) {
     for &(line_num, line) in lines {
-        let line = &*INLINE_CODE_RE.replace_all(line, "");
+        let line = &*mask_inline_code(line);
         for caps in IMAGE_RE.captures_iter(line) {
             if caps[1].trim().is_empty() {
                 diags.push(Diagnostic {
@@ -591,8 +601,8 @@ fn check_reversed_link_syntax(
     diags: &mut Vec<Diagnostic>,
 ) {
     for &(line_num, line) in lines {
-        let stripped = INLINE_CODE_RE.replace_all(line, "");
-        if REVERSED_LINK_RE.is_match(stripped.as_ref()) {
+        let masked = mask_inline_code(line);
+        if REVERSED_LINK_RE.is_match(masked.as_ref()) {
             diags.push(Diagnostic {
                 check: "reversed-link-syntax",
                 category: "readability",
@@ -610,8 +620,8 @@ fn check_reversed_link_syntax(
 /// Image links (`![alt](url)`) are excluded — those are covered by `missing-alt-text`.
 fn check_empty_link(lines: &[(usize, &str)], source_path: &Path, diags: &mut Vec<Diagnostic>) {
     for &(line_num, line) in lines {
-        let line_stripped = INLINE_CODE_RE.replace_all(line, "");
-        let line = line_stripped.as_ref();
+        let line_masked = mask_inline_code(line);
+        let line = line_masked.as_ref();
         for caps in LINK_RE.captures_iter(line) {
             let start = caps.get(0).unwrap().start();
             // Skip image links (preceded by '!').
@@ -667,6 +677,8 @@ fn check_non_descriptive_link_text(
     ];
 
     for &(line_num, line) in lines {
+        let line_masked = mask_inline_code(line);
+        let line = line_masked.as_ref();
         for caps in LINK_RE.captures_iter(line) {
             let start = caps.get(0).unwrap().start();
             // Skip image links.
@@ -703,7 +715,7 @@ fn check_bare_url(lines: &[(usize, &str)], source_path: &Path, diags: &mut Vec<D
         }
 
         // Strip contexts where a URL is already properly wrapped.
-        let s = INLINE_CODE_RE.replace_all(line, "");
+        let s = mask_inline_code(line);
         let s = ANGLE_URL_RE.replace_all(&s, "");
         let s = MD_LINK_OR_IMAGE_RE.replace_all(&s, "");
 
@@ -807,11 +819,11 @@ fn check_long_paragraph(
 }
 
 /// Flag consecutive duplicate words in prose (e.g. "the the", "is is").
-/// Inline code spans are excluded to avoid false positives.
+/// Inline code spans are masked out to avoid false positives.
 fn check_repeated_word(lines: &[(usize, &str)], source_path: &Path, diags: &mut Vec<Diagnostic>) {
     for &(line_num, line) in lines {
-        let stripped = INLINE_CODE_RE.replace_all(line, "");
-        let words: Vec<&str> = stripped.split_whitespace().collect();
+        let masked = mask_inline_code(line);
+        let words: Vec<&str> = masked.split_whitespace().collect();
         for pair in words.windows(2) {
             let a = pair[0].trim_matches(|c: char| !c.is_alphabetic());
             let b = pair[1].trim_matches(|c: char| !c.is_alphabetic());
@@ -835,8 +847,8 @@ fn check_repeated_word(lines: &[(usize, &str)], source_path: &Path, diags: &mut 
 /// readers. Inline code spans are excluded.
 fn check_todo_comment(lines: &[(usize, &str)], source_path: &Path, diags: &mut Vec<Diagnostic>) {
     for &(line_num, line) in lines {
-        let stripped = INLINE_CODE_RE.replace_all(line, "");
-        if let Some(m) = TODO_RE.find(stripped.as_ref()) {
+        let masked = mask_inline_code(line);
+        if let Some(m) = TODO_RE.find(masked.as_ref()) {
             diags.push(Diagnostic {
                 check: "todo-comment",
                 category: "readability",
@@ -861,8 +873,8 @@ fn check_placeholder_text(
     diags: &mut Vec<Diagnostic>,
 ) {
     for &(line_num, line) in lines {
-        let stripped = INLINE_CODE_RE.replace_all(line, "");
-        if let Some(m) = PLACEHOLDER_RE.find(stripped.as_ref()) {
+        let masked = mask_inline_code(line);
+        if let Some(m) = PLACEHOLDER_RE.find(masked.as_ref()) {
             diags.push(Diagnostic {
                 check: "placeholder-text",
                 category: "readability",
@@ -1317,6 +1329,15 @@ mod tests {
     }
 
     #[test]
+    fn missing_alt_text_code_span_alt_no_issue() {
+        let src = "![`diagram.png`](diagram.png)";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_missing_alt_text(&lines, &fake_path(), &mut diags);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
     fn missing_alt_text_in_code_fence_not_flagged() {
         let src = "```\n![](photo.jpg)\n```";
         let lines = active_lines(src);
@@ -1389,6 +1410,24 @@ mod tests {
     }
 
     #[test]
+    fn empty_link_code_span_text_no_issue() {
+        let src = "See [`docanvil update`](#docanvil-update) for details.";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_empty_link(&lines, &fake_path(), &mut diags);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn empty_link_inside_code_span_not_flagged() {
+        let src = "Write `[](https://example.com)` to see the error.";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_empty_link(&lines, &fake_path(), &mut diags);
+        assert!(diags.is_empty());
+    }
+
+    #[test]
     fn empty_link_image_not_flagged() {
         // Images with empty alt are caught by missing-alt-text, not empty-link.
         let src = "![](photo.jpg)";
@@ -1427,6 +1466,15 @@ mod tests {
         let mut diags = Vec::new();
         check_non_descriptive_link_text(&lines, &fake_path(), &mut diags);
         assert_eq!(diags.len(), 1);
+    }
+
+    #[test]
+    fn non_descriptive_link_inside_code_span_not_flagged() {
+        let src = "Avoid writing `[click here](https://example.com)` in your docs.";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_non_descriptive_link_text(&lines, &fake_path(), &mut diags);
+        assert!(diags.is_empty());
     }
 
     #[test]
@@ -1619,6 +1667,15 @@ mod tests {
         let mut diags = Vec::new();
         check_repeated_word(&lines, &fake_path(), &mut diags);
         assert_eq!(diags.len(), 1);
+    }
+
+    #[test]
+    fn repeated_word_around_inline_code_not_flagged() {
+        let src = "Set the `port` the server listens on.";
+        let lines = active_lines(src);
+        let mut diags = Vec::new();
+        check_repeated_word(&lines, &fake_path(), &mut diags);
+        assert!(diags.is_empty());
     }
 
     #[test]

@@ -135,10 +135,11 @@ jobs:
 
   publish:
     name: Publish to crates.io
-    needs: [find-prebuilt, build]
-    if: >-
-      !cancelled() && needs.find-prebuilt.result == 'success' &&
-      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    # A crates.io publish can't be undone, so only publish once the GitHub
+    # Release (binaries + SHA256SUMS, which installers and `docanvil update`
+    # rely on) exists.
+    needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

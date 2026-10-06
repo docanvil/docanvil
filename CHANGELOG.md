@@ -4,6 +4,11 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Releases only publish to crates.io after the GitHub Release (binaries and `SHA256SUMS`) has been created, so a failed release can't leave a crates.io version with no binaries
+- CI now builds the project's own docs site with `docanvil build --strict`, and runs on docs-only changes too
+
 ## [1.1.4] - 2026-10-06
 
 ### Added

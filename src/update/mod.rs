@@ -2,7 +2,7 @@
 //! the running binary. Shared by `docanvil update` and the `serve` notice.
 
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use semver::Version;
@@ -292,6 +292,83 @@ pub fn extract_binary(archive: &[u8], target: &str) -> Result<Vec<u8>> {
     })
 }
 
+/// How the running binary was installed.
+#[derive(Debug, PartialEq, Eq)]
+pub enum InstallKind {
+    /// Installer script, manual download, or anything else we can replace.
+    Standalone,
+    /// `cargo install`: replacing it would leave cargo's records stale.
+    Cargo,
+}
+
+/// `$CARGO_HOME/bin`, defaulting to `~/.cargo/bin`.
+pub fn cargo_bin_dir() -> Option<PathBuf> {
+    std::env::var_os("CARGO_HOME")
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|home| home.join(".cargo")))
+        .map(|cargo_home| cargo_home.join("bin"))
+}
+
+pub fn install_kind(exe: &Path, cargo_bin: Option<&Path>) -> InstallKind {
+    let Some(cargo_bin) = cargo_bin else {
+        return InstallKind::Standalone;
+    };
+    let exe = exe.canonicalize().unwrap_or_else(|_| exe.to_path_buf());
+    let cargo_bin = cargo_bin
+        .canonicalize()
+        .unwrap_or_else(|_| cargo_bin.to_path_buf());
+    if exe.starts_with(&cargo_bin) {
+        InstallKind::Cargo
+    } else {
+        InstallKind::Standalone
+    }
+}
+
+/// Fail early, with a useful hint, if we can't write next to the binary.
+pub fn check_writable(dir: &Path) -> Result<()> {
+    let probe = dir.join(format!(".docanvil-write-probe-{}", std::process::id()));
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe)
+    {
+        Ok(_) => {
+            let _ = std::fs::remove_file(&probe);
+            Ok(())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Err(update_error(
+            format!("no permission to replace docanvil in {}", dir.display()),
+            Some(
+                "Run 'sudo docanvil update', or reinstall to a user directory with the install script.",
+            ),
+        )),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Replace the running executable with `bytes`. The new binary is written
+/// next to the old one first, so a failure leaves the original untouched.
+pub fn install_binary(bytes: &[u8]) -> Result<()> {
+    let exe = std::env::current_exe()?;
+    let exe = exe.canonicalize().unwrap_or(exe);
+    let dir = exe.parent().ok_or_else(|| {
+        update_error("couldn't find the directory docanvil is installed in", None)
+    })?;
+    check_writable(dir)?;
+
+    let staged = dir.join(format!(".docanvil-update-{}", std::process::id()));
+    std::fs::write(&staged, bytes)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
+    }
+
+    let result = self_replace::self_replace(&staged);
+    let _ = std::fs::remove_file(&staged);
+    result.map_err(|e| update_error(format!("couldn't replace {}: {e}", exe.display()), None))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,5 +588,59 @@ mod tests {
     fn extract_binary_errors_on_garbage() {
         assert!(extract_binary(b"not an archive", "x86_64-unknown-linux-gnu").is_err());
         assert!(extract_binary(b"not an archive", "x86_64-pc-windows-msvc").is_err());
+    }
+
+    #[test]
+    fn install_kind_detects_cargo_bin() {
+        let bin = Path::new("/home/u/.cargo/bin");
+        assert_eq!(
+            install_kind(Path::new("/home/u/.cargo/bin/docanvil"), Some(bin)),
+            InstallKind::Cargo
+        );
+        assert_eq!(
+            install_kind(Path::new("/home/u/.local/bin/docanvil"), Some(bin)),
+            InstallKind::Standalone
+        );
+        assert_eq!(
+            install_kind(Path::new("/home/u/.cargo/bin/docanvil"), None),
+            InstallKind::Standalone
+        );
+    }
+
+    #[test]
+    fn install_kind_resolves_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let cargo_bin = dir.path().join("cargo/bin");
+        std::fs::create_dir_all(&cargo_bin).unwrap();
+        std::fs::write(cargo_bin.join("docanvil"), b"x").unwrap();
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("docanvil-link");
+            std::os::unix::fs::symlink(cargo_bin.join("docanvil"), &link).unwrap();
+            assert_eq!(install_kind(&link, Some(&cargo_bin)), InstallKind::Cargo);
+        }
+    }
+
+    #[test]
+    fn check_writable_accepts_temp_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        check_writable(dir.path()).unwrap();
+        // The probe file is cleaned up.
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn check_writable_rejects_read_only_dir_with_sudo_hint() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+        // Root ignores permissions; nothing to assert there.
+        if std::fs::write(dir.path().join("probe"), b"").is_ok() {
+            return;
+        }
+        let err = check_writable(dir.path()).unwrap_err();
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(err.hint().unwrap().contains("sudo"), "{:?}", err.hint());
     }
 }

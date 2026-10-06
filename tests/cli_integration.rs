@@ -104,3 +104,24 @@ fn test_cli_build_clean_refuses_project_root() {
     assert!(dir.path().join("docanvil.toml").exists());
     assert!(dir.path().join("docs/index.md").exists());
 }
+
+#[test]
+fn test_cli_update_help_lists_flags() {
+    docanvil_cmd()
+        .args(["update", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--check"))
+        .stdout(predicate::str::contains("--yes"))
+        .stdout(predicate::str::contains("--version"));
+}
+
+#[test]
+fn test_cli_update_rejects_invalid_version_without_network() {
+    // Validation happens before any request, so this is offline-safe.
+    docanvil_cmd()
+        .args(["update", "--version", "latest"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("isn't a valid version"));
+}

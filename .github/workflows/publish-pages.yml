@@ -26,12 +26,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install docanvil from latest release
-        run: |
-          LATEST=$(curl -sSf https://api.github.com/repos/docanvil/docanvil/releases/latest \
-            | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')
-          VERSION=${LATEST#v}
-          curl -sSfL "https://github.com/docanvil/docanvil/releases/download/${LATEST}/docanvil-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar -xz -C /usr/local/bin
+        run: curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | DOCANVIL_INSTALL_DIR=/usr/local/bin sh
 
       - name: Run tool
         working-directory: ./docs

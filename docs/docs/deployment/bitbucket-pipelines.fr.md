@@ -58,10 +58,8 @@ pipelines:
           name: Compiler et déployer la documentation
           deployment: production
           script:
-            # Télécharger le dernier binaire DocAnvil
-            - LATEST=$(curl -sSf https://api.github.com/repos/docanvil/docanvil/releases/latest | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')
-            - VERSION=${LATEST#v}
-            - curl -sSfL "https://github.com/docanvil/docanvil/releases/download/${LATEST}/docanvil-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin
+            # Installer le dernier binaire DocAnvil (somme de contrôle vérifiée)
+            - curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | DOCANVIL_INSTALL_DIR=/usr/local/bin sh
 
             # Compiler la documentation
             - docanvil build --strict --clean --path ./docs
@@ -110,11 +108,11 @@ Pour le HTTPS et la mise en cache en périphérie, placez CloudFront devant un b
 Quand vous poussez sur `master` :
 
 1. Bitbucket Pipelines récupère `atlassian/default-image:4`
-2. Le pipeline télécharge le dernier binaire DocAnvil depuis les releases GitHub — aucune version figée à maintenir
+2. Le script d'installation télécharge le dernier binaire DocAnvil depuis les releases GitHub et vérifie sa somme de contrôle — aucune version figée à maintenir
 3. `docanvil build --strict --clean` génère un site statique dans `docs/dist/`
 4. `aws s3 sync` envoie uniquement les fichiers modifiés et supprime ceux qui ont été effacés
 5. (Optionnellement) CloudFront invalide le cache de périphérie pour que le nouveau contenu soit en ligne en quelques secondes
 
 :::note
-Le téléchargement du binaire récupère la dernière version stable à chaque exécution. Si vous avez besoin de builds reproductibles avec une version figée, remplacez la résolution dynamique de version par un tag en dur : `LATEST=v1.2.0`.
+Le script d'installation récupère la dernière version stable à chaque exécution. Si vous avez besoin de builds reproductibles avec une version figée, définissez aussi `DOCANVIL_VERSION`, par exemple `DOCANVIL_INSTALL_DIR=/usr/local/bin DOCANVIL_VERSION=1.2.0 sh`. Consultez [[guides/getting-started|Installation]] pour toutes les options d'installation.
 :::

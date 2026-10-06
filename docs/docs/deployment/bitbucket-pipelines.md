@@ -57,10 +57,8 @@ pipelines:
           name: Build and deploy docs
           deployment: production
           script:
-            # Download the latest DocAnvil binary
-            - LATEST=$(curl -sSf https://api.github.com/repos/docanvil/docanvil/releases/latest | grep '"tag_name"' | sed 's/.*"tag_name": *"\(.*\)".*/\1/')
-            - VERSION=${LATEST#v}
-            - curl -sSfL "https://github.com/docanvil/docanvil/releases/download/${LATEST}/docanvil-v${VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin
+            # Install the latest DocAnvil binary (checksum-verified)
+            - curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | DOCANVIL_INSTALL_DIR=/usr/local/bin sh
 
             # Build the docs
             - docanvil build --strict --clean --path ./docs
@@ -109,11 +107,11 @@ For HTTPS and edge caching, put CloudFront in front of a private bucket instead:
 When you push to `master`:
 
 1. Bitbucket Pipelines pulls `atlassian/default-image:4`
-2. The pipeline fetches the latest DocAnvil binary from GitHub Releases — no pinned version to maintain
+2. The install script fetches the latest DocAnvil binary from GitHub Releases and verifies its checksum — no pinned version to maintain
 3. `docanvil build --strict --clean` builds a fresh static site into `docs/dist/`
 4. `aws s3 sync` uploads only the changed files and removes deleted ones
 5. (Optionally) CloudFront invalidates the edge cache so the new content is live within seconds
 
 :::note
-The binary download fetches the latest stable release every time. If you need reproducible builds with a pinned version, replace the dynamic version resolution with a hardcoded tag: `LATEST=v1.2.0`.
+The install script fetches the latest stable release every time. If you need reproducible builds with a pinned version, set `DOCANVIL_VERSION` as well, e.g. `DOCANVIL_INSTALL_DIR=/usr/local/bin DOCANVIL_VERSION=1.2.0 sh`. See [[guides/getting-started|Installation]] for all the install options.
 :::

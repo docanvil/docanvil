@@ -30,7 +30,8 @@ fn cache_path() -> Option<PathBuf> {
 /// The cached latest version, if the cache exists, parses and is under a day old.
 pub fn cached_latest(path: &Path, now: u64) -> Option<Version> {
     let cache: Cache = serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
-    if now.saturating_sub(cache.checked_at) > TTL_SECS {
+    // A timestamp from the future (clock changes, a hand-edited file) is stale.
+    if cache.checked_at > now || now - cache.checked_at > TTL_SECS {
         return None;
     }
     parse_version(&cache.latest)
@@ -132,5 +133,13 @@ mod tests {
             message(&Version::new(1, 3, 0), &Version::new(1, 2, 0)),
             None
         );
+    }
+
+    #[test]
+    fn future_cache_timestamp_is_stale() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("update-check.json");
+        write_cache(&path, u64::MAX, &Version::new(1, 2, 0));
+        assert_eq!(cached_latest(&path, 1_000_000), None);
     }
 }

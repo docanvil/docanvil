@@ -151,6 +151,14 @@ fn fetch(url: &str, timeout: Duration) -> Result<Option<Vec<u8>>> {
             .map(Some)
             .map_err(|e| network_error(url, e)),
         Err(ureq::Error::StatusCode(404)) => Ok(None),
+        Err(ureq::Error::StatusCode(code @ (403 | 429))) => Err(update_error(
+            format!("GitHub refused the request to {url} (HTTP {code})"),
+            Some("GitHub's API has a rate limit of 60 requests an hour; try again later."),
+        )),
+        Err(ureq::Error::StatusCode(code)) => Err(update_error(
+            format!("GitHub returned HTTP {code} for {url}"),
+            Some("GitHub may be having trouble; try again in a few minutes."),
+        )),
         Err(e) => Err(network_error(url, e)),
     }
 }
@@ -349,6 +357,14 @@ pub fn install_kind(exe: &Path, cargo_bin: Option<&Path>) -> InstallKind {
     }
 }
 
+fn permission_hint(windows: bool) -> &'static str {
+    if windows {
+        "Run 'docanvil update' from an Administrator terminal, or reinstall to a user directory with the install script."
+    } else {
+        "Run 'sudo docanvil update', or reinstall to a user directory with the install script."
+    }
+}
+
 /// Fail early, with a useful hint, if we can't write next to the binary.
 pub fn check_writable(dir: &Path) -> Result<()> {
     let probe = dir.join(format!(".docanvil-write-probe-{}", std::process::id()));
@@ -363,12 +379,34 @@ pub fn check_writable(dir: &Path) -> Result<()> {
         }
         Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => Err(update_error(
             format!("no permission to replace docanvil in {}", dir.display()),
-            Some(
-                "Run 'sudo docanvil update', or reinstall to a user directory with the install script.",
-            ),
+            Some(permission_hint(cfg!(windows))),
         )),
         Err(e) => Err(e.into()),
     }
+}
+
+/// A staged binary that is deleted when dropped, so every exit path, including
+/// a write that fails halfway, cleans up after itself.
+struct StagedFile(PathBuf);
+
+impl StagedFile {
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for StagedFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+/// Write the new binary next to the old one. Permissions don't matter here:
+/// `self_replace` copies it into place with the running binary's permissions.
+fn stage_binary(dir: &Path, bytes: &[u8]) -> Result<StagedFile> {
+    let staged = StagedFile(dir.join(format!(".docanvil-update-{}", std::process::id())));
+    std::fs::write(staged.path(), bytes)?;
+    Ok(staged)
 }
 
 /// Replace the running executable with `bytes`. The new binary is written
@@ -381,16 +419,8 @@ pub fn install_binary(bytes: &[u8]) -> Result<()> {
     })?;
     check_writable(dir)?;
 
-    let staged = dir.join(format!(".docanvil-update-{}", std::process::id()));
-    std::fs::write(&staged, bytes)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
-    }
-
-    let result = self_replace::self_replace(&staged);
-    let _ = std::fs::remove_file(&staged);
+    let staged = stage_binary(dir, bytes)?;
+    let result = self_replace::self_replace(staged.path());
     result.map_err(|e| update_error(format!("couldn't replace {}: {e}", exe.display()), None))
 }
 
@@ -673,5 +703,21 @@ mod tests {
         let err = check_writable(dir.path()).unwrap_err();
         std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
         assert!(err.hint().unwrap().contains("sudo"), "{:?}", err.hint());
+    }
+
+    #[test]
+    fn staged_binary_is_written_then_removed_on_drop() {
+        let dir = tempfile::tempdir().unwrap();
+        let staged = stage_binary(dir.path(), b"new-bin").unwrap();
+        assert_eq!(std::fs::read(staged.path()).unwrap(), b"new-bin");
+        drop(staged);
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn permission_hint_matches_platform() {
+        assert!(permission_hint(false).contains("sudo"));
+        let windows = permission_hint(true);
+        assert!(windows.contains("Administrator") && !windows.contains("sudo"));
     }
 }

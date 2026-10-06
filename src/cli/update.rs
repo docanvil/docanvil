@@ -28,6 +28,23 @@ pub fn decide(current: &Version, latest: Option<&Version>, requested: Option<&Ve
     }
 }
 
+fn up_to_date_message(current: &Version, requested: bool) -> String {
+    if requested {
+        format!("✅ docanvil v{current} is already installed")
+    } else {
+        format!("✅ You're on the latest version (v{current})")
+    }
+}
+
+fn confirm_prompt(current: &Version, target: &Version) -> String {
+    let verb = if target < current {
+        "Downgrade"
+    } else {
+        "Upgrade"
+    };
+    format!("{verb} to v{target}?")
+}
+
 pub fn run(check: bool, yes: bool, version: Option<&str>, quiet: bool) -> Result<()> {
     let current = current_version();
     let requested = version
@@ -50,7 +67,7 @@ pub fn run(check: bool, yes: bool, version: Option<&str>, quiet: bool) -> Result
     let target_version = match decide(&current, latest.as_ref(), requested.as_ref()) {
         Action::UpToDate => {
             if !quiet {
-                println!("✅ You're on the latest version (v{current})");
+                println!("{}", up_to_date_message(&current, requested.is_some()));
             }
             return Ok(());
         }
@@ -74,7 +91,8 @@ pub fn run(check: bool, yes: bool, version: Option<&str>, quiet: bool) -> Result
 
     let exe = std::env::current_exe()?;
     if install_kind(&exe, cargo_bin_dir().as_deref()) == InstallKind::Cargo {
-        println!(
+        // Shown even with --quiet: it explains why nothing was installed.
+        eprintln!(
             "This copy of docanvil was installed with cargo. To upgrade, run:\n  cargo install docanvil --force"
         );
         return Ok(());
@@ -95,7 +113,7 @@ pub fn run(check: bool, yes: bool, version: Option<&str>, quiet: bool) -> Result
             ));
         }
         let confirmed = dialoguer::Confirm::new()
-            .with_prompt(format!("Upgrade to v{target_version}?"))
+            .with_prompt(confirm_prompt(&current, &target_version))
             .default(true)
             .interact()
             .map_err(|e| Error::General(format!("prompt failed: {e}")))?;
@@ -155,6 +173,30 @@ mod tests {
         assert_eq!(
             decide(&v("1.2.0"), None, Some(&v("1.2.0"))),
             Action::UpToDate
+        );
+    }
+
+    #[test]
+    fn up_to_date_message_depends_on_request() {
+        assert_eq!(
+            up_to_date_message(&v("1.1.3"), false),
+            "✅ You're on the latest version (v1.1.3)"
+        );
+        assert_eq!(
+            up_to_date_message(&v("1.1.3"), true),
+            "✅ docanvil v1.1.3 is already installed"
+        );
+    }
+
+    #[test]
+    fn confirm_prompt_names_direction() {
+        assert_eq!(
+            confirm_prompt(&v("1.1.3"), &v("1.2.0")),
+            "Upgrade to v1.2.0?"
+        );
+        assert_eq!(
+            confirm_prompt(&v("1.2.0"), &v("1.1.3")),
+            "Downgrade to v1.1.3?"
         );
     }
 }

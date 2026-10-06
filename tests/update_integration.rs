@@ -155,3 +155,19 @@ fn ensure_release_exists_accepts_older_release_via_api() {
     let base = serve(router);
     ensure_release_exists(&source(&base), &Version::new(1, 1, 0)).unwrap();
 }
+
+#[test]
+fn api_rate_limit_is_reported_as_such() {
+    // Older releases fall back to the API, which rate-limits anonymous calls.
+    let router = Router::new().route(
+        "/api/releases/tags/v1.1.0",
+        get(|| async { (StatusCode::FORBIDDEN, "rate limit exceeded") }),
+    );
+    let base = serve(router);
+    let err = download_verified(&source(&base), &Version::new(1, 1, 0), TARGET).unwrap_err();
+    let hint = err.hint().unwrap();
+    assert!(
+        hint.contains("rate limit") && !hint.contains("internet connection"),
+        "{hint}"
+    );
+}

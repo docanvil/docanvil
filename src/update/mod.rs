@@ -27,7 +27,7 @@ pub fn target_for(os: &str, arch: &str, musl: bool) -> Option<&'static str> {
     match (os, arch, musl) {
         ("linux", "x86_64", true) => Some("x86_64-unknown-linux-musl"),
         ("linux", "x86_64", false) => Some("x86_64-unknown-linux-gnu"),
-        ("linux", "aarch64", false) => Some("aarch64-unknown-linux-gnu"),
+        ("linux", "aarch64", _) => Some("aarch64-unknown-linux-musl"),
         ("macos", "aarch64", _) => Some("aarch64-apple-darwin"),
         ("macos", "x86_64", _) => Some("x86_64-apple-darwin"),
         ("windows", "x86_64", _) => Some("x86_64-pc-windows-msvc"),
@@ -439,9 +439,14 @@ mod tests {
             target_for("linux", "x86_64", false),
             Some("x86_64-unknown-linux-gnu")
         );
+        // ARM Linux ships as static musl only, whatever libc built this binary.
         assert_eq!(
             target_for("linux", "aarch64", false),
-            Some("aarch64-unknown-linux-gnu")
+            Some("aarch64-unknown-linux-musl")
+        );
+        assert_eq!(
+            target_for("linux", "aarch64", true),
+            Some("aarch64-unknown-linux-musl")
         );
         assert_eq!(
             target_for("macos", "aarch64", false),
@@ -459,8 +464,6 @@ mod tests {
 
     #[test]
     fn target_mapping_rejects_unpublished_targets() {
-        // No aarch64 musl build is published; a gnu binary won't run there.
-        assert_eq!(target_for("linux", "aarch64", true), None);
         assert_eq!(target_for("freebsd", "x86_64", false), None);
         assert_eq!(target_for("windows", "aarch64", false), None);
     }

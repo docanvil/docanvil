@@ -120,6 +120,11 @@ jobs:
           & (Join-Path $dir 'docanvil.exe') --version
           $out = & ./install/install.ps1 -InstallDir $dir 6>&1 | Out-String
           if ($out -notmatch 'already installed') { throw "expected early exit, got: $out" }
+          $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+          $kind = $key.GetValueKind('Path')
+          $raw = $key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+          if ($kind -ne 'ExpandString') { throw "user PATH type changed to $kind" }
+          if (($raw -split ';') -notcontains $dir) { throw "user PATH is missing $dir" }
 
       - name: install.ps1 on PowerShell 7
         if: runner.os == 'Windows'
@@ -130,6 +135,11 @@ jobs:
           & (Join-Path $dir 'docanvil.exe') --version
           $out = & ./install/install.ps1 -InstallDir $dir 6>&1 | Out-String
           if ($out -notmatch 'already installed') { throw "expected early exit, got: $out" }
+          $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+          $kind = $key.GetValueKind('Path')
+          $raw = $key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+          if ($kind -ne 'ExpandString') { throw "user PATH type changed to $kind" }
+          if (($raw -split ';') -notcontains $dir) { throw "user PATH is missing $dir" }
 
   build:
     name: Build & Test (${{ matrix.os }})

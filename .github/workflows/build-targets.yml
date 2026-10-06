@@ -27,9 +27,10 @@ jobs:
             bin: docanvil
             apt: musl-tools
           - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
             archive: tar.gz
             bin: docanvil
+            apt: musl-tools
           - os: macos-latest
             target: aarch64-apple-darwin
             archive: tar.gz

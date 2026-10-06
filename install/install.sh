@@ -101,6 +101,11 @@ main() {
   cp "$TMP/docanvil" "$STAGED" 2>/dev/null \
     || err "couldn't write to $INSTALL_DIR (try --install-dir, or run with sudo)"
   chmod 755 "$STAGED"
+  # Make sure it actually runs here before replacing anything.
+  if ! "$STAGED" --version >/dev/null 2>&1; then
+    rm -f "$STAGED"
+    err "the downloaded docanvil binary won't run on this system ($TARGET). Install from source with: cargo install docanvil"
+  fi
   mv -f "$STAGED" "$BIN"
 
   say "✅ Installed docanvil v$VERSION to $BIN"
@@ -143,12 +148,7 @@ detect_target() {
   arch=$(uname -m)
   case "$os/$arch" in
     Linux/x86_64 | Linux/amd64) TARGET=x86_64-unknown-linux-musl ;;
-    Linux/aarch64 | Linux/arm64)
-      # Only a glibc build is published for ARM Linux.
-      if [ -e /lib/ld-musl-aarch64.so.1 ]; then
-        err "no prebuilt DocAnvil for musl on ARM yet. Install from source with: cargo install docanvil"
-      fi
-      TARGET=aarch64-unknown-linux-gnu ;;
+    Linux/aarch64 | Linux/arm64) TARGET=aarch64-unknown-linux-musl ;;
     Darwin/arm64 | Darwin/aarch64) TARGET=aarch64-apple-darwin ;;
     Darwin/x86_64) TARGET=x86_64-apple-darwin ;;
     *) err "no prebuilt DocAnvil for $os/$arch. Install from source with: cargo install docanvil" ;;

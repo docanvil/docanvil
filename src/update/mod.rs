@@ -1,9 +1,12 @@
 //! Self-update support: finding releases, verified downloads and replacing
 //! the running binary. Shared by `docanvil update` and the `serve` notice.
 
-use semver::Version;
+use std::time::Duration;
 
-use crate::error::Error;
+use semver::Version;
+use sha2::{Digest, Sha256};
+
+use crate::error::{Error, Result};
 
 /// Web root of the DocAnvil repository; release downloads hang off this.
 pub const REPO_WEB: &str = "https://github.com/docanvil/docanvil";
@@ -82,12 +85,165 @@ pub fn release_url(version: &Version) -> String {
     format!("{REPO_WEB}/releases/tag/v{version}")
 }
 
-#[allow(dead_code)] // used from Task 2 onwards
 pub(crate) fn update_error(message: impl Into<String>, hint: Option<&str>) -> Error {
     Error::Update {
         message: message.into(),
         hint: hint.map(str::to_string),
     }
+}
+
+/// Timeout for a version check from `docanvil update`.
+pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
+/// Timeout for downloading a release archive or checksum file.
+pub const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30);
+/// Release archives are ~5 MB; anything near this is not ours.
+const MAX_DOWNLOAD_BYTES: u64 = 200 * 1024 * 1024;
+
+const NETWORK_HINT: &str = "Check your internet connection, or try again in a minute.";
+
+/// Where releases come from. Tests point this at a local server.
+pub struct Source {
+    /// e.g. `https://github.com/docanvil/docanvil`
+    pub web_base: String,
+    /// e.g. `https://api.github.com/repos/docanvil/docanvil`
+    pub api_base: String,
+}
+
+impl Source {
+    pub fn github() -> Self {
+        Source {
+            web_base: REPO_WEB.to_string(),
+            api_base: REPO_API.to_string(),
+        }
+    }
+}
+
+fn agent(timeout: Duration, follow_redirects: bool) -> ureq::Agent {
+    let mut config = ureq::Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .user_agent(concat!("docanvil/", env!("CARGO_PKG_VERSION")));
+    if !follow_redirects {
+        config = config.max_redirects(0).http_status_as_error(false);
+    }
+    config.build().into()
+}
+
+fn network_error(url: &str, e: ureq::Error) -> Error {
+    update_error(format!("couldn't reach {url}: {e}"), Some(NETWORK_HINT))
+}
+
+/// GET `url`, following redirects. `Ok(None)` on 404.
+fn fetch(url: &str, timeout: Duration) -> Result<Option<Vec<u8>>> {
+    match agent(timeout, true).get(url).call() {
+        Ok(mut resp) => resp
+            .body_mut()
+            .with_config()
+            .limit(MAX_DOWNLOAD_BYTES)
+            .read_to_vec()
+            .map(Some)
+            .map_err(|e| network_error(url, e)),
+        Err(ureq::Error::StatusCode(404)) => Ok(None),
+        Err(e) => Err(network_error(url, e)),
+    }
+}
+
+/// Latest released version, read from the `releases/latest` redirect so we
+/// never touch the rate-limited API.
+pub fn latest_version(source: &Source, timeout: Duration) -> Result<Version> {
+    let url = format!("{}/releases/latest", source.web_base);
+    let resp = agent(timeout, false)
+        .get(&url)
+        .call()
+        .map_err(|e| network_error(&url, e))?;
+    resp.headers()
+        .get("location")
+        .and_then(|v| v.to_str().ok())
+        .and_then(parse_tag_from_location)
+        .ok_or_else(|| {
+            update_error(
+                format!(
+                    "couldn't work out the latest DocAnvil release from {url} (status {})",
+                    resp.status()
+                ),
+                Some(NETWORK_HINT),
+            )
+        })
+}
+
+/// SHA-256 for `asset` from a GitHub release API response (`sha256:<hex>`).
+pub fn parse_api_digest(json: &[u8], asset: &str) -> Option<String> {
+    let release: serde_json::Value = serde_json::from_slice(json).ok()?;
+    release["assets"]
+        .as_array()?
+        .iter()
+        .find(|a| a["name"] == asset)?["digest"]
+        .as_str()?
+        .strip_prefix("sha256:")
+        .map(str::to_ascii_lowercase)
+}
+
+/// The published SHA-256 for `asset`: `SHA256SUMS` first, then GitHub's
+/// per-asset digest for releases that predate the sums file.
+pub fn expected_digest(source: &Source, version: &Version, asset: &str) -> Result<String> {
+    let sums_url = format!(
+        "{}/releases/download/v{version}/SHA256SUMS",
+        source.web_base
+    );
+    if let Some(sums) = fetch(&sums_url, DOWNLOAD_TIMEOUT)? {
+        return parse_sha256sums(&String::from_utf8_lossy(&sums), asset).ok_or_else(|| {
+            update_error(
+                format!("SHA256SUMS for v{version} has no entry for {asset}"),
+                None,
+            )
+        });
+    }
+
+    let api_url = format!("{}/releases/tags/v{version}", source.api_base);
+    let json = fetch(&api_url, CHECK_TIMEOUT)?.ok_or_else(|| {
+        update_error(
+            format!("DocAnvil release v{version} not found"),
+            Some("Check the version number at https://github.com/docanvil/docanvil/releases"),
+        )
+    })?;
+    parse_api_digest(&json, asset).ok_or_else(|| {
+        update_error(
+            format!("release v{version} has no checksum for {asset}, so it can't be verified"),
+            None,
+        )
+    })
+}
+
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+/// Download the archive for `version`/`target` and verify its checksum.
+/// Nothing is written to disk.
+pub fn download_verified(source: &Source, version: &Version, target: &str) -> Result<Vec<u8>> {
+    let asset = asset_name(version, target);
+    let expected = expected_digest(source, version, &asset)?;
+
+    let url = format!("{}/releases/download/v{version}/{asset}", source.web_base);
+    let bytes = fetch(&url, DOWNLOAD_TIMEOUT)?.ok_or_else(|| {
+        update_error(
+            format!("release v{version} has no download for {target}"),
+            None,
+        )
+    })?;
+
+    let actual = sha256_hex(&bytes);
+    if actual != expected {
+        return Err(update_error(
+            format!("checksum mismatch for {asset} (expected {expected}, got {actual})"),
+            Some(
+                "The download may be corrupted. Try again; if it keeps failing, please open an issue.",
+            ),
+        ));
+    }
+    Ok(bytes)
 }
 
 #[cfg(test)]
@@ -217,6 +373,28 @@ mod tests {
     #[test]
     fn current_version_matches_cargo() {
         assert_eq!(current_version().to_string(), env!("CARGO_PKG_VERSION"));
+    }
+
+    #[test]
+    fn parse_api_digest_finds_asset() {
+        let json = br#"{"tag_name":"v1.1.3","assets":[
+            {"name":"a.zip","digest":"sha256:aaaa"},
+            {"name":"docanvil-v1.1.3-x86_64-unknown-linux-gnu.tar.gz","uploader":{"login":"x"},
+             "digest":"sha256:6F2ACCCF"}]}"#;
+        assert_eq!(
+            parse_api_digest(json, "docanvil-v1.1.3-x86_64-unknown-linux-gnu.tar.gz").as_deref(),
+            Some("6f2acccf")
+        );
+        assert_eq!(parse_api_digest(json, "missing.tar.gz"), None);
+        assert_eq!(parse_api_digest(b"not json", "a.zip"), None);
+    }
+
+    #[test]
+    fn sha256_hex_matches_known_vector() {
+        assert_eq!(
+            sha256_hex(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
     }
 
     #[test]

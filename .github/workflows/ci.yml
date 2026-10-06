@@ -1,5 +1,6 @@
 name: CI
 
+# Docs-only changes skip this workflow; docs.yml still builds the docs site.
 on:
   push:
     branches: [master]

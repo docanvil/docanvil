@@ -1,0 +1,32 @@
+name: Docs
+
+# Separate from ci.yml so docs-only changes are checked without running the
+# full test matrix. No path filter: code changes can break the docs too.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  # The docs site uses i18n, nav groups, wiki-links and components together,
+  # so building it with this checkout's binary is a broad end-to-end check.
+  docs:
+    name: Docs site (--strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build docs site
+        run: cargo run --quiet -- build --strict --path docs --out "$RUNNER_TEMP/docs-site"

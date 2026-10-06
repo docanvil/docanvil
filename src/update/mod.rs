@@ -1,6 +1,8 @@
 //! Self-update support: finding releases, verified downloads and replacing
 //! the running binary. Shared by `docanvil update` and the `serve` notice.
 
+use std::io::Read;
+use std::path::Path;
 use std::time::Duration;
 
 use semver::Version;
@@ -246,6 +248,50 @@ pub fn download_verified(source: &Source, version: &Version, target: &str) -> Re
     Ok(bytes)
 }
 
+/// Pull the `docanvil` binary out of a release archive.
+pub fn extract_binary(archive: &[u8], target: &str) -> Result<Vec<u8>> {
+    let windows = is_windows_target(target);
+    let bin_name = if windows { "docanvil.exe" } else { "docanvil" };
+    let is_bin = |path: &Path| path.file_name().is_some_and(|n| n == bin_name);
+    let corrupt = |e: &dyn std::fmt::Display| {
+        update_error(format!("couldn't unpack the downloaded archive: {e}"), None)
+    };
+
+    let mut found = None;
+    if windows {
+        let mut zip =
+            zip::ZipArchive::new(std::io::Cursor::new(archive)).map_err(|e| corrupt(&e))?;
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i).map_err(|e| corrupt(&e))?;
+            if file.is_file() && is_bin(Path::new(file.name())) {
+                let mut bytes = Vec::new();
+                file.read_to_end(&mut bytes).map_err(|e| corrupt(&e))?;
+                found = Some(bytes);
+                break;
+            }
+        }
+    } else {
+        let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(archive));
+        for entry in tar.entries().map_err(|e| corrupt(&e))? {
+            let mut entry = entry.map_err(|e| corrupt(&e))?;
+            let path = entry.path().map_err(|e| corrupt(&e))?.into_owned();
+            if entry.header().entry_type().is_file() && is_bin(&path) {
+                let mut bytes = Vec::new();
+                entry.read_to_end(&mut bytes).map_err(|e| corrupt(&e))?;
+                found = Some(bytes);
+                break;
+            }
+        }
+    }
+
+    found.ok_or_else(|| {
+        update_error(
+            format!("the downloaded archive didn't contain {bin_name}"),
+            None,
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,5 +449,67 @@ mod tests {
             release_url(&Version::new(1, 2, 0)),
             "https://github.com/docanvil/docanvil/releases/tag/v1.2.0"
         );
+    }
+
+    use std::io::Write;
+
+    fn tar_gz(name: &str, data: &[u8]) -> Vec<u8> {
+        let gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        let mut builder = tar::Builder::new(gz);
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_mode(0o755);
+        header.set_cksum();
+        builder.append_data(&mut header, name, data).unwrap();
+        builder.into_inner().unwrap().finish().unwrap()
+    }
+
+    fn zip_file(name: &str, data: &[u8]) -> Vec<u8> {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        writer
+            .start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(data).unwrap();
+        writer.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn extract_binary_from_tar_gz() {
+        let archive = tar_gz("docanvil", b"unix-bin");
+        assert_eq!(
+            extract_binary(&archive, "x86_64-unknown-linux-musl").unwrap(),
+            b"unix-bin"
+        );
+    }
+
+    #[test]
+    fn extract_binary_from_nested_tar_path() {
+        let archive = tar_gz("docanvil-v1.2.0/docanvil", b"nested");
+        assert_eq!(
+            extract_binary(&archive, "aarch64-apple-darwin").unwrap(),
+            b"nested"
+        );
+    }
+
+    #[test]
+    fn extract_binary_from_zip() {
+        let archive = zip_file("docanvil.exe", b"win-bin");
+        assert_eq!(
+            extract_binary(&archive, "x86_64-pc-windows-msvc").unwrap(),
+            b"win-bin"
+        );
+    }
+
+    #[test]
+    fn extract_binary_errors_when_binary_missing() {
+        let archive = tar_gz("README.md", b"hello");
+        let err = extract_binary(&archive, "x86_64-unknown-linux-gnu").unwrap_err();
+        assert!(err.to_string().contains("didn't contain docanvil"), "{err}");
+    }
+
+    #[test]
+    fn extract_binary_errors_on_garbage() {
+        assert!(extract_binary(b"not an archive", "x86_64-unknown-linux-gnu").is_err());
+        assert!(extract_binary(b"not an archive", "x86_64-pc-windows-msvc").is_err());
     }
 }

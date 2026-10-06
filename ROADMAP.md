@@ -1,147 +1,80 @@
 # 🛣️ DocAnvil Public Roadmap
 
-This roadmap outlines the planned evolution of **DocAnvil**, a Markdown-first static documentation generator.
+This roadmap outlines where **DocAnvil**, a Markdown-first static documentation generator, has been and where it's headed.
 
-DocAnvil is currently in **early development (v0.x)**. The focus is on stabilizing the core experience before committing to long-term compatibility guarantees in **v1.0.0**.
+DocAnvil is **stable (1.x)** and used in production. Upgrades within 1.x are safe: new functionality is additive and opt-in, and existing sites keep building without changes.
 
 > ⚠️ This roadmap is directional, not a promise. Priorities may shift based on feedback and real-world usage.
 
 ---
 
-## 📌 Versioning Overview
+## 📌 Versioning
 
-DocAnvil follows **Semantic Versioning (SemVer)** with the following intent:
+DocAnvil follows **Semantic Versioning (SemVer)**:
 
-### **0.x — Learning & Shaping**
-Rapid iteration while the core model, CLI, and configuration are refined.  
-Breaking changes may occur as the tool matures.
-
-### **1.x — Trustworthy Core**
-A stable, production-ready documentation generator.  
-Upgrades within 1.x should be safe and predictable.
-
-### **2.x — Scale & Expansion**
-Support for large documentation ecosystems, including versions, languages, and APIs.
+- **Patch releases (1.1.x)** fix bugs and polish existing features
+- **Minor releases (1.x)** add features without breaking existing sites
+- **A major release (2.0)** only happens if there's a clear need for a breaking change
 
 ---
 
-## 🚧 0.x — Learning & Shaping (Current → Pre-1.0)
+## ✅ Shipped
 
-**Summary:**  
-> Prove the core model, harden the CLI, and ensure DocAnvil can fully document itself with confidence.
+### 1.0 — Trustworthy core
 
-### Planned Focus Areas
-- Continued iteration on the core static site generator
-- Improving defaults and error handling
-- Using DocAnvil to fully document DocAnvil itself
+- Markdown → static HTML with live-reloading dev server (`docanvil serve`)
+- Components (`:::note`, `:::tabs`, `:::mermaid` and more), wiki-links, popovers, syntax highlighting
+- Client-side search
+- Broken link detection with `--strict` mode for CI
+- SEO outputs: `sitemap.xml`, `robots.txt`, page-level meta tags from front matter
+- Nested, collapsible sidebar navigation via `nav.toml`, with autodiscover
+- `docanvil new`, `docanvil theme` and `docanvil doctor`
 
-### Key Features Targeted Before 1.0
-- **Broken link detection at build time**
-  - Optional `--strict` mode for CI
-- **Automatic SEO outputs**
-  - `sitemap.xml`
-  - `robots.txt`
-  - Page-level meta tags from front-matter
-- **Improved sidebar navigation**
-  - Nested & collapsible sections
-  - Better handling of large documentation trees
-- **Glossary / reference index**
-  - Auto-generated from front-matter or a dedicated glossary file
-- **CLI quality-of-life improvements**
-  - `docanvil doctor` — detect common configuration and content issues
-  - `docanvil new` — scaffold common documentation templates
+### 1.1 — Docs at scale
 
-### Exit Criteria for 1.0.0
-- CLI commands and flags are stable
-- Configuration format is stable and documented
-- Content model (Markdown, components, front-matter) is stable
-- DocAnvil’s own documentation is generated using DocAnvil
-- Reasonable confidence that upgrades within 1.x will not break sites
+- 🌍 **Localisation**: multi-language builds, per-locale nav and search, language switcher, hreflang SEO
+- 🗂️ **Versioning**: versioned builds with a version switcher and older-version banner
+- 📄 **PDF export**: `docanvil export pdf` with cover pages, RTL support, per-locale output and custom paper sizes
+- 🧹 **Content linting**: readability, heading structure, alt text and link checks in `docanvil doctor`, with Checkstyle and JUnit output for CI
+- 📦 **Easy installs**: install scripts for macOS, Linux and Windows, prebuilt binaries for more platforms, and `docanvil update`
 
 ---
 
-## 🎉 1.0.0 — Trustworthy Core
+## 🧩 1.2 — Extensibility
 
-**Summary:**  
-> A stable, predictable documentation generator suitable for production use.
-
-### What 1.0.0 Represents
-- Stable CLI and configuration
-- Reliable builds suitable for CI/CD
-- Clear documentation and upgrade expectations
-- No required extensions or plugins
-
----
-
-## 🧩 1.x — Extensibility & Refinement
-
-**Summary:**  
-> Grow DocAnvil’s capabilities without breaking existing sites.
-
-### Planned Enhancements (Minor Releases)
-- **Plugin system**
+- **Plugin system (v1)**, WASM-based
   - Markdown transformers
   - Custom components
-  - Build hooks
-- **Front-matter schema validation**
-  - Early detection of invalid or missing metadata
-- **Component registry pattern**
-  - Official components
-  - Community-contributed extensions
-- **Optional content linting**
-  - Style checks
-  - Spelling checks
-  - Consistency rules
+- Additional CLI flags, more diagnostics, and template enhancements
 
-### Guiding Rule for 1.x
-- All new functionality must be **additive and opt-in**
-- Existing documentation sites should continue to build without changes
+Fully backward compatible.
 
 ---
 
-## 🌍 2.0.0 — Docs at Scale
+## 🚀 1.3+ — Ecosystem Growth
 
-**Summary:**  
-> Enable large, long-lived documentation ecosystems.
-
-### Planned Major Features
-- **Multi-version documentation**
-  - Versioned builds (e.g. v1, v2, latest)
-  - Built-in version switcher UI
-- **Internationalization (i18n)**
-  - Multi-language builds
-  - Language switcher
-- **API reference generation**
-  - OpenAPI-first support
-  - Consistent reference layouts
-- **Search improvements**
-  - Version- and language-aware indexing and filtering
-
-### Why This Is a Major Release
-- URL structures may change
-- Configuration and build behavior may evolve
-- Migration guidance will be provided
+- Plugin hooks and a plugin SDK crate
+- Incremental builds and caching for faster rebuilds on large sites
+- Performance optimisations
 
 ---
 
-## 📦 2.x+ — Distribution & Compliance
+## 💡 Ideas Under Consideration
 
-**Summary:**  
-> Support more output formats and stricter environments.
+Not scheduled yet, but on our radar:
 
-### Planned Enhancements
-- **PDF export**
-  - Full site or section-based output
-- **Offline documentation bundles**
-  - Self-contained artifacts
-- **Build presets**
-  - Documentation
-  - Handbooks
-  - Specifications
-- **Accessibility checks during build**
-  - Heading structure
-  - Alt text
-  - Basic contrast warnings
+- **Glossary / reference index**, generated from front matter or a dedicated glossary file
+- **Front-matter schema validation**, to catch invalid or missing metadata early
+- **API reference generation**, OpenAPI-first
+- **Offline documentation bundles**, as self-contained artifacts
+- **Build presets** for documentation, handbooks and specifications
+- **Contrast checks** alongside the existing accessibility lints
+
+---
+
+## 🌅 2.0 and Beyond
+
+A 2.0 release would only happen if there's a clear need: a configuration redesign, plugin API v2, fundamental output model changes, or major architectural shifts. It should be deliberate and well-justified, with migration guidance.
 
 ---
 
@@ -162,4 +95,4 @@ Feature ideas and feedback are welcome via:
 - GitHub Discussions
 - Pull Requests
 
-If a feature fits the guiding principles, we’re happy to explore it.
+If a feature fits the guiding principles, we're happy to explore it.

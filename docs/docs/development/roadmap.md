@@ -1,6 +1,6 @@
 # Roadmap
 
-DocAnvil follows [Semantic Versioning](https://semver.org). The current release is **1.1.1**. Here's where things stand and where they're headed.
+DocAnvil follows [Semantic Versioning](https://semver.org) and is stable at 1.x, so upgrades within 1.x won't break your site. Here's where things stand and where they're headed.
 
 ## 1.1.x — Core Feature Enhancements
 
@@ -8,6 +8,7 @@ DocAnvil follows [Semantic Versioning](https://semver.org). The current release 
 - ✅ PDF export (`docanvil export pdf` — Chrome-based, cover pages, RTL, per-locale, custom paper size)
 - ✅ Doc versioning support
 - ✅ Style linting (`docanvil doctor` — readability checks, heading structure, link quality, and more)
+- ✅ Install scripts for macOS, Linux and Windows, more prebuilt platforms, and `docanvil update`
 
 ## 1.2.x — Extensibility
 
@@ -16,6 +17,10 @@ WASM plugin system (v1), additional CLI flags, more diagnostics, and template en
 ## 1.3.x+ — Ecosystem Growth
 
 Plugin hooks, performance optimizations, incremental builds, caching, and a plugin SDK crate. Breaking changes require a major release.
+
+## Ideas Under Consideration
+
+Not scheduled yet, but on our radar: a glossary, front-matter schema validation, OpenAPI reference generation, offline documentation bundles, build presets, and contrast checks.
 
 ## 2.0 and Beyond
 

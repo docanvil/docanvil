@@ -618,6 +618,7 @@ dependencies = [
  "predicates",
  "regex",
  "rust-embed",
+ "semver",
  "serde",
  "serde_json",
  "slug",

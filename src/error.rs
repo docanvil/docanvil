@@ -37,6 +37,12 @@ pub enum Error {
          Install guide: https://www.google.com/chrome/"
     )]
     ChromeNotFound,
+
+    #[error("{message}")]
+    Update {
+        message: String,
+        hint: Option<String>,
+    },
 }
 
 impl Error {
@@ -71,6 +77,7 @@ impl Error {
             Error::StrictWarnings(_) => {
                 Some("Fix the warnings above, or build without --strict.".into())
             }
+            Error::Update { hint, .. } => hint.clone(),
             Error::General(_) | Error::DoctorFailed { .. } | Error::ChromeNotFound => None,
         }
     }
@@ -85,7 +92,7 @@ impl Error {
     /// | 4    | Theme / rendering error   |
     pub fn exit_code(&self) -> i32 {
         match self {
-            Error::Io(_) | Error::General(_) => 1,
+            Error::Io(_) | Error::General(_) | Error::Update { .. } => 1,
             Error::ConfigParse { .. }
             | Error::ConfigNotFound(_)
             | Error::UnsafeOutputDir { .. } => 2,
@@ -102,6 +109,20 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn update_error_exit_code_and_hint() {
+        let err = Error::Update {
+            message: "couldn't reach GitHub".into(),
+            hint: Some("Check your internet connection.".into()),
+        };
+        assert_eq!(err.exit_code(), 1);
+        assert_eq!(err.to_string(), "couldn't reach GitHub");
+        assert_eq!(
+            err.hint().as_deref(),
+            Some("Check your internet connection.")
+        );
+    }
 
     #[test]
     fn exit_code_general_and_io() {

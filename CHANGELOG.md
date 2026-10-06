@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-10-06
+
 ### Added
 
 - Install scripts for macOS/Linux (`install.sh`) and Windows (`install.ps1`): download the right prebuilt binary, verify its checksum, and put it on your PATH. Re-running is a no-op when that version is already installed

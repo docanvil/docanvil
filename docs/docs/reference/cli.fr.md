@@ -6,7 +6,7 @@
 ---
 # Commandes CLI
 
-DocAnvil propose six sous-commandes : `new`, `theme`, `doctor`, `serve`, `build`, et `export`.
+DocAnvil propose sept sous-commandes : `new`, `theme`, `doctor`, `serve`, `build`, `export` et `update`.
 
 ## Options globales
 
@@ -339,6 +339,7 @@ Le serveur :
 - Notifie le navigateur via WebSocket à `/__docanvil_ws`
 - Le navigateur recharge automatiquement — pas besoin de rafraîchissement manuel
 - Les pages manquantes affichent le `404.html` de votre site, comme la plupart des hébergeurs statiques en production
+- Affiche une ligne d'information quand une nouvelle version de DocAnvil est disponible (voir [`docanvil update`](#docanvil-update))
 
 :::code-group
 ```bash
@@ -453,6 +454,48 @@ docanvil export pdf --out guide.pdf --path ../mes-docs
 
 La sortie PDF est configurée via la section `[pdf]` dans `docanvil.toml`. Consultez [[guides/pdf-export|Export PDF]] pour le guide complet, y compris les pages de couverture, les formats de papier, le support RTL, et le CSS personnalisé.
 
+## `docanvil update`
+
+Vérifie sur GitHub si une nouvelle version de DocAnvil existe et met à jour sur place.
+
+```bash
+docanvil update [--check] [--yes] [--version <x.y.z>]
+```
+
+| Option | Défaut | Description |
+|--------|---------|-------------|
+| `--check` | `false` | Indique seulement si une nouvelle version est disponible, sans rien modifier |
+| `--yes`, `-y` | `false` | Met à jour sans demander de confirmation (nécessaire sans terminal, par exemple dans un script) |
+| `--version` | dernière | Installe une version précise, par exemple `1.2.0`. Permet aussi de revenir en arrière |
+
+:::code-group
+```bash
+# Vérifier si une nouvelle version existe
+docanvil update --check
+```
+
+```bash
+# Mettre à jour, avec confirmation
+docanvil update
+```
+
+```bash
+# Mettre à jour sans confirmation
+docanvil update --yes
+```
+
+```bash
+# Revenir à une version précise
+docanvil update --version 1.1.3
+```
+:::
+
+Chaque téléchargement est vérifié avec la somme de contrôle SHA-256 publiée avec la version avant tout remplacement, et en cas de problème votre binaire actuel reste intact.
+
+Si DocAnvil a été installé avec `cargo install`, `update` ne le remplace pas (cela perturberait cargo) et vous invite à lancer `cargo install docanvil --force`.
+
+`docanvil serve` affiche une ligne d'information quand une nouvelle version est disponible. La vérification a lieu au plus une fois par jour, jamais en CI (quand `CI` est défini) ni avec `--quiet`, et vous pouvez la désactiver avec `DOCANVIL_NO_UPDATE_CHECK=1`.
+
 ## Codes de sortie
 
 Toutes les commandes retournent des codes de sortie structurés pour que les pipelines CI puissent distinguer les différents types d'échec :
@@ -460,7 +503,7 @@ Toutes les commandes retournent des codes de sortie structurés pour que les pip
 | Code | Signification | Causes examples |
 |------|---------|----------------|
 | `0` | Succès | Compilation terminée, doctor réussi |
-| `1` | Échec général | Erreur IO, répertoire déjà existant, échec de configuration de l'exécution |
+| `1` | Échec général | Erreur IO, répertoire déjà existant, échec de configuration de l'exécution, erreur réseau ou de somme de contrôle dans `update` |
 | `2` | Erreur de configuration | `docanvil.toml` manquant, syntaxe TOML invalide |
 | `3` | Erreur de validation du contenu | Répertoire de contenu manquant, avertissements `--strict`, échecs `doctor --strict` |
 | `4` | Erreur de rendu | Erreur de syntaxe de template, échec du rendu Markdown |

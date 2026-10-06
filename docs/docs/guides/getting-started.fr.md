@@ -11,16 +11,31 @@ Installez DocAnvil et créez votre premier site de documentation.
 
 ## Installer DocAnvil
 
+Les scripts d'installation téléchargent un binaire précompilé pour votre plateforme (environ 5 Mo), le vérifient avec les sommes de contrôle SHA-256 publiées avec la version, et l'ajoutent à votre `PATH`. Aucune chaîne d'outils Rust n'est nécessaire.
+
 ::::tabs
+:::tab{title="macOS / Linux"}
+```bash
+curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
+```
+
+Installe dans `~/.local/bin`. Si ce dossier n'est pas encore dans votre `PATH`, le script vous indique la ligne à ajouter à votre profil shell.
+:::
+:::tab{title="Windows"}
+```powershell
+irm https://github.com/docanvil/docanvil/releases/latest/download/install.ps1 | iex
+```
+
+Installe dans `%LOCALAPPDATA%\docanvil\bin` et l'ajoute à votre `PATH` utilisateur. Ouvrez ensuite un nouveau terminal.
+:::
 :::tab{title="Depuis crates.io"}
 ```bash
-# Installer depuis crates.io (une fois publié)
+# Compile DocAnvil et ses dépendances (nécessite une chaîne d'outils Rust)
 cargo install docanvil
 ```
 :::
-:::tab{title="Depuis GitHub"}
+:::tab{title="Depuis les sources"}
 ```bash
-# Compiler depuis les sources
 git clone https://github.com/docanvil/docanvil.git
 cd docanvil
 cargo install --path .
@@ -33,6 +48,37 @@ Vérifiez l'installation :
 ```bash
 docanvil --help
 ```
+
+### Options d'installation
+
+| Option | Variable d'environnement | Effet |
+|---|---|---|
+| `--version 1.2.0` | `DOCANVIL_VERSION` | Installer une version précise plutôt que la dernière |
+| `--install-dir DIR` | `DOCANVIL_INSTALL_DIR` | Installer ailleurs, par exemple `/usr/local/bin` en CI |
+| `--force` | | Réinstaller même si cette version est déjà présente |
+| `--quiet` | | N'afficher que les erreurs |
+
+Passez des options au script redirigé avec `sh -s --` :
+
+```bash
+curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh -s -- --version 1.2.0
+```
+
+Sous Windows, définissez les variables d'environnement avant de lancer la commande (par exemple `$env:DOCANVIL_VERSION = "1.2.0"`).
+
+Relancer le script alors que cette version est déjà installée ne fait rien et se termine sans erreur : vous pouvez l'utiliser sans risque en CI.
+
+## Mettre à jour
+
+```bash
+docanvil update          # chercher une nouvelle version et mettre à jour, avec confirmation
+docanvil update --check  # indiquer seulement si une nouvelle version existe
+docanvil update --yes    # mettre à jour sans confirmation
+```
+
+`docanvil serve` affiche aussi une ligne d'information quand une nouvelle version est disponible. La vérification a lieu au plus une fois par jour et jamais en CI. Définissez `DOCANVIL_NO_UPDATE_CHECK=1` pour la désactiver.
+
+Si vous avez installé DocAnvil avec `cargo install`, mettez-le à jour avec `cargo install docanvil --force`.
 
 ## Créer un projet
 

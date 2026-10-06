@@ -5,6 +5,7 @@ pub mod export;
 pub mod new;
 pub mod serve;
 pub mod theme;
+pub mod update;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -101,4 +102,16 @@ pub enum Command {
     },
     /// Export documentation to another format
     Export(ExportArgs),
+    /// Check for a newer DocAnvil release and upgrade in place
+    Update {
+        /// Only report whether an update is available
+        #[arg(long)]
+        check: bool,
+        /// Upgrade without asking for confirmation
+        #[arg(long, short = 'y')]
+        yes: bool,
+        /// Install a specific version instead of the latest (e.g. 1.2.0)
+        #[arg(long)]
+        version: Option<String>,
+    },
 }

@@ -4,8 +4,9 @@ use std::path::{Path, PathBuf};
 
 use crate::error::Result;
 
-pub fn run(host: &str, port: u16, project_root: &Path) -> Result<()> {
+pub fn run(host: &str, port: u16, project_root: &Path, quiet: bool) -> Result<()> {
     let output_dir = dev_output_dir(project_root);
+    crate::update::notice::spawn(quiet);
 
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| crate::error::Error::General(format!("failed to start async runtime: {e}")))?;

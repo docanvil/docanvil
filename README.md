@@ -10,8 +10,23 @@ DocAnvil turns your Markdown files into a polished, searchable documentation sit
 
 ## 🚀 Quickstart
 
+Install a prebuilt binary (about 5 MB, no Rust toolchain needed):
+
 ```bash
-cargo install docanvil
+# macOS / Linux
+curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://github.com/docanvil/docanvil/releases/latest/download/install.ps1 | iex
+```
+
+Or build from source with `cargo install docanvil`. Already installed? `docanvil update` upgrades you in place.
+
+Then create and serve a project:
+
+```bash
 docanvil new my-docs
 cd my-docs
 docanvil serve

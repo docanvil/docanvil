@@ -23,7 +23,9 @@ fn main() {
             format,
         } => docanvil::cli::doctor::run(path, *fix, *strict, cli.quiet, format),
         Command::Theme { path, overwrite } => docanvil::cli::theme::run(path, *overwrite),
-        Command::Serve { host, port, path } => docanvil::cli::serve::run(host, *port, path),
+        Command::Serve { host, port, path } => {
+            docanvil::cli::serve::run(host, *port, path, cli.quiet)
+        }
         Command::Build {
             out,
             clean,
@@ -31,6 +33,11 @@ fn main() {
             path,
         } => docanvil::cli::build::run(path, out.as_deref(), *clean, cli.quiet, *strict),
         Command::Export(export_args) => docanvil::cli::export::dispatch(export_args, cli.quiet),
+        Command::Update {
+            check,
+            yes,
+            version,
+        } => docanvil::cli::update::run(*check, *yes, version.as_deref(), cli.quiet),
     };
 
     if let Err(e) = result {

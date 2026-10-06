@@ -25,11 +25,11 @@ cargo fmt                      # Format code
 cargo install --path .         # Install locally
 ```
 
-Unit tests are inline `#[cfg(test)]` modules within their respective source files. Integration tests live in `tests/` — `build_integration.rs` (library-level build pipeline tests) and `cli_integration.rs` (binary subprocess tests), with shared helpers in `integration_helpers.rs`.
+Unit tests are inline `#[cfg(test)]` modules within their respective source files. Integration tests live in `tests/` — `build_integration.rs` (library-level build pipeline tests), `cli_integration.rs` (binary subprocess tests) and `update_integration.rs` (self-update against a local axum stub, no network), with shared helpers in `integration_helpers.rs`.
 
 ## CLI Interface
 
-The binary exposes six subcommands:
+The binary exposes seven subcommands:
 
 - `docanvil new <name>` — scaffold a new documentation project
 - `docanvil serve [--host <addr>] [--port <port>] [--path <path>]` — dev server with hot reload (defaults: 127.0.0.1:3000)
@@ -37,6 +37,7 @@ The binary exposes six subcommands:
 - `docanvil theme [--path <path>] [--overwrite]` — interactive color theme generator
 - `docanvil doctor [--path <path>] [--fix] [--strict]` — project diagnostics with auto-fix
 - `docanvil export pdf --out <path> [--path <path>] [--locale <code>]` — export docs as a single PDF (requires Chrome/Chromium)
+- `docanvil update [--check] [--yes] [--version <x.y.z>]` — self-update from GitHub releases (refuses to replace `cargo install` copies)
 
 Global flags: `--verbose`, `--quiet`
 
@@ -67,6 +68,7 @@ src/
     theme.rs                   # docanvil theme — interactive color theme generator
     doctor.rs                  # docanvil doctor — runs diagnostic checks
     color.rs                   # Hex/RGB/HSL color conversion (used by theme)
+    update.rs                  # docanvil update — prompts and output for self-update
     export/
       mod.rs                   # ExportArgs, ExportFormat, dispatch()
       pdf.rs                   # docanvil export pdf — Chrome-based PDF export
@@ -120,11 +122,17 @@ src/
     templates.rs               # Tera engine wrapper, PageContext struct
     assets.rs                  # Static asset + custom CSS copying
 
+  update/
+    mod.rs                     # Release lookup (releases/latest redirect), checksum-verified download, extraction, self-replace
+    notice.rs                  # Cached once-a-day "new version" notice shown by serve
+
   server/
     mod.rs                     # axum router setup, server start
     watcher.rs                 # notify file watcher with debounce
     websocket.rs               # WebSocket handler for live reload
 ```
+
+Top-level `install/` holds `install.sh` (macOS/Linux) and `install.ps1` (Windows); both are uploaded as release assets.
 
 ### Pipeline Flow
 
@@ -160,6 +168,7 @@ Markdown source
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
 - **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[locale]`, `[doctor]` sections; serde deserialization
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
+- **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
 - **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled
 
 ### Key Types and Where They Live
@@ -172,7 +181,8 @@ Markdown source
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.json entry: `page`, `label`, `separator`, `group`, `autodiscover` |
-| `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ContentDirNotFound`, `Render`, `StrictWarnings`, `ChromeNotFound` |
+| `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ContentDirNotFound`, `Render`, `StrictWarnings`, `ChromeNotFound`, `Update { message, hint }` |
+| `Source` | `update/mod.rs` | GitHub web + API base URLs for release lookups; `Source::github()` in prod, pointed at a local server in tests |
 | `Component` trait | `components/mod.rs` | `name() -> &str` + `render(&ComponentContext) -> Result<String>` |
 | `ComponentContext` | `components/mod.rs` | `attributes: HashMap<String, String>`, `body_raw: String`, `body_html: String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` registers all builtin components. `render_block()` does lookup + render |
@@ -252,3 +262,12 @@ Interactive: `dialoguer` (CLI prompts for theme generator), `toml_edit` (preserv
 Polish: `owo-colors` (colored output)
 
 PDF export: `tungstenite` (sync WebSocket for CDP), `base64` (decode CDP `printToPDF` response)
+
+Self-update: `ureq` (HTTP, rustls — no OpenSSL, keeps musl/ARM builds simple), `sha2` (checksums), `flate2`/`tar`/`zip` (archives), `self-replace` (swap the running binary, Windows-safe), `semver`, `dirs` (cache dir)
+
+### Release Workflows
+
+- Release builds live in `.github/workflows/build-targets.yml` (6 targets: linux x86_64 gnu + musl, linux aarch64 musl, macOS arm64/x86_64, Windows x86_64; the installer picks the static musl builds on Linux, while self-update keeps a binary on its own libc and ARM is musl-only), reused by `release.yml`
+- `ci.yml` runs that build plus an installer smoke test (real releases, incl. Windows PowerShell 5.1) only on `release/v*` PRs or PRs labelled `release-build` — normal PRs stay on the 3-OS test matrix
+- Releases ship archives + `SHA256SUMS` + `install.sh` + `install.ps1`
+- Never interpolate `${{ github.head_ref }}` (or other PR-controlled values) directly into `run:`; pass via `env:`

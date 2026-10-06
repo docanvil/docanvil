@@ -5,7 +5,7 @@
 ---
 # CLI Commands
 
-DocAnvil provides six subcommands: `new`, `theme`, `doctor`, `serve`, `build`, and `export`.
+DocAnvil provides seven subcommands: `new`, `theme`, `doctor`, `serve`, `build`, `export`, and `update`.
 
 ## Global Flags
 
@@ -338,6 +338,7 @@ The server:
 - Notifies the browser via WebSocket at `/__docanvil_ws`
 - The browser reloads automatically — no manual refresh needed
 - Missing pages show your site's `404.html`, just like most static hosts in production
+- Prints a one-line notice when a newer DocAnvil release is out (see [`docanvil update`](#docanvil-update))
 
 :::code-group
 ```bash
@@ -452,6 +453,48 @@ docanvil export pdf --out guide.pdf --path ../my-docs
 
 PDF output is configured via the `[pdf]` section in `docanvil.toml`. See [[guides/pdf-export|PDF Export]] for the full guide, including cover pages, paper sizes, RTL support, and custom CSS.
 
+## `docanvil update`
+
+Check GitHub for a newer DocAnvil release and upgrade in place.
+
+```bash
+docanvil update [--check] [--yes] [--version <x.y.z>]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--check` | `false` | Only report whether a newer release is available; change nothing |
+| `--yes`, `-y` | `false` | Upgrade without asking for confirmation (needed when there's no terminal, e.g. in scripts) |
+| `--version` | latest | Install a specific version instead, e.g. `1.2.0`. Use this to roll back too |
+
+:::code-group
+```bash
+# See if there's a newer release
+docanvil update --check
+```
+
+```bash
+# Upgrade, with a confirmation prompt
+docanvil update
+```
+
+```bash
+# Upgrade without prompting
+docanvil update --yes
+```
+
+```bash
+# Roll back to a specific version
+docanvil update --version 1.1.3
+```
+:::
+
+Every download is checked against the release's published SHA-256 checksum before anything is replaced, and if anything goes wrong your current binary is left untouched.
+
+If DocAnvil was installed with `cargo install`, `update` won't replace it (that would confuse cargo). It tells you to run `cargo install docanvil --force` instead.
+
+`docanvil serve` prints a one-line notice when a newer release is out. It checks at most once a day, never runs in CI (when `CI` is set) or with `--quiet`, and you can turn it off entirely with `DOCANVIL_NO_UPDATE_CHECK=1`.
+
 ## Exit Codes
 
 All commands return structured exit codes so CI pipelines can distinguish between different failure types:
@@ -459,7 +502,7 @@ All commands return structured exit codes so CI pipelines can distinguish betwee
 | Code | Meaning | Example causes |
 |------|---------|----------------|
 | `0` | Success | Build completed, doctor passed |
-| `1` | General failure | IO error, directory already exists, runtime setup failure |
+| `1` | General failure | IO error, directory already exists, runtime setup failure, `update` network or checksum failure |
 | `2` | Configuration error | Missing `docanvil.toml`, invalid TOML syntax |
 | `3` | Content validation error | Missing content directory, `--strict` warnings, `doctor --strict` failures |
 | `4` | Rendering error | Template syntax error, Markdown rendering failure |

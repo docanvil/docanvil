@@ -4,6 +4,14 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Install scripts for macOS/Linux (`install.sh`) and Windows (`install.ps1`): download the right prebuilt binary, verify its checksum, and put it on your PATH. Re-running is a no-op when that version is already installed
+- `docanvil update` checks GitHub for a newer release and upgrades in place (`--check`, `--yes`, `--version`)
+- `docanvil serve` shows a one-line notice when a new release is out (checked at most daily, never in CI; opt out with `DOCANVIL_NO_UPDATE_CHECK=1`)
+- Prebuilt binaries for Linux x86_64 and ARM64 (both static musl, so they run on any distro, including Alpine) and Intel Macs
+- Releases now include a `SHA256SUMS` file
+
 ## [1.1.3] - 2026-10-05
 
 ### Changed

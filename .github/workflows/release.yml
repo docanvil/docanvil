@@ -28,68 +28,11 @@ jobs:
           fi
 
   build:
-    name: Build (${{ matrix.target }})
+    name: Build
     needs: check-ref
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            archive: tar.gz
-            bin: docanvil
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            archive: tar.gz
-            bin: docanvil
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            archive: zip
-            bin: docanvil.exe
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-release-
-
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Strip binary (Unix)
-        if: matrix.os != 'windows-latest'
-        run: strip target/${{ matrix.target }}/release/${{ matrix.bin }}
-
-      - name: Archive (tar.gz)
-        if: matrix.archive == 'tar.gz'
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          ARCHIVE="docanvil-v${VERSION}-${{ matrix.target }}.tar.gz"
-          tar -czf "$ARCHIVE" -C "target/${{ matrix.target }}/release" ${{ matrix.bin }}
-          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
-
-      - name: Archive (zip)
-        if: matrix.archive == 'zip'
-        shell: pwsh
-        run: |
-          $VERSION = $env:GITHUB_REF_NAME -replace '^v', ''
-          $ARCHIVE = "docanvil-v$VERSION-${{ matrix.target }}.zip"
-          Compress-Archive -Path "target/${{ matrix.target }}/release/${{ matrix.bin }}" -DestinationPath $ARCHIVE
-          "ARCHIVE=$ARCHIVE" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docanvil-${{ matrix.target }}
-          path: ${{ env.ARCHIVE }}
+    uses: ./.github/workflows/build-targets.yml
+    with:
+      ref: ${{ github.ref_name }}
 
   release:
     name: Create GitHub Release
@@ -103,6 +46,13 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+
+      - name: Add checksums and install scripts
+        run: |
+          cd artifacts
+          sha256sum docanvil-v* > SHA256SUMS
+          cat SHA256SUMS
+          cp ../install/install.sh ../install/install.ps1 .
 
       - name: Extract changelog body
         run: |

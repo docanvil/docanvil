@@ -36,6 +36,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: Shellcheck installer
+        run: shellcheck install/install.sh
+
   # Release notes are extracted from CHANGELOG.md, so a release PR must carry
   # a non-empty section for its version (bin/release.sh normally creates it).
   changelog:
@@ -61,6 +64,89 @@ jobs:
           fi
           echo "Found changelog entries for ${VERSION}:"
           echo "$NOTES"
+
+  # Extra release targets (musl, ARM, Intel Mac) only build at release time.
+  # Build them on release PRs, or any PR labelled `release-build`, so a broken
+  # target is caught before tagging. Add the label, then push a commit.
+  release-build:
+    name: Release build
+    if: >-
+      github.event_name == 'pull_request' &&
+      (startsWith(github.head_ref, 'release/v') ||
+       contains(github.event.pull_request.labels.*.name, 'release-build'))
+    uses: ./.github/workflows/build-targets.yml
+    with:
+      ref: ${{ startsWith(github.head_ref, 'release/v') && github.head_ref || 'v0.0.0-ci' }}
+
+  # Run the install scripts from this checkout against the real published
+  # releases, on the same PRs as the release build.
+  installer-smoke:
+    name: Installer smoke (${{ matrix.os }})
+    if: >-
+      github.event_name == 'pull_request' &&
+      (startsWith(github.head_ref, 'release/v') ||
+       contains(github.event.pull_request.labels.*.name, 'release-build'))
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install.sh (fresh, then early exit)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Releases before SHA256SUMS are verified through GitHub's API;
+          # shared runners hit the anonymous rate limit without a token.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # The installer uses the static musl build on Linux x86_64, which
+          # releases before it was added don't have.
+          if [ "$RUNNER_OS" = Linux ] && ! gh release view --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -q linux-musl; then
+            echo "Skipping: the latest release has no musl build yet."
+            exit 0
+          fi
+          DIR="$RUNNER_TEMP/docanvil-bin"
+          sh install/install.sh --install-dir "$DIR"
+          "$DIR/docanvil" --version
+          sh install/install.sh --install-dir "$DIR" | grep "already installed"
+
+      - name: install.ps1 on Windows PowerShell 5.1
+        if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: powershell
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'docanvil-ps51'
+          & ./install/install.ps1 -InstallDir $dir
+          & (Join-Path $dir 'docanvil.exe') --version
+          $out = & ./install/install.ps1 -InstallDir $dir 6>&1 | Out-String
+          if ($out -notmatch 'already installed') { throw "expected early exit, got: $out" }
+          $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+          $kind = $key.GetValueKind('Path')
+          $raw = $key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+          if ($kind -ne 'ExpandString') { throw "user PATH type changed to $kind" }
+          if (($raw -split ';') -notcontains $dir) { throw "user PATH is missing $dir" }
+
+      - name: install.ps1 on PowerShell 7
+        if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'docanvil-ps7'
+          & ./install/install.ps1 -InstallDir $dir
+          & (Join-Path $dir 'docanvil.exe') --version
+          $out = & ./install/install.ps1 -InstallDir $dir 6>&1 | Out-String
+          if ($out -notmatch 'already installed') { throw "expected early exit, got: $out" }
+          $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+          $kind = $key.GetValueKind('Path')
+          $raw = $key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+          if ($kind -ne 'ExpandString') { throw "user PATH type changed to $kind" }
+          if (($raw -split ';') -notcontains $dir) { throw "user PATH is missing $dir" }
 
   build:
     name: Build & Test (${{ matrix.os }})

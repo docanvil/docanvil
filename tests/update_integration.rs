@@ -4,7 +4,9 @@ use axum::Router;
 use axum::http::{StatusCode, header};
 use axum::routing::get;
 use docanvil::error::Error;
-use docanvil::update::{Source, download_verified, latest_version, sha256_hex};
+use docanvil::update::{
+    Source, download_verified, ensure_release_exists, latest_version, sha256_hex,
+};
 use semver::Version;
 
 const TARGET: &str = "x86_64-unknown-linux-gnu";
@@ -128,4 +130,28 @@ fn unreachable_server_gives_connection_hint() {
     .unwrap_err();
     assert!(matches!(err, Error::Update { .. }));
     assert!(err.hint().unwrap().contains("internet connection"));
+}
+
+#[test]
+fn ensure_release_exists_rejects_missing_release() {
+    let base = serve(Router::new());
+    let err = ensure_release_exists(&source(&base), &Version::new(9, 9, 9)).unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("v9.9.9") && msg.contains("not found"), "{msg}");
+}
+
+#[test]
+fn ensure_release_exists_accepts_release_with_sums() {
+    let base = serve(release_router(String::new()));
+    ensure_release_exists(&source(&base), &Version::new(1, 2, 0)).unwrap();
+}
+
+#[test]
+fn ensure_release_exists_accepts_older_release_via_api() {
+    let router = Router::new().route(
+        "/api/releases/tags/v1.1.0",
+        get(|| async { r#"{"assets":[]}"# }),
+    );
+    let base = serve(router);
+    ensure_release_exists(&source(&base), &Version::new(1, 1, 0)).unwrap();
 }

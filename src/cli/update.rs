@@ -6,8 +6,8 @@ use semver::Version;
 use crate::error::{Error, Result};
 use crate::update::{
     CHECK_TIMEOUT, InstallKind, Source, cargo_bin_dir, current_target, current_version,
-    download_verified, extract_binary, install_binary, install_kind, latest_version, parse_version,
-    release_url, update_error,
+    download_verified, ensure_release_exists, extract_binary, install_binary, install_kind,
+    latest_version, parse_version, release_url, update_error,
 };
 
 /// What `docanvil update` should do.
@@ -56,6 +56,9 @@ pub fn run(check: bool, yes: bool, version: Option<&str>, quiet: bool) -> Result
         }
         Action::Install(v) => v,
     };
+    if requested.is_some() {
+        ensure_release_exists(&source, &target_version)?;
+    }
 
     if !quiet {
         println!(

@@ -98,8 +98,11 @@ pub(crate) fn update_error(message: impl Into<String>, hint: Option<&str>) -> Er
 
 /// Timeout for a version check from `docanvil update`.
 pub const CHECK_TIMEOUT: Duration = Duration::from_secs(10);
-/// Timeout for downloading a release archive or checksum file.
-pub const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(30);
+/// Overall deadline for downloading a release archive or checksum file.
+/// Generous so slow links can still finish; dead hosts fail fast on connect.
+pub const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
+/// How long to wait for a TCP/TLS connection before giving up.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Release archives are ~5 MB; anything near this is not ours.
 const MAX_DOWNLOAD_BYTES: u64 = 200 * 1024 * 1024;
 
@@ -125,6 +128,7 @@ impl Source {
 fn agent(timeout: Duration, follow_redirects: bool) -> ureq::Agent {
     let mut config = ureq::Agent::config_builder()
         .timeout_global(Some(timeout))
+        .timeout_connect(Some(CONNECT_TIMEOUT.min(timeout)))
         .user_agent(concat!("docanvil/", env!("CARGO_PKG_VERSION")));
     if !follow_redirects {
         config = config.max_redirects(0).http_status_as_error(false);
@@ -186,6 +190,30 @@ pub fn parse_api_digest(json: &[u8], asset: &str) -> Option<String> {
         .map(str::to_ascii_lowercase)
 }
 
+fn release_not_found(version: &Version) -> Error {
+    update_error(
+        format!("DocAnvil release v{version} not found"),
+        Some("Check the version number at https://github.com/docanvil/docanvil/releases"),
+    )
+}
+
+/// Confirm a specific release exists before offering it, so `--check` and the
+/// confirmation prompt never describe a version that isn't there.
+pub fn ensure_release_exists(source: &Source, version: &Version) -> Result<()> {
+    let sums_url = format!(
+        "{}/releases/download/v{version}/SHA256SUMS",
+        source.web_base
+    );
+    if fetch(&sums_url, CHECK_TIMEOUT)?.is_some() {
+        return Ok(());
+    }
+    let api_url = format!("{}/releases/tags/v{version}", source.api_base);
+    match fetch(&api_url, CHECK_TIMEOUT)? {
+        Some(_) => Ok(()),
+        None => Err(release_not_found(version)),
+    }
+}
+
 /// The published SHA-256 for `asset`: `SHA256SUMS` first, then GitHub's
 /// per-asset digest for releases that predate the sums file.
 pub fn expected_digest(source: &Source, version: &Version, asset: &str) -> Result<String> {
@@ -203,12 +231,7 @@ pub fn expected_digest(source: &Source, version: &Version, asset: &str) -> Resul
     }
 
     let api_url = format!("{}/releases/tags/v{version}", source.api_base);
-    let json = fetch(&api_url, CHECK_TIMEOUT)?.ok_or_else(|| {
-        update_error(
-            format!("DocAnvil release v{version} not found"),
-            Some("Check the version number at https://github.com/docanvil/docanvil/releases"),
-        )
-    })?;
+    let json = fetch(&api_url, CHECK_TIMEOUT)?.ok_or_else(|| release_not_found(version))?;
     parse_api_digest(&json, asset).ok_or_else(|| {
         update_error(
             format!("release v{version} has no checksum for {asset}, so it can't be verified"),
@@ -520,6 +543,12 @@ mod tests {
             sha256_hex(b"abc"),
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
+    }
+
+    #[test]
+    fn download_timeout_allows_slow_links() {
+        // A ~5 MB archive at 256 kbit/s takes ~160 s.
+        assert!(DOWNLOAD_TIMEOUT >= Duration::from_secs(300));
     }
 
     #[test]

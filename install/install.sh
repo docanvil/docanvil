@@ -89,7 +89,7 @@ main() {
     || err "download failed: $BASE/$ASSET (does v$VERSION exist? see $REPO_URL/releases)"
 
   expected=$(expected_sha "$ASSET")
-  [ -n "$expected" ] || err "couldn't find a published checksum for $ASSET; refusing to install an unverified binary"
+  [ -n "$expected" ] || err "couldn't find a published checksum for $ASSET; refusing to install an unverified binary. (Releases up to v1.1.3 are checked through GitHub's API, which may be rate-limiting you: set GITHUB_TOKEN and try again.)"
   actual=$(sha256 "$TMP/$ASSET")
   [ "$actual" = "$expected" ] || err "checksum mismatch for $ASSET (expected $expected, got $actual)"
 
@@ -125,9 +125,23 @@ err() { printf 'error: %s\n' "$*" >&2; exit 1; }
 need_tools() {
   if command -v curl >/dev/null 2>&1; then
     fetch() { curl -fsL "$1" -o "$2"; }
+    api_fetch() {
+      if [ -n "${GITHUB_TOKEN:-}" ]; then
+        curl -fsL -H "Authorization: Bearer $GITHUB_TOKEN" "$1" -o "$2"
+      else
+        fetch "$1" "$2"
+      fi
+    }
     latest_location() { curl -fsSI "$1" | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1; }
   elif command -v wget >/dev/null 2>&1; then
     fetch() { wget -q -O "$2" "$1"; }
+    api_fetch() {
+      if [ -n "${GITHUB_TOKEN:-}" ]; then
+        wget -q --header="Authorization: Bearer $GITHUB_TOKEN" -O "$2" "$1"
+      else
+        fetch "$1" "$2"
+      fi
+    }
     # wget follows the redirect; the first Location header is the tag URL.
     latest_location() { wget -S --spider "$1" 2>&1 | tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | head -n 1; }
   else
@@ -159,8 +173,9 @@ detect_target() {
 expected_sha() {
   if fetch "$BASE/SHA256SUMS" "$TMP/SHA256SUMS" 2>/dev/null; then
     awk -v a="$1" '{ n = $2; sub(/^\*/, "", n) } n == a { print tolower($1); exit }' "$TMP/SHA256SUMS"
-  elif fetch "$API_URL/releases/tags/v$VERSION" "$TMP/release.json" 2>/dev/null; then
+  elif api_fetch "$API_URL/releases/tags/v$VERSION" "$TMP/release.json" 2>/dev/null; then
     # Releases before SHA256SUMS existed: use GitHub's per-asset digest.
+    # The API allows 60 anonymous requests an hour; GITHUB_TOKEN raises that.
     # Asset "name" always precedes its "digest" in the API response.
     grep -oE '"(name|digest)": *"[^"]*"' "$TMP/release.json" \
       | awk -v a="$1" '

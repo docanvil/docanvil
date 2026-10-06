@@ -99,6 +99,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          # Releases before SHA256SUMS are verified through GitHub's API;
+          # shared runners hit the anonymous rate limit without a token.
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # The installer uses the static musl build on Linux x86_64, which
           # releases before it was added don't have.
@@ -113,6 +116,8 @@ jobs:
 
       - name: install.ps1 on Windows PowerShell 5.1
         if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: powershell
         run: |
           $dir = Join-Path $env:RUNNER_TEMP 'docanvil-ps51'
@@ -128,6 +133,8 @@ jobs:
 
       - name: install.ps1 on PowerShell 7
         if: runner.os == 'Windows'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $dir = Join-Path $env:RUNNER_TEMP 'docanvil-ps7'

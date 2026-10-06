@@ -52,7 +52,10 @@ param(
         } catch {
             # Releases before SHA256SUMS existed: use GitHub's per-asset digest.
             try {
-                $release = Invoke-RestMethod -Uri "$Api/releases/tags/v$Version" -Headers @{ 'User-Agent' = 'docanvil-installer' }
+                # The API allows 60 anonymous requests an hour; GITHUB_TOKEN raises that.
+                $headers = @{ 'User-Agent' = 'docanvil-installer' }
+                if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $env:GITHUB_TOKEN" }
+                $release = Invoke-RestMethod -Uri "$Api/releases/tags/v$Version" -Headers $headers
             } catch {
                 return $null
             }
@@ -102,7 +105,7 @@ param(
         }
 
         $expected = Get-ExpectedSha $Base $Asset $Tmp
-        if (-not $expected) { throw "couldn't find a published checksum for $Asset; refusing to install an unverified binary" }
+        if (-not $expected) { throw "couldn't find a published checksum for $Asset; refusing to install an unverified binary. (Releases up to v1.1.3 are checked through GitHub's API, which may be rate-limiting you: set GITHUB_TOKEN and try again.)" }
         $actual = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
         if ($actual -ne $expected) { throw "checksum mismatch for $Asset (expected $expected, got $actual)" }
 

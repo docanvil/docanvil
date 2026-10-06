@@ -1,15 +1,19 @@
 name: CI
 
-# Docs-only changes skip this workflow; docs.yml still builds the docs site.
+# Docs-only changes (the docs site, or root-level Markdown like README.md and
+# ROADMAP.md) skip this workflow; docs.yml still builds the docs site.
+# `*.md` only matches the repo root, since `*` doesn't cross `/`.
 on:
   push:
     branches: [master]
     paths-ignore:
       - 'docs/**'
+      - '*.md'
   pull_request:
     branches: [master]
     paths-ignore:
       - 'docs/**'
+      - '*.md'
 
 jobs:
   lint:

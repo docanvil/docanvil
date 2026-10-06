@@ -274,7 +274,7 @@ Self-update: `ureq` (HTTP, rustls — no OpenSSL, keeps musl/ARM builds simple),
 
 ### CI & Release Workflows
 
-- `ci.yml` (lint + 3-OS test matrix) skips docs-only changes; `docs.yml` builds `docs/` with `--strict` using the checkout's binary on every PR
+- `ci.yml` (lint + 3-OS test matrix) skips docs-only changes (`docs/**` and root-level `*.md`); `docs.yml` builds `docs/` with `--strict` using the checkout's binary on every PR
 - Release builds live in `.github/workflows/build-targets.yml` (6 targets: linux x86_64 gnu + musl, linux aarch64 musl, macOS arm64/x86_64, Windows x86_64; the installer picks the static musl builds on Linux, while self-update keeps a binary on its own libc and ARM is musl-only), reused by `release.yml`
 - `ci.yml` runs that build plus an installer smoke test (real releases, incl. Windows PowerShell 5.1) only on `release/v*` PRs or PRs labelled `release-build` — normal PRs stay on the 3-OS test matrix
 - Releases ship archives + `SHA256SUMS` + `install.sh` + `install.ps1`

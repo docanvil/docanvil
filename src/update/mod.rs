@@ -1,6 +1,8 @@
 //! Self-update support: finding releases, verified downloads and replacing
 //! the running binary. Shared by `docanvil update` and the `serve` notice.
 
+pub mod notice;
+
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;

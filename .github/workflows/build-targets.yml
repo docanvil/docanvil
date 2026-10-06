@@ -10,6 +10,23 @@ on:
         type: string
 
 jobs:
+  # The exact source tree these binaries were built from. release.yml compares
+  # it with the tag's tree to decide whether a release PR's builds can be
+  # published as-is instead of building everything again.
+  source-tree:
+    name: Record source tree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write tree hash
+        run: git rev-parse 'HEAD^{tree}' > source-tree.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: source-tree
+          path: source-tree.txt
+
   build:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}

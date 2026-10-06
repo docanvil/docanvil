@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: read   # download artifacts from the release PR's CI run
 
 jobs:
   # Release names, tags and asset names all come from the ref name, so a manual
@@ -27,25 +28,89 @@ jobs:
             exit 1
           fi
 
+  # The release PR already built every target (ci.yml `release-build`). If that
+  # build compiled exactly the tree this tag points at, publish those archives
+  # rather than building them all again. Anything that doesn't line up (a
+  # different tree, a failed or missing run, expired artifacts) falls back to a
+  # fresh build below.
+  find-prebuilt:
+    name: Find release PR build
+    needs: check-ref
+    runs-on: ubuntu-latest
+    outputs:
+      run-id: ${{ steps.find.outputs.run-id }}
+    steps:
+      - name: Look for a matching CI run
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          api="repos/$GITHUB_REPOSITORY"
+          tag_tree=$(gh api "$api/commits/$GITHUB_SHA" -q .commit.tree.sha)
+
+          # Filter in jq rather than with event/status query params: GitHub's
+          # filtered run search occasionally returns nothing. Retry briefly too.
+          for _ in 1 2 3; do
+            run_id=$(gh api "$api/actions/workflows/ci.yml/runs?branch=release/$REF_NAME&per_page=20" \
+              -q '[.workflow_runs[] | select(.event == "pull_request" and .conclusion == "success")][0].id // empty')
+            [ -n "$run_id" ] && break
+            sleep 5
+          done
+          if [ -z "$run_id" ]; then
+            echo "No successful CI run for release/$REF_NAME; building from scratch."
+            exit 0
+          fi
+
+          artifacts=$(gh api "$api/actions/runs/$run_id/artifacts?per_page=100")
+          usable=$(jq '[.artifacts[] | select(.name | startswith("docanvil-")) | select(.expired | not)] | length' <<<"$artifacts")
+          expired=$(jq '[.artifacts[] | select(.name | startswith("docanvil-")) | select(.expired)] | length' <<<"$artifacts")
+          if [ "$usable" -eq 0 ] || [ "$expired" -ne 0 ]; then
+            echo "CI run $run_id has no usable release archives ($usable usable, $expired expired); building from scratch."
+            exit 0
+          fi
+
+          if ! gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name source-tree --dir prebuilt; then
+            echo "CI run $run_id didn't record its source tree; building from scratch."
+            exit 0
+          fi
+          built_tree=$(cat prebuilt/source-tree.txt)
+          if [ "$built_tree" != "$tag_tree" ]; then
+            echo "CI run $run_id built tree $built_tree, but $REF_NAME is $tag_tree; building from scratch."
+            exit 0
+          fi
+
+          echo "Reusing $usable archives from CI run $run_id (source tree $tag_tree)."
+          echo "run-id=$run_id" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build
-    needs: check-ref
+    needs: find-prebuilt
+    if: needs.find-prebuilt.outputs.run-id == ''
     uses: ./.github/workflows/build-targets.yml
     with:
       ref: ${{ github.ref_name }}
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: [find-prebuilt, build]
+    # `build` is skipped when the release PR's archives are reused.
+    if: >-
+      !cancelled() && needs.find-prebuilt.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download release archives
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: docanvil-*
           merge-multiple: true
+          # The release PR's CI run when reusing its builds, otherwise this run.
+          run-id: ${{ needs.find-prebuilt.outputs.run-id || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Add checksums and install scripts
         run: |
@@ -70,7 +135,10 @@ jobs:
 
   publish:
     name: Publish to crates.io
-    needs: build
+    needs: [find-prebuilt, build]
+    if: >-
+      !cancelled() && needs.find-prebuilt.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

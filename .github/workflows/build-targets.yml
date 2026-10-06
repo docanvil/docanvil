@@ -1,0 +1,107 @@
+name: Build release targets
+
+# Called by release.yml (publishing) and ci.yml (release PRs, build only).
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Tag or branch whose last path segment is vX.Y.Z (e.g. v1.2.0 or release/v1.2.0)
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+            bin: docanvil
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            archive: tar.gz
+            bin: docanvil
+            apt: musl-tools
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+            bin: docanvil
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+            bin: docanvil
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar.gz
+            bin: docanvil
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+            bin: docanvil.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install system packages
+        if: matrix.apt
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-release-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-release-
+
+      - name: Work out version
+        shell: bash
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          REF="${REF##*/}"
+          echo "VERSION=${REF#v}" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Strip binary (Unix)
+        if: runner.os != 'Windows'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.bin }}
+
+      - name: Archive (tar.gz)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          ARCHIVE="docanvil-v${VERSION}-${{ matrix.target }}.tar.gz"
+          tar -czf "$ARCHIVE" -C "target/${{ matrix.target }}/release" ${{ matrix.bin }}
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      - name: Archive (zip)
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          $ARCHIVE = "docanvil-v$env:VERSION-${{ matrix.target }}.zip"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/${{ matrix.bin }}" -DestinationPath $ARCHIVE
+          "ARCHIVE=$ARCHIVE" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # The Intel Mac binary is cross-built on an arm64 runner, which may not
+      # have Rosetta; every other target runs natively on its runner.
+      - name: Smoke test binary
+        if: matrix.target != 'x86_64-apple-darwin'
+        shell: bash
+        run: target/${{ matrix.target }}/release/${{ matrix.bin }} --version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docanvil-${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}

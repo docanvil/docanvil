@@ -477,7 +477,7 @@ fn run_single_locale(
         let n = flat_pages.len();
         eprintln!("Rendering {} page{}…", n, if n == 1 { "" } else { "s" });
     }
-    let registry = ComponentRegistry::with_builtins();
+    let registry = ComponentRegistry::load(project_root)?;
     let highlighter = if config.syntax.enabled {
         Some(SyntaxHighlighter::new(&config.syntax.theme))
     } else {

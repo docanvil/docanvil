@@ -2,14 +2,14 @@ pub mod builtin;
 pub mod templates;
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use regex::Regex;
 use tera::Tera;
 
 use crate::diagnostics::warn_component_render;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::pipeline::directives::{self, DirectiveBlock};
 use crate::pipeline::{headings, markdown, popovers};
 use crate::util::html_escape;
@@ -124,6 +124,41 @@ impl ComponentRegistry {
         registry.register(Box::new(builtin::code_group::CodeGroup));
         registry.register(Box::new(builtin::mermaid::Mermaid));
         registry
+    }
+
+    /// Where a project's component templates live.
+    pub fn user_template_dir(project_root: &Path) -> PathBuf {
+        project_root.join("theme/components")
+    }
+
+    /// Builtins plus the project's `theme/components/*.html`. A user template with a
+    /// builtin's name replaces its markup; any other name is a new component.
+    pub fn load(project_root: &Path) -> Result<Self> {
+        let mut registry = Self::with_builtins();
+        let dir = Self::user_template_dir(project_root);
+        if !dir.is_dir() {
+            return Ok(registry);
+        }
+
+        let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)?
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == "html"))
+            .collect();
+        paths.sort();
+
+        for path in paths {
+            let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let source = std::fs::read_to_string(&path)?;
+            registry
+                .add_template(name, &source)
+                .map_err(|message| Error::ComponentTemplate {
+                    path: path.clone(),
+                    message,
+                })?;
+        }
+        Ok(registry)
     }
 
     pub fn register(&mut self, component: Box<dyn Component>) {
@@ -408,6 +443,49 @@ mod tests {
         assert!(html.contains("needs-title"), "{html}");
         assert!(!html.contains("<h3>"), "{html}");
         assert_eq!(crate::diagnostics::warning_count(), 1);
+    }
+
+    #[test]
+    fn load_without_component_dir_is_builtins() {
+        let dir = tempfile::tempdir().unwrap();
+        let registry = ComponentRegistry::load(dir.path()).unwrap();
+        let html = registry.render_markdown(":::note\nx\n:::\n", Path::new("t.md"));
+        assert!(html.contains("admonition note"));
+    }
+
+    #[test]
+    fn load_reads_custom_and_override_templates() {
+        let dir = tempfile::tempdir().unwrap();
+        let comps = dir.path().join("theme/components");
+        std::fs::create_dir_all(&comps).unwrap();
+        std::fs::write(
+            comps.join("card.html"),
+            "<div class=\"card\">{{ body | safe }}</div>",
+        )
+        .unwrap();
+        std::fs::write(comps.join("note.html"), "<aside>{{ body | safe }}</aside>").unwrap();
+        std::fs::write(comps.join("README.md"), "not a template").unwrap();
+        let registry = ComponentRegistry::load(dir.path()).unwrap();
+        let html = registry.render_markdown("::::card\n:::note\nx\n:::\n::::\n", Path::new("t.md"));
+        assert!(
+            html.contains("<div class=\"card\"><aside><p>x</p>\n</aside>"),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn load_reports_syntax_errors_with_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let comps = dir.path().join("theme/components");
+        std::fs::create_dir_all(&comps).unwrap();
+        std::fs::write(comps.join("broken.html"), "{% if %}").unwrap();
+        let err = ComponentRegistry::load(dir.path()).err().unwrap();
+        match err {
+            crate::error::Error::ComponentTemplate { path, .. } => {
+                assert!(path.ends_with("theme/components/broken.html"));
+            }
+            other => panic!("unexpected error: {other}"),
+        }
     }
 
     #[test]

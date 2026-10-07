@@ -330,7 +330,7 @@ fn build_site(
         }
     }
 
-    let registry = ComponentRegistry::with_builtins();
+    let registry = ComponentRegistry::load(project_root)?;
 
     // Create syntax highlighter if enabled
     let highlighter = if config.syntax.enabled {

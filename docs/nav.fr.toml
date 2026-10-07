@@ -1,6 +1,6 @@
 [[nav]]
 page = "index"
-label = "Home"
+label = "Accueil"
 
 [[nav]]
 separator = "Guides"
@@ -12,13 +12,13 @@ autodiscover = "guides"
 separator = true
 
 [[nav]]
-separator = "Writing Content"
+separator = "Rédaction"
 
 [[nav]]
 autodiscover = "writing"
 
 [[nav]]
-separator = "Reference"
+separator = "Référence"
 
 [[nav]]
 autodiscover = "reference"
@@ -27,11 +27,11 @@ autodiscover = "reference"
 separator = true
 
 [[nav]]
-separator = "Deployment"
+separator = "Déploiement"
 
 [[nav]]
 autodiscover = "deployment"
 
 [[nav]]
-label = "Development"
+label = "Développement"
 autodiscover = "development"

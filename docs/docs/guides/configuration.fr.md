@@ -1,3 +1,9 @@
+---
+{
+  "description": "Configurez votre projet avec docanvil.toml et organisez la barre latérale avec nav.toml."
+}
+---
+
 # Configuration
 
 DocAnvil utilise deux fichiers de configuration à la racine de votre projet : `docanvil.toml` pour les paramètres du projet et `nav.toml` pour la structure de navigation.

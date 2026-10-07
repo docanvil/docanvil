@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Export your whole docs site as a single print-ready PDF, using Chrome or Chromium.",
   "title": "PDF Export"
 }
 ---

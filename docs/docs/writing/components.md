@@ -1,3 +1,9 @@
+---
+{
+  "description": "Notes, warnings, tabs, code groups, diagrams and your own template components, all from ::: directives."
+}
+---
+
 # Components
 
 DocAnvil provides built-in components rendered via fenced directives. These are processed before Markdown rendering, so you can use Markdown inside them.

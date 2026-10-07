@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Exportez toute votre documentation en un seul PDF prêt à imprimer, avec Chrome ou Chromium.",
   "title": "Export PDF",
   "slug": "pdf-export"
 }

@@ -1,12 +1,18 @@
+---
+{
+  "description": "Upgrade between DocAnvil versions, or move an existing docs site over from another tool."
+}
+---
+
 # Migration Guide
 
-DocAnvil is pre-1.0, so breaking changes can happen between minor versions. This page will document migration steps as they come up.
+DocAnvil follows [Semantic Versioning](https://semver.org) and is stable at 1.x, so upgrading within 1.x never requires changes to your project. This page covers anything that ever does.
 
 ## Migrating Between Versions
 
-Nothing to migrate yet! DocAnvil hasn't introduced any breaking changes that require manual intervention.
+Nothing to migrate yet! Every 1.x release works with your existing config, content and theme overrides.
 
-When breaking changes do land, you'll find step-by-step migration instructions here — covering config changes, renamed options, and anything else that might affect your project.
+If a future major version needs changes, you'll find step-by-step migration instructions here — covering config changes, renamed options, and anything else that might affect your project.
 
 ## Coming From Another Tool
 

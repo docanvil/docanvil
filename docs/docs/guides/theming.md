@@ -1,3 +1,9 @@
+---
+{
+  "description": "Customize colors, fonts and layout with CSS variables, custom stylesheets and template overrides."
+}
+---
+
 # Theming
 
 DocAnvil's appearance is customizable through three layers, each building on the last:

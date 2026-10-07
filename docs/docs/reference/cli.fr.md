@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Toutes les commandes et options de docanvil, de new et serve jusqu'à export et update.",
   "title": "Commandes CLI",
   "slug": "cli-commands"
 }
@@ -569,6 +570,6 @@ Le code de sortie `5` ne devrait jamais apparaître en utilisation normale. Si v
 
 ## Pages associées
 
-- [[guides/getting-started|Installation]] — installer et créer votre premier projet
+- [[guides/getting-started|Premiers pas]] — installer et créer votre premier projet
 - [[guides/configuration|Configuration]] — référence `docanvil.toml` et `nav.toml`
 - [[guides/pdf-export|Export PDF]] — pages de couverture, formats de papier, support RTL, et export par locale

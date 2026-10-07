@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Every docanvil command and flag, from new and serve to export and update.",
   "title": "CLI Commands"
 }
 ---
@@ -568,6 +569,6 @@ Exit code `5` should never happen in normal use. If you see it, please [report t
 
 ## Related Pages
 
-- [[guides/getting-started|Installation]] — install and create your first project
+- [[guides/getting-started|Getting Started]] — install and create your first project
 - [[guides/configuration|Configuration]] — `docanvil.toml` and `nav.toml` reference
 - [[guides/pdf-export|PDF Export]] — cover pages, paper sizes, RTL support, and per-locale export

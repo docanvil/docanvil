@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Link between pages by slug with wiki-links, and add inline tooltips with popovers.",
   "title": "Links & Popovers"
 }
 ---

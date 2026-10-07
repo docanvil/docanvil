@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Reliez vos pages par leur slug avec les wiki-links, et ajoutez des infobulles avec les popovers.",
   "title": "Liens & Popovers",
   "slug": "links-popovers"
 }

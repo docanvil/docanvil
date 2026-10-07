@@ -1,3 +1,9 @@
+---
+{
+  "description": "Tout ce que le Markdown de DocAnvil prend en charge, des tableaux GFM et listes de tâches aux notes de bas de page et au surlignage."
+}
+---
+
 # Markdown
 
 DocAnvil utilise comrak pour le rendu Markdown avec les extensions GitHub Flavored Markdown (GFM) activées. Tout ce que vous attendez du Markdown standard fonctionne, plus les tableaux, les listes de tâches, le texte barré, les notes de bas de page, et le front matter.

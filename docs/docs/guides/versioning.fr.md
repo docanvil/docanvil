@@ -1,3 +1,9 @@
+---
+{
+  "description": "Publiez la documentation de plusieurs versions côte à côte, avec un sélecteur de version et une navigation et une recherche propres à chaque version."
+}
+---
+
 # Versionnement
 
 DocAnvil supporte les sites de documentation multi-versions par défaut. Chaque version obtient son propre préfixe d'URL, sa propre navigation, et son propre index de recherche — et un sélecteur de version dans l'en-tête permet aux lecteurs de naviguer entre les versions. Une bannière automatique les informe qu'ils consultent une version antérieure.

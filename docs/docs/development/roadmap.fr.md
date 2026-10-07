@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Où en est DocAnvil aujourd'hui et ce qui arrive dans les prochaines versions.",
   "title": "Feuille de route",
   "slug": "roadmap"
 }

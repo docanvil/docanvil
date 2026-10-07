@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Every CSS variable in the default theme, with its default value and what it controls.",
   "title": "CSS Variables"
 }
 ---

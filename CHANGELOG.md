@@ -6,7 +6,13 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- `install.sh` now stops when interrupted (Ctrl-C) instead of carrying on, and never leaves a half-written binary in the install directory if it's interrupted or a copy fails
+- `install.ps1` now works from a 32-bit PowerShell on 64-bit Windows, and can upgrade DocAnvil while it's running (for example with `docanvil serve` open in another terminal)
 - `docanvil doctor` no longer reports "Link has no visible text" for links whose text is inline code (e.g. ``[`docanvil update`](#docanvil-update)``), or missing alt text for images whose alt is inline code. Words either side of an inline code span are no longer flagged as a repeated word, and link examples inside inline code are no longer flagged as non-descriptive link text
+
+### Added
+
+- The installation guide covers downloading a release by hand: which archive fits your platform and how to check it against `SHA256SUMS`
 
 ### Changed
 

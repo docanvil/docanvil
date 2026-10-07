@@ -16,17 +16,32 @@ DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/) et est s
 - ✅ Linting de style (`docanvil doctor` — vérifications de lisibilité, structure des titres, qualité des liens, et plus)
 - ✅ Scripts d'installation pour macOS, Linux et Windows, plus de plateformes précompilées, et `docanvil update`
 
-## 1.2.x — Extensibilité
+## 1.2.x — L'essentiel de la rédaction
 
-Système de plugins WASM (v1), options CLI supplémentaires, plus de diagnostics, et améliorations des templates. Entièrement rétrocompatible.
+Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour que les nouveaux projets aient tout ce qu'il leur faut dès le premier jour :
 
-## 1.3.x et plus — Croissance de l'écosystème
+- Liens « Modifier cette page » vers la source d'une page sur GitHub, GitLab, Bitbucket ou tout autre hébergeur Git
+- Ouverture du fichier source dans votre éditeur directement depuis `docanvil serve`
+- Redirections, pour que les anciennes URL continuent de fonctionner quand des pages sont déplacées
+- Inclusions, pour réutiliser du contenu partagé entre pages, locales et versions
+- Pages brouillons, visibles dans `docanvil serve` mais exclues des compilations de production
+- Dates de dernière mise à jour, issues de l'historique Git ou du front matter
+- Génération de `llms.txt`, un index de votre documentation adapté aux IA
+- Composants en templates : définissez vos propres composants sous forme de templates Tera dans votre thème, sans Rust
+
+Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
+
+## 1.3.x — Extensibilité
+
+Un système de plugins WASM (v1) pour les transformations Markdown et tout ce que les composants en templates ne permettent pas, options CLI supplémentaires, plus de diagnostics, et améliorations des templates. Entièrement rétrocompatible.
+
+## 1.4.x et plus — Croissance de l'écosystème
 
 Hooks pour plugins, optimisations des performances, compilations incrémentales, mise en cache, et un crate SDK pour les plugins. Les changements incompatibles nécessitent une version majeure.
 
 ## Idées à l'étude
 
-Pas encore planifiées, mais dans notre viseur : un glossaire, la validation du schéma du front matter, la génération de références OpenAPI, des bundles de documentation hors ligne, des préréglages de compilation et des vérifications de contraste.
+Pas encore planifiées, mais dans notre viseur : un glossaire, la validation du schéma du front matter, la génération de références OpenAPI, des bundles de documentation hors ligne, des préréglages de compilation, des vérifications de contraste, le support des formules mathématiques (KaTeX), la vérification des liens externes et des cartes sociales.
 
 ## 2.0 et au-delà
 

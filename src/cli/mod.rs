@@ -1,5 +1,6 @@
 pub mod build;
 pub mod color;
+pub mod component;
 pub mod doctor;
 pub mod export;
 pub mod new;
@@ -10,6 +11,7 @@ pub mod update;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+use crate::cli::component::ComponentArgs;
 use crate::cli::export::ExportArgs;
 
 #[derive(Clone, Debug, Default, clap::ValueEnum)]
@@ -102,6 +104,8 @@ pub enum Command {
     },
     /// Export documentation to another format
     Export(ExportArgs),
+    /// List components, or copy a built-in's template into your project to customise it
+    Component(ComponentArgs),
     /// Check for a newer DocAnvil release and upgrade in place
     Update {
         /// Only report whether an update is available

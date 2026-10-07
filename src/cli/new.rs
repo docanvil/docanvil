@@ -21,10 +21,20 @@ pub fn run(name: &str) -> Result<()> {
     std::fs::create_dir_all(project_dir.join("theme"))?;
     std::fs::create_dir_all(project_dir.join("assets"))?;
 
+    // Name the project after its directory, not the whole argument:
+    // `docanvil new ../guides` is "guides", not "../guides".
+    let project_name = project_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(name);
+    // Quoted and escaped by the TOML serializer, so names with `\` or `"`
+    // (or a whole Windows path, in the fallback above) stay valid.
+    let toml_name = toml::Value::String(project_name.to_string()).to_string();
+
     // Write docanvil.toml
     let config = format!(
         r##"[project]
-name = "{name}"
+name = {toml_name}
 content_dir = "docs"
 # logo = "assets/logo.png"
 # favicon = "assets/favicon.ico"
@@ -56,7 +66,7 @@ custom_css = "theme/custom.css"
 
     // Write initial index.md
     let index = format!(
-        r##"# Welcome to {name}
+        r##"# Welcome to {project_name}
 
 This is your new documentation site, powered by [DocAnvil](https://github.com/docanvil/docanvil).
 
@@ -110,7 +120,7 @@ font-body = "Georgia, serif"
     let getting_started = format!(
         r##"# Getting Started
 
-Welcome to {name}! This guide walks you through setup and first steps.
+Welcome to {project_name}! This guide walks you through setup and first steps.
 
 ## Installation
 
@@ -123,8 +133,8 @@ cargo install docanvil
 ## Create a New Project
 
 ```bash
-docanvil init {name}
-cd {name}
+docanvil new {project_name}
+cd {project_name}
 ```
 
 ## Start the Dev Server
@@ -157,13 +167,13 @@ back to the [[index|home page]].
     let configuration = format!(
         r##"# Configuration
 
-{name} is configured through `docanvil.toml` in the project root.
+{project_name} is configured through `docanvil.toml` in the project root.
 
 ## Config Sections
 
 ```toml
 [project]
-name = "{name}"
+name = {toml_name}
 content_dir = "docs"
 
 [build]
@@ -485,7 +495,7 @@ group = [
     eprintln!(
         "{} Created project '{}' at {}",
         "✓".green().bold(),
-        name.bold(),
+        project_name.bold(),
         project_dir.display()
     );
     eprintln!();
@@ -494,4 +504,48 @@ group = [
     eprintln!();
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    #[test]
+    fn project_name_is_the_final_path_component() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("nested").join("my-docs");
+
+        run(dir.to_str().unwrap()).unwrap();
+
+        let config = Config::load(&dir).unwrap();
+        assert_eq!(config.project.name, "my-docs");
+    }
+
+    // Windows file names can't contain `"` or `\`; there the backslashes
+    // come from the path, covered by the test above.
+    #[cfg(unix)]
+    #[test]
+    fn project_name_is_escaped_in_config() {
+        let tmp = tempfile::tempdir().unwrap();
+        let name = r#"my \docs\ "v2""#;
+        let dir = tmp.path().join(name);
+
+        run(dir.to_str().unwrap()).unwrap();
+
+        let config = Config::load(&dir).unwrap();
+        assert_eq!(config.project.name, name);
+    }
+
+    #[test]
+    fn getting_started_page_uses_the_new_command() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("site");
+
+        run(dir.to_str().unwrap()).unwrap();
+
+        let page = std::fs::read_to_string(dir.join("docs/guides/getting-started.md")).unwrap();
+        assert!(page.contains("docanvil new site"));
+        assert!(!page.contains("docanvil init"));
+    }
 }

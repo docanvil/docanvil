@@ -5,7 +5,7 @@
 ---
 # CLI Commands
 
-DocAnvil provides seven subcommands: `new`, `theme`, `doctor`, `serve`, `build`, `export`, and `update`.
+DocAnvil provides eight subcommands: `new`, `theme`, `doctor`, `serve`, `build`, `component`, `export`, and `update`.
 
 ## Global Flags
 
@@ -408,6 +408,47 @@ docanvil build --path ../my-docs
 :::note
 Broken wiki-links are reported as warnings during build. Check the output for any "broken link" messages to find references to pages that don't exist.
 :::
+
+## `docanvil component`
+
+See and customise [[writing/components|components]] — both built-ins and your own.
+
+### `docanvil component list`
+
+List built-in components and show which ones you've overridden or added.
+
+```bash
+docanvil component list [--path <dir>]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--path` | `.` | Path to the project root |
+
+```bash
+# See what's built in, overridden, and custom
+docanvil component list
+```
+
+### `docanvil component eject`
+
+Copy a built-in component's template into `theme/components/` so you can restyle it.
+
+```bash
+docanvil component eject <name>... [--all] [--force] [--path <dir>]
+```
+
+| Argument / Option | Default | Description |
+|-------|---------|-------------|
+| `<name>...` | — | One or more built-in components to eject, e.g. `note tabs` |
+| `--all` | `false` | Eject every built-in component |
+| `--force` | `false` | Overwrite a template that already exists at the destination |
+| `--path` | `.` | Path to the project root |
+
+```bash
+# Eject the note component to restyle it
+docanvil component eject note
+```
 
 ## `docanvil export`
 

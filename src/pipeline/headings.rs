@@ -11,8 +11,12 @@ use std::sync::LazyLock;
 /// Into:
 ///   `### My Great Heading\n\n{#custom-id}`
 pub fn extract_custom_heading_ids(source: &str) -> String {
+    // The trailing whitespace is deliberately `[ \t]*`, not `\s*`: `\s` matches
+    // `\n` too, so a greedy `\s*$` would eat into the blank line that follows
+    // (`{#id}\n\n` has two newlines; `\s*` would swallow one), leaving the next
+    // paragraph as a lazy continuation of the `{#id}` line instead of its own block.
     static HEADING_ID_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?m)^(#{1,6}\s+.*?)\s+\{#([\w-]+)\}\s*$").unwrap());
+        LazyLock::new(|| Regex::new(r"(?m)^(#{1,6}\s+.*?)\s+\{#([\w-]+)\}[ \t]*$").unwrap());
 
     HEADING_ID_RE
         .replace_all(source, "$1\n\n{#$2}")
@@ -70,6 +74,7 @@ pub fn inject_heading_ids(html: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pipeline::markdown;
 
     #[test]
     fn basic_heading_gets_id() {
@@ -164,8 +169,26 @@ mod tests {
     fn multiple_headings_with_custom_ids() {
         let source = "## First {#one}\n\nSome text\n\n### Second {#two}";
         let result = extract_custom_heading_ids(source);
-        assert!(result.contains("## First\n\n{#one}"));
-        assert!(result.contains("### Second\n\n{#two}"));
+        assert_eq!(
+            result,
+            "## First\n\n{#one}\n\nSome text\n\n### Second\n\n{#two}"
+        );
+    }
+
+    /// Regression test: the blank line after `{#id}` must survive, or the
+    /// following paragraph becomes a lazy continuation of the `{#id}` line
+    /// and comrak renders them as one `<p>`, leaking `{#id}` into the page.
+    #[test]
+    fn blank_line_after_custom_id_is_preserved() {
+        let source = "## Heading {#my-id}\n\nFollowing paragraph.";
+        let result = extract_custom_heading_ids(source);
+        assert_eq!(result, "## Heading\n\n{#my-id}\n\nFollowing paragraph.");
+
+        let html = markdown::render(&result);
+        assert_eq!(
+            html,
+            "<h2>Heading</h2>\n<p>{#my-id}</p>\n<p>Following paragraph.</p>\n"
+        );
     }
 
     #[test]

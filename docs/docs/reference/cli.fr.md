@@ -6,7 +6,7 @@
 ---
 # Commandes CLI
 
-DocAnvil propose sept sous-commandes : `new`, `theme`, `doctor`, `serve`, `build`, `export` et `update`.
+DocAnvil propose huit sous-commandes : `new`, `theme`, `doctor`, `serve`, `build`, `component`, `export` et `update`.
 
 ## Options globales
 
@@ -409,6 +409,47 @@ docanvil build --path ../mes-docs
 :::note
 Les wiki-links cassés sont signalés comme avertissements pendant la compilation. Vérifiez la sortie pour les messages "broken link" pour trouver les références vers des pages inexistantes.
 :::
+
+## `docanvil component`
+
+Consultez et personnalisez les [[writing/components|composants]] — les intégrés comme les vôtres.
+
+### `docanvil component list`
+
+Liste les composants intégrés et indique ceux que vous avez surchargés ou ajoutés.
+
+```bash
+docanvil component list [--path <rép>]
+```
+
+| Option | Défaut | Description |
+|--------|---------|-------------|
+| `--path` | `.` | Chemin vers la racine du projet |
+
+```bash
+# Voir ce qui est intégré, surchargé, et personnalisé
+docanvil component list
+```
+
+### `docanvil component eject`
+
+Copie le template d'un composant intégré dans `theme/components/` pour pouvoir le restyler.
+
+```bash
+docanvil component eject <nom>... [--all] [--force] [--path <rép>]
+```
+
+| Argument / Option | Défaut | Description |
+|-------|---------|-------------|
+| `<nom>...` | — | Un ou plusieurs composants intégrés à éjecter, ex. `note tabs` |
+| `--all` | `false` | Éjecte tous les composants intégrés |
+| `--force` | `false` | Remplace un template déjà présent à la destination |
+| `--path` | `.` | Chemin vers la racine du projet |
+
+```bash
+# Éjecter le composant note pour le restyler
+docanvil component eject note
+```
 
 ## `docanvil export`
 

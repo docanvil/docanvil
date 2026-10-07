@@ -7,6 +7,20 @@ All notable changes to DocAnvil will be documented in this file.
 ### Added
 
 - "Edit this page" links: set `repo` in a new `[edit]` section and every page links to its Markdown source on GitHub, GitLab or Bitbucket, so readers can suggest fixes as pull requests. Translated and versioned pages link to their own source file, self-hosted GitHub and GitLab work via `provider`, and a page can opt out with `"edit_link": false` in its front matter. `docanvil doctor` warns if the settings can't produce working links (#45)
+- Template components: drop a Tera template into `theme/components/<name>.html` and use it as `:::name{…}`. A template with a built-in's name restyles that built-in, keeping its data (e.g. `tabs`)
+- Components can now be nested — `::::card` containing `:::note` and inline `:::lozenge{…}` just works
+- `docanvil component list` and `docanvil component eject <name>` to see components and copy a built-in's template into your project
+- `docanvil doctor` checks component templates for syntax errors, unusable file names, and `{{ body }}` without `| safe`
+
+### Changed
+
+- Built-in component attribute values (such as a note's `title` or a lozenge's `text`) are now HTML-escaped, so `title="Fish & Chips"` renders as written. Put HTML in the body instead
+- Text directly after a component's closing `:::` (no blank line) is now rendered as Markdown rather than raw HTML
+
+### Fixed
+
+- Directive examples inside fenced code blocks are shown as written instead of being rendered as components
+- A heading's custom `{#id}` no longer swallows the blank line after it, which merged the following paragraph into the same block and left the literal `{#id}` text visible on the page
 
 ## [1.1.5] - 2026-10-07
 

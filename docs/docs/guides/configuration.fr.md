@@ -64,6 +64,10 @@ paper_size = "A4"
 [doctor]
 max_paragraph_words = 150
 heading_adjacent_separator = true
+
+[edit]
+repo = "https://github.com/org/repo"
+branch = "main"
 ```
 :::
 ::::
@@ -214,6 +218,29 @@ heading_adjacent_separator = false     # Désactiver la vérification séparateu
 
 :::note{title="Besoin de détails ?"}
 Consultez [[reference/cli|Commandes CLI → Vérifications de lisibilité]] pour la liste complète des vérifications, leurs niveaux de sévérité, et ce que chacune détecte.
+:::
+
+### Section `[edit]`
+
+Ajoute un lien « Edit this page » à chaque page, qui pointe vers sa source Markdown sur GitHub, GitLab ou Bitbucket. Les lecteurs peuvent proposer une correction depuis leur navigateur, et vous la recevez sous forme de pull request (ou merge request) à relire comme n'importe quel autre changement.
+
+| Clé | Défaut | Description |
+|-----|---------|-------------|
+| `repo` | `None` | L'adresse web de votre dépôt, par ex. `"https://github.com/org/repo"`. La définir active les liens de modification |
+| `branch` | `"main"` | La branche sur laquelle portent les modifications |
+| `provider` | déduit | `"github"`, `"gitlab"` ou `"bitbucket"`. Nécessaire uniquement pour les instances auto-hébergées ; `github.com`, `gitlab.com` et `bitbucket.org` sont détectés automatiquement |
+| `root` | détecté automatiquement | L'emplacement de votre projet DocAnvil dans le dépôt, par ex. `"docs"`. Détecté en cherchant le dossier `.git` le plus proche : vous n'en avez besoin que si vous compilez hors d'un dépôt Git |
+
+```toml
+[edit]
+repo = "https://github.com/org/repo"
+branch = "main"
+```
+
+Les liens pointent toujours vers le fichier à partir duquel la page a été générée : les pages traduites (`page.fr.md`) et les anciennes versions (`docs/v1/page.md`) renvoient vers leur propre source. Pour masquer le lien sur une seule page, définissez `"edit_link": false` dans son [[writing/front-matter|front matter]]. Les liens de modification n'apparaissent ni sur la page 404 ni dans les exports PDF.
+
+:::note{title="Git auto-hébergé"}
+GitHub Enterprise et GitLab auto-hébergé fonctionnent en définissant `provider`. Bitbucket Server et Data Center ne sont pas encore pris en charge, car ils ne proposent pas de lien de modification direct. `docanvil doctor` vous avertit si vos paramètres `[edit]` ne peuvent pas produire de liens valides.
 :::
 
 ## nav.toml

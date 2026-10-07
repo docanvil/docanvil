@@ -39,6 +39,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `description` | Chaîne | Génère les balises `<meta name="description">` et `<meta property="og:description">` pour les moteurs de recherche et les aperçus de liens |
 | `author` | Chaîne | Génère la balise `<meta name="author">` |
 | `date` | Chaîne | Génère la balise `<meta property="article:published_time">` pour les moteurs de recherche et le partage social |
+| `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
 
 Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos propres métadonnées personnalisées sans déclencher d'erreurs.
 

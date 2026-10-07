@@ -3,6 +3,7 @@ pub mod components;
 pub mod config;
 pub mod diagnostics;
 pub mod doctor;
+pub mod edit;
 pub mod error;
 pub mod nav;
 pub mod pipeline;

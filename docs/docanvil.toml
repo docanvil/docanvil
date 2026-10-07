@@ -17,6 +17,10 @@ color_mode = "both"
 # color-primary = "#6366f1"
 # font-body = "Georgia, serif"
 
+[edit]
+repo = "https://github.com/docanvil/docanvil"
+branch = "master"
+
 [locale]
 default = "en"
 enabled = ["en", "fr"]

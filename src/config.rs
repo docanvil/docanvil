@@ -127,6 +127,42 @@ impl Default for DoctorConfig {
     }
 }
 
+/// Git hosting provider for "Edit this page" links.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EditProvider {
+    Github,
+    Gitlab,
+    Bitbucket,
+}
+
+/// "Edit this page" link configuration. Links are shown when `repo` is set.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct EditConfig {
+    /// Repository web URL (e.g. "https://github.com/org/repo").
+    pub repo: Option<String>,
+    /// Branch the edit links point at (default: "main").
+    pub branch: String,
+    /// Hosting provider. Inferred from github.com, gitlab.com and bitbucket.org;
+    /// required for self-hosted instances.
+    pub provider: Option<EditProvider>,
+    /// Location of the project within the repository (e.g. "docs").
+    /// Auto-detected from the nearest `.git` when unset.
+    pub root: Option<String>,
+}
+
+impl Default for EditConfig {
+    fn default() -> Self {
+        Self {
+            repo: None,
+            branch: "main".to_string(),
+            provider: None,
+            root: None,
+        }
+    }
+}
+
 /// Returns `true` for right-to-left locales.
 pub fn is_rtl_locale(code: &str) -> bool {
     matches!(code, "ar" | "he" | "ur" | "fa" | "ug")
@@ -147,6 +183,7 @@ pub struct Config {
     pub version: VersionConfig,
     pub pdf: PdfConfig,
     pub doctor: DoctorConfig,
+    pub edit: EditConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -643,5 +680,39 @@ default = "en"
 
         // Serialize for Tera templates
         assert_eq!(serde_json::to_string(&ColorMode::Both).unwrap(), "\"both\"");
+    }
+
+    #[test]
+    fn edit_config_defaults() {
+        let config: Config = toml::from_str("").unwrap();
+        assert!(config.edit.repo.is_none());
+        assert_eq!(config.edit.branch, "main");
+        assert!(config.edit.provider.is_none());
+        assert!(config.edit.root.is_none());
+    }
+
+    #[test]
+    fn edit_config_full() {
+        let toml = r#"
+[edit]
+repo = "https://git.example.com/team/docs"
+branch = "develop"
+provider = "gitlab"
+root = "site"
+"#;
+        let config: Config = toml::from_str(toml).unwrap();
+        assert_eq!(
+            config.edit.repo.as_deref(),
+            Some("https://git.example.com/team/docs")
+        );
+        assert_eq!(config.edit.branch, "develop");
+        assert_eq!(config.edit.provider, Some(EditProvider::Gitlab));
+        assert_eq!(config.edit.root.as_deref(), Some("site"));
+    }
+
+    #[test]
+    fn edit_config_unknown_provider_errors() {
+        let toml = "[edit]\nprovider = \"gitea\"\n";
+        assert!(toml::from_str::<Config>(toml).is_err());
     }
 }

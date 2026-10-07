@@ -213,6 +213,7 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `sidebar` | La barre de navigation latérale |
 | `content` | Zone de contenu principale |
 | `footer` | Pied de page sous le contenu |
+| `edit_link` | Le lien « Edit this page » sous le contenu |
 | `scripts` | JavaScript en fin de body |
 
 ### Variables de template
@@ -231,6 +232,7 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `mermaid_enabled` | Booléen | Si le rendu des diagrammes Mermaid est activé |
 | `mermaid_version` | Chaîne | Version majeure de Mermaid.js à charger depuis le CDN |
 | `color_mode` | Chaîne | Mode de couleur : `"light"`, `"dark"`, ou `"both"` |
+| `edit_url` | Chaîne | URL « Edit this page » de la page courante, quand `[edit]` est configuré |
 
 :::note
 Le template par défaut inclut du JavaScript pour la commutation des onglets, le repli/développement de la barre latérale, le filtrage de navigation, le positionnement des popovers, la recherche, et le rendu des diagrammes Mermaid. Si vous surchargez le bloc `scripts`, vous devrez réimplémenter les fonctionnalités que vous souhaitez conserver.

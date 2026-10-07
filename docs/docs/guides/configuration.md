@@ -64,6 +64,10 @@ paper_size = "A4"
 [doctor]
 max_paragraph_words = 150
 heading_adjacent_separator = true
+
+[edit]
+repo = "https://github.com/org/repo"
+branch = "main"
 ```
 :::
 ::::
@@ -214,6 +218,29 @@ heading_adjacent_separator = false # Disable the separator-next-to-heading check
 
 :::note{title="Need details?"}
 See [[reference/cli|CLI Commands → Readability checks]] for the full list of checks, their severities, and what each one catches.
+:::
+
+### `[edit]` Section
+
+Adds an "Edit this page" link to every page, pointing at its Markdown source on GitHub, GitLab or Bitbucket. Readers can suggest a fix in their browser, and you get it as a pull request (or merge request) to review like any other change.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `repo` | `None` | Your repository's web address, e.g. `"https://github.com/org/repo"`. Setting it turns edit links on |
+| `branch` | `"main"` | The branch edits are made against |
+| `provider` | inferred | `"github"`, `"gitlab"` or `"bitbucket"`. Only needed for self-hosted instances; `github.com`, `gitlab.com` and `bitbucket.org` are detected automatically |
+| `root` | auto-detected | Where your DocAnvil project lives inside the repository, e.g. `"docs"`. Detected by looking for the nearest `.git` folder, so you only need it when building outside a Git checkout |
+
+```toml
+[edit]
+repo = "https://github.com/org/repo"
+branch = "main"
+```
+
+Links always point at the file the page was built from, so translated pages (`page.fr.md`) and older versions (`docs/v1/page.md`) link to their own source. To hide the link on a single page, set `"edit_link": false` in its [[writing/front-matter|front matter]]. Edit links don't appear on the 404 page or in PDF exports.
+
+:::note{title="Self-hosted Git"}
+GitHub Enterprise and self-hosted GitLab work by setting `provider`. Bitbucket Server and Data Center aren't supported yet, since they don't offer a direct edit link. `docanvil doctor` warns if your `[edit]` settings can't produce working links.
 :::
 
 ## nav.toml

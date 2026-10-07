@@ -146,18 +146,37 @@ impl ComponentRegistry {
             .collect();
         paths.sort();
 
-        for path in paths {
-            let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+        // Read every template before registering any of them, then register them
+        // in one batch. Tera resolves `{% import %}` / `{% extends %}` against
+        // whatever's already in its template map, so adding files one at a time
+        // (in alphabetical order) breaks a template that references one that
+        // sorts later — e.g. `badge.html` importing macros from `zz-macros.html`.
+        let mut sources = Vec::with_capacity(paths.len());
+        for path in &paths {
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };
-            let source = std::fs::read_to_string(&path)?;
-            registry
-                .add_template(name, &source)
-                .map_err(|message| Error::ComponentTemplate {
-                    path: path.clone(),
-                    message,
-                })?;
+            let source = std::fs::read_to_string(path)?;
+            sources.push((path.clone(), stem.to_string(), source));
         }
+
+        let batch: Vec<(String, &str)> = sources
+            .iter()
+            .map(|(_, stem, source)| (template_name(stem), source.as_str()))
+            .collect();
+
+        registry.tera.add_raw_templates(batch).map_err(|e| {
+            let message = tera_error_message(&e);
+            // Tera names the offending template in the message (e.g.
+            // "Failed to parse 'badge.html'"); match it back to its file.
+            let path = sources
+                .iter()
+                .find(|(_, stem, _)| message.contains(&template_name(stem)))
+                .map(|(path, _, _)| path.clone())
+                .unwrap_or_else(|| dir.clone());
+            Error::ComponentTemplate { path, message }
+        })?;
+
         Ok(registry)
     }
 
@@ -471,6 +490,41 @@ mod tests {
             html.contains("<div class=\"card\"><aside><p>x</p>\n</aside>"),
             "{html}"
         );
+    }
+
+    #[test]
+    fn load_resolves_cross_file_import_regardless_of_file_name_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let comps = dir.path().join("theme/components");
+        std::fs::create_dir_all(&comps).unwrap();
+        // "badge.html" sorts before "zz-macros.html" alphabetically, so a
+        // one-at-a-time load would try to register badge.html (which imports
+        // zz-macros.html) before zz-macros.html exists.
+        std::fs::write(
+            comps.join("badge.html"),
+            "{% import \"zz-macros.html\" as m %}<span>{{ m::shout(text=attrs.text) }}</span>",
+        )
+        .unwrap();
+        std::fs::write(
+            comps.join("zz-macros.html"),
+            "{% macro shout(text) %}{{ text | upper }}{% endmacro shout %}",
+        )
+        .unwrap();
+        let registry = ComponentRegistry::load(dir.path()).unwrap();
+        let html = registry.render_markdown(":::badge{text=\"hi\"}\n:::\n", Path::new("t.md"));
+        assert!(html.contains("HI"), "{html}");
+    }
+
+    #[test]
+    fn load_resolves_extends_from_a_user_template() {
+        let dir = tempfile::tempdir().unwrap();
+        let comps = dir.path().join("theme/components");
+        std::fs::create_dir_all(&comps).unwrap();
+        std::fs::write(comps.join("alert.html"), "{% extends \"note.html\" %}").unwrap();
+        let registry = ComponentRegistry::load(dir.path()).unwrap();
+        let html = registry.render_markdown(":::alert\nHi\n:::\n", Path::new("t.md"));
+        assert!(html.contains("admonition note"), "{html}");
+        assert!(html.contains("Hi"), "{html}");
     }
 
     #[test]

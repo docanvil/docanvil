@@ -1,7 +1,12 @@
 use std::path::Path;
+use std::sync::LazyLock;
 
+use regex::Regex;
+
+use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Fix, Severity};
+use crate::error::Error;
 
 /// Check theme: custom CSS existence, layout template validity.
 pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
@@ -64,10 +69,6 @@ pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
     diags
 }
 
-use crate::components::ComponentRegistry;
-use regex::Regex;
-use std::sync::LazyLock;
-
 static COMPONENT_NAME_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\w[\w-]*$").unwrap());
 static BARE_BODY_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\{\{-?\s*body\s*-?\}\}").unwrap());
@@ -84,6 +85,27 @@ fn check_component_templates(project_root: &Path) -> Vec<Diagnostic> {
         .filter(|p| p.is_file() && p.extension().is_some_and(|e| e == "html"))
         .collect();
     paths.sort();
+
+    // Get the Tera verdict the same way the build does: all of
+    // `theme/components/*.html` loaded together, so a valid cross-file
+    // `{% extends %}` / `{% import %}` isn't falsely flagged, and a real error
+    // matches what `docanvil build` would fail on.
+    let tera_error = match ComponentRegistry::load(project_root) {
+        Ok(_) => None,
+        Err(Error::ComponentTemplate { path, message }) => Some((path, message)),
+        Err(e) => Some((dir.clone(), e.to_string())),
+    };
+    if let Some((path, message)) = &tera_error {
+        diags.push(Diagnostic {
+            check: "component-tera-error",
+            category: "theme",
+            severity: Severity::Error,
+            message: format!("Component template has Tera errors: {message}"),
+            file: Some(path.clone()),
+            line: None,
+            fix: None,
+        });
+    }
 
     for path in paths {
         let stem = path
@@ -107,26 +129,18 @@ fn check_component_templates(project_root: &Path) -> Vec<Diagnostic> {
             continue;
         }
 
+        // Already reported above as the one template that failed to load —
+        // its content can't be trusted enough to also check for `{{ body }}`.
+        if tera_error
+            .as_ref()
+            .is_some_and(|(failed, _)| *failed == path)
+        {
+            continue;
+        }
+
         let Ok(source) = std::fs::read_to_string(&path) else {
             continue;
         };
-
-        let mut tera = tera::Tera::default();
-        if let Err(e) = tera.add_raw_template(&format!("{stem}.html"), &source) {
-            diags.push(Diagnostic {
-                check: "component-tera-error",
-                category: "theme",
-                severity: Severity::Error,
-                message: format!(
-                    "Component template has Tera errors: {}",
-                    crate::components::tera_error_message(&e)
-                ),
-                file: Some(path),
-                line: None,
-                fix: None,
-            });
-            continue;
-        }
 
         if BARE_BODY_RE.is_match(&source) {
             diags.push(Diagnostic {
@@ -195,6 +209,29 @@ mod tests {
     #[test]
     fn body_raw_and_safe_body_are_fine() {
         let dir = component_project(&[("card.html", "{{ body_raw }}{{ body | safe }}")]);
+        assert!(checks_for(&dir).is_empty());
+    }
+
+    #[test]
+    fn cross_file_import_with_later_sorting_macros_file_passes() {
+        // "badge.html" sorts before "zz-macros.html" alphabetically; doctor must
+        // agree with the build that loads every template together.
+        let dir = component_project(&[
+            (
+                "badge.html",
+                "{% import \"zz-macros.html\" as m %}{{ m::shout(text=attrs.text) }}",
+            ),
+            (
+                "zz-macros.html",
+                "{% macro shout(text) %}{{ text | upper }}{% endmacro shout %}",
+            ),
+        ]);
+        assert!(checks_for(&dir).is_empty());
+    }
+
+    #[test]
+    fn extends_a_builtin_template_passes() {
+        let dir = component_project(&[("alert.html", "{% extends \"note.html\" %}")]);
         assert!(checks_for(&dir).is_empty());
     }
 }

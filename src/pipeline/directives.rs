@@ -8,6 +8,8 @@ pub struct DirectiveBlock {
     pub name: String,
     pub attributes: HashMap<String, String>,
     pub body: String,
+    /// True for inline `:::name{attrs}` (no body, no closing fence).
+    pub inline: bool,
 }
 
 static OPEN_RE: LazyLock<Regex> =
@@ -103,6 +105,7 @@ pub fn process_directives(
                     name,
                     attributes: attrs,
                     body: body_lines.join("\n"),
+                    inline: false,
                 };
                 let rendered = renderer(&block);
                 output.push_str(&rendered);
@@ -200,6 +203,7 @@ fn replace_inline_in_line(
             name,
             attributes: attrs,
             body: String::new(),
+            inline: true,
         };
         out.push_str(&renderer(&block));
         last = m.end();
@@ -414,5 +418,19 @@ mod tests {
         let input = "```\ncode\n```\n:::note\nHi\n:::\n";
         let output = process_directives(input, &mut |_| "RENDERED".to_string());
         assert_eq!(output, "```\ncode\n```\nRENDERED\n");
+    }
+
+    #[test]
+    fn parser_sets_inline_flag() {
+        let mut seen = Vec::new();
+        let source = process_directives(":::note\nx\n:::\n", &mut |b| {
+            seen.push(b.inline);
+            String::new()
+        });
+        process_inline_directives(&format!("{source}a :::lozenge{{text=\"y\"}} b"), &mut |b| {
+            seen.push(b.inline);
+            String::new()
+        });
+        assert_eq!(seen, vec![false, true]);
     }
 }

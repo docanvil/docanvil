@@ -1,22 +1,26 @@
 pub mod builtin;
+pub mod templates;
 
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
+use tera::Tera;
 
+use crate::diagnostics::warn_component_render;
 use crate::error::Result;
 use crate::pipeline::directives::{self, DirectiveBlock};
 use crate::pipeline::{headings, markdown, popovers};
+use crate::util::html_escape;
 
-/// Context passed to a component when rendering.
+/// What a component's data provider sees.
 pub struct ComponentContext<'a> {
-    pub attributes: HashMap<String, String>,
+    pub attributes: &'a HashMap<String, String>,
     /// The raw body text (before Markdown rendering).
-    pub body_raw: String,
-    /// The body rendered as HTML, nested components included.
-    pub body_html: String,
+    pub body_raw: &'a str,
+    /// True for inline `:::name{attrs}` use.
+    pub inline: bool,
     /// Renders a Markdown fragment exactly like a page body (nested components included).
     pub render_markdown: &'a dyn Fn(&str) -> String,
 }
@@ -53,45 +57,90 @@ fn restore_placeholders(html: &str, rendered: &[String]) -> String {
         .into_owned()
 }
 
-/// Trait for custom components that handle directive blocks.
+/// A builtin component's Rust half: extracts extra template variables from the
+/// directive. The markup lives in the component's template.
 pub trait Component: Send + Sync {
     fn name(&self) -> &str;
-    fn render(&self, ctx: &ComponentContext) -> Result<String>;
+
+    /// Extra template variables beyond `attrs`, `body`, `body_raw`, `name`, `inline`.
+    fn data(&self, _ctx: &ComponentContext) -> Result<tera::Context> {
+        Ok(tera::Context::new())
+    }
+
+    /// Whether the body is Markdown to render into `body`. Components whose body is
+    /// something else (diagram source, tab children, code blocks) return false.
+    fn renders_body(&self) -> bool {
+        true
+    }
 }
 
-/// Registry mapping directive names to component implementations.
+/// Maps directive names to templates and (for some builtins) data providers.
 pub struct ComponentRegistry {
-    components: HashMap<String, Box<dyn Component>>,
+    providers: HashMap<String, Box<dyn Component>>,
+    tera: Tera,
 }
 
 impl Default for ComponentRegistry {
     fn default() -> Self {
-        Self::new()
+        Self::with_builtins()
     }
 }
 
-impl ComponentRegistry {
-    pub fn new() -> Self {
-        Self {
-            components: HashMap::new(),
-        }
-    }
+/// Escape a value printed by a component template. Same as `html_escape`, plus
+/// single quotes. Tera's own escaper also rewrites `/` as `&#x2F;`, which is
+/// noisy in output and isn't decoded by the search indexer.
+fn escape_template_value(s: &str) -> String {
+    html_escape(s).replace('\'', "&#39;")
+}
 
-    /// Create a registry with all built-in components pre-registered.
+/// Flatten a Tera error and its causes into one line.
+pub(crate) fn tera_error_message(e: &tera::Error) -> String {
+    let mut message = e.to_string();
+    let mut source = std::error::Error::source(e);
+    while let Some(cause) = source {
+        message.push_str(": ");
+        message.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    message
+}
+
+impl ComponentRegistry {
+    /// A registry with the builtin components and their embedded templates.
     pub fn with_builtins() -> Self {
-        let mut registry = Self::new();
-        registry.register(Box::new(builtin::note::Note));
-        registry.register(Box::new(builtin::warning::Warning));
+        let mut tera = Tera::default();
+        tera.set_escape_fn(escape_template_value);
+        let mut registry = Self {
+            providers: HashMap::new(),
+            tera,
+        };
+        for name in templates::builtin_names() {
+            let source = templates::builtin_source(&name).unwrap_or_default();
+            registry
+                .add_template(&name, &source)
+                .expect("embedded component templates are valid");
+        }
         registry.register(Box::new(builtin::tabs::Tabs));
         registry.register(Box::new(builtin::code_group::CodeGroup));
         registry.register(Box::new(builtin::mermaid::Mermaid));
-        registry.register(Box::new(builtin::lozenge::Lozenge));
         registry
     }
 
     pub fn register(&mut self, component: Box<dyn Component>) {
-        self.components
+        self.providers
             .insert(component.name().to_string(), component);
+    }
+
+    /// Add (or replace) the template for component `name`.
+    pub fn add_template(&mut self, name: &str, source: &str) -> std::result::Result<(), String> {
+        self.tera
+            .add_raw_template(&template_name(name), source)
+            .map_err(|e| tera_error_message(&e))
+    }
+
+    fn has_template(&self, name: &str) -> bool {
+        let wanted = template_name(name);
+        self.tera.get_template_names().any(|n| n == wanted)
     }
 
     /// Render a Markdown fragment to HTML: directives (nested, via this registry),
@@ -115,49 +164,82 @@ impl ComponentRegistry {
         restore_placeholders(&html, &rendered)
     }
 
-    /// Render a directive block using the registered component.
-    /// Falls back to a generic div wrapper if no component is registered.
+    /// Render one directive. Uses the component's template (plus provider data);
+    /// falls back to a generic div when the name has no template.
     pub fn render_block(&self, block: &DirectiveBlock, source_file: &Path) -> String {
+        let provider: Option<&dyn Component> = self.providers.get(&block.name).map(|p| p.as_ref());
+
+        if provider.is_none() && !self.has_template(&block.name) {
+            let body = self.render_markdown(&block.body, source_file);
+            let attrs = attr_string(&block.attributes);
+            return format!("<div class=\"{}\"{}>\n{}</div>", block.name, attrs, body);
+        }
+
+        let renders_body = provider.is_none_or(|p| p.renders_body());
+        let body = if renders_body && !block.body.is_empty() {
+            self.render_markdown(&block.body, source_file)
+        } else {
+            String::new()
+        };
+
         let render_markdown = |s: &str| self.render_markdown(s, source_file);
         let ctx = ComponentContext {
-            attributes: block.attributes.clone(),
-            body_raw: block.body.clone(),
-            body_html: render_markdown(&block.body),
+            attributes: &block.attributes,
+            body_raw: &block.body,
+            inline: block.inline,
             render_markdown: &render_markdown,
         };
 
-        if let Some(component) = self.components.get(&block.name) {
-            match component.render(&ctx) {
-                Ok(html) => html,
-                Err(e) => {
-                    format!(
-                        "<div class=\"directive-error\">Error rendering {}: {}</div>",
-                        block.name, e
-                    )
-                }
+        match self.render_template(&block.name, &ctx, &body, provider) {
+            Ok(html) => html.trim_matches('\n').to_string(),
+            Err(message) => {
+                warn_component_render(source_file, &block.name, &message);
+                format!(
+                    "<div class=\"directive-error\">Error rendering {}: {}</div>",
+                    block.name,
+                    html_escape(&message)
+                )
             }
-        } else {
-            // Default: wrap in a div with the directive name as class
-            let attrs = attr_string(&block.attributes);
-            format!(
-                "<div class=\"{}\"{}>\n{}</div>",
-                block.name, attrs, ctx.body_html
-            )
         }
+    }
+
+    fn render_template(
+        &self,
+        name: &str,
+        ctx: &ComponentContext,
+        body: &str,
+        provider: Option<&dyn Component>,
+    ) -> std::result::Result<String, String> {
+        let mut context = tera::Context::new();
+        context.insert("attrs", ctx.attributes);
+        context.insert("body", body);
+        context.insert("body_raw", ctx.body_raw);
+        context.insert("name", name);
+        context.insert("inline", &ctx.inline);
+        if let Some(provider) = provider {
+            context.extend(provider.data(ctx).map_err(|e| e.to_string())?);
+        }
+        self.tera
+            .render(&template_name(name), &context)
+            .map_err(|e| tera_error_message(&e))
     }
 }
 
-/// Convert attributes map to HTML attribute string.
+fn template_name(name: &str) -> String {
+    format!("{name}.html")
+}
+
+/// Convert attributes map to HTML attribute string (generic fallback div).
 fn attr_string(attrs: &HashMap<String, String>) -> String {
     let mut s = String::new();
     for (k, v) in attrs {
         if k == "class" || k == "id" {
             continue; // handled separately
         }
-        s.push_str(&format!(" data-{k}=\"{v}\""));
+        s.push_str(&format!(" data-{k}=\"{}\"", html_escape(v)));
     }
     if let Some(id) = attrs.get("id") {
-        s.push_str(&format!(" id=\"{id}\""));
+        s.push_str(&format!(" id=\"{}\"", html_escape(id)));
     }
     s
 }
@@ -175,6 +257,7 @@ mod tests {
             name: "note".to_string(),
             attributes: HashMap::new(),
             body: "This is important.".to_string(),
+            inline: false,
         };
         let html = registry.render_block(&block, Path::new("test.md"));
         assert!(html.contains("note"));
@@ -191,6 +274,7 @@ mod tests {
                 ("text".to_string(), "Not Done".to_string()),
             ]),
             body: "".to_string(),
+            inline: false,
         };
         let html = registry.render_block(&block, Path::new("test.md"));
         assert!(html.contains("<span class=\"lozenge yellow\">Not Done</span>"));
@@ -203,33 +287,58 @@ mod tests {
             name: "custom-thing".to_string(),
             attributes: HashMap::new(),
             body: "Body text".to_string(),
+            inline: false,
         };
         let html = registry.render_block(&block, Path::new("test.md"));
         assert!(html.contains("<div class=\"custom-thing\">"));
     }
 
     #[test]
-    fn custom_component_registration() {
-        struct MyComponent;
-        impl Component for MyComponent {
-            fn name(&self) -> &str {
-                "my-comp"
-            }
-            fn render(&self, ctx: &ComponentContext) -> crate::error::Result<String> {
-                Ok(format!("<custom>{}</custom>", ctx.body_raw))
-            }
-        }
+    fn custom_template_component() {
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template(
+                "card",
+                "<div class=\"card\"><h3>{{ attrs.title }}</h3>{{ body | safe }}</div>",
+            )
+            .unwrap();
+        let html =
+            registry.render_markdown(":::card{title=\"Hi\"}\nBody\n:::\n", Path::new("t.md"));
+        assert!(
+            html.contains("<div class=\"card\"><h3>Hi</h3><p>Body</p>\n</div>"),
+            "{html}"
+        );
+    }
 
-        let mut registry = ComponentRegistry::new();
-        registry.register(Box::new(MyComponent));
+    #[test]
+    fn template_with_blank_lines_is_not_reparsed() {
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template(
+                "spaced",
+                "<div class=\"spaced\">\n\n    <p>{{ attrs.text }}</p>\n\n</div>\n",
+            )
+            .unwrap();
+        let html = registry.render_markdown(
+            ":::spaced{text=\"indented\"}\n:::\n\nAfter\n",
+            Path::new("t.md"),
+        );
+        assert!(html.contains("    <p>indented</p>"), "{html}");
+        assert!(!html.contains("<pre>"), "{html}");
+        assert!(html.contains("<p>After</p>"), "{html}");
+    }
 
-        let block = DirectiveBlock {
-            name: "my-comp".to_string(),
-            attributes: HashMap::new(),
-            body: "hello".to_string(),
-        };
-        let html = registry.render_block(&block, Path::new("test.md"));
-        assert_eq!(html, "<custom>hello</custom>");
+    #[test]
+    fn override_keeps_builtin_data() {
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template("tabs", "{% for tab in tabs %}[{{ tab.title }}]{% endfor %}")
+            .unwrap();
+        let html = registry.render_markdown(
+            "::::tabs\n:::tab{title=\"A\"}\nx\n:::\n:::tab{title=\"B\"}\ny\n:::\n::::\n",
+            Path::new("t.md"),
+        );
+        assert!(html.contains("[A][B]"), "{html}");
     }
 
     /// Render one directive through the builtin registry.
@@ -242,12 +351,96 @@ mod tests {
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect(),
             body: body.to_string(),
+            inline: false,
         };
         registry.render_block(&block, Path::new("test.md"))
     }
 
     fn render_page(source: &str) -> String {
         ComponentRegistry::with_builtins().render_markdown(source, Path::new("test.md"))
+    }
+
+    #[test]
+    fn attribute_values_are_escaped() {
+        assert_eq!(
+            render("note", &[("title", "<b>Fish & \"Chips\"</b>")], "x"),
+            "<div class=\"admonition note\">\n<p class=\"admonition-title\">&lt;b&gt;Fish &amp; &quot;Chips&quot;&lt;/b&gt;</p>\n<p>x</p>\n</div>"
+        );
+    }
+
+    #[test]
+    fn slashes_and_apostrophes_stay_readable() {
+        assert_eq!(
+            render("lozenge", &[("text", "Docs / Guide's")], ""),
+            "<span class=\"lozenge default\">Docs / Guide&#39;s</span>"
+        );
+    }
+
+    #[test]
+    fn fallback_div_escapes_attribute_values() {
+        let html = render("custom-thing", &[("x", "a\"b")], "");
+        assert!(html.contains("data-x=\"a&quot;b\""), "{html}");
+    }
+
+    #[test]
+    fn template_sees_inline_flag_and_name() {
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template(
+                "probe",
+                "{{ name }}:{% if inline %}inline{% else %}block{% endif %}",
+            )
+            .unwrap();
+        let html = registry.render_markdown("a :::probe{} b\n\n:::probe\n:::\n", Path::new("t.md"));
+        assert!(html.contains("a probe:inline b"), "{html}");
+        assert!(html.contains("probe:block"), "{html}");
+    }
+
+    #[test]
+    fn render_error_shows_escaped_error_box_and_warns() {
+        crate::diagnostics::reset_warnings();
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template("needs-title", "<h3>{{ attrs.title }}</h3>")
+            .unwrap();
+        let html = registry.render_markdown(":::needs-title\n:::\n", Path::new("t.md"));
+        assert!(html.contains("class=\"directive-error\""), "{html}");
+        assert!(html.contains("needs-title"), "{html}");
+        assert!(!html.contains("<h3>"), "{html}");
+        assert_eq!(crate::diagnostics::warning_count(), 1);
+    }
+
+    #[test]
+    fn add_template_rejects_syntax_errors() {
+        let mut registry = ComponentRegistry::with_builtins();
+        let err = registry.add_template("broken", "{% if %}").unwrap_err();
+        assert!(err.contains("broken.html"), "{err}");
+    }
+
+    #[test]
+    fn every_builtin_has_a_template_with_a_header() {
+        for name in crate::components::templates::builtin_names() {
+            let source = crate::components::templates::builtin_source(&name).unwrap();
+            assert!(
+                source.starts_with("{#"),
+                "{name} template should start with a {{# #}} header"
+            );
+            assert!(
+                source.contains("Variables:"),
+                "{name} header should list variables"
+            );
+        }
+        assert_eq!(
+            crate::components::templates::builtin_names(),
+            vec![
+                "code-group",
+                "lozenge",
+                "mermaid",
+                "note",
+                "tabs",
+                "warning"
+            ]
+        );
     }
 
     #[test]
@@ -274,25 +467,6 @@ mod tests {
             html.trim(),
             "<p><span class=\"lozenge x\">Done</span> and more</p>"
         );
-    }
-
-    #[test]
-    fn component_html_with_blank_lines_is_not_reparsed() {
-        struct Spaced;
-        impl Component for Spaced {
-            fn name(&self) -> &str {
-                "spaced"
-            }
-            fn render(&self, _ctx: &ComponentContext) -> crate::error::Result<String> {
-                Ok("<div class=\"spaced\">\n\n    <p>indented</p>\n\n</div>".to_string())
-            }
-        }
-        let mut registry = ComponentRegistry::with_builtins();
-        registry.register(Box::new(Spaced));
-        let html = registry.render_markdown(":::spaced\n:::\n\nAfter\n", Path::new("test.md"));
-        assert!(html.contains("    <p>indented</p>"), "{html}");
-        assert!(!html.contains("<pre>"), "{html}");
-        assert!(html.contains("<p>After</p>"), "{html}");
     }
 
     #[test]

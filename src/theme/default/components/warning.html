@@ -1,0 +1,12 @@
+{# warning — builtin component
+   Usage:     :::warning{title="Optional title"} … :::
+   Variables:
+     attrs.title  optional heading (defaults to "Warning")
+     body         the rendered body HTML (print with | safe)
+     body_raw     the original Markdown body
+     name         "warning"
+     inline       true when used inline
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
+<div class="admonition warning">
+<p class="admonition-title">{{ attrs.title | default(value="Warning") }}</p>
+{{ body | safe }}</div>

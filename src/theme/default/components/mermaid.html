@@ -1,0 +1,9 @@
+{# mermaid — builtin component
+   Usage:     :::mermaid … diagram source … :::
+   Variables:
+     body_raw     the diagram source. Print it with | safe: Mermaid reads the element's
+                  innerHTML, so escaped entities like &gt; would break the diagram.
+     attrs        directive attributes
+     name         "mermaid"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
+<pre class="mermaid">{{ body_raw | safe }}</pre>

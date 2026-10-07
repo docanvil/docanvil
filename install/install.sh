@@ -82,7 +82,13 @@ main() {
   ASSET="docanvil-v$VERSION-$TARGET.tar.gz"
   BASE="$REPO_URL/releases/download/v$VERSION"
   TMP=$(mktemp -d 2>/dev/null || mktemp -d -t docanvil)
-  trap 'rm -rf "$TMP"' EXIT INT TERM
+  STAGED=""
+  # Clean up on any exit. A trap replaces a signal's default action, so INT and
+  # TERM have to exit explicitly (which then runs the EXIT trap) or the script
+  # would carry on after Ctrl-C.
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 
   say "⬇️  Downloading docanvil v$VERSION ($TARGET)"
   fetch "$BASE/$ASSET" "$TMP/$ASSET" \
@@ -103,10 +109,10 @@ main() {
   chmod 755 "$STAGED"
   # Make sure it actually runs here before replacing anything.
   if ! "$STAGED" --version >/dev/null 2>&1; then
-    rm -f "$STAGED"
     err "the downloaded docanvil binary won't run on this system ($TARGET). Install from source with: cargo install docanvil"
   fi
   mv -f "$STAGED" "$BIN"
+  STAGED=""
 
   say "✅ Installed docanvil v$VERSION to $BIN"
   case ":$PATH:" in
@@ -117,6 +123,12 @@ main() {
       say "  export PATH=\"$INSTALL_DIR:\$PATH\""
       ;;
   esac
+}
+
+cleanup() {
+  rm -rf "$TMP"
+  # A half-written or unverified binary must never be left in the install dir.
+  [ -z "$STAGED" ] || rm -f "$STAGED"
 }
 
 say() { [ "$QUIET" = 1 ] || printf '%s\n' "$*"; }

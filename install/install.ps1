@@ -70,8 +70,11 @@ param(
         return $null
     }
 
-    if ($env:PROCESSOR_ARCHITECTURE -notin @('AMD64', 'ARM64')) {
-        throw "no prebuilt DocAnvil for '$($env:PROCESSOR_ARCHITECTURE)'. Install from source with: cargo install docanvil"
+    # A 32-bit PowerShell on 64-bit Windows reports x86 here; the real
+    # architecture is in PROCESSOR_ARCHITEW6432.
+    $Arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    if ($Arch -notin @('AMD64', 'ARM64')) {
+        throw "no prebuilt DocAnvil for '$Arch'. Install from source with: cargo install docanvil"
     }
     # ARM64 Windows runs the x86_64 build under emulation.
     $Target = 'x86_64-pc-windows-msvc'
@@ -114,7 +117,27 @@ param(
         if (-not (Test-Path $extracted)) { throw "the archive didn't contain docanvil.exe" }
 
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-        Copy-Item $extracted $Bin -Force
+        # Windows won't overwrite a running exe (say, docanvil serve in another
+        # terminal) but will rename one, so move the old copy aside first.
+        # Copies left over from earlier upgrades are deleted once they've exited.
+        Get-ChildItem -Path $InstallDir -Filter 'docanvil.exe.*.old' -ErrorAction SilentlyContinue |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+        $old = $null
+        if (Test-Path $Bin) {
+            $old = "$Bin.$([System.Guid]::NewGuid().ToString('N').Substring(0, 8)).old"
+            try {
+                Move-Item -Path $Bin -Destination $old
+            } catch {
+                throw "couldn't replace $Bin ($($_.Exception.Message))"
+            }
+        }
+        try {
+            Copy-Item $extracted $Bin -Force
+        } catch {
+            if ($old) { Move-Item -Path $old -Destination $Bin -Force -ErrorAction SilentlyContinue }
+            throw "couldn't write $Bin ($($_.Exception.Message))"
+        }
+        if ($old) { Remove-Item $old -Force -ErrorAction SilentlyContinue }
     } finally {
         Remove-Item -Recurse -Force $Tmp -ErrorAction SilentlyContinue
     }

@@ -66,6 +66,57 @@ On Windows, set the environment variables before running the one-liner (for exam
 
 Re-running the script when that version is already installed does nothing and exits successfully, so it's safe to use in CI.
 
+### Manual download
+
+Prefer not to pipe a script into your shell, or working on a locked-down machine? Every [release](https://github.com/docanvil/docanvil/releases) has a prebuilt archive per platform:
+
+| Platform | Archive |
+|---|---|
+| macOS (Apple Silicon) | `docanvil-vX.Y.Z-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `docanvil-vX.Y.Z-x86_64-apple-darwin.tar.gz` |
+| Linux x86_64 (any distro, including Alpine) | `docanvil-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz` |
+| Linux ARM64 (any distro) | `docanvil-vX.Y.Z-aarch64-unknown-linux-musl.tar.gz` |
+| Windows x86_64 (also runs on Windows on ARM) | `docanvil-vX.Y.Z-x86_64-pc-windows-msvc.zip` |
+
+Download the archive and the release's `SHA256SUMS`, check the archive against it, then put the binary somewhere on your `PATH`:
+
+::::tabs
+:::tab{title="macOS / Linux"}
+```bash
+VERSION=1.1.4                 # the release you want
+TARGET=aarch64-apple-darwin   # from the table above
+BASE=https://github.com/docanvil/docanvil/releases/download/v$VERSION
+
+curl -fLO "$BASE/docanvil-v$VERSION-$TARGET.tar.gz"
+curl -fLO "$BASE/SHA256SUMS"
+shasum -a 256 -c --ignore-missing SHA256SUMS   # or: sha256sum -c --ignore-missing SHA256SUMS
+
+tar -xzf "docanvil-v$VERSION-$TARGET.tar.gz"
+mkdir -p ~/.local/bin && mv docanvil ~/.local/bin/
+```
+
+The checksum line must print `OK`. If you downloaded the archive in a browser on macOS, clear the quarantine flag before running it: `xattr -d com.apple.quarantine ~/.local/bin/docanvil`.
+:::
+:::tab{title="Windows"}
+```powershell
+$Version = "1.1.4"
+$Asset = "docanvil-v$Version-x86_64-pc-windows-msvc.zip"
+$Base = "https://github.com/docanvil/docanvil/releases/download/v$Version"
+
+Invoke-WebRequest "$Base/$Asset" -OutFile $Asset
+Invoke-WebRequest "$Base/SHA256SUMS" -OutFile SHA256SUMS
+(Get-FileHash $Asset -Algorithm SHA256).Hash.ToLower()
+Select-String $Asset SHA256SUMS
+
+Expand-Archive $Asset -DestinationPath "$env:LOCALAPPDATA\docanvil\bin" -Force
+```
+
+The two hashes must match. Then add `%LOCALAPPDATA%\docanvil\bin` to your user `PATH`.
+:::
+::::
+
+Releases up to v1.1.3 have no `SHA256SUMS` file. For those, compare against the SHA-256 digest GitHub shows next to each asset on the release page.
+
 ## Updating
 
 ```bash

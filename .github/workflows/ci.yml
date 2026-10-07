@@ -109,10 +109,15 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # The installer uses the static musl build on Linux x86_64, which
-          # releases before it was added don't have.
-          if [ "$RUNNER_OS" = Linux ] && ! gh release view --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name' | grep -q linux-musl; then
-            echo "Skipping: the latest release has no musl build yet."
-            exit 0
+          # releases before it was added don't have. Fetch the asset list on
+          # its own line so a gh failure fails the step instead of looking
+          # like "no musl build" (pipefail + grep -q would also SIGPIPE gh).
+          if [ "$RUNNER_OS" = Linux ]; then
+            assets=$(gh release view --repo "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+            case "$assets" in
+              *linux-musl*) ;;
+              *) echo "Skipping: the latest release has no musl build yet."; exit 0 ;;
+            esac
           fi
           DIR="$RUNNER_TEMP/docanvil-bin"
           sh install/install.sh --install-dir "$DIR"
@@ -147,6 +152,23 @@ jobs:
           & (Join-Path $dir 'docanvil.exe') --version
           $out = & ./install/install.ps1 -InstallDir $dir 6>&1 | Out-String
           if ($out -notmatch 'already installed') { throw "expected early exit, got: $out" }
+          # Reinstalling while docanvil is running must work: Windows locks a running exe.
+          $exe = Join-Path $dir 'docanvil.exe'
+          # A bare name, not a path: `docanvil new` writes it into docanvil.toml unescaped (#41).
+          Push-Location $env:RUNNER_TEMP
+          & $exe new running-site
+          Pop-Location
+          $site = Join-Path $env:RUNNER_TEMP 'running-site'
+          $log = Join-Path $env:RUNNER_TEMP 'serve.log'
+          $serve = Start-Process -FilePath $exe -ArgumentList 'serve', '--path', $site, '--port', '3917' -PassThru -NoNewWindow -RedirectStandardError $log
+          try {
+            Start-Sleep -Seconds 3
+            if ($serve.HasExited) { Get-Content $log; throw "docanvil serve exited early (code $($serve.ExitCode))" }
+            & ./install/install.ps1 -InstallDir $dir -Force
+            & $exe --version
+          } finally {
+            Stop-Process -Id $serve.Id -Force -ErrorAction SilentlyContinue
+          }
           $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
           $kind = $key.GetValueKind('Path')
           $raw = $key.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)

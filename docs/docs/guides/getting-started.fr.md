@@ -68,6 +68,57 @@ Sous Windows, définissez les variables d'environnement avant de lancer la comma
 
 Relancer le script alors que cette version est déjà installée ne fait rien et se termine sans erreur : vous pouvez l'utiliser sans risque en CI.
 
+### Téléchargement manuel
+
+Vous préférez ne pas exécuter un script directement dans votre shell, ou vous travaillez sur une machine verrouillée ? Chaque [version publiée](https://github.com/docanvil/docanvil/releases) fournit une archive précompilée par plateforme :
+
+| Plateforme | Archive |
+|---|---|
+| macOS (Apple Silicon) | `docanvil-vX.Y.Z-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `docanvil-vX.Y.Z-x86_64-apple-darwin.tar.gz` |
+| Linux x86_64 (toutes distributions, y compris Alpine) | `docanvil-vX.Y.Z-x86_64-unknown-linux-musl.tar.gz` |
+| Linux ARM64 (toutes distributions) | `docanvil-vX.Y.Z-aarch64-unknown-linux-musl.tar.gz` |
+| Windows x86_64 (fonctionne aussi sous Windows ARM) | `docanvil-vX.Y.Z-x86_64-pc-windows-msvc.zip` |
+
+Téléchargez l'archive et le fichier `SHA256SUMS` de la version, vérifiez l'archive, puis placez le binaire dans un dossier de votre `PATH` :
+
+::::tabs
+:::tab{title="macOS / Linux"}
+```bash
+VERSION=1.1.4                 # la version souhaitée
+TARGET=aarch64-apple-darwin   # d'après le tableau ci-dessus
+BASE=https://github.com/docanvil/docanvil/releases/download/v$VERSION
+
+curl -fLO "$BASE/docanvil-v$VERSION-$TARGET.tar.gz"
+curl -fLO "$BASE/SHA256SUMS"
+shasum -a 256 -c --ignore-missing SHA256SUMS   # ou : sha256sum -c --ignore-missing SHA256SUMS
+
+tar -xzf "docanvil-v$VERSION-$TARGET.tar.gz"
+mkdir -p ~/.local/bin && mv docanvil ~/.local/bin/
+```
+
+La vérification doit afficher `OK`. Si vous avez téléchargé l'archive avec un navigateur sous macOS, retirez l'attribut de quarantaine avant de lancer le binaire : `xattr -d com.apple.quarantine ~/.local/bin/docanvil`.
+:::
+:::tab{title="Windows"}
+```powershell
+$Version = "1.1.4"
+$Asset = "docanvil-v$Version-x86_64-pc-windows-msvc.zip"
+$Base = "https://github.com/docanvil/docanvil/releases/download/v$Version"
+
+Invoke-WebRequest "$Base/$Asset" -OutFile $Asset
+Invoke-WebRequest "$Base/SHA256SUMS" -OutFile SHA256SUMS
+(Get-FileHash $Asset -Algorithm SHA256).Hash.ToLower()
+Select-String $Asset SHA256SUMS
+
+Expand-Archive $Asset -DestinationPath "$env:LOCALAPPDATA\docanvil\bin" -Force
+```
+
+Les deux empreintes doivent être identiques. Ajoutez ensuite `%LOCALAPPDATA%\docanvil\bin` à votre `PATH` utilisateur.
+:::
+::::
+
+Les versions jusqu'à v1.1.3 n'ont pas de fichier `SHA256SUMS`. Pour celles-ci, comparez avec l'empreinte SHA-256 affichée par GitHub à côté de chaque fichier sur la page de la version.
+
 ## Mettre à jour
 
 ```bash

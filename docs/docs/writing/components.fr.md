@@ -201,24 +201,20 @@ Les composants intégrés couvrent les cas courants, mais parfois vous voulez le
 
 Créez `theme/components/card.html` :
 
-````markdown
 ```html
 <div class="card">
   {% if attrs.title %}<h3>{{ attrs.title }}</h3>{% endif %}
   {{ body | safe }}
 </div>
 ```
-````
 
 Puis utilisez-le dans votre contenu :
 
-````markdown
 ```markdown
 :::card{title="Quick start"}
 Install DocAnvil and run `docanvil new my-docs`.
 :::
 ```
-````
 
 Stylez-le dans votre CSS personnalisé (`.card { ... }`) et vous avez un bloc réutilisable sans aucun copier-coller.
 
@@ -258,7 +254,7 @@ ou protégez-le avec un `{% if %}` :
 
 Les composants s'imbriquent les uns dans les autres, pas seulement les onglets dans les onglets. Utilisez plus de deux-points sur la clôture extérieure pour que sa fermeture `:::` ne soit pas prise pour une fermeture intérieure :
 
-````markdown
+```markdown
 ::::card{title="Heads up"}
 :::note
 Nested components render just like top-level ones.
@@ -266,7 +262,7 @@ Nested components render just like top-level ones.
 
 Inline too: :::lozenge{type="warning" text="Beta"}
 ::::
-````
+```
 
 ### Composants inline
 

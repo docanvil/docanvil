@@ -195,24 +195,20 @@ Built-ins cover the common cases, but sometimes you want your own. Drop a Tera t
 
 Create `theme/components/card.html`:
 
-````markdown
 ```html
 <div class="card">
   {% if attrs.title %}<h3>{{ attrs.title }}</h3>{% endif %}
   {{ body | safe }}
 </div>
 ```
-````
 
 Then use it in your content:
 
-````markdown
 ```markdown
 :::card{title="Quick start"}
 Install DocAnvil and run `docanvil new my-docs`.
 :::
 ```
-````
 
 Style it in your custom CSS (`.card { ... }`) and you've got a reusable block with none of the copy-paste.
 
@@ -252,7 +248,7 @@ or guard it with an `{% if %}`:
 
 Components nest inside each other, not just tabs inside tabs. Use more colons on the outer fence so its closing `:::` isn't mistaken for an inner one:
 
-````markdown
+```markdown
 ::::card{title="Heads up"}
 :::note
 Nested components render just like top-level ones.
@@ -260,7 +256,7 @@ Nested components render just like top-level ones.
 
 Inline too: :::lozenge{type="warning" text="Beta"}
 ::::
-````
+```
 
 ### Inline Components
 

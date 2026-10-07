@@ -18,5 +18,12 @@ pub fn builtin_names() -> Vec<String> {
 /// The embedded template source for a builtin component.
 pub fn builtin_source(name: &str) -> Option<String> {
     BuiltinTemplates::get(&format!("{name}.html"))
-        .map(|file| String::from_utf8_lossy(&file.data).into_owned())
+        .map(|file| normalize_line_endings(&String::from_utf8_lossy(&file.data)))
+}
+
+/// Convert CRLF line endings to LF. Templates checked out on Windows (and the
+/// release binary built there embeds them as-is) or edited in a Windows editor
+/// would otherwise leave stray `\r`s in component output.
+pub fn normalize_line_endings(source: &str) -> String {
+    source.replace("\r\n", "\n")
 }

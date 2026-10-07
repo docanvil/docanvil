@@ -156,7 +156,7 @@ impl ComponentRegistry {
             let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
                 continue;
             };
-            let source = std::fs::read_to_string(path)?;
+            let source = templates::normalize_line_endings(&std::fs::read_to_string(path)?);
             sources.push((path.clone(), stem.to_string(), source));
         }
 
@@ -541,6 +541,29 @@ mod tests {
         let html = registry.render_markdown(":::alert\nHi\n:::\n", Path::new("t.md"));
         assert!(html.contains("admonition note"), "{html}");
         assert!(html.contains("Hi"), "{html}");
+    }
+
+    #[test]
+    fn load_normalizes_crlf_line_endings() {
+        let dir = tempfile::tempdir().unwrap();
+        let comps = dir.path().join("theme/components");
+        std::fs::create_dir_all(&comps).unwrap();
+        std::fs::write(
+            comps.join("card.html"),
+            "{# card #}\r\n<div class=\"card\">\r\n{{ body | safe }}</div>\r\n",
+        )
+        .unwrap();
+        let registry = ComponentRegistry::load(dir.path()).unwrap();
+        let html = registry.render_markdown(":::card\nBody\n:::\n", Path::new("t.md"));
+        assert!(!html.contains('\r'), "stray CR in output: {html:?}");
+    }
+
+    #[test]
+    fn builtin_sources_use_lf_line_endings() {
+        for name in crate::components::templates::builtin_names() {
+            let source = crate::components::templates::builtin_source(&name).unwrap();
+            assert!(!source.contains('\r'), "{name}.html has CRLF line endings");
+        }
     }
 
     #[test]

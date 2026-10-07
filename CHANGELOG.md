@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-10-07
+
 ### Fixed
 
 - `docanvil new` names the project after its directory rather than the whole path you pass (`docanvil new ../guides` is now "guides"), and escapes the name in `docanvil.toml`. A Windows path such as `C:\docs\site` previously produced a config DocAnvil couldn't read. The scaffolded getting-started page also says `docanvil new` instead of the non-existent `docanvil init`

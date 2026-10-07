@@ -187,9 +187,102 @@ Mermaid supports many diagram types including flowcharts, sequence diagrams, cla
 Mermaid is enabled by default. Disable it by setting `enabled = false` under `[charts]` in `docanvil.toml`. When disabled, `:::mermaid` blocks render as preformatted text. See [[guides/configuration|Configuration]] for details.
 :::
 
+## Custom Components {#custom-components}
+
+Built-ins cover the common cases, but sometimes you want your own. Drop a Tera template into `theme/components/<name>.html` and use it with `:::name{...}` — same directive syntax as any built-in.
+
+### Your First Component
+
+Create `theme/components/card.html`:
+
+```html
+<div class="card">
+  {% if attrs.title %}<h3>{{ attrs.title }}</h3>{% endif %}
+  {{ body | safe }}
+</div>
+```
+
+Then use it in your content:
+
+```markdown
+:::card{title="Quick start"}
+Install DocAnvil and run `docanvil new my-docs`.
+:::
+```
+
+Style it in your custom CSS (`.card { ... }`) and you've got a reusable block with none of the copy-paste.
+
+### Template Variables
+
+Every component template has access to:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `attrs` | map | The directive's attributes, e.g. `attrs.title` for `{title="..."}` |
+| `body` | string (HTML) | The body, rendered through the same pipeline as a page — print it with `\| safe` |
+| `body_raw` | string | The original, unrendered body text |
+| `name` | string | The component's name |
+| `inline` | bool | `true` when used inline (see below) |
+
+Built-in components that need structured data pass extra variables — `tabs` (a list of `{title, body}`) for the tabs component, and `blocks` (a list of `{lang, code}`) for code-group. You'll see these if you eject either one.
+
+### Escaping
+
+DocAnvil autoescapes template output, same as it would any untrusted string: `&`, `<`, `>`, `"`, and `'` are escaped. `body` is already-rendered HTML, so print it with `| safe` — exactly like `{{ content | safe }}` in `layout.html`. `attrs` and `body_raw` are plain text and should usually be printed without `| safe`.
+
+### Optional Attributes
+
+If a template references an attribute that wasn't passed (and has no fallback), the page shows an error box in its place and the build emits a warning — which fails under `--strict`. Give every optional attribute a default:
+
+```html
+{{ attrs.title | default(value="Note") }}
+```
+
+or guard it with an `{% if %}`:
+
+```html
+{% if attrs.title %}<h3>{{ attrs.title }}</h3>{% endif %}
+```
+
+### Nesting
+
+Components nest inside each other, not just tabs inside tabs. Use more colons on the outer fence so its closing `:::` isn't mistaken for an inner one:
+
+```markdown
+::::card{title="Heads up"}
+:::note
+Nested components render just like top-level ones.
+:::
+
+Inline too: :::lozenge{type="warning" text="Beta"}
+::::
+```
+
+### Inline Components
+
+The same template renders both block and inline use — `:::name{attrs}` with no body and no closing fence. Inside the template, `inline` is `true` and `body` is empty, so check `attrs` instead of `body` for what to render. The built-in `lozenge.html` is a good example: it only ever uses `attrs`.
+
+Keep an inline component inside a line of text, like `Status: :::lozenge{text="Done"}`. One written alone on its own line is read as the start of a block, and it'll scan all the way down to the next bare `:::` looking for a closing fence — swallowing everything in between.
+
+### Restyling Built-ins
+
+Want to change how a built-in looks or behaves? Eject its template and edit it:
+
+```bash
+docanvil component eject note
+```
+
+This copies the built-in's template to `theme/components/note.html`. A user template with a built-in's name takes over rendering for that component while keeping its data — editing `theme/components/tabs.html` still gets the `tabs` list, and `theme/components/code-group.html` still gets `blocks`.
+
+If you restyle `tabs` or `code-group`, keep the `tab-header` / `tab-content` / `data-tab` / `active` classes and attributes — `docanvil.js` uses them to switch tabs. For `mermaid`, print the diagram source with `{{ body_raw | safe }}`: Mermaid reads the element's raw text, so escaped entities would break it.
+
+### Checking Templates
+
+`docanvil doctor` checks every file in `theme/components/` for Tera syntax errors, names that can't be used as a directive (letters, numbers, `_` and `-` only), and a `{{ body }}` printed without `| safe`. Run `docanvil component list` any time to see which components are built in, which are overridden, and which are your own.
+
 ## Nesting Directives
 
-When nesting directives, use more colons on the outer fence to distinguish it from inner closings. The `::::tabs` (four colons) and `:::tab` (three colons) pattern is the primary example of this:
+When nesting directives, use more colons on the outer fence to distinguish it from inner closings — this works for every component, built-in or custom, not just tabs. The `::::tabs` (four colons) and `:::tab` (three colons) pattern is the clearest example of it:
 
 ```markdown
 ::::tabs

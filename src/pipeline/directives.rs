@@ -8,6 +8,8 @@ pub struct DirectiveBlock {
     pub name: String,
     pub attributes: HashMap<String, String>,
     pub body: String,
+    /// True for inline `:::name{attrs}` (no body, no closing fence).
+    pub inline: bool,
 }
 
 static OPEN_RE: LazyLock<Regex> =
@@ -18,6 +20,40 @@ static ATTR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(\w[\w-]*)="([^
 static INLINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r":::([\w][\w-]*)\{([^}]*)\}").unwrap());
 
+/// Tracks whether we're inside a ``` / ~~~ fenced code block, line by line.
+#[derive(Default)]
+struct FenceState {
+    open: Option<(char, usize)>,
+}
+
+impl FenceState {
+    /// Feed one line; returns true if the line is part of a code block
+    /// (an opening fence, its contents, or its closing fence).
+    fn consume(&mut self, line: &str) -> bool {
+        let trimmed = line.trim();
+        match self.open {
+            None => {
+                let first = trimmed.chars().next();
+                if let Some(c @ ('`' | '~')) = first {
+                    let len = trimmed.chars().take_while(|&ch| ch == c).count();
+                    if len >= 3 {
+                        self.open = Some((c, len));
+                        return true;
+                    }
+                }
+                false
+            }
+            Some((c, len)) => {
+                let count = trimmed.chars().take_while(|&ch| ch == c).count();
+                if count >= len && trimmed.chars().skip(count).all(char::is_whitespace) {
+                    self.open = None;
+                }
+                true
+            }
+        }
+    }
+}
+
 /// Pre-comrak pass: parse `:::directive{attrs}` blocks and replace them with
 /// HTML placeholder comments that will survive Markdown rendering.
 /// The returned string has directives replaced with rendered component HTML.
@@ -27,9 +63,17 @@ pub fn process_directives(
 ) -> String {
     let mut output = String::with_capacity(source.len());
     let lines: Vec<&str> = source.lines().collect();
+    let mut fence = FenceState::default();
     let mut i = 0;
 
     while i < lines.len() {
+        if fence.consume(lines[i]) {
+            output.push_str(lines[i]);
+            output.push('\n');
+            i += 1;
+            continue;
+        }
+
         if let Some(caps) = OPEN_RE.captures(lines[i]) {
             let colons = caps[1].len();
             let name = caps[2].to_string();
@@ -38,20 +82,19 @@ pub fn process_directives(
                 .map(|m| parse_attributes(m.as_str()))
                 .unwrap_or_default();
 
-            // Find matching closing fence (same or more colons)
-            let close_pattern = ":".repeat(colons);
+            // Find matching closing fence (exact colon count), ignoring code blocks
+            let mut body_fence = FenceState::default();
             let mut body_lines = Vec::new();
             let mut j = i + 1;
             let mut found_close = false;
 
             while j < lines.len() {
-                let trimmed = lines[j].trim();
-                if trimmed.starts_with(&close_pattern)
-                    && trimmed.len() == colons
-                    && trimmed.chars().all(|c| c == ':')
-                {
-                    found_close = true;
-                    break;
+                if !body_fence.consume(lines[j]) {
+                    let trimmed = lines[j].trim();
+                    if trimmed.len() == colons && trimmed.chars().all(|c| c == ':') {
+                        found_close = true;
+                        break;
+                    }
                 }
                 body_lines.push(lines[j]);
                 j += 1;
@@ -62,6 +105,7 @@ pub fn process_directives(
                     name,
                     attributes: attrs,
                     body: body_lines.join("\n"),
+                    inline: false,
                 };
                 let rendered = renderer(&block);
                 output.push_str(&rendered);
@@ -159,6 +203,7 @@ fn replace_inline_in_line(
             name,
             attributes: attrs,
             body: String::new(),
+            inline: true,
         };
         out.push_str(&renderer(&block));
         last = m.end();
@@ -340,5 +385,52 @@ mod tests {
         assert_eq!(attrs.get("class").unwrap(), "info");
         assert_eq!(attrs.get("id").unwrap(), "my-id");
         assert_eq!(attrs.get("title").unwrap(), "Hello");
+    }
+
+    #[test]
+    fn block_directive_inside_code_fence_is_left_alone() {
+        let input = "```markdown\n:::note\nExample\n:::\n```\n";
+        let output = process_directives(input, &mut |_| "RENDERED".to_string());
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn block_directive_inside_tilde_fence_is_left_alone() {
+        let input = "~~~\n::::tabs\n:::tab\nA\n:::\n::::\n~~~\n";
+        let output = process_directives(input, &mut |_| "RENDERED".to_string());
+        assert_eq!(output, input);
+    }
+
+    #[test]
+    fn closing_fence_inside_code_block_does_not_close_directive() {
+        let input = ":::note\n```\n:::\n```\nAfter\n:::\n";
+        let mut bodies = Vec::new();
+        let output = process_directives(input, &mut |block| {
+            bodies.push(block.body.clone());
+            "RENDERED".to_string()
+        });
+        assert_eq!(output, "RENDERED\n");
+        assert_eq!(bodies, vec!["```\n:::\n```\nAfter".to_string()]);
+    }
+
+    #[test]
+    fn directive_after_code_fence_still_renders() {
+        let input = "```\ncode\n```\n:::note\nHi\n:::\n";
+        let output = process_directives(input, &mut |_| "RENDERED".to_string());
+        assert_eq!(output, "```\ncode\n```\nRENDERED\n");
+    }
+
+    #[test]
+    fn parser_sets_inline_flag() {
+        let mut seen = Vec::new();
+        let source = process_directives(":::note\nx\n:::\n", &mut |b| {
+            seen.push(b.inline);
+            String::new()
+        });
+        process_inline_directives(&format!("{source}a :::lozenge{{text=\"y\"}} b"), &mut |b| {
+            seen.push(b.inline);
+            String::new()
+        });
+        assert_eq!(seen, vec![false, true]);
     }
 }

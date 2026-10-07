@@ -20,6 +20,9 @@ pub enum Error {
     #[error("markdown rendering failed: {0}")]
     Render(String),
 
+    #[error("component template {} has errors: {message}", path.display())]
+    ComponentTemplate { path: PathBuf, message: String },
+
     #[error("{0}")]
     General(String),
 
@@ -71,6 +74,9 @@ impl Error {
             Error::Render(_) => Some(
                 "Check your layout template for syntax errors. Run 'docanvil doctor' to validate.".into(),
             ),
+            Error::ComponentTemplate { .. } => Some(
+                "Fix the template, or run 'docanvil doctor' to check every component template.".into(),
+            ),
             Error::UnsafeOutputDir { .. } => Some(
                 "Point --out or [build] output_dir in docanvil.toml at a dedicated folder, such as dist/.".into(),
             ),
@@ -99,7 +105,7 @@ impl Error {
             Error::ContentDirNotFound(_)
             | Error::StrictWarnings(_)
             | Error::DoctorFailed { .. } => 3,
-            Error::Render(_) | Error::ChromeNotFound => 4,
+            Error::Render(_) | Error::ChromeNotFound | Error::ComponentTemplate { .. } => 4,
         }
     }
 }
@@ -216,6 +222,17 @@ mod tests {
     fn hint_none_for_general() {
         let err = Error::General("something".into());
         assert!(err.hint().is_none());
+    }
+
+    #[test]
+    fn component_template_error_exit_code_and_hint() {
+        let err = Error::ComponentTemplate {
+            path: PathBuf::from("theme/components/card.html"),
+            message: "unexpected end".into(),
+        };
+        assert_eq!(err.exit_code(), 4);
+        assert!(err.to_string().contains("theme/components/card.html"));
+        assert!(err.hint().unwrap().contains("docanvil doctor"));
     }
 
     #[test]

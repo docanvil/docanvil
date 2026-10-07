@@ -1,0 +1,16 @@
+{# code-group — builtin component
+   Usage:     :::code-group  then one fenced code block per tab, then :::
+   Variables:
+     blocks       list of {lang, code}, one per fenced code block, in order.
+                  lang defaults to "text"; code is plain text (autoescaped — no | safe).
+     attrs        directive attributes
+     name         "code-group"
+   The built-in script switches tabs using the tab-header / tab-content classes,
+   the data-tab index and the active class — keep those if you restyle.
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
+<div class="code-group">
+<div class="tab-headers">
+{% for item in blocks %}  <button class="tab-header{% if loop.first %} active{% endif %}" data-tab="{{ loop.index0 }}">{{ item.lang }}</button>
+{% endfor %}</div>
+{% for item in blocks %}<div class="tab-content{% if loop.first %} active{% endif %}" data-tab="{{ loop.index0 }}"><pre><code class="language-{{ item.lang }}">{{ item.code }}</code></pre></div>
+{% endfor %}</div>

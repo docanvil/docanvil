@@ -29,7 +29,7 @@ Unit tests are inline `#[cfg(test)]` modules within their respective source file
 
 ## CLI Interface
 
-The binary exposes seven subcommands:
+The binary exposes eight subcommands:
 
 - `docanvil new <name>` — scaffold a new documentation project
 - `docanvil serve [--host <addr>] [--port <port>] [--path <path>]` — dev server with hot reload (defaults: 127.0.0.1:3000); builds into a per-project temp dir (never `output_dir`) with `base_url` forced to `/`
@@ -37,6 +37,7 @@ The binary exposes seven subcommands:
 - `docanvil theme [--path <path>] [--overwrite]` — interactive color theme generator
 - `docanvil doctor [--path <path>] [--fix] [--strict] [--format human|checkstyle|junit]` — project diagnostics with auto-fix
 - `docanvil export pdf --out <path> [--path <path>] [--locale <code>]` — export docs as a single PDF (requires Chrome/Chromium)
+- `docanvil component list [--path <path>]` / `docanvil component eject <name>... [--all] [--force] [--path <path>]` — list components; copy a built-in's template into `theme/components/` to customise it
 - `docanvil update [--check] [--yes] [--version <x.y.z>]` — self-update from GitHub releases (refuses to replace `cargo install` copies)
 
 Global flags: `--verbose`, `--quiet`
@@ -68,6 +69,7 @@ src/
     build.rs                   # docanvil build — full build pipeline orchestration
     theme.rs                   # docanvil theme — interactive color theme generator
     doctor.rs                  # docanvil doctor — runs diagnostic checks
+    component.rs               # docanvil component — list / eject component templates
     color.rs                   # Hex/RGB/HSL color conversion (used by theme)
     update.rs                  # docanvil update — prompts and output for self-update
     export/
@@ -101,15 +103,13 @@ src/
     images.rs                  # Relative image path rewriting
 
   components/
-    mod.rs                     # Component trait, ComponentRegistry, ComponentContext
-    builtin/
+    mod.rs                     # Component trait, ComponentRegistry (Tera, load, render_markdown, placeholders)
+    templates.rs               # Embedded builtin component templates (names, sources)
+    builtin/                   # Rust data providers — only for builtins that need structured data
       mod.rs
-      note.rs                  # :::note admonition
-      warning.rs               # :::warning admonition
-      tabs.rs                  # :::tabs container
-      code_group.rs            # :::code-group container
-      lozenge.rs               # :::lozenge badge/label spans
-      mermaid.rs               # :::mermaid diagram blocks
+      tabs.rs                  # :::tabs → `tabs: [{title, body}]`
+      code_group.rs            # :::code-group → `blocks: [{lang, code}]`
+      mermaid.rs               # :::mermaid (raw body, not Markdown)
 
   theme/
     mod.rs                     # Theme resolution (rust-embed + user overrides)
@@ -119,6 +119,7 @@ src/
       style.css                # CSS-variable-based default theme
       docanvil.js              # Client-side JS (live reload, popovers, interactivity)
       starter_custom.css       # Starter file for user custom theme overrides
+      components/              # Builtin component templates (note, warning, lozenge, mermaid, tabs, code-group)
 
   render/
     mod.rs
@@ -143,10 +144,12 @@ The full rendering pipeline in `src/pipeline/mod.rs` runs these stages in order:
 
 ```
 Markdown source
-  → directives.rs      (pre-comrak: :::name{attrs} → component HTML, block + inline)
-  → popovers.rs        (^[content] → popover spans)
-  → headings.rs        (extract custom {#id} from headings)
-  → markdown.rs        (comrak: Markdown → HTML with GFM extensions)
+  ┌ ComponentRegistry::render_markdown() — also used for component bodies (nesting)
+  │ → directives.rs    (pre-comrak: :::name{attrs} → component HTML stored behind placeholders)
+  │ → popovers.rs      (^[content] → popover spans)
+  │ → headings.rs      (extract custom {#id} from headings)
+  │ → markdown.rs      (comrak: Markdown → HTML with GFM extensions)
+  └ → placeholders swapped back for component HTML
   → syntax.rs          (syntect: code block syntax highlighting)
   → wikilinks.rs       (resolve [[links]] against PageInventory)
   → attributes.rs      (inject {.class #id} into preceding HTML tags)
@@ -159,7 +162,7 @@ Markdown source
 - **Parser**: comrak with GFM extensions (tables, task lists, strikethrough, footnotes, front matter)
 - **Front matter**: JSON format (not YAML)
 - **Wiki-links**: `[[page-name]]` / `[[page-name|display text]]` resolved against slug inventory
-- **Components**: Fenced directives (`:::name{key="val"}`) parsed pre-comrak; inline attributes (`{.class}`) post-comrak
+- **Components**: Fenced directives (`:::name{key="val"}`) parsed pre-comrak (skipping fenced code); inline attributes (`{.class}`) post-comrak. Every component is a Tera template (`{name}.html`): embedded builtins load first, then `theme/components/*.html` as one batch (same name overrides). Rust providers exist only where a builtin needs structured data. Autoescape on, using DocAnvil's escaper (not Tera's). Bodies render through the same pipeline as pages, so components nest; component HTML is protected from comrak by placeholders
 - **Component trait**: `name()` + `render(ctx) -> Result<String>`; registry maps names to `Box<dyn Component>`
 - **Syntax highlighting**: syntect with theme validation
 - **Popovers**: `^[content]` syntax converted to interactive HTML spans
@@ -186,16 +189,16 @@ Markdown source
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.toml entry: `page`, `label`, `separator`, `group`, `autodiscover` |
-| `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ConfigNotFound`, `ContentDirNotFound`, `Render`, `General`, `UnsafeOutputDir { path, reason }`, `StrictWarnings`, `DoctorFailed { warnings, errors }`, `ChromeNotFound`, `Update { message, hint }` |
+| `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ConfigNotFound`, `ContentDirNotFound`, `Render`, `General`, `UnsafeOutputDir { path, reason }`, `StrictWarnings`, `DoctorFailed { warnings, errors }`, `ChromeNotFound`, `Update { message, hint }`, `ComponentTemplate { path, message }` |
 | `Source` | `update/mod.rs` | GitHub web + API base URLs for release lookups; `Source::github()` in prod, pointed at a local server in tests |
-| `Component` trait | `components/mod.rs` | `name() -> &str` + `render(&ComponentContext) -> Result<String>` |
-| `ComponentContext` | `components/mod.rs` | `attributes: HashMap<String, String>`, `body_raw: String`, `body_html: String` |
-| `ComponentRegistry` | `components/mod.rs` | `with_builtins()` registers all builtin components. `render_block()` does lookup + render |
+| `Component` trait | `components/mod.rs` | Data provider: `name()`, `data(&ComponentContext) -> Result<tera::Context>` (extra template variables), `renders_body()` (default true) |
+| `ComponentContext` | `components/mod.rs` | `attributes: &HashMap<String, String>`, `body_raw: &str`, `inline: bool`, `render_markdown: &dyn Fn(&str) -> String` |
+| `ComponentRegistry` | `components/mod.rs` | `with_builtins()` (embedded templates + providers), `load(project_root)` (+ `theme/components/`), `render_markdown()` (pre-comrak + comrak + placeholder swap), `render_block()`. Templates get `attrs`, `body`, `body_raw`, `name`, `inline` (public 1.x API) |
 | `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url` |
 | `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `absolute_url`, `is_current`, `has_page` |
 | `SitemapLocaleConfig` | `seo.rs` | i18n data for sitemap hreflang: `enabled`, `default_locale`, `slug_coverage` |
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
-| `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body` |
+| `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body`, `inline` |
 | `PdfConfig` | `config.rs` | PDF export config: `author`, `cover_page`, `custom_css`, `paper_size` (optional, e.g. `"A4"`, `"Letter"`) |
 | `DoctorConfig` | `config.rs` | Doctor / linting config: `max_paragraph_words` (default: 150; set to 0 to disable) |
 | `EditConfig` | `config.rs` | "Edit this page" config: `repo` (set = enabled), `branch` (default `"main"`), `provider: Option<EditProvider>` (GitHub/GitLab/Bitbucket; inferred from host), `root` (auto-detected from nearest `.git`) |
@@ -218,9 +221,8 @@ Markdown source
 ### How to Extend
 
 **Add a builtin component:**
-1. Create `src/components/builtin/my_comp.rs` — struct implementing `Component` trait (`name()` + `render()`)
-2. Add `pub mod my_comp;` to `src/components/builtin/mod.rs`
-3. Register in `ComponentRegistry::with_builtins()` in `src/components/mod.rs`
+1. Add `src/theme/default/components/my-comp.html` starting with a `{# … #}` header listing its variables (shown to users by `docanvil component eject`)
+2. Only if it needs structured data: create `src/components/builtin/my_comp.rs` implementing `Component` (`name()` + `data()`, `renders_body()` if the body isn't Markdown), add `pub mod my_comp;` to `src/components/builtin/mod.rs`, and register it in `ComponentRegistry::with_builtins()`
 
 **Add a pipeline stage:**
 1. Create `src/pipeline/my_stage.rs` with a `pub fn process(html: &str, ...) -> String`

@@ -17,6 +17,8 @@ my-project/
     custom.css            # Custom stylesheet
     templates/            # Template overrides (optional)
       layout.html
+    components/           # Component templates (optional)
+      card.html
   dist/                   # Build output (generated)
     index.html
     search-index.json     # Full-text search index (when search enabled)
@@ -50,6 +52,7 @@ The `theme/` directory holds customization files:
 
 - `custom.css` — your CSS overrides, loaded after the default theme
 - `templates/layout.html` — optional full template override using Tera
+- `components/<name>.html` — component templates (`<name>.html`) — custom components and overrides for built-ins. See [[writing/components|Components]]
 
 ### Output Directory
 

@@ -1,6 +1,6 @@
-use crate::components::{Component, ComponentContext};
-use crate::error::Result;
+use crate::components::Component;
 
+/// Mermaid diagrams: the body is diagram source, not Markdown.
 pub struct Mermaid;
 
 impl Component for Mermaid {
@@ -8,25 +8,31 @@ impl Component for Mermaid {
         "mermaid"
     }
 
-    fn render(&self, ctx: &ComponentContext) -> Result<String> {
-        Ok(format!("<pre class=\"mermaid\">{}</pre>", ctx.body_raw))
+    fn renders_body(&self) -> bool {
+        false
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::components::ComponentRegistry;
+    use crate::pipeline::directives::DirectiveBlock;
     use std::collections::HashMap;
+    use std::path::Path;
+
+    fn render(body: &str) -> String {
+        let block = DirectiveBlock {
+            name: "mermaid".to_string(),
+            attributes: HashMap::new(),
+            body: body.to_string(),
+            inline: false,
+        };
+        ComponentRegistry::with_builtins().render_block(&block, Path::new("t.md"))
+    }
 
     #[test]
     fn renders_mermaid_block() {
-        let mermaid = Mermaid;
-        let ctx = ComponentContext {
-            attributes: HashMap::new(),
-            body_raw: "graph TD\n    A --> B".to_string(),
-            body_html: String::new(),
-        };
-        let html = mermaid.render(&ctx).unwrap();
+        let html = render("graph TD\n    A --> B");
         assert!(html.contains("<pre class=\"mermaid\">"));
         assert!(html.contains("graph TD"));
         assert!(html.contains("A --> B"));
@@ -34,13 +40,7 @@ mod tests {
 
     #[test]
     fn preserves_mermaid_syntax_unescaped() {
-        let mermaid = Mermaid;
-        let ctx = ComponentContext {
-            attributes: HashMap::new(),
-            body_raw: "graph TD\n    A[Write Markdown] --> B[Build]".to_string(),
-            body_html: String::new(),
-        };
-        let html = mermaid.render(&ctx).unwrap();
+        let html = render("graph TD\n    A[Write Markdown] --> B[Build]");
         // Content must not be HTML-escaped — mermaid v11 reads innerHTML,
         // so entities like &gt; would be passed literally to the parser.
         assert!(html.contains("-->"));

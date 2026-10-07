@@ -1,0 +1,10 @@
+{# lozenge — builtin component
+   Usage:     :::lozenge{type="green" text="Done"}   (inline, inside a sentence or list item)
+   Variables:
+     attrs.type   colour variant documented in the components guide: default, warning,
+                  in-progress, error, success (defaults to "default")
+     attrs.text   the label text
+     name         "lozenge"
+     inline       true when used inline
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
+<span class="lozenge {{ attrs.type | default(value="default") }}">{{ attrs.text | default(value="") }}</span>

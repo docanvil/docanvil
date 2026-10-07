@@ -193,9 +193,102 @@ Mermaid prend en charge de nombreux types de diagrammes incluant les organigramm
 Mermaid est activé par défaut. Désactivez-le en définissant `enabled = false` sous `[charts]` dans `docanvil.toml`. Quand il est désactivé, les blocs `:::mermaid` sont rendus comme du texte préformaté. Consultez [[guides/configuration|Configuration]] pour les détails.
 :::
 
+## Composants personnalisés {#custom-components}
+
+Les composants intégrés couvrent les cas courants, mais parfois vous voulez les vôtres. Déposez un template Tera dans `theme/components/<nom>.html` et utilisez-le avec `:::nom{...}` — la même syntaxe de directive que pour n'importe quel composant intégré.
+
+### Votre premier composant
+
+Créez `theme/components/card.html` :
+
+```html
+<div class="card">
+  {% if attrs.title %}<h3>{{ attrs.title }}</h3>{% endif %}
+  {{ body | safe }}
+</div>
+```
+
+Puis utilisez-le dans votre contenu :
+
+```markdown
+:::card{title="Quick start"}
+Install DocAnvil and run `docanvil new my-docs`.
+:::
+```
+
+Stylez-le dans votre CSS personnalisé (`.card { ... }`) et vous avez un bloc réutilisable sans aucun copier-coller.
+
+### Variables du template
+
+Chaque template de composant a accès à :
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `attrs` | map | Les attributs de la directive, ex. `attrs.title` pour `{title="..."}` |
+| `body` | chaîne (HTML) | Le corps, rendu via le même pipeline qu'une page — affichez-le avec `\| safe` |
+| `body_raw` | chaîne | Le texte du corps original, non rendu |
+| `name` | chaîne | Le nom du composant |
+| `inline` | booléen | `true` quand utilisé en ligne (voir ci-dessous) |
+
+Les composants intégrés qui ont besoin de données structurées passent des variables supplémentaires — `tabs` (une liste de `{title, body}`) pour le composant tabs, et `blocks` (une liste de `{lang, code}`) pour code-group. Vous les verrez si vous éjectez l'un ou l'autre.
+
+### Échappement
+
+DocAnvil échappe automatiquement la sortie des templates, comme pour toute chaîne non fiable : `&`, `<`, `>`, `"`, et `'` sont échappés. `body` est du HTML déjà rendu, donc affichez-le avec `| safe` — exactement comme `{{ content | safe }}` dans `layout.html`. `attrs` et `body_raw` sont du texte brut et doivent généralement être affichés sans `| safe`.
+
+### Attributs optionnels
+
+Si un template référence un attribut qui n'a pas été passé (et sans valeur de repli), la page affiche un encadré d'erreur à sa place et la compilation émet un avertissement — ce qui échoue sous `--strict`. Donnez une valeur par défaut à chaque attribut optionnel :
+
+```html
+{{ attrs.title | default(value="Note") }}
+```
+
+ou protégez-le avec un `{% if %}` :
+
+```html
+{% if attrs.title %}<h3>{{ attrs.title }}</h3>{% endif %}
+```
+
+### Imbrication
+
+Les composants s'imbriquent les uns dans les autres, pas seulement les onglets dans les onglets. Utilisez plus de deux-points sur la clôture extérieure pour que sa fermeture `:::` ne soit pas prise pour une fermeture intérieure :
+
+```markdown
+::::card{title="Heads up"}
+:::note
+Nested components render just like top-level ones.
+:::
+
+Inline too: :::lozenge{type="warning" text="Beta"}
+::::
+```
+
+### Composants inline
+
+Le même template rend aussi bien l'usage en bloc qu'en ligne — `:::nom{attributs}` sans corps ni clôture fermante. Dans le template, `inline` est `true` et `body` est vide, donc vérifiez `attrs` plutôt que `body` pour savoir quoi afficher. Le composant intégré `lozenge.html` en est un bon exemple : il n'utilise que `attrs`.
+
+Gardez un composant inline à l'intérieur d'une ligne de texte, comme `Statut : :::lozenge{text="Done"}`. Un composant écrit seul sur sa propre ligne est interprété comme le début d'un bloc, et la recherche descendra jusqu'à la prochaine `:::` nue pour trouver une clôture — avalant tout ce qui se trouve entre les deux.
+
+### Restyler les composants intégrés
+
+Vous voulez changer l'apparence ou le comportement d'un composant intégré ? Éjectez son template et modifiez-le :
+
+```bash
+docanvil component eject note
+```
+
+Cela copie le template intégré vers `theme/components/note.html`. Un template utilisateur portant le nom d'un composant intégré prend le relais du rendu de ce composant tout en conservant ses données — modifier `theme/components/tabs.html` continue de recevoir la liste `tabs`, et `theme/components/code-group.html` continue de recevoir `blocks`.
+
+Si vous restylez `tabs` ou `code-group`, conservez les classes et attributs `tab-header` / `tab-content` / `data-tab` / `active` — `docanvil.js` s'en sert pour changer d'onglet. Pour `mermaid`, affichez la source du diagramme avec `{{ body_raw | safe }}` : Mermaid lit le texte brut de l'élément, donc des entités échappées casseraient le diagramme.
+
+### Vérifier les templates
+
+`docanvil doctor` vérifie chaque fichier de `theme/components/` pour des erreurs de syntaxe Tera, des noms inutilisables comme directive (lettres, chiffres, `_` et `-` uniquement), et un `{{ body }}` affiché sans `| safe`. Lancez `docanvil component list` à tout moment pour voir quels composants sont intégrés, lesquels sont surchargés, et lesquels sont les vôtres.
+
 ## Imbrication des directives
 
-Lors de l'imbrication de directives, utilisez plus de deux-points sur la clôture extérieure pour la distinguer des clôtures intérieures. Le motif `::::tabs` (quatre deux-points) et `:::tab` (trois deux-points) en est l'exemple principal :
+Lors de l'imbrication de directives, utilisez plus de deux-points sur la clôture extérieure pour la distinguer des clôtures intérieures — cela fonctionne pour tout composant, intégré ou personnalisé, pas seulement les onglets. Le motif `::::tabs` (quatre deux-points) et `:::tab` (trois deux-points) en est l'exemple le plus clair :
 
 ```markdown
 ::::tabs

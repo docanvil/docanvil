@@ -1,0 +1,12 @@
+{# note — builtin component
+   Usage:     :::note{title="Optional title"} … :::
+   Variables:
+     attrs.title  optional heading (defaults to "Note")
+     body         the rendered body HTML (print with | safe)
+     body_raw     the original Markdown body
+     name         "note"
+     inline       true when used inline
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
+<div class="admonition note">
+<p class="admonition-title">{{ attrs.title | default(value="Note") }}</p>
+{{ body | safe }}</div>

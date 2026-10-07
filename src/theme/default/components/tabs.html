@@ -1,0 +1,17 @@
+{# tabs — builtin component
+   Usage:     ::::tabs  then one :::tab{title="…"} … ::: per tab, then ::::
+   Variables:
+     tabs         list of {title, body}, one per :::tab child, in order.
+                  title defaults to "Tab N"; body is HTML (print with | safe).
+     attrs        directive attributes on ::::tabs
+     name         "tabs"
+   The built-in script switches tabs using the tab-header / tab-content classes,
+   the data-tab index and the active class — keep those if you restyle.
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
+<div class="tabs">
+<div class="tab-headers">
+{% for tab in tabs %}  <button class="tab-header{% if loop.first %} active{% endif %}" data-tab="{{ loop.index0 }}">{{ tab.title }}</button>
+{% endfor %}</div>
+{% for tab in tabs %}<div class="tab-content{% if loop.first %} active{% endif %}" data-tab="{{ loop.index0 }}">
+{{ tab.body | safe }}</div>
+{% endfor %}</div>

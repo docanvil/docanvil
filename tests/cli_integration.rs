@@ -125,3 +125,116 @@ fn test_cli_update_rejects_invalid_version_without_network() {
         .failure()
         .stderr(predicate::str::contains("isn't a valid version"));
 }
+
+#[test]
+fn test_cli_component_list_shows_builtins_and_custom() {
+    let dir = tempfile::tempdir().unwrap();
+    let comps = dir.path().join("theme/components");
+    std::fs::create_dir_all(&comps).unwrap();
+    std::fs::write(comps.join("card.html"), "<div></div>").unwrap();
+    std::fs::write(comps.join("note.html"), "<aside></aside>").unwrap();
+
+    let output = docanvil_cmd()
+        .args(["component", "list", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("tabs"), "{stdout}");
+    assert!(stdout.contains("overridden"), "{stdout}");
+    assert!(stdout.contains("card"), "{stdout}");
+}
+
+#[test]
+fn test_cli_component_eject_writes_and_skips_existing() {
+    let dir = tempfile::tempdir().unwrap();
+    let target = dir.path().join("theme/components/tabs.html");
+
+    let status = docanvil_cmd()
+        .args(["component", "eject", "tabs", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap()
+        .status;
+    assert!(status.success());
+    let ejected = std::fs::read_to_string(&target).unwrap();
+    assert!(ejected.contains("tab-header"));
+
+    std::fs::write(&target, "mine").unwrap();
+    let output = docanvil_cmd()
+        .args(["component", "eject", "tabs", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(std::fs::read_to_string(&target).unwrap(), "mine");
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--force"));
+
+    let status = docanvil_cmd()
+        .args(["component", "eject", "tabs", "--force", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap()
+        .status;
+    assert!(status.success());
+    assert!(
+        std::fs::read_to_string(&target)
+            .unwrap()
+            .contains("tab-header")
+    );
+}
+
+#[test]
+fn test_cli_component_eject_all() {
+    let dir = tempfile::tempdir().unwrap();
+    let status = docanvil_cmd()
+        .args(["component", "eject", "--all", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap()
+        .status;
+    assert!(status.success());
+    for name in [
+        "note",
+        "warning",
+        "lozenge",
+        "mermaid",
+        "tabs",
+        "code-group",
+    ] {
+        assert!(
+            dir.path()
+                .join(format!("theme/components/{name}.html"))
+                .exists(),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn test_cli_component_eject_unknown_name_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = docanvil_cmd()
+        .args(["component", "eject", "nte", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("nte") && stderr.contains("note"),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn test_cli_component_eject_requires_a_name() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = docanvil_cmd()
+        .args(["component", "eject", "--path"])
+        .arg(dir.path())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+}

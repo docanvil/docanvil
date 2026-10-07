@@ -147,6 +147,29 @@ pub fn warn_missing_translation(slug: &str, locale: &str) {
     );
 }
 
+/// Emit a warning that a component template failed to render on a page.
+pub fn warn_component_render(source_file: &Path, name: &str, message: &str) {
+    increment();
+    eprintln!(
+        "{}: couldn't render :::{} in {}: {}",
+        "warning".yellow().bold(),
+        name,
+        source_file.display(),
+        message
+    );
+    if message.contains("not found in context") {
+        eprintln!(
+            "  {}: Optional attributes need a fallback, e.g. {{{{ attrs.title | default(value=\"…\") }}}}",
+            "hint".dimmed()
+        );
+    } else {
+        eprintln!(
+            "  {}: Check the template, or run 'docanvil doctor' to validate component templates.",
+            "hint".dimmed()
+        );
+    }
+}
+
 /// Emit a warning that a custom CSS file was not found.
 pub fn warn_custom_css_not_found(path: &str) {
     increment();

@@ -23,6 +23,8 @@ mon-projet/
     custom.css            # Feuille de style personnalisée
     templates/            # Surcharges de templates (optionnel)
       layout.html
+    components/           # Templates de composants (optionnel)
+      card.html
   dist/                   # Sortie de compilation (générée)
     index.html
     search-index.json     # Index de recherche plein texte (quand la recherche est activée)
@@ -56,6 +58,7 @@ Le répertoire `theme/` contient les fichiers de personnalisation :
 
 - `custom.css` — vos surcharges CSS, chargées après le thème par défaut
 - `templates/layout.html` — surcharge de template complète optionnelle utilisant Tera
+- `components/<nom>.html` — templates de composants (`<nom>.html`) — composants personnalisés et surcharges des composants intégrés. Voir [[writing/components|Composants]]
 
 ### Répertoire de sortie
 

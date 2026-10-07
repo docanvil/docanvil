@@ -33,6 +33,7 @@ fn main() {
             path,
         } => docanvil::cli::build::run(path, out.as_deref(), *clean, cli.quiet, *strict),
         Command::Export(export_args) => docanvil::cli::export::dispatch(export_args, cli.quiet),
+        Command::Component(args) => docanvil::cli::component::dispatch(args, cli.quiet),
         Command::Update {
             check,
             yes,

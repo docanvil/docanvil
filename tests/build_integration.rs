@@ -855,3 +855,105 @@ fn test_edit_link_unknown_host_fails_strict() {
     build_project(dir.path()).unwrap();
     assert!(!read_output(dir.path(), "index.html").contains("Edit this page"));
 }
+
+#[test]
+fn test_template_components_custom_and_override() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            (
+                "index.md",
+                "# Home\n\n::::card{title=\"Start here\"}\n:::note\nSee [[other]].\n:::\n\n```rust\nfn main() {}\n```\n::::\n",
+            ),
+            ("other.md", "# Other\n"),
+        ],
+    );
+    let comps = dir.path().join("theme/components");
+    std::fs::create_dir_all(&comps).unwrap();
+    std::fs::write(
+        comps.join("card.html"),
+        "<section class=\"card\">\n\n  <h3>{{ attrs.title }}</h3>\n\n  {{ body | safe }}\n\n</section>\n",
+    )
+    .unwrap();
+    std::fs::write(
+        comps.join("note.html"),
+        "<aside class=\"my-note\">{{ body | safe }}</aside>",
+    )
+    .unwrap();
+
+    build_project(dir.path()).unwrap();
+    let html = fs::read_to_string(dir.path().join("dist/index.html")).unwrap();
+
+    assert!(html.contains("<section class=\"card\">"), "card rendered");
+    // The pipeline's auto heading-ID stage (pipeline/headings.rs) runs over the whole
+    // page, including component-rendered markup, so the `<h3>` picks up an id.
+    assert!(
+        html.contains("<h3 id=\"start-here\">Start here</h3>"),
+        "title rendered, not a code block"
+    );
+    assert!(
+        html.contains("<aside class=\"my-note\">"),
+        "note override used"
+    );
+    let note_start = html.find("<aside class=\"my-note\">").unwrap();
+    let note_body = &html[note_start..];
+    let note_end = note_body.find("</aside>").unwrap();
+    let note_body = &note_body[..note_end];
+    assert!(
+        note_body.contains("href="),
+        "wiki-link inside nested component resolved to a link"
+    );
+    assert!(
+        note_body.contains("other.html"),
+        "wiki-link inside nested component resolved to other.html"
+    );
+    assert!(!html.contains("[[other]]"), "no unresolved wiki-link");
+    assert!(!html.contains("da-component"), "no leftover placeholders");
+}
+
+#[test]
+fn test_template_component_syntax_error_fails_build() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home\n")]);
+    let comps = dir.path().join("theme/components");
+    std::fs::create_dir_all(&comps).unwrap();
+    std::fs::write(comps.join("card.html"), "{% if %}").unwrap();
+    let err = build_project(dir.path()).unwrap_err();
+    assert!(
+        matches!(err, docanvil::error::Error::ComponentTemplate { .. }),
+        "{err}"
+    );
+}
+
+#[test]
+fn test_template_component_render_error_fails_strict() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home\n\n:::card\n:::\n")]);
+    let comps = dir.path().join("theme/components");
+    std::fs::create_dir_all(&comps).unwrap();
+    std::fs::write(comps.join("card.html"), "<h3>{{ attrs.title }}</h3>").unwrap();
+    assert!(
+        build_project(dir.path()).is_ok(),
+        "non-strict build succeeds"
+    );
+    assert!(
+        build_project_strict(dir.path()).is_err(),
+        "strict build fails on the render warning"
+    );
+}
+
+#[test]
+fn test_directive_examples_in_code_fences_stay_literal() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[(
+            "index.md",
+            "# Home\n\n```markdown\n:::note{title=\"Hi\"}\nBody\n:::\n```\n",
+        )],
+    );
+    build_project(dir.path()).unwrap();
+    let html = fs::read_to_string(dir.path().join("dist/index.html")).unwrap();
+    assert!(
+        !html.contains("admonition-title\">Hi"),
+        "example was rendered as a component"
+    );
+    assert!(html.contains(":::note"), "example source shown");
+}

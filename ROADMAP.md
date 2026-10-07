@@ -40,9 +40,26 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 
 ---
 
-## 🧩 1.2 — Extensibility
+## ✍️ 1.2 — Authoring Essentials
 
-- **Plugin system (v1)**, WASM-based
+The everyday features people expect from a docs tool, so new projects have everything they need from day one.
+
+- **"Edit this page" links**: point readers at a page's Markdown source on GitHub, GitLab, Bitbucket or any Git host, so they can suggest fixes as pull requests. Locale- and version-aware, with a per-page opt-out
+- **Open in your editor from `docanvil serve`**: during local development, the edit link opens the source file straight in your editor instead
+- **Redirects**: keep old URLs working when pages are renamed or moved
+- **Includes**: reuse shared content (install steps, warnings, snippets) across pages, locales and versions
+- **Draft pages**: mark a page as a draft to preview it with `docanvil serve` while keeping it out of production builds
+- **Last updated dates**: show when each page last changed, from Git history or front matter
+- **`llms.txt` output**: an AI-friendly index of your docs, generated alongside `sitemap.xml`
+- **Template components**: define your own `:::components` as Tera templates in `theme/components/`, with no Rust or build tooling needed. A template with a built-in's name (like `note.html`) restyles that component
+
+Fully backward compatible, and every feature is opt-in.
+
+---
+
+## 🧩 1.3 — Extensibility
+
+- **Plugin system (v1)**, WASM-based, for what template components can't do
   - Markdown transformers
   - Custom components
 - Additional CLI flags, more diagnostics, and template enhancements
@@ -51,7 +68,7 @@ Fully backward compatible.
 
 ---
 
-## 🚀 1.3+ — Ecosystem Growth
+## 🚀 1.4+ — Ecosystem Growth
 
 - Plugin hooks and a plugin SDK crate
 - Incremental builds and caching for faster rebuilds on large sites
@@ -69,6 +86,9 @@ Not scheduled yet, but on our radar:
 - **Offline documentation bundles**, as self-contained artifacts
 - **Build presets** for documentation, handbooks and specifications
 - **Contrast checks** alongside the existing accessibility lints
+- **Math support** (KaTeX), opt-in like Mermaid charts
+- **External link checking** in `docanvil doctor`
+- **Social cards** (`og:image`) for shared links
 
 ---
 

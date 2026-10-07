@@ -10,17 +10,32 @@ DocAnvil follows [Semantic Versioning](https://semver.org) and is stable at 1.x,
 - ✅ Style linting (`docanvil doctor` — readability checks, heading structure, link quality, and more)
 - ✅ Install scripts for macOS, Linux and Windows, more prebuilt platforms, and `docanvil update`
 
-## 1.2.x — Extensibility
+## 1.2.x — Authoring Essentials
 
-WASM plugin system (v1), additional CLI flags, more diagnostics, and template enhancements. Fully backward compatible.
+The everyday features people expect from a docs tool, so new projects have everything they need from day one:
 
-## 1.3.x+ — Ecosystem Growth
+- "Edit this page" links to a page's source on GitHub, GitLab, Bitbucket or any Git host
+- Open the source file in your editor straight from `docanvil serve`
+- Redirects, so old URLs keep working when pages move
+- Includes, to reuse shared content across pages, locales and versions
+- Draft pages that show in `docanvil serve` but stay out of production builds
+- Last updated dates from Git history or front matter
+- `llms.txt` output, an AI-friendly index of your docs
+- Template components: define your own components as Tera templates in your theme, no Rust needed
+
+Fully backward compatible, and every feature is opt-in.
+
+## 1.3.x — Extensibility
+
+A WASM plugin system (v1) for Markdown transformers and anything else template components can't do, additional CLI flags, more diagnostics, and template enhancements. Fully backward compatible.
+
+## 1.4.x+ — Ecosystem Growth
 
 Plugin hooks, performance optimizations, incremental builds, caching, and a plugin SDK crate. Breaking changes require a major release.
 
 ## Ideas Under Consideration
 
-Not scheduled yet, but on our radar: a glossary, front-matter schema validation, OpenAPI reference generation, offline documentation bundles, build presets, and contrast checks.
+Not scheduled yet, but on our radar: a glossary, front-matter schema validation, OpenAPI reference generation, offline documentation bundles, build presets, contrast checks, math support (KaTeX), external link checking, and social cards.
 
 ## 2.0 and Beyond
 

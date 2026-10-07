@@ -154,8 +154,11 @@ jobs:
           if ($out -notmatch 'already installed') { throw "expected early exit, got: $out" }
           # Reinstalling while docanvil is running must work: Windows locks a running exe.
           $exe = Join-Path $dir 'docanvil.exe'
+          # A bare name, not a path: `docanvil new` writes it into docanvil.toml unescaped (#41).
+          Push-Location $env:RUNNER_TEMP
+          & $exe new running-site
+          Pop-Location
           $site = Join-Path $env:RUNNER_TEMP 'running-site'
-          & $exe new $site
           $log = Join-Path $env:RUNNER_TEMP 'serve.log'
           $serve = Start-Process -FilePath $exe -ArgumentList 'serve', '--path', $site, '--port', '3917' -PassThru -NoNewWindow -RedirectStandardError $log
           try {

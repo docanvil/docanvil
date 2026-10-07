@@ -19,6 +19,7 @@ All notable changes to DocAnvil will be documented in this file.
 - A page without a front matter `title` now takes its title from its first `# Heading` instead of its filename, so sidebar labels, breadcrumbs, search results and the browser tab match the page. URLs are unchanged — only a front matter `title` or `slug` affects them. Set `label` in `nav.toml` or `title` in front matter to keep a different label
 - Built-in component attribute values (such as a note's `title` or a lozenge's `text`) are now HTML-escaped, so `title="Fish & Chips"` renders as written. Put HTML in the body instead
 - Text directly after a component's closing `:::` (no blank line) is now rendered as Markdown rather than raw HTML
+- On long pages, the right-hand table of contents only expands sub-headings for the section you're reading (a › marks sections that have them), and keeps the highlighted heading in view as you scroll
 
 ### Fixed
 

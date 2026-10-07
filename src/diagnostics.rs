@@ -157,10 +157,17 @@ pub fn warn_component_render(source_file: &Path, name: &str, message: &str) {
         source_file.display(),
         message
     );
-    eprintln!(
-        "  {}: Optional attributes need a fallback, e.g. {{{{ attrs.title | default(value=\"…\") }}}}",
-        "hint".dimmed()
-    );
+    if message.contains("not found in context") {
+        eprintln!(
+            "  {}: Optional attributes need a fallback, e.g. {{{{ attrs.title | default(value=\"…\") }}}}",
+            "hint".dimmed()
+        );
+    } else {
+        eprintln!(
+            "  {}: Check the template, or run 'docanvil doctor' to validate component templates.",
+            "hint".dimmed()
+        );
+    }
 }
 
 /// Emit a warning that a custom CSS file was not found.

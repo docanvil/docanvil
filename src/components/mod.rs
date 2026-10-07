@@ -464,6 +464,22 @@ mod tests {
         assert_eq!(crate::diagnostics::warning_count(), 1);
     }
 
+    /// `warn_component_render` picks a hint based on the error message; this
+    /// pins that an error *without* "not found in context" (so the generic
+    /// hint path) still renders the error box and still counts as a warning.
+    #[test]
+    fn render_error_without_context_hint_still_warns() {
+        crate::diagnostics::reset_warnings();
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template("broken-filter", "{{ attrs.title | no_such_filter }}")
+            .unwrap();
+        let html =
+            registry.render_markdown(":::broken-filter{title=\"Hi\"}\n:::\n", Path::new("t.md"));
+        assert!(html.contains("class=\"directive-error\""), "{html}");
+        assert_eq!(crate::diagnostics::warning_count(), 1);
+    }
+
     #[test]
     fn load_without_component_dir_is_builtins() {
         let dir = tempfile::tempdir().unwrap();

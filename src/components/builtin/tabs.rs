@@ -19,7 +19,7 @@ impl Component for Tabs {
                     .get("title")
                     .cloned()
                     .unwrap_or_else(|| format!("Tab {}", tabs.len() + 1));
-                let body_html = crate::pipeline::markdown::render(&block.body);
+                let body_html = (ctx.render_markdown)(&block.body);
                 tabs.push((title, body_html));
             }
             String::new()

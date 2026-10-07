@@ -25,6 +25,7 @@ mod tests {
             attributes: HashMap::new(),
             body_raw: "graph TD\n    A --> B".to_string(),
             body_html: String::new(),
+            render_markdown: &|s: &str| s.to_string(),
         };
         let html = mermaid.render(&ctx).unwrap();
         assert!(html.contains("<pre class=\"mermaid\">"));
@@ -39,6 +40,7 @@ mod tests {
             attributes: HashMap::new(),
             body_raw: "graph TD\n    A[Write Markdown] --> B[Build]".to_string(),
             body_html: String::new(),
+            render_markdown: &|s: &str| s.to_string(),
         };
         let html = mermaid.render(&ctx).unwrap();
         // Content must not be HTML-escaped — mermaid v11 reads innerHTML,

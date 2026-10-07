@@ -39,6 +39,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `description` | String | Renders as `<meta name="description">` and `<meta property="og:description">` for search engines and link previews |
 | `author` | String | Renders as `<meta name="author">` |
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
+| `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 

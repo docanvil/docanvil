@@ -86,6 +86,7 @@ impl TemplateRenderer {
         context.insert("available_versions", &ctx.available_versions);
         context.insert("latest_version", &ctx.latest_version);
         context.insert("latest_version_url", &ctx.latest_version_url);
+        context.insert("edit_url", &ctx.edit_url);
 
         self.tera
             .render("layout.html", &context)
@@ -133,4 +134,6 @@ pub struct PageContext {
     pub latest_version: Option<String>,
     /// URL to the equivalent page (or version home) in the latest version.
     pub latest_version_url: Option<String>,
+    /// "Edit this page" URL for the page's source on its Git host.
+    pub edit_url: Option<String>,
 }

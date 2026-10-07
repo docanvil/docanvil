@@ -744,3 +744,114 @@ fn test_nav_labels_are_escaped() {
     let html = read_output(dir.path(), "index.html");
     assert!(html.contains("Vec&lt;T&gt; &amp; friends</a>"));
 }
+
+const EDIT_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[edit]
+repo = "https://github.com/org/repo"
+root = "site"
+"#;
+
+/// Read an output page with Tera's `&#x2F;` escaping of URLs undone.
+fn read_page(dir: &std::path::Path, path: &str) -> String {
+    read_output(dir, path).replace("&#x2F;", "/")
+}
+
+#[test]
+fn test_edit_link_points_at_source() {
+    let dir = create_project(
+        EDIT_CONFIG,
+        &[("index.md", "# Home"), ("guide/setup.md", "# Setup")],
+    );
+    build_project(dir.path()).unwrap();
+
+    let html = read_page(dir.path(), "guide/setup.html");
+    assert!(html.contains("Edit this page"));
+    assert!(
+        html.contains(r#"href="https://github.com/org/repo/edit/main/site/docs/guide/setup.md""#)
+    );
+
+    let not_found = read_output(dir.path(), "404.html");
+    assert!(!not_found.contains("Edit this page"));
+}
+
+#[test]
+fn test_edit_link_off_by_default() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    build_project(dir.path()).unwrap();
+    assert!(!read_output(dir.path(), "index.html").contains("Edit this page"));
+}
+
+#[test]
+fn test_edit_link_front_matter_opt_out() {
+    let dir = create_project(
+        EDIT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            ("private.md", "---\n{\"edit_link\": false}\n---\n# Private"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+    assert!(read_output(dir.path(), "index.html").contains("Edit this page"));
+    assert!(!read_output(dir.path(), "private.html").contains("Edit this page"));
+}
+
+#[test]
+fn test_edit_link_uses_locale_source_file() {
+    let config = format!("{EDIT_CONFIG}\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n");
+    let dir = create_project(
+        &config,
+        &[("index.en.md", "# Welcome"), ("index.fr.md", "# Bienvenue")],
+    );
+    build_project(dir.path()).unwrap();
+    assert!(
+        read_page(dir.path(), "fr/index.html")
+            .contains("https://github.com/org/repo/edit/main/site/docs/index.fr.md")
+    );
+    assert!(
+        read_page(dir.path(), "en/index.html")
+            .contains("https://github.com/org/repo/edit/main/site/docs/index.en.md")
+    );
+}
+
+#[test]
+fn test_edit_link_uses_version_source_file() {
+    let config =
+        format!("{EDIT_CONFIG}\n[version]\ncurrent = \"v2\"\nenabled = [\"v1\", \"v2\"]\n");
+    let dir = create_project(
+        &config,
+        &[("v1/guide.md", "# Old guide"), ("v2/guide.md", "# Guide")],
+    );
+    build_project(dir.path()).unwrap();
+    assert!(
+        read_page(dir.path(), "v1/guide.html")
+            .contains("https://github.com/org/repo/edit/main/site/docs/v1/guide.md")
+    );
+}
+
+#[test]
+fn test_edit_link_unknown_host_fails_strict() {
+    let config = |repo: &str| {
+        format!(
+            "[project]\nname = \"Test Docs\"\n\n[build]\nsite_url = \"https://docs.example.com\"\n\n[edit]\nrepo = \"{repo}\"\nroot = \"\"\n"
+        )
+    };
+
+    // Control: a recognised host builds cleanly in strict mode.
+    let ok = create_project(
+        &config("https://github.com/org/repo"),
+        &[("index.md", "# Home")],
+    );
+    build_project_strict(ok.path()).unwrap();
+
+    let dir = create_project(
+        &config("https://git.example.com/team/docs"),
+        &[("index.md", "# Home")],
+    );
+    assert!(build_project_strict(dir.path()).is_err());
+    // A normal build still succeeds, just without links.
+    build_project(dir.path()).unwrap();
+    assert!(!read_output(dir.path(), "index.html").contains("Edit this page"));
+}

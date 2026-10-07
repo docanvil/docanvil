@@ -9,6 +9,8 @@ pub struct FrontMatter {
     pub author: Option<String>,
     pub date: Option<String>,
     pub slug: Option<String>,
+    /// Set to `false` to hide the "Edit this page" link on this page.
+    pub edit_link: Option<bool>,
 }
 
 /// Extract JSON front matter from a Markdown source string.

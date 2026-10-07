@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- "Edit this page" links: set `repo` in a new `[edit]` section and every page links to its Markdown source on GitHub, GitLab or Bitbucket, so readers can suggest fixes as pull requests. Translated and versioned pages link to their own source file, self-hosted GitHub and GitLab work via `provider`, and a page can opt out with `"edit_link": false` in its front matter. `docanvil doctor` warns if the settings can't produce working links (#45)
+
 ## [1.1.5] - 2026-10-07
 
 ### Fixed

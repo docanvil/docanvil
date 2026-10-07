@@ -206,6 +206,7 @@ For complete control over the HTML structure, override the default Tera template
 | `header` | Top header bar with project name and search |
 | `sidebar` | The navigation sidebar |
 | `content` | Main page content area |
+| `edit_link` | The "Edit this page" link below the content |
 | `footer` | Footer below content |
 | `scripts` | JavaScript at end of body |
 
@@ -225,6 +226,7 @@ For complete control over the HTML structure, override the default Tera template
 | `mermaid_enabled` | Boolean | Whether Mermaid diagram rendering is enabled |
 | `mermaid_version` | String | Mermaid.js major version to load from CDN |
 | `color_mode` | String | Color mode: `"light"`, `"dark"`, or `"both"` |
+| `edit_url` | String | "Edit this page" URL for the current page, when `[edit]` is configured |
 
 :::note
 The default template includes JavaScript for tab switching, sidebar collapse/expand, navigation filtering, popover positioning, search, and Mermaid diagram rendering. If you override the `scripts` block, you'll need to re-implement any of these features you want to keep.

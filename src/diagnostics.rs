@@ -66,6 +66,16 @@ pub fn warn_no_site_url() {
     );
 }
 
+/// Emit a warning that the `[edit]` config can't produce "Edit this page" links.
+pub fn warn_edit_link_config(message: &str) {
+    increment();
+    eprintln!("{}: {message}", "warning".yellow().bold());
+    eprintln!(
+        "  {}: Edit links are turned off for this build. Run `docanvil doctor` for details.",
+        "hint".dimmed()
+    );
+}
+
 /// Emit a warning that an autodiscover folder has no matching pages.
 pub fn warn_nav_autodiscover_empty(folder: &str) {
     increment();

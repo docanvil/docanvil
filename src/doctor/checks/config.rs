@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Severity};
+use crate::edit::EditLinks;
 use crate::nav;
 use crate::project::PageInventory;
 
@@ -71,6 +72,19 @@ pub fn check_config(
                 fix: None,
             });
         }
+    }
+
+    // Check [edit] can produce "Edit this page" links
+    if let Err(message) = EditLinks::from_config(&config.edit, project_root) {
+        diags.push(Diagnostic {
+            check: "edit-link-config",
+            category: "config",
+            severity: Severity::Warning,
+            message,
+            file: None,
+            line: None,
+            fix: None,
+        });
     }
 
     // Validate nav.toml
@@ -157,5 +171,39 @@ fn check_nav_group_items(
         if let Some(group) = &item.group {
             check_nav_group_items(group, inventory, diags);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn edit_diags(edit_toml: &str) -> Vec<Diagnostic> {
+        let dir = tempfile::tempdir().unwrap();
+        let config: Config = toml::from_str(edit_toml).unwrap();
+        check_config(dir.path(), &config, None)
+            .into_iter()
+            .filter(|d| d.check == "edit-link-config")
+            .collect()
+    }
+
+    #[test]
+    fn edit_link_unknown_host_warns() {
+        let diags = edit_diags("[edit]\nrepo = \"https://git.example.com/team/docs\"\n");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, Severity::Warning);
+        assert!(diags[0].message.contains("provider"));
+    }
+
+    #[test]
+    fn edit_link_ssh_remote_warns() {
+        let diags = edit_diags("[edit]\nrepo = \"git@github.com:org/repo.git\"\n");
+        assert_eq!(diags.len(), 1);
+    }
+
+    #[test]
+    fn edit_link_valid_or_unset_is_clean() {
+        assert!(edit_diags("[edit]\nrepo = \"https://github.com/org/repo\"\n").is_empty());
+        assert!(edit_diags("").is_empty());
     }
 }

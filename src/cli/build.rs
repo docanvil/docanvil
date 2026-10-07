@@ -8,13 +8,14 @@ use walkdir::WalkDir;
 
 use crate::components::ComponentRegistry;
 use crate::config::Config;
-use crate::diagnostics::{reset_warnings, warning_count};
+use crate::diagnostics::{self, reset_warnings, warning_count};
+use crate::edit::EditLinks;
 use crate::error::{Error, Result};
 use crate::nav;
 use crate::pipeline;
 use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::syntax::SyntaxHighlighter;
-use crate::project::{self, PageInventory};
+use crate::project::{self, PageInfo, PageInventory};
 use crate::render::assets;
 use crate::render::templates::{LocaleInfo, PageContext, PageLink, TemplateRenderer, VersionInfo};
 use crate::search;
@@ -226,6 +227,18 @@ fn sync_output(staging: &Path, output_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// The "Edit this page" URL for a page, unless its front matter opts out.
+fn page_edit_url(
+    edit_links: Option<&EditLinks>,
+    page: &PageInfo,
+    fm: &FrontMatter,
+) -> Option<String> {
+    if fm.edit_link == Some(false) {
+        return None;
+    }
+    edit_links?.url_for(&page.source_path)
+}
+
 /// Core build logic shared between CLI and serve.
 fn build_site(
     project_root: &Path,
@@ -241,6 +254,14 @@ fn build_site(
     // Resolve theme and create template renderer
     let theme = Theme::resolve(config, project_root);
     let renderer = TemplateRenderer::new(&theme)?;
+
+    let edit_links = match EditLinks::from_config(&config.edit, project_root) {
+        Ok(links) => links,
+        Err(message) => {
+            diagnostics::warn_edit_link_config(&message);
+            None
+        }
+    };
 
     // Build page inventory for wiki-link resolution and navigation
     let enabled_locales = if config.is_i18n_enabled() {
@@ -591,6 +612,7 @@ fn build_site(
                             mermaid_version: config.charts.mermaid_version.clone(),
                             search_enabled: config.search.enabled,
                             meta_description: fm.description.clone(),
+                            edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                             meta_author: fm.author.clone(),
                             meta_date: fm.date.clone(),
                             prev_page,
@@ -766,6 +788,7 @@ fn build_site(
                         mermaid_version: config.charts.mermaid_version.clone(),
                         search_enabled: config.search.enabled,
                         meta_description: fm.description.clone(),
+                        edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                         meta_author: fm.author.clone(),
                         meta_date: fm.date.clone(),
                         prev_page,
@@ -921,6 +944,7 @@ fn build_site(
                 mermaid_version: String::new(),
                 search_enabled: config.search.enabled,
                 meta_description: None,
+                edit_url: None,
                 meta_author: None,
                 meta_date: None,
                 prev_page: None,
@@ -1085,6 +1109,7 @@ fn build_site(
                     mermaid_version: config.charts.mermaid_version.clone(),
                     search_enabled: config.search.enabled,
                     meta_description: fm.description.clone(),
+                    edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                     meta_author: fm.author.clone(),
                     meta_date: fm.date.clone(),
                     prev_page,
@@ -1232,6 +1257,7 @@ fn build_site(
                 mermaid_version: config.charts.mermaid_version.clone(),
                 search_enabled: config.search.enabled,
                 meta_description: fm.description.clone(),
+                edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                 meta_author: fm.author.clone(),
                 meta_date: fm.date.clone(),
                 prev_page,
@@ -1389,6 +1415,7 @@ fn build_site(
             mermaid_version: String::new(),
             search_enabled: config.search.enabled,
             meta_description: None,
+            edit_url: None,
             meta_author: None,
             meta_date: None,
             prev_page: None,

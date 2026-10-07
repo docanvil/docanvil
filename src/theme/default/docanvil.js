@@ -123,28 +123,56 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
     return;
   }
 
+  // Long TOCs only show sub-headings for the section being read, so the
+  // top-level outline stays visible without scrolling.
+  const COLLAPSE_THRESHOLD = 12;
+  const topTag = multiH1 ? 'H1' : 'H2';
+  const collapsible = headings.length > COLLAPSE_THRESHOLD;
+
   const ul = document.createElement('ul');
-  ul.className = 'toc-list' + (multiH1 ? ' toc-has-h1' : '');
+  ul.className = 'toc-list' + (multiH1 ? ' toc-has-h1' : '') + (collapsible ? ' toc-collapsible' : '');
+  let section = -1;
   headings.forEach(h => {
     const li = document.createElement('li');
     let cls = 'toc-item';
     if (h.tagName === 'H3') cls += ' toc-h3';
     else if (h.tagName === 'H2' && multiH1) cls += ' toc-h2';
+    if (h.tagName === topTag) section++;
+    else if (section >= 0) cls += ' toc-sub';
     li.className = cls;
+    li.dataset.section = section;
     const a = document.createElement('a');
     a.href = '#' + h.id;
     a.textContent = h.textContent.replace(/\s*#$/, '');
     li.appendChild(a);
     ul.appendChild(li);
+    if (cls.includes('toc-sub')) {
+      ul.querySelector(`[data-section="${section}"]:not(.toc-sub)`).classList.add('toc-has-children');
+    }
   });
   tocNav.appendChild(ul);
+
+  const toc = tocNav.closest('.toc');
+  function setActive(li) {
+    tocNav.querySelectorAll('.toc-item').forEach(item => {
+      item.classList.remove('active');
+      item.classList.toggle('toc-open', item.dataset.section === li.dataset.section);
+    });
+    li.classList.add('active');
+    // Keep the highlight in view when the TOC itself overflows.
+    if (toc.scrollHeight > toc.clientHeight) {
+      const top = li.offsetTop - toc.scrollTop;
+      if (top < 0 || top + li.offsetHeight > toc.clientHeight) {
+        toc.scrollTop = li.offsetTop - toc.clientHeight / 3;
+      }
+    }
+  }
 
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        tocNav.querySelectorAll('.toc-item').forEach(item => item.classList.remove('active'));
         const active = tocNav.querySelector(`a[href="#${entry.target.id}"]`);
-        if (active) active.parentElement.classList.add('active');
+        if (active) setActive(active.parentElement);
       }
     });
   }, { rootMargin: '-80px 0px -70% 0px' });

@@ -1377,6 +1377,22 @@ body {
   padding-left: 2.25rem;
 }
 
+.toc-collapsible .toc-sub:not(.toc-open) {
+  display: none;
+}
+
+.toc-collapsible .toc-has-children > a::after {
+  content: "›";
+  display: inline-block;
+  margin-left: 0.4rem;
+  opacity: 0.6;
+  transition: transform var(--transition-fast);
+}
+
+.toc-collapsible .toc-has-children.toc-open > a::after {
+  transform: rotate(90deg);
+}
+
 @media (max-width: 1200px) {
   .toc {
     display: none;

@@ -156,10 +156,11 @@ jobs:
           $exe = Join-Path $dir 'docanvil.exe'
           $site = Join-Path $env:RUNNER_TEMP 'running-site'
           & $exe new $site
-          $serve = Start-Process -FilePath $exe -ArgumentList 'serve', '--path', $site, '--port', '3917' -PassThru -WindowStyle Hidden
+          $log = Join-Path $env:RUNNER_TEMP 'serve.log'
+          $serve = Start-Process -FilePath $exe -ArgumentList 'serve', '--path', $site, '--port', '3917' -PassThru -NoNewWindow -RedirectStandardError $log
           try {
             Start-Sleep -Seconds 3
-            if ($serve.HasExited) { throw "docanvil serve exited early (code $($serve.ExitCode))" }
+            if ($serve.HasExited) { Get-Content $log; throw "docanvil serve exited early (code $($serve.ExitCode))" }
             & ./install/install.ps1 -InstallDir $dir -Force
             & $exe --version
           } finally {

@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- `docanvil new` names the project after its directory rather than the whole path you pass (`docanvil new ../guides` is now "guides"), and escapes the name in `docanvil.toml`. A Windows path such as `C:\docs\site` previously produced a config DocAnvil couldn't read. The scaffolded getting-started page also says `docanvil new` instead of the non-existent `docanvil init`
 - `install.sh` now stops when interrupted (Ctrl-C) instead of carrying on, and never leaves a half-written binary in the install directory if it's interrupted or a copy fails
 - `install.ps1` now works from a 32-bit PowerShell on 64-bit Windows, and can upgrade DocAnvil while it's running (for example with `docanvil serve` open in another terminal)
 - `docanvil doctor` no longer reports "Link has no visible text" for links whose text is inline code (e.g. ``[`docanvil update`](#docanvil-update)``), or missing alt text for images whose alt is inline code. Words either side of an inline code span are no longer flagged as a repeated word, and link examples inside inline code are no longer flagged as non-descriptive link text

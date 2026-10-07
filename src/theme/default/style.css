@@ -400,6 +400,45 @@ body {
   margin-left: 0.35rem;
 }
 
+/* Breadcrumbs */
+.breadcrumbs {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-sm);
+}
+
+.content .breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-muted);
+}
+
+.content .breadcrumbs li {
+  margin: 0;
+}
+
+.content .breadcrumbs li + li::before {
+  content: "›";
+  margin: 0 0.5rem;
+  opacity: 0.6;
+}
+
+.breadcrumbs a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumbs [aria-current="page"] {
+  color: var(--color-text);
+}
+
 /* Theme toggle */
 .theme-toggle {
   display: flex;
@@ -730,6 +769,22 @@ body {
   margin: 0 0 1rem;
   padding-bottom: 0.6rem;
   border-bottom: 2px solid var(--color-primary-light);
+}
+
+/* Front matter description, shown as a subtitle under the page title */
+.content h1:has(+ .page-description) {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.content .page-description {
+  margin: 0 0 1.5rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 2px solid var(--color-primary-light);
+  font-size: 1.2rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
 }
 
 .content h2 {

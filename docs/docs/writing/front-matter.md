@@ -36,7 +36,7 @@ All fields are optional. You can include any combination of them or omit front m
 |-------|------|--------|
 | `title` | String | Overrides the page title used in the browser tab, navigation sidebar, search index, breadcrumbs, and URL slug |
 | `slug` | String | Overrides the URL slug directly — takes priority over the title-derived slug |
-| `description` | String | Renders as `<meta name="description">` and `<meta property="og:description">` for search engines and link previews |
+| `description` | String | Shown as a subtitle under the page title, and renders as `<meta name="description">` and `<meta property="og:description">` for search engines and link previews |
 | `author` | String | Renders as `<meta name="author">` |
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
 | `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
@@ -45,7 +45,7 @@ Unknown fields are silently ignored, so you can add your own custom metadata wit
 
 ## Title Override
 
-By default, DocAnvil derives page titles from filenames — `getting-started.md` becomes "Getting Started". Front matter `title` overrides this everywhere:
+By default, a page's title is its first `# Heading`, or, if it has none, its filename (`getting-started.md` becomes "Getting Started"). Front matter `title` overrides this everywhere:
 
 - The `<title>` tag in the HTML head
 - The navigation sidebar label
@@ -66,6 +66,10 @@ Content here...
 ```
 
 In this example, the sidebar and browser tab show "Quick Start Guide" while the page content displays its own `# Getting Started with DocAnvil` heading.
+
+:::note
+You usually don't need `title` at all — the `# Heading` already names the page everywhere. Reach for it when you want a shorter label than the heading, or a URL based on a different name. A title taken from the heading never changes the URL, so you can reword headings freely.
+:::
 
 ### Clean URLs from Titles
 
@@ -128,7 +132,7 @@ Here are a few common front-matter patterns to get you started.
 
 ### Minimal — title only
 
-Just a title is enough to override the filename-derived heading and set the page's `<title>` tag.
+Just a title is enough to override the page's title (from its `# Heading` or filename) and set the `<title>` tag.
 
 ```markdown
 ---
@@ -170,7 +174,7 @@ This outputs to `/faq.html` instead of `/frequently-asked-questions.html`.
 
 ### No front matter
 
-Pages without front matter work exactly as before — the title is derived from the filename and no extra meta tags are added.
+Pages without front matter work exactly as before — the title comes from the first `# Heading` (or the filename) and no extra meta tags are added.
 
 ## Date Format
 

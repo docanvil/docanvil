@@ -260,7 +260,7 @@ page = "guides/getting-started"
 
 ### Label Overrides
 
-By default, the sidebar label is derived from the slug (`getting-started` becomes "Getting Started"). Override it with `label`:
+By default, the sidebar label is the page's title — its first `# Heading`, or the slug if it has none (`getting-started` becomes "Getting Started"). Override it with `label`:
 
 <pre><code class="language-toml">&#91;[nav]]
 page = "guides/getting-started"

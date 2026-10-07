@@ -211,6 +211,7 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `head` | Contenu `<head>` supplémentaire (polices, balises meta, analytics) |
 | `header` | Barre d'en-tête avec nom du projet et recherche |
 | `sidebar` | La barre de navigation latérale |
+| `breadcrumbs` | Le fil d'Ariane au-dessus du titre de la page |
 | `content` | Zone de contenu principale |
 | `footer` | Pied de page sous le contenu |
 | `edit_link` | Le lien « Edit this page » sous le contenu |
@@ -226,13 +227,14 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `css_overrides` | Chaîne | Surcharges de variables CSS depuis la configuration |
 | `custom_css_path` | Chaîne | Chemin vers le fichier CSS personnalisé, si configuré |
 | `nav_html` | Chaîne | HTML de navigation rendu (utilisez le filtre `safe`) |
-| `content` | Chaîne | HTML de la page rendu (utilisez le filtre `safe`) |
+| `content` | Chaîne | HTML de la page rendu (utilisez le filtre `safe`), y compris la `description` du front matter en sous-titre `<p class="page-description">` sous le premier titre |
 | `live_reload` | Booléen | Si le serveur de développement est en cours d'exécution |
 | `search_enabled` | Booléen | Si la recherche plein texte est activée |
 | `mermaid_enabled` | Booléen | Si le rendu des diagrammes Mermaid est activé |
 | `mermaid_version` | Chaîne | Version majeure de Mermaid.js à charger depuis le CDN |
 | `color_mode` | Chaîne | Mode de couleur : `"light"`, `"dark"`, ou `"both"` |
 | `edit_url` | Chaîne | URL « Edit this page » de la page courante, quand `[edit]` est configuré |
+| `breadcrumbs` | Tableau | Fil d'Ariane depuis la section de navigation jusqu'à la page — chaque élément a un `title` et une `url` (absente pour la page courante et pour les sections sans page). Vide pour les pages de premier niveau |
 
 :::note
 Le template par défaut inclut du JavaScript pour la commutation des onglets, le repli/développement de la barre latérale, le filtrage de navigation, le positionnement des popovers, la recherche, et le rendu des diagrammes Mermaid. Si vous surchargez le bloc `scripts`, vous devrez réimplémenter les fonctionnalités que vous souhaitez conserver.

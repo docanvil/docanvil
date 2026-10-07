@@ -11,9 +11,12 @@ All notable changes to DocAnvil will be documented in this file.
 - Components can now be nested — `::::card` containing `:::note` and inline `:::lozenge{…}` just works
 - `docanvil component list` and `docanvil component eject <name>` to see components and copy a built-in's template into your project
 - `docanvil doctor` checks component templates for syntax errors, unusable file names, and `{{ body }}` without `| safe`
+- Breadcrumbs above the page title, following the sidebar: nav groups (linked when they have a page) and labelled separators. Top-level pages don't get one. Override the new `breadcrumbs` template block to change them
+- A page's front matter `description` now shows as a subtitle under its title, as well as in the SEO meta tags
 
 ### Changed
 
+- A page without a front matter `title` now takes its title from its first `# Heading` instead of its filename, so sidebar labels, breadcrumbs, search results and the browser tab match the page. URLs are unchanged — only a front matter `title` or `slug` affects them. Set `label` in `nav.toml` or `title` in front matter to keep a different label
 - Built-in component attribute values (such as a note's `title` or a lozenge's `text`) are now HTML-escaped, so `title="Fish & Chips"` renders as written. Put HTML in the body instead
 - Text directly after a component's closing `:::` (no blank line) is now rendered as Markdown rather than raw HTML
 

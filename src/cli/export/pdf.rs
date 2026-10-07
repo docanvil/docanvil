@@ -13,6 +13,7 @@ use crate::error::{Error, Result};
 use crate::nav;
 use crate::pipeline;
 use crate::pipeline::frontmatter::{self, FrontMatter};
+use crate::pipeline::markdown;
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{NavNode, PageInfo, PageInventory, flatten_nav_pages};
 
@@ -407,10 +408,17 @@ fn run_single_locale(
         let source = std::fs::read_to_string(&source_path).map_err(io_context(&source_path))?;
         let fm = frontmatter::extract(&source);
 
-        if let Some(ref title) = fm.title
+        // Title: front matter, then the first `# H1`, then the filename (from scan).
+
+        // Only front matter titles change the slug, so editing a heading never moves a URL.
+
+        if let Some(title) = fm
+            .title
+            .clone()
+            .or_else(|| markdown::first_h1_text(&source))
             && let Some(p) = inventory.pages.get_mut(key)
         {
-            p.title = title.clone();
+            p.title = title;
         }
 
         let current_basename = slug.rsplit('/').next().unwrap_or(&slug).to_string();

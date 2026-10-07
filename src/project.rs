@@ -13,7 +13,7 @@ pub struct PageInfo {
     pub source_path: PathBuf,
     /// Relative output path (e.g. `guides/setup.html`).
     pub output_path: PathBuf,
-    /// Page title (from first heading or filename).
+    /// Page title: front matter `title`, else the first `# H1`, else the filename.
     pub title: String,
     /// URL-friendly slug used for wiki-link resolution (e.g. `guides/setup`).
     pub slug: String,
@@ -465,23 +465,42 @@ pub(crate) fn title_from_slug(slug: &str) -> String {
         .join(" ")
 }
 
-/// Build a map from page slug to its full breadcrumb trail (ancestor group labels + page label).
-pub fn build_breadcrumb_map(nodes: &[NavNode]) -> HashMap<String, Vec<String>> {
+/// One step in a page's breadcrumb trail.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Crumb {
+    pub label: String,
+    /// The page this crumb links to — `None` for a group without an index page.
+    pub slug: Option<String>,
+}
+
+/// Build a map from page slug to its full breadcrumb trail (ancestor groups + the page itself).
+pub fn build_breadcrumb_map(nodes: &[NavNode]) -> HashMap<String, Vec<Crumb>> {
     let mut map = HashMap::new();
     collect_breadcrumbs(nodes, &[], &mut map);
     map
 }
 
+/// The labels of a breadcrumb trail, as stored in the search index.
+pub fn crumb_labels(trail: &[Crumb]) -> Vec<String> {
+    trail.iter().map(|c| c.label.clone()).collect()
+}
+
 fn collect_breadcrumbs(
     nodes: &[NavNode],
-    ancestors: &[String],
-    map: &mut HashMap<String, Vec<String>>,
+    ancestors: &[Crumb],
+    map: &mut HashMap<String, Vec<Crumb>>,
 ) {
+    // A labelled separator heads the entries after it (until the next separator),
+    // so it joins their trail as an unlinked section crumb.
+    let mut section: Vec<Crumb> = ancestors.to_vec();
     for node in nodes {
         match node {
             NavNode::Page { label, slug } => {
-                let mut trail = ancestors.to_vec();
-                trail.push(label.clone());
+                let mut trail = section.clone();
+                trail.push(Crumb {
+                    label: label.clone(),
+                    slug: Some(slug.clone()),
+                });
                 map.insert(slug.clone(), trail);
             }
             NavNode::Group {
@@ -489,14 +508,25 @@ fn collect_breadcrumbs(
                 slug,
                 children,
             } => {
-                let mut trail = ancestors.to_vec();
-                trail.push(label.clone());
+                let mut trail = section.clone();
+                trail.push(Crumb {
+                    label: label.clone(),
+                    slug: slug.clone(),
+                });
                 if let Some(s) = slug {
                     map.insert(s.clone(), trail.clone());
                 }
                 collect_breadcrumbs(children, &trail, map);
             }
-            NavNode::Separator { .. } => {}
+            NavNode::Separator { label } => {
+                section = ancestors.to_vec();
+                if let Some(label) = label {
+                    section.push(Crumb {
+                        label: label.clone(),
+                        slug: None,
+                    });
+                }
+            }
         }
     }
 }
@@ -872,8 +902,8 @@ mod tests {
             },
         ];
         let map = build_breadcrumb_map(&nodes);
-        assert_eq!(map.get("index").unwrap(), &vec!["Home"]);
-        assert_eq!(map.get("about").unwrap(), &vec!["About"]);
+        assert_eq!(crumb_labels(&map["index"]), vec!["Home"]);
+        assert_eq!(crumb_labels(&map["about"]), vec!["About"]);
     }
 
     #[test]
@@ -892,8 +922,8 @@ mod tests {
         }];
         let map = build_breadcrumb_map(&nodes);
         assert_eq!(
-            map.get("guides/advanced/setup").unwrap(),
-            &vec!["Guides", "Advanced", "Setup"]
+            crumb_labels(&map["guides/advanced/setup"]),
+            vec!["Guides", "Advanced", "Setup"]
         );
     }
 
@@ -908,25 +938,55 @@ mod tests {
             }],
         }];
         let map = build_breadcrumb_map(&nodes);
-        assert_eq!(map.get("guides/index").unwrap(), &vec!["Guides"]);
-        assert_eq!(map.get("guides/setup").unwrap(), &vec!["Guides", "Setup"]);
+        assert_eq!(crumb_labels(&map["guides/index"]), vec!["Guides"]);
+        assert_eq!(
+            map["guides/setup"],
+            vec![
+                Crumb {
+                    label: "Guides".into(),
+                    slug: Some("guides/index".into()),
+                },
+                Crumb {
+                    label: "Setup".into(),
+                    slug: Some("guides/setup".into()),
+                },
+            ]
+        );
     }
 
     #[test]
-    fn breadcrumb_map_ignores_separators() {
+    fn breadcrumb_map_uses_separator_labels_as_sections() {
         let nodes = vec![
-            NavNode::Separator {
-                label: Some("Section".into()),
-            },
             NavNode::Page {
                 label: "Home".into(),
                 slug: "index".into(),
             },
+            NavNode::Separator {
+                label: Some("Guides".into()),
+            },
+            NavNode::Page {
+                label: "Setup".into(),
+                slug: "setup".into(),
+            },
             NavNode::Separator { label: None },
+            NavNode::Page {
+                label: "About".into(),
+                slug: "about".into(),
+            },
         ];
         let map = build_breadcrumb_map(&nodes);
-        assert_eq!(map.len(), 1);
-        assert_eq!(map.get("index").unwrap(), &vec!["Home"]);
+        assert_eq!(map.len(), 3);
+        assert_eq!(crumb_labels(&map["index"]), vec!["Home"]);
+        assert_eq!(
+            map["setup"][0],
+            Crumb {
+                label: "Guides".into(),
+                slug: None,
+            }
+        );
+        assert_eq!(crumb_labels(&map["setup"]), vec!["Guides", "Setup"]);
+        // An unlabelled separator ends the section.
+        assert_eq!(crumb_labels(&map["about"]), vec!["About"]);
     }
 
     #[test]

@@ -192,7 +192,7 @@ Les fichiers sans suffixe de locale reçoivent la locale par défaut. Consultez 
 
 ### Génération des titres
 
-Les titres sont dérivés du dernier composant du chemin du slug :
+Le titre d'une page est le `title` de son front matter, sinon son premier `# Titre`, sinon il est dérivé du dernier composant du chemin du slug :
 
 - `index` devient "Home"
 - Les tirets et underscores deviennent des espaces

@@ -36,7 +36,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 |-------|------|--------|
 | `title` | Chaîne | Remplace le titre de la page dans l'onglet du navigateur, la barre de navigation, l'index de recherche, les fils d'Ariane, et le slug de l'URL |
 | `slug` | Chaîne | Remplace directement le slug de l'URL — prioritaire sur le slug dérivé du titre |
-| `description` | Chaîne | Génère les balises `<meta name="description">` et `<meta property="og:description">` pour les moteurs de recherche et les aperçus de liens |
+| `description` | Chaîne | Affichée en sous-titre sous le titre de la page, et génère les balises `<meta name="description">` et `<meta property="og:description">` pour les moteurs de recherche et les aperçus de liens |
 | `author` | Chaîne | Génère la balise `<meta name="author">` |
 | `date` | Chaîne | Génère la balise `<meta property="article:published_time">` pour les moteurs de recherche et le partage social |
 | `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
@@ -45,7 +45,7 @@ Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos pr
 
 ## Remplacement du titre
 
-Par défaut, DocAnvil dérive les titres des pages à partir des noms de fichiers — `getting-started.md` devient "Getting Started". Le `title` du front matter remplace ce comportement partout :
+Par défaut, le titre d'une page est son premier `# Titre`, ou, à défaut, son nom de fichier (`getting-started.md` devient "Getting Started"). Le `title` du front matter remplace ce comportement partout :
 
 - La balise `<title>` dans l'en-tête HTML
 - Le libellé dans la barre de navigation latérale
@@ -66,6 +66,10 @@ Contenu ici...
 ```
 
 Dans cet exemple, la barre latérale et l'onglet du navigateur affichent "Guide de démarrage rapide", tandis que le contenu affiche son propre titre `# Démarrer avec DocAnvil`.
+
+:::note
+La plupart du temps, `title` est inutile — le `# Titre` nomme déjà la page partout. Utilisez-le pour un libellé plus court que le titre, ou une URL basée sur un autre nom. Un titre issu du `# Titre` ne change jamais l'URL : vous pouvez reformuler vos titres librement.
+:::
 
 ### URLs propres à partir des titres
 
@@ -128,7 +132,7 @@ Quelques modèles de front matter courants pour vous lancer.
 
 ### Minimal — titre uniquement
 
-Un simple titre suffit pour remplacer le titre dérivé du nom de fichier et définir la balise `<title>` de la page.
+Un simple titre suffit pour remplacer le titre de la page (issu de son `# Titre` ou de son nom de fichier) et définir la balise `<title>`.
 
 ```markdown
 ---
@@ -170,7 +174,7 @@ La sortie sera `/faq.html` au lieu de `/foire-aux-questions.html`.
 
 ### Sans front matter
 
-Les pages sans front matter fonctionnent exactement comme avant — le titre est dérivé du nom de fichier et aucune balise meta supplémentaire n'est ajoutée.
+Les pages sans front matter fonctionnent exactement comme avant — le titre vient du premier `# Titre` (ou du nom de fichier) et aucune balise meta supplémentaire n'est ajoutée.
 
 ## Format de date
 

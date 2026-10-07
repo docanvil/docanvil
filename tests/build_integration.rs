@@ -957,3 +957,100 @@ fn test_directive_examples_in_code_fences_stay_literal() {
     );
     assert!(html.contains(":::note"), "example source shown");
 }
+
+#[test]
+fn test_breadcrumbs_on_nested_pages_only() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            ("guide/index.md", "# Guide"),
+            ("guide/setup.md", "# Setup"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+
+    let setup = read_page(dir.path(), "guide/setup.html");
+    assert!(setup.contains(r#"<nav class="breadcrumbs" aria-label="Breadcrumb">"#));
+    assert!(setup.contains(r#"<li aria-current="page">Setup</li>"#));
+    assert!(setup.contains(r#"<a href="/guide/index.html">"#));
+
+    let home = read_page(dir.path(), "index.html");
+    assert!(!home.contains(r#"aria-label="Breadcrumb""#));
+}
+
+#[test]
+fn test_breadcrumbs_use_locale_urls() {
+    let config =
+        format!("{DEFAULT_CONFIG}\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n");
+    let dir = create_project(
+        &config,
+        &[
+            ("guide/index.en.md", "# Guide"),
+            ("guide/setup.en.md", "# Setup"),
+            ("guide/index.fr.md", "# Guide"),
+            ("guide/setup.fr.md", "# Installation"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+    let fr = read_page(dir.path(), "fr/guide/setup.html");
+    assert!(fr.contains(r#"<a href="/fr/guide/index.html">"#));
+    assert!(fr.contains(r#"<li aria-current="page">Installation</li>"#));
+}
+
+#[test]
+fn test_description_shown_under_title() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            (
+                "index.md",
+                "---\n{\"description\": \"Docs that <ship> fast\"}\n---\n# Home\n\nWelcome.",
+            ),
+            ("plain.md", "# Plain"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+
+    let home = read_output(dir.path(), "index.html");
+    let h1_end = home.find("</h1>").unwrap();
+    let desc = home
+        .find(r#"<p class="page-description">Docs that &lt;ship&gt; fast</p>"#)
+        .expect("description subtitle missing");
+    assert!(desc > h1_end);
+    assert!(desc < home.find("Welcome.").unwrap());
+
+    assert!(!read_output(dir.path(), "plain.html").contains(r#"<p class="page-description">"#));
+}
+
+#[test]
+fn test_title_from_h1_keeps_filename_slug() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            ("guide/setup.md", "# Installing `docanvil`\n\nBody."),
+            (
+                "guide/short.md",
+                "---\n{\"title\": \"Short\", \"slug\": \"short\"}\n---\n# A Much Longer Heading",
+            ),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+
+    // The H1 names the page everywhere, but the URL still comes from the filename.
+    let setup = read_page(dir.path(), "guide/setup.html");
+    assert!(setup.contains("<title>Installing docanvil — Test Docs</title>"));
+    assert!(setup.contains(r#"<li aria-current="page">Installing docanvil</li>"#));
+
+    // A front matter title still wins over the H1.
+    let short = read_page(dir.path(), "guide/short.html");
+    assert!(short.contains("<title>Short — Test Docs</title>"));
+}
+
+#[test]
+fn test_home_title_not_repeated_when_h1_is_project_name() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Test Docs\n\nWelcome.")]);
+    build_project(dir.path()).unwrap();
+    assert!(read_output(dir.path(), "index.html").contains("<title>Test Docs</title>"));
+}

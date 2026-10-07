@@ -205,6 +205,7 @@ For complete control over the HTML structure, override the default Tera template
 | `head` | Extra `<head>` content (fonts, meta tags, analytics) |
 | `header` | Top header bar with project name and search |
 | `sidebar` | The navigation sidebar |
+| `breadcrumbs` | The breadcrumb trail above the page title |
 | `content` | Main page content area |
 | `edit_link` | The "Edit this page" link below the content |
 | `footer` | Footer below content |
@@ -220,13 +221,14 @@ For complete control over the HTML structure, override the default Tera template
 | `css_overrides` | String | CSS variable overrides from config |
 | `custom_css_path` | String | Path to custom CSS file, if configured |
 | `nav_html` | String | Rendered navigation HTML (use with `safe` filter) |
-| `content` | String | Rendered page HTML (use with `safe` filter) |
+| `content` | String | Rendered page HTML (use with `safe` filter), including the front matter `description` as a `<p class="page-description">` subtitle under the first heading |
 | `live_reload` | Boolean | Whether the dev server is running |
 | `search_enabled` | Boolean | Whether full-text search is enabled |
 | `mermaid_enabled` | Boolean | Whether Mermaid diagram rendering is enabled |
 | `mermaid_version` | String | Mermaid.js major version to load from CDN |
 | `color_mode` | String | Color mode: `"light"`, `"dark"`, or `"both"` |
 | `edit_url` | String | "Edit this page" URL for the current page, when `[edit]` is configured |
+| `breadcrumbs` | Array | Trail from the page's nav section down to the page — each item has `title` and `url` (unset for the current page and for sections without a page). Empty for top-level pages |
 
 :::note
 The default template includes JavaScript for tab switching, sidebar collapse/expand, navigation filtering, popover positioning, search, and Mermaid diagram rendering. If you override the `scripts` block, you'll need to re-implement any of these features you want to keep.

@@ -9,7 +9,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#6366f1">
-  <title>{{ page_title }} — {{ project_name }}</title>
+  <title>{% if page_title == project_name %}{{ project_name }}{% else %}{{ page_title }} — {{ project_name }}{% endif %}</title>
   {% if meta_description %}
   <meta name="description" content="{{ meta_description }}">
   <meta property="og:description" content="{{ meta_description }}">
@@ -130,6 +130,24 @@
       {% endif %}
     </div>
     {% endif %}
+
+    {% block breadcrumbs %}
+    {% if breadcrumbs %}
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        {% for crumb in breadcrumbs %}
+        {% if loop.last %}
+        <li aria-current="page">{{ crumb.title }}</li>
+        {% elif crumb.url %}
+        <li><a href="{{ crumb.url }}">{{ crumb.title }}</a></li>
+        {% else %}
+        <li>{{ crumb.title }}</li>
+        {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+    {% endblock %}
 
     {% block content %}
     {{ content | safe }}

@@ -186,7 +186,7 @@ Files without a locale suffix are assigned the default locale. See [[guides/loca
 
 ### Title Generation
 
-Titles are derived from the slug's last path component:
+A page's title is its front matter `title`, else its first `# Heading`, else it's derived from the slug's last path component:
 
 - `index` becomes "Home"
 - Hyphens and underscores become spaces

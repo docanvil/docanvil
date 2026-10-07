@@ -3,13 +3,67 @@ use tera::{Context, Tera};
 
 use crate::config::ColorMode;
 use crate::error::{Error, Result};
+use crate::project::Crumb;
 use crate::theme::Theme;
+use crate::util::html_escape;
 
 /// A link to a previous or next page.
 #[derive(Debug, Clone, Serialize)]
 pub struct PageLink {
     pub title: String,
     pub url: String,
+}
+
+/// One step in the breadcrumb trail shown above a page's content.
+#[derive(Debug, Clone, Serialize)]
+pub struct Breadcrumb {
+    pub title: String,
+    /// `None` for the current page and for groups without an index page.
+    pub url: Option<String>,
+}
+
+/// Turn a nav breadcrumb trail into template breadcrumbs.
+///
+/// Top-level pages get no breadcrumbs — a trail of one is just the page title.
+pub fn page_breadcrumbs(trail: Option<&Vec<Crumb>>, base_url: &str) -> Vec<Breadcrumb> {
+    let Some(trail) = trail.filter(|t| t.len() > 1) else {
+        return Vec::new();
+    };
+    let last = trail.len() - 1;
+    trail
+        .iter()
+        .enumerate()
+        .map(|(i, crumb)| Breadcrumb {
+            title: crumb.label.clone(),
+            url: crumb
+                .slug
+                .as_ref()
+                .filter(|_| i < last)
+                .map(|slug| format!("{base_url}{slug}.html")),
+        })
+        .collect()
+}
+
+/// Show the front matter `description` as a subtitle under the page's leading `<h1>`.
+///
+/// Pages that don't open with an `<h1>` get the subtitle at the top instead.
+pub fn with_page_description(html: String, description: Option<&str>) -> String {
+    let Some(description) = description.map(str::trim).filter(|d| !d.is_empty()) else {
+        return html;
+    };
+    let subtitle = format!(
+        "<p class=\"page-description\">{}</p>\n",
+        html_escape(description)
+    );
+    let body = html.trim_start();
+    if body.starts_with("<h1")
+        && let Some(end) = body.find("</h1>")
+    {
+        let split = end + "</h1>".len();
+        format!("{}\n{}{}", &body[..split], subtitle, &body[split..])
+    } else {
+        format!("{subtitle}{html}")
+    }
 }
 
 /// Information about an available version for the version switcher.
@@ -87,6 +141,7 @@ impl TemplateRenderer {
         context.insert("latest_version", &ctx.latest_version);
         context.insert("latest_version_url", &ctx.latest_version_url);
         context.insert("edit_url", &ctx.edit_url);
+        context.insert("breadcrumbs", &ctx.breadcrumbs);
 
         self.tera
             .render("layout.html", &context)
@@ -136,4 +191,63 @@ pub struct PageContext {
     pub latest_version_url: Option<String>,
     /// "Edit this page" URL for the page's source on its Git host.
     pub edit_url: Option<String>,
+    /// Trail of ancestor nav groups down to this page; empty for top-level pages.
+    pub breadcrumbs: Vec<Breadcrumb>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn crumb(label: &str, slug: Option<&str>) -> Crumb {
+        Crumb {
+            label: label.into(),
+            slug: slug.map(Into::into),
+        }
+    }
+
+    #[test]
+    fn breadcrumbs_empty_for_top_level_page() {
+        let trail = vec![crumb("Home", Some("index"))];
+        assert!(page_breadcrumbs(Some(&trail), "/").is_empty());
+        assert!(page_breadcrumbs(None, "/").is_empty());
+    }
+
+    #[test]
+    fn breadcrumbs_link_groups_with_index_pages_only() {
+        let trail = vec![
+            crumb("Guides", Some("guides/index")),
+            crumb("Advanced", None),
+            crumb("Setup", Some("guides/advanced/setup")),
+        ];
+        let crumbs = page_breadcrumbs(Some(&trail), "/docs/");
+        let urls: Vec<_> = crumbs.iter().map(|c| c.url.as_deref()).collect();
+        assert_eq!(urls, vec![Some("/docs/guides/index.html"), None, None]);
+        assert_eq!(crumbs[2].title, "Setup");
+    }
+
+    #[test]
+    fn description_goes_after_leading_h1() {
+        let html = "<h1 id=\"intro\">Intro</h1>\n<p>Body</p>\n".to_string();
+        assert_eq!(
+            with_page_description(html, Some("A & B")),
+            "<h1 id=\"intro\">Intro</h1>\n<p class=\"page-description\">A &amp; B</p>\n\n<p>Body</p>\n"
+        );
+    }
+
+    #[test]
+    fn description_goes_first_without_leading_h1() {
+        let html = "<p>Body</p>\n<h1>Later</h1>\n".to_string();
+        assert!(
+            with_page_description(html, Some("Desc"))
+                .starts_with("<p class=\"page-description\">Desc</p>\n<p>Body</p>")
+        );
+    }
+
+    #[test]
+    fn no_description_leaves_html_alone() {
+        let html = "<h1>T</h1>".to_string();
+        assert_eq!(with_page_description(html.clone(), None), html);
+        assert_eq!(with_page_description(html.clone(), Some("  ")), html);
+    }
 }

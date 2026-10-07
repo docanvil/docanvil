@@ -14,10 +14,14 @@ use crate::error::{Error, Result};
 use crate::nav;
 use crate::pipeline;
 use crate::pipeline::frontmatter::{self, FrontMatter};
+use crate::pipeline::markdown;
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInfo, PageInventory};
 use crate::render::assets;
-use crate::render::templates::{LocaleInfo, PageContext, PageLink, TemplateRenderer, VersionInfo};
+use crate::render::templates::{
+    LocaleInfo, PageContext, PageLink, TemplateRenderer, VersionInfo, page_breadcrumbs,
+    with_page_description,
+};
 use crate::search;
 use crate::seo;
 use crate::theme::Theme;
@@ -283,10 +287,15 @@ fn build_site(
         let source =
             std::fs::read_to_string(&page.source_path).map_err(io_context(&page.source_path))?;
         let fm = frontmatter::extract(&source);
-        if let Some(ref title) = fm.title
+        // Title: front matter, then the first `# H1`, then the filename (from scan).
+        // Only front matter titles change the slug, so editing a heading never moves a URL.
+        if let Some(title) = fm
+            .title
+            .clone()
+            .or_else(|| markdown::first_h1_text(&source))
             && let Some(page) = inventory.pages.get_mut(slug)
         {
-            page.title = title.clone();
+            page.title = title;
         }
 
         // Determine slug override: explicit slug field takes priority, then title-derived.
@@ -422,10 +431,15 @@ fn build_site(
                 let source = std::fs::read_to_string(&page.source_path)
                     .map_err(io_context(&page.source_path))?;
                 let fm = frontmatter::extract(&source);
-                if let Some(ref title) = fm.title
+                // Title: front matter, then the first `# H1`, then the filename (from scan).
+                // Only front matter titles change the slug, so editing a heading never moves a URL.
+                if let Some(title) = fm
+                    .title
+                    .clone()
+                    .or_else(|| markdown::first_h1_text(&source))
                     && let Some(page) = ver_inventory.pages.get_mut(slug)
                 {
-                    page.title = title.clone();
+                    page.title = title;
                 }
 
                 let current_basename = slug.rsplit('/').next().unwrap_or(slug);
@@ -533,7 +547,7 @@ fn build_site(
                         if let Some(ref mut entries) = search_entries {
                             let crumbs = breadcrumb_map
                                 .get(base_slug)
-                                .cloned()
+                                .map(|trail| project::crumb_labels(trail))
                                 .unwrap_or_else(|| vec![page.title.clone()]);
                             let mut sections = search::extract_sections(
                                 &html_body,
@@ -546,6 +560,9 @@ fn build_site(
                         }
 
                         let nav_html = project::render_nav(&nav_tree, base_slug, &locale_base_url);
+
+                        let breadcrumbs =
+                            page_breadcrumbs(breadcrumb_map.get(base_slug), &locale_base_url);
 
                         let out_path = output_dir.join(&page.output_path);
                         if let Some(parent) = out_path.parent() {
@@ -598,7 +615,7 @@ fn build_site(
                         let ctx = PageContext {
                             page_title: page.title.clone(),
                             project_name: config.project.name.clone(),
-                            content: html_body,
+                            content: with_page_description(html_body, fm.description.as_deref()),
                             nav_html,
                             default_css: theme.default_css.clone(),
                             css_overrides: theme.css_overrides.clone(),
@@ -613,6 +630,7 @@ fn build_site(
                             search_enabled: config.search.enabled,
                             meta_description: fm.description.clone(),
                             edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                            breadcrumbs,
                             meta_author: fm.author.clone(),
                             meta_date: fm.date.clone(),
                             prev_page,
@@ -728,7 +746,7 @@ fn build_site(
                     if let Some(ref mut entries) = search_entries {
                         let crumbs = breadcrumb_map
                             .get(slug)
-                            .cloned()
+                            .map(|trail| project::crumb_labels(trail))
                             .unwrap_or_else(|| vec![page.title.clone()]);
                         let mut sections = search::extract_sections(
                             &html_body,
@@ -741,6 +759,9 @@ fn build_site(
                     }
 
                     let nav_html = project::render_nav(&nav_tree, base_slug, &version_base_url);
+
+                    let breadcrumbs =
+                        page_breadcrumbs(breadcrumb_map.get(base_slug), &version_base_url);
 
                     let out_path = output_dir.join(&page.output_path);
                     if let Some(parent) = out_path.parent() {
@@ -774,7 +795,7 @@ fn build_site(
                     let ctx = PageContext {
                         page_title: page.title.clone(),
                         project_name: config.project.name.clone(),
-                        content: html_body,
+                        content: with_page_description(html_body, fm.description.as_deref()),
                         nav_html,
                         default_css: theme.default_css.clone(),
                         css_overrides: theme.css_overrides.clone(),
@@ -789,6 +810,7 @@ fn build_site(
                         search_enabled: config.search.enabled,
                         meta_description: fm.description.clone(),
                         edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                        breadcrumbs,
                         meta_author: fm.author.clone(),
                         meta_date: fm.date.clone(),
                         prev_page,
@@ -945,6 +967,7 @@ fn build_site(
                 search_enabled: config.search.enabled,
                 meta_description: None,
                 edit_url: None,
+                breadcrumbs: Vec::new(),
                 meta_author: None,
                 meta_date: None,
                 prev_page: None,
@@ -1044,7 +1067,7 @@ fn build_site(
                 if let Some(ref mut entries) = search_entries {
                     let crumbs = breadcrumb_map
                         .get(base_slug)
-                        .cloned()
+                        .map(|trail| project::crumb_labels(trail))
                         .unwrap_or_else(|| vec![page.title.clone()]);
                     let mut sections = search::extract_sections(
                         &html_body,
@@ -1057,6 +1080,8 @@ fn build_site(
                 }
 
                 let nav_html = project::render_nav(&nav_tree, base_slug, &locale_base_url);
+
+                let breadcrumbs = page_breadcrumbs(breadcrumb_map.get(base_slug), &locale_base_url);
 
                 let out_path = output_dir.join(&page.output_path);
                 if let Some(parent) = out_path.parent() {
@@ -1095,7 +1120,7 @@ fn build_site(
                 let ctx = PageContext {
                     page_title: page.title.clone(),
                     project_name: config.project.name.clone(),
-                    content: html_body,
+                    content: with_page_description(html_body, fm.description.as_deref()),
                     nav_html,
                     default_css: theme.default_css.clone(),
                     css_overrides: theme.css_overrides.clone(),
@@ -1110,6 +1135,7 @@ fn build_site(
                     search_enabled: config.search.enabled,
                     meta_description: fm.description.clone(),
                     edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                    breadcrumbs,
                     meta_author: fm.author.clone(),
                     meta_date: fm.date.clone(),
                     prev_page,
@@ -1218,7 +1244,7 @@ fn build_site(
             if let Some(ref mut entries) = search_entries {
                 let crumbs = breadcrumb_map
                     .get(slug)
-                    .cloned()
+                    .map(|trail| project::crumb_labels(trail))
                     .unwrap_or_else(|| vec![page.title.clone()]);
                 let mut sections =
                     search::extract_sections(&html_body, slug, &page.title, &base_url, crumbs);
@@ -1226,6 +1252,8 @@ fn build_site(
             }
 
             let nav_html = project::render_nav(&nav_tree, slug, &base_url);
+
+            let breadcrumbs = page_breadcrumbs(breadcrumb_map.get(slug), &base_url);
 
             let out_path = output_dir.join(&page.output_path);
             if let Some(parent) = out_path.parent() {
@@ -1243,7 +1271,7 @@ fn build_site(
             let ctx = PageContext {
                 page_title: page.title.clone(),
                 project_name: config.project.name.clone(),
-                content: html_body,
+                content: with_page_description(html_body, fm.description.as_deref()),
                 nav_html,
                 default_css: theme.default_css.clone(),
                 css_overrides: theme.css_overrides.clone(),
@@ -1258,6 +1286,7 @@ fn build_site(
                 search_enabled: config.search.enabled,
                 meta_description: fm.description.clone(),
                 edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                breadcrumbs,
                 meta_author: fm.author.clone(),
                 meta_date: fm.date.clone(),
                 prev_page,
@@ -1416,6 +1445,7 @@ fn build_site(
             search_enabled: config.search.enabled,
             meta_description: None,
             edit_url: None,
+            breadcrumbs: Vec::new(),
             meta_author: None,
             meta_date: None,
             prev_page: None,

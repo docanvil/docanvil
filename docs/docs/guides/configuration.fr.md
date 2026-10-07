@@ -260,7 +260,7 @@ page = "guides/getting-started"
 
 ### Surcharges de libellés
 
-Par défaut, le libellé dans la barre latérale est dérivé du slug (`getting-started` devient "Getting Started"). Remplacez-le avec `label` :
+Par défaut, le libellé dans la barre latérale est le titre de la page — son premier `# Titre`, ou le slug à défaut (`getting-started` devient "Getting Started"). Remplacez-le avec `label` :
 
 <pre><code class="language-toml">&#91;[nav]]
 page = "guides/getting-started"

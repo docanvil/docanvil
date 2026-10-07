@@ -623,6 +623,20 @@ mod tests {
         assert!(html.contains("popover-trigger"), "{html}");
     }
 
+    /// Pins current, documented behaviour (see "Inline Components" in the docs):
+    /// a body-less component alone on its own line, directly followed by its
+    /// parent's closing `:::`, is read as an unclosed block and falls through
+    /// to inline rendering — it still renders, inside the parent.
+    #[test]
+    fn standalone_inline_directive_on_own_line_inside_block_body_renders() {
+        let html = render_page(":::note\n:::lozenge{text=\"x\"}\n:::\n");
+        assert!(html.contains("admonition note"), "{html}");
+        assert!(
+            html.contains("<span class=\"lozenge default\">x</span>"),
+            "{html}"
+        );
+    }
+
     #[test]
     fn tabs_children_can_nest_components() {
         let html =

@@ -262,6 +262,8 @@ Inline too: :::lozenge{type="warning" text="Beta"}
 
 The same template renders both block and inline use — `:::name{attrs}` with no body and no closing fence. Inside the template, `inline` is `true` and `body` is empty, so check `attrs` instead of `body` for what to render. The built-in `lozenge.html` is a good example: it only ever uses `attrs`.
 
+Keep an inline component inside a line of text, like `Status: :::lozenge{text="Done"}`. One written alone on its own line is read as the start of a block, and it'll scan all the way down to the next bare `:::` looking for a closing fence — swallowing everything in between.
+
 ### Restyling Built-ins
 
 Want to change how a built-in looks or behaves? Eject its template and edit it:

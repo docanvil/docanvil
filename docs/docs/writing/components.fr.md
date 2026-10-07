@@ -268,6 +268,8 @@ Inline too: :::lozenge{type="warning" text="Beta"}
 
 Le même template rend aussi bien l'usage en bloc qu'en ligne — `:::nom{attributs}` sans corps ni clôture fermante. Dans le template, `inline` est `true` et `body` est vide, donc vérifiez `attrs` plutôt que `body` pour savoir quoi afficher. Le composant intégré `lozenge.html` en est un bon exemple : il n'utilise que `attrs`.
 
+Gardez un composant inline à l'intérieur d'une ligne de texte, comme `Statut : :::lozenge{text="Done"}`. Un composant écrit seul sur sa propre ligne est interprété comme le début d'un bloc, et la recherche descendra jusqu'à la prochaine `:::` nue pour trouver une clôture — avalant tout ce qui se trouve entre les deux.
+
 ### Restyler les composants intégrés
 
 Vous voulez changer l'apparence ou le comportement d'un composant intégré ? Éjectez son template et modifiez-le :

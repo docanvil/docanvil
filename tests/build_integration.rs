@@ -1218,7 +1218,10 @@ fn test_strict_fails_on_include_problems() {
         )],
     );
     write_file(stale.path(), "a.rs", "fn a() {}\n");
-    assert!(build_project_strict(stale.path()).is_err());
+    assert!(matches!(
+        build_project_strict(stale.path()),
+        Err(docanvil::error::Error::StrictWarnings(_))
+    ));
 }
 
 #[test]

@@ -17,6 +17,7 @@ All notable changes to DocAnvil will be documented in this file.
 - Code blocks from files: give an empty code block `file="/examples/server.rs"` and it shows the real source file, so samples can't drift from the code. Add `lines="1-6,30-35"` to show just those lines — the skipped ones are marked, and the caption shows the file and ranges
 - Line numbers on any code block with `numbers` (or `numbers="10"` to start elsewhere), or on every block with `line_numbers = true` under `[syntax]`. The copy button still copies just the code. `title="…"` adds a caption to any code block
 - A missing include, an include loop or a `lines` range past the end of the file shows an error box on the page and a build warning, and fails `--strict`
+- `docanvil serve` now watches included files that live outside the usual content/theme/asset folders (e.g. `../src/` or `/examples/`), so editing them live-reloads the page
 
 ### Changed
 

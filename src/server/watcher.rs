@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -12,6 +13,12 @@ struct WatchSet {
     root: PathBuf,
     /// Directories watched recursively: content, theme, assets, static.
     dirs: Vec<PathBuf>,
+    /// Files outside `dirs` that the last build read through `:::include` or
+    /// `file="…"` code blocks.
+    dependencies: BTreeSet<PathBuf>,
+    /// Their parent directories (except the root), watched non-recursively —
+    /// watching the directory survives editors that save by renaming.
+    dependency_dirs: BTreeSet<PathBuf>,
 }
 
 impl WatchSet {
@@ -36,11 +43,19 @@ impl WatchSet {
         .map(canonical)
         .collect();
 
-        Self { root, dirs }
+        Self {
+            root,
+            dirs,
+            dependencies: BTreeSet::new(),
+            dependency_dirs: BTreeSet::new(),
+        }
     }
 
     /// Whether a change to `path` should trigger a rebuild.
     fn is_relevant(&self, path: &Path) -> bool {
+        if self.dependencies.contains(path) {
+            return true;
+        }
         if self.dirs.iter().any(|d| path.starts_with(d)) {
             return true;
         }
@@ -53,6 +68,29 @@ impl WatchSet {
         }
         false
     }
+
+    /// Track the files the last build read. Returns the directories to start
+    /// and stop watching (non-recursively).
+    fn set_dependencies(
+        &mut self,
+        dependencies: &BTreeSet<PathBuf>,
+    ) -> (Vec<PathBuf>, Vec<PathBuf>) {
+        let outside: BTreeSet<PathBuf> = dependencies
+            .iter()
+            .filter(|p| !self.dirs.iter().any(|d| p.starts_with(d)))
+            .cloned()
+            .collect();
+        let dirs: BTreeSet<PathBuf> = outside
+            .iter()
+            .filter_map(|p| p.parent().map(Path::to_path_buf))
+            .filter(|d| *d != self.root)
+            .collect();
+        let added = dirs.difference(&self.dependency_dirs).cloned().collect();
+        let removed = self.dependency_dirs.difference(&dirs).cloned().collect();
+        self.dependencies = outside;
+        self.dependency_dirs = dirs;
+        (added, removed)
+    }
 }
 
 /// Watch for file changes and trigger rebuilds.
@@ -60,13 +98,14 @@ pub fn watch(
     tx: broadcast::Sender<()>,
     project_root: &Path,
     output_dir: &Path,
+    dependencies: BTreeSet<PathBuf>,
 ) -> crate::error::Result<()> {
     let (notify_tx, notify_rx) = std::sync::mpsc::channel();
 
     let mut debouncer = new_debouncer(Duration::from_millis(200), notify_tx)
         .map_err(|e| crate::error::Error::General(format!("watcher setup failed: {e}")))?;
 
-    let watch_set = WatchSet::new(project_root);
+    let mut watch_set = WatchSet::new(project_root);
     for dir in &watch_set.dirs {
         let _ = debouncer
             .watcher()
@@ -75,6 +114,12 @@ pub fn watch(
     let _ = debouncer
         .watcher()
         .watch(&watch_set.root, notify::RecursiveMode::NonRecursive);
+    let (added, _) = watch_set.set_dependencies(&dependencies);
+    for dir in &added {
+        let _ = debouncer
+            .watcher()
+            .watch(dir, notify::RecursiveMode::NonRecursive);
+    }
 
     eprintln!("Watching for changes...");
 
@@ -88,7 +133,16 @@ pub fn watch(
                 if has_changes {
                     eprintln!("Change detected, rebuilding...");
                     match crate::cli::build::run_with_options(project_root, output_dir, true) {
-                        Ok(_) => {
+                        Ok(dependencies) => {
+                            let (added, removed) = watch_set.set_dependencies(&dependencies);
+                            for dir in &removed {
+                                let _ = debouncer.watcher().unwatch(dir);
+                            }
+                            for dir in &added {
+                                let _ = debouncer
+                                    .watcher()
+                                    .watch(dir, notify::RecursiveMode::NonRecursive);
+                            }
                             let _ = tx.send(());
                         }
                         Err(e) => {
@@ -149,5 +203,32 @@ mod tests {
         assert!(!set.is_relevant(&set.root.join("dist/index.html")));
         assert!(!set.is_relevant(&set.root.join(".dist.docanvil-staging")));
         assert!(!set.is_relevant(&set.root.join("README.md")));
+    }
+
+    #[test]
+    fn watches_included_files_outside_watched_dirs() {
+        let dir = project("[project]\nname = \"T\"\n");
+        fs::create_dir_all(dir.path().join("docs")).unwrap();
+        fs::create_dir_all(dir.path().join("examples")).unwrap();
+        let mut set = WatchSet::new(dir.path());
+        let root = set.root.clone();
+        let example = root.join("examples/a.rs");
+
+        let (added, removed) = set.set_dependencies(&BTreeSet::from([
+            example.clone(),
+            root.join("docs/_shared/x.md"),
+            root.join("README.md"),
+        ]));
+        assert_eq!(added, vec![root.join("examples")]);
+        assert!(removed.is_empty());
+        assert!(set.is_relevant(&example));
+        assert!(set.is_relevant(&root.join("README.md")));
+        assert!(!set.is_relevant(&root.join("examples/other.rs")));
+
+        let (added, removed) = set.set_dependencies(&BTreeSet::new());
+        assert!(added.is_empty());
+        assert_eq!(removed, vec![root.join("examples")]);
+        assert!(!set.is_relevant(&example));
+        assert!(!set.is_relevant(&root.join("README.md")));
     }
 }

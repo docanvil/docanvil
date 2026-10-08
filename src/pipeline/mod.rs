@@ -3,6 +3,7 @@ pub mod directives;
 pub mod frontmatter;
 pub mod headings;
 pub mod images;
+pub mod includes;
 pub mod markdown;
 pub mod popovers;
 pub mod syntax;

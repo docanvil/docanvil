@@ -18,13 +18,29 @@ pub fn comrak_options() -> Options<'static> {
     options.extension.description_lists = true;
     options.extension.front_matter_delimiter = Some("---".to_string());
     options.render.r#unsafe = true;
+    // Keep everything after a fence's language as `data-meta` (DocAnvil's
+    // line numbers and captions travel there).
+    options.render.full_info_string = true;
     options
 }
 
 /// Render Markdown source to HTML using comrak with GFM extensions.
 pub fn render(source: &str) -> String {
     let options = comrak_options();
-    markdown_to_html(source, &options)
+    normalize_code_attrs(&markdown_to_html(source, &options))
+}
+
+/// comrak writes a code block's `class` and `data-meta` from a HashMap, so
+/// their order changes from render to render. Later stages expect `class` first.
+fn normalize_code_attrs(html: &str) -> String {
+    static META_FIRST_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"<code data-meta="([^"]*)" class="([^"]*)">"#).unwrap());
+    if !html.contains("<code data-meta=") {
+        return html.to_string();
+    }
+    META_FIRST_RE
+        .replace_all(html, r#"<code class="$2" data-meta="$1">"#)
+        .into_owned()
 }
 
 /// Plain text of the page's first top-level `# H1`, used as its title.
@@ -169,5 +185,35 @@ mod tests {
         assert!(html.contains("<dl>"));
         assert!(html.contains("<dt>"));
         assert!(html.contains("<dd>"));
+    }
+
+    #[test]
+    fn code_block_meta_comes_after_class() {
+        // comrak writes these two attributes from a HashMap, so their order
+        // varies between renders; every render must come out class-first.
+        for _ in 0..50 {
+            let html = render("```rust docanvil numbers=on\nlet x = 1;\n```\n");
+            assert!(
+                html.contains(
+                    r#"<pre><code class="language-rust" data-meta="docanvil numbers=on">"#
+                ),
+                "{html}"
+            );
+        }
+    }
+
+    #[test]
+    fn normalises_meta_first_attributes() {
+        assert_eq!(
+            normalize_code_attrs(
+                r#"<pre><code data-meta="x y" class="language-js">a</code></pre>"#
+            ),
+            r#"<pre><code class="language-js" data-meta="x y">a</code></pre>"#
+        );
+    }
+
+    #[test]
+    fn fence_without_extra_info_has_no_meta() {
+        assert!(render("```rust\nx\n```\n").contains(r#"<pre><code class="language-rust">x"#));
     }
 }

@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use regex::Regex;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
@@ -35,34 +37,53 @@ fn html_unescape(s: &str) -> String {
         .replace("&#39;", "'")
 }
 
-/// Find `<pre><code class="language-X">…</code></pre>` blocks and replace them
-/// with syntect-highlighted output. Unknown languages or an invalid theme cause
-/// the block to pass through unchanged.
+static BLOCK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"<pre><code class="language-([\w+\-\.#]+)"(?: data-meta="([^"]*)")?>([\s\S]*?)</code></pre>"#,
+    )
+    .expect("syntax regex is valid")
+});
+
+/// Find `<pre><code class="language-X">…</code></pre>` blocks (optionally with
+/// `data-meta`) and replace them with syntect-highlighted output, keeping the
+/// meta on the new `<pre>`. Unknown languages or an invalid theme cause the
+/// block to pass through unchanged.
 pub fn highlight_code_blocks(html: &str, highlighter: &SyntaxHighlighter) -> String {
     if !highlighter.theme_valid() {
         return html.to_string();
     }
 
-    let re = Regex::new(r#"<pre><code class="language-([\w+\-\.#]+)">([\s\S]*?)</code></pre>"#)
-        .expect("syntax regex is valid");
-
     let theme = &highlighter.theme_set.themes[&highlighter.theme_name];
 
-    re.replace_all(html, |caps: &regex::Captures| {
-        let lang = &caps[1];
-        let code = html_unescape(&caps[2]);
+    BLOCK_RE
+        .replace_all(html, |caps: &regex::Captures| {
+            let lang = &caps[1];
+            let code = html_unescape(&caps[3]);
 
-        match highlighter.syntax_set.find_syntax_by_token(lang) {
-            Some(syntax) => {
-                match highlighted_html_for_string(&code, &highlighter.syntax_set, syntax, theme) {
-                    Ok(highlighted) => highlighted,
-                    Err(_) => caps[0].to_string(),
+            match highlighter.syntax_set.find_syntax_by_token(lang) {
+                Some(syntax) => {
+                    match highlighted_html_for_string(&code, &highlighter.syntax_set, syntax, theme)
+                    {
+                        Ok(highlighted) => with_meta(highlighted, caps.get(2).map(|m| m.as_str())),
+                        Err(_) => caps[0].to_string(),
+                    }
                 }
+                None => caps[0].to_string(),
             }
-            None => caps[0].to_string(),
-        }
-    })
-    .into_owned()
+        })
+        .into_owned()
+}
+
+/// syntect's output starts `<pre style="…">`; put the block's meta on that tag.
+fn with_meta(highlighted: String, meta: Option<&str>) -> String {
+    match (meta, highlighted.find('>')) {
+        (Some(meta), Some(end)) => format!(
+            "{} data-meta=\"{meta}\"{}",
+            &highlighted[..end],
+            &highlighted[end..]
+        ),
+        _ => highlighted,
+    }
 }
 
 #[cfg(test)]
@@ -134,5 +155,45 @@ mod tests {
         // Should be highlighted (syntect re-escapes for its own HTML output)
         assert!(result.contains("<pre style=\""));
         assert!(!result.contains("<code class=\"language-rust\">"));
+    }
+
+    #[test]
+    fn keeps_meta_on_highlighted_blocks() {
+        let h = highlighter();
+        let input = r#"<pre><code class="language-rust" data-meta="docanvil numbers=on">fn main() {}
+</code></pre>"#;
+        let result = highlight_code_blocks(input, &h);
+        assert!(result.starts_with("<pre style=\""), "{result}");
+        // syntect's style attribute ends with `;`, then our meta follows.
+        assert!(
+            result.contains(r#";" data-meta="docanvil numbers=on">"#),
+            "{result}"
+        );
+    }
+
+    #[test]
+    fn unknown_language_with_meta_is_unchanged() {
+        let h = highlighter();
+        let input = r#"<pre><code class="language-nosuchlang" data-meta="docanvil numbers=on">x</code></pre>"#;
+        assert_eq!(highlight_code_blocks(input, &h), input);
+    }
+
+    #[test]
+    fn syntect_closes_every_span_at_line_end() {
+        // code_blocks.rs wraps each line in its own span. That's only safe
+        // because syntect closes its spans at the end of every line — the
+        // newline sits just inside the line's last span (`…\n</span>`).
+        let h = highlighter();
+        let input = "<pre><code class=\"language-rust\">fn a() {\n    let s = &quot;x\ny&quot;;\n}\n</code></pre>";
+        let result = highlight_code_blocks(input, &h);
+        let body = &result[result.find(">\n").unwrap() + 2..result.rfind("</pre>").unwrap()];
+        let normalised = body.replace("\n</span>", "</span>\n");
+        for line in normalised.lines() {
+            assert_eq!(
+                line.matches("<span").count(),
+                line.matches("</span>").count(),
+                "{line}"
+            );
+        }
     }
 }

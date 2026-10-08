@@ -759,6 +759,33 @@ mod tests {
     }
 
     #[test]
+    fn code_group_splits_language_from_meta() {
+        let html = render_page(
+            ":::code-group\n```rust docanvil numbers=on\nfn a() {}\n```\n```py\nx = 1\n```\n:::\n",
+        );
+        assert!(html.contains(">rust</button>"), "{html}");
+        assert!(
+            html.contains(
+                r#"<code class="language-rust" data-meta="docanvil numbers=on">fn a() {}</code>"#
+            ),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<code class="language-py">x = 1</code>"#),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn code_group_longer_fence_keeps_inner_fences() {
+        let html = render_page(":::code-group\n````md\n```sh\nls\n```\n````\n:::\n");
+        assert!(
+            html.contains("<code class=\"language-md\">```sh\nls\n```</code>"),
+            "{html}"
+        );
+    }
+
+    #[test]
     fn characterize_unknown_fallback() {
         assert_eq!(
             render("custom-thing", &[], "Body"),

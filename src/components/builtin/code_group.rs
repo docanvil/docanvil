@@ -9,6 +9,9 @@ pub struct CodeGroup;
 #[derive(Serialize)]
 struct CodeBlock {
     lang: String,
+    /// Rest of the fence's info string after the language (DocAnvil's
+    /// line-number and caption settings travel here).
+    meta: String,
     code: String,
 }
 
@@ -23,26 +26,39 @@ impl Component for CodeGroup {
 
     fn data(&self, ctx: &ComponentContext) -> Result<tera::Context> {
         let mut blocks = Vec::new();
-        let mut current_lang = String::new();
-        let mut current_code = Vec::new();
-        let mut in_block = false;
+        // Backtick count of the open fence: only a bare fence at least that
+        // long closes it, so a ```` fence can hold ``` lines.
+        let mut open: Option<usize> = None;
+        let mut lang = String::new();
+        let mut meta = String::new();
+        let mut code: Vec<&str> = Vec::new();
 
         for line in ctx.body_raw.lines() {
-            if line.starts_with("```") && !in_block {
-                in_block = true;
-                current_lang = line.trim_start_matches('`').trim().to_string();
-                if current_lang.is_empty() {
-                    current_lang = "text".to_string();
+            let trimmed = line.trim();
+            let ticks = trimmed.chars().take_while(|&c| c == '`').count();
+            match open {
+                None if ticks >= 3 => {
+                    let info = trimmed[ticks..].trim();
+                    let (first, rest) = info.split_once(char::is_whitespace).unwrap_or((info, ""));
+                    lang = if first.is_empty() {
+                        "text".to_string()
+                    } else {
+                        first.to_string()
+                    };
+                    meta = rest.trim().to_string();
+                    code.clear();
+                    open = Some(ticks);
                 }
-                current_code.clear();
-            } else if line.starts_with("```") && in_block {
-                in_block = false;
-                blocks.push(CodeBlock {
-                    lang: current_lang.clone(),
-                    code: current_code.join("\n"),
-                });
-            } else if in_block {
-                current_code.push(line.to_string());
+                Some(len) if ticks >= len && ticks == trimmed.len() => {
+                    blocks.push(CodeBlock {
+                        lang: lang.clone(),
+                        meta: meta.clone(),
+                        code: code.join("\n"),
+                    });
+                    open = None;
+                }
+                Some(_) => code.push(line),
+                None => {}
             }
         }
 

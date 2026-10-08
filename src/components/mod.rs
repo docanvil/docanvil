@@ -186,7 +186,7 @@ impl ComponentRegistry {
                 .unwrap_or(dir);
             return Err(Error::ComponentTemplate {
                 path,
-                message: include_cycle_message(&cycle),
+                message: include_cycle_message(&cycle, "templates"),
             });
         }
 

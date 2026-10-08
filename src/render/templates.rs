@@ -106,13 +106,14 @@ pub fn find_include_cycle(tera: &Tera) -> Option<Vec<String>> {
         .find_map(|name| visit_includes(tera, name, &mut Vec::new(), &mut done))
 }
 
-/// Human-readable form of a cycle from [`find_include_cycle`].
-pub fn include_cycle_message(cycle: &[String]) -> String {
+/// Human-readable form of an include loop such as `["a.html", "b.html", "a.html"]`.
+/// `things` names what's looping in the plural ("templates", "files").
+pub fn include_cycle_message(cycle: &[String], things: &str) -> String {
     if let [name, _] = cycle {
         format!("{name} includes itself, so it would never finish rendering")
     } else {
         format!(
-            "templates include each other in a loop ({}), so they would never finish rendering",
+            "{things} include each other in a loop ({}), so they would never finish rendering",
             cycle.join(" → ")
         )
     }
@@ -193,7 +194,7 @@ impl TemplateRenderer {
         if let Some(cycle) = find_include_cycle(&tera) {
             return Err(Error::Render(format!(
                 "layout template: {}",
-                include_cycle_message(&cycle)
+                include_cycle_message(&cycle, "templates")
             )));
         }
         Ok(Self { tera })

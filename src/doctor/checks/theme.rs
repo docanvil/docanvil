@@ -54,7 +54,9 @@ pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
         let mut tera = tera::Tera::default();
         let error = match tera.add_raw_template("layout.html", &template_content) {
             Err(e) => Some(e.to_string()),
-            Ok(()) => find_include_cycle(&tera).map(|cycle| include_cycle_message(&cycle)),
+            Ok(()) => {
+                find_include_cycle(&tera).map(|cycle| include_cycle_message(&cycle, "templates"))
+            }
         };
         if let Some(e) = error {
             diags.push(Diagnostic {

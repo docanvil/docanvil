@@ -15,7 +15,8 @@ pub struct DirectiveBlock {
 static OPEN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(:{3,})\s*([\w][\w-]*)\s*(\{.*\})?\s*$").unwrap());
 
-static ATTR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(\w[\w-]*)="([^"]*)""#).unwrap());
+pub(crate) static ATTR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(\w[\w-]*)="([^"]*)""#).unwrap());
 
 static INLINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r":::([\w][\w-]*)\{([^}]*)\}").unwrap());
@@ -51,6 +52,11 @@ impl FenceState {
                 true
             }
         }
+    }
+
+    /// Whether a fence is currently open (after the last `consume`).
+    pub(crate) fn is_open(&self) -> bool {
+        self.open.is_some()
     }
 }
 

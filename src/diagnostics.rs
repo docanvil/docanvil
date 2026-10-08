@@ -39,6 +39,23 @@ pub fn warn_broken_link(source_file: &Path, link_target: &str) {
     );
 }
 
+/// Emit a warning about an `:::include` or `file="…"` code block that couldn't be filled in.
+pub fn warn_include(file: &Path, line: usize, message: &str, hint: Option<&str>) {
+    increment();
+    eprintln!(
+        "{}: {} ({}:{})",
+        "warning".yellow().bold(),
+        message,
+        file.display(),
+        line
+    );
+    eprintln!(
+        "  {}: {}",
+        "hint".dimmed(),
+        hint.unwrap_or("Run 'docanvil doctor' to check every include and code block file.")
+    );
+}
+
 /// Emit a warning about a nav.toml entry referencing a page that doesn't exist.
 pub fn warn_nav_missing_page(slug: &str) {
     increment();

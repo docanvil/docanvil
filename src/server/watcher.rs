@@ -88,7 +88,7 @@ pub fn watch(
                 if has_changes {
                     eprintln!("Change detected, rebuilding...");
                     match crate::cli::build::run_with_options(project_root, output_dir, true) {
-                        Ok(()) => {
+                        Ok(_) => {
                             let _ = tx.send(());
                         }
                         Err(e) => {

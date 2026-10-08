@@ -1,5 +1,5 @@
 use std::collections::hash_map::DefaultHasher;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -60,7 +60,8 @@ pub fn run(
     reset_warnings();
     crate::pipeline::popovers::reset_popover_ids();
 
-    let count = build_into(project_root, &config, &output_dir, false)?;
+    let mut dependencies = BTreeSet::new();
+    let count = build_into(project_root, &config, &output_dir, false, &mut dependencies)?;
 
     if strict && warning_count() > 0 {
         return Err(Error::StrictWarnings(warning_count()));
@@ -124,15 +125,28 @@ pub(crate) fn ensure_safe_to_remove(
 }
 
 /// Build into `output_dir`, optionally with live reload (used by the dev server).
-pub fn run_with_options(project_root: &Path, output_dir: &Path, live_reload: bool) -> Result<()> {
+/// Returns every file the build read through `:::include` and `file="…"` code
+/// blocks, so the dev server can watch the ones outside the project's folders.
+pub fn run_with_options(
+    project_root: &Path,
+    output_dir: &Path,
+    live_reload: bool,
+) -> Result<BTreeSet<PathBuf>> {
     let config = Config::load(project_root)?;
 
     reset_warnings();
     crate::pipeline::popovers::reset_popover_ids();
 
-    let count = build_into(project_root, &config, output_dir, live_reload)?;
+    let mut dependencies = BTreeSet::new();
+    let count = build_into(
+        project_root,
+        &config,
+        output_dir,
+        live_reload,
+        &mut dependencies,
+    )?;
     eprintln!("Built {count} page{}", if count == 1 { "" } else { "s" });
-    Ok(())
+    Ok(dependencies)
 }
 
 /// Build the site into a staging directory, then sync it into `output_dir`.
@@ -146,6 +160,7 @@ fn build_into(
     config: &Config,
     output_dir: &Path,
     live_reload: bool,
+    dependencies: &mut BTreeSet<PathBuf>,
 ) -> Result<usize> {
     if output_dir.exists() {
         ensure_safe_to_remove(project_root, config, output_dir)?;
@@ -162,7 +177,7 @@ fn build_into(
         std::fs::remove_dir_all(&staging).map_err(io_context(&staging))?;
     }
 
-    let count = match build_site(project_root, config, &staging, live_reload) {
+    let count = match build_site(project_root, config, &staging, live_reload, dependencies) {
         Ok(count) => count,
         Err(e) => {
             let _ = std::fs::remove_dir_all(&staging);
@@ -249,6 +264,7 @@ fn build_site(
     config: &Config,
     output_dir: &Path,
     live_reload: bool,
+    dependencies: &mut BTreeSet<PathBuf>,
 ) -> Result<usize> {
     let content_dir = project_root.join(&config.project.content_dir);
     if !content_dir.exists() {
@@ -533,16 +549,19 @@ fn build_site(
                         let fm = &ver_front_matters[key];
                         let base_slug = &page.slug;
 
-                        let html_body = pipeline::process(
+                        let processed = pipeline::process(
                             source,
                             &ver_inventory,
                             &page.source_path,
                             &registry,
                             &root_base_url,
                             highlighter.as_ref(),
+                            config.syntax.line_numbers,
                             project_root,
                             Some(locale),
                         )?;
+                        dependencies.extend(processed.dependencies);
+                        let html_body = processed.html;
 
                         if let Some(ref mut entries) = search_entries {
                             let crumbs = breadcrumb_map
@@ -732,16 +751,19 @@ fn build_site(
                     let fm = &ver_front_matters[slug];
                     let base_slug = &page.slug;
 
-                    let html_body = pipeline::process(
+                    let processed = pipeline::process(
                         source,
                         &ver_inventory,
                         &page.source_path,
                         &registry,
                         &root_base_url,
                         highlighter.as_ref(),
+                        config.syntax.line_numbers,
                         project_root,
                         None,
                     )?;
+                    dependencies.extend(processed.dependencies);
+                    let html_body = processed.html;
 
                     if let Some(ref mut entries) = search_entries {
                         let crumbs = breadcrumb_map
@@ -1053,16 +1075,19 @@ fn build_site(
                 let fm = &front_matters[key];
                 let base_slug = &page.slug;
 
-                let html_body = pipeline::process(
+                let processed = pipeline::process(
                     source,
                     &inventory,
                     &page.source_path,
                     &registry,
                     &root_base_url,
                     highlighter.as_ref(),
+                    config.syntax.line_numbers,
                     project_root,
                     Some(locale),
                 )?;
+                dependencies.extend(processed.dependencies);
+                let html_body = processed.html;
 
                 if let Some(ref mut entries) = search_entries {
                     let crumbs = breadcrumb_map
@@ -1230,16 +1255,19 @@ fn build_site(
             let source = &sources[slug];
             let fm = &front_matters[slug];
 
-            let html_body = pipeline::process(
+            let processed = pipeline::process(
                 source,
                 &inventory,
                 &page.source_path,
                 &registry,
                 &base_url,
                 highlighter.as_ref(),
+                config.syntax.line_numbers,
                 project_root,
                 None,
             )?;
+            dependencies.extend(processed.dependencies);
+            let html_body = processed.html;
 
             if let Some(ref mut entries) = search_entries {
                 let crumbs = breadcrumb_map

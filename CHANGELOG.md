@@ -13,6 +13,10 @@ All notable changes to DocAnvil will be documented in this file.
 - `docanvil doctor` checks component templates for syntax errors, unusable file names, and `{{ body }}` without `| safe`
 - Breadcrumbs above the page title, following the sidebar: nav groups (linked when they have a page) and labelled separators. Top-level pages don't get one. Override the new `breadcrumbs` template block to change them
 - A page's front matter `description` now shows as a subtitle under its title, as well as in the SEO meta tags
+- Includes: write shared content once in a fragment (any file or folder starting with `_`) and drop it into a page with `:::include{file="_shared/install.md"}`. Fragments can include other fragments, translated pages pick up `install.fr.md` automatically when it exists, and paths starting with `/` work the same in every version
+- Code blocks from files: give an empty code block `file="/examples/server.rs"` and it shows the real source file, so samples can't drift from the code. Add `lines="1-6,30-35"` to show just those lines — the skipped ones are marked, and the caption shows the file and ranges
+- Line numbers on any code block with `numbers` (or `numbers="10"` to start elsewhere), or on every block with `line_numbers = true` under `[syntax]`. The copy button still copies just the code. `title="…"` adds a caption to any code block
+- A missing include, an include loop or a `lines` range past the end of the file shows an error box on the page and a build warning, and fails `--strict`
 
 ### Changed
 

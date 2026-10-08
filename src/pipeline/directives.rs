@@ -21,6 +21,10 @@ pub(crate) static ATTR_RE: LazyLock<Regex> =
 static INLINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r":::([\w][\w-]*)\{([^}]*)\}").unwrap());
 
+/// Reserved directive name: the include pass consumes `:::include` lines
+/// before components run.
+pub const INCLUDE_DIRECTIVE: &str = "include";
+
 /// Tracks whether we're inside a ``` / ~~~ fenced code block, line by line.
 #[derive(Default)]
 pub(crate) struct FenceState {
@@ -196,6 +200,11 @@ fn replace_inline_in_line(
             .iter()
             .any(|&(s, e)| m.start() >= s && m.end() <= e)
         {
+            continue;
+        }
+
+        // `:::include` only works on a line of its own; mid-line it stays as text.
+        if &caps[1] == INCLUDE_DIRECTIVE {
             continue;
         }
 
@@ -424,6 +433,13 @@ mod tests {
         let input = "```\ncode\n```\n:::note\nHi\n:::\n";
         let output = process_directives(input, &mut |_| "RENDERED".to_string());
         assert_eq!(output, "```\ncode\n```\nRENDERED\n");
+    }
+
+    #[test]
+    fn inline_include_is_left_as_text() {
+        let input = "See :::include{file=\"_x.md\"} here";
+        let output = process_inline_directives(input, &mut |_| "RENDERED".to_string());
+        assert_eq!(output, input);
     }
 
     #[test]

@@ -425,18 +425,20 @@ fn check_fragment_locale_coverage(
     let enabled = &config.locale.enabled;
     let default = config.default_locale().unwrap_or("en");
 
-    // Untranslated path → locales it exists in (an unsuffixed file counts as the default).
-    let mut groups: BTreeMap<PathBuf, BTreeSet<String>> = BTreeMap::new();
+    // Untranslated path → locales it exists in (an unsuffixed file counts as
+    // the default), and whether that unsuffixed file exists.
+    let mut groups: BTreeMap<PathBuf, (BTreeSet<String>, bool)> = BTreeMap::new();
     for path in fragments {
         let stem = path.file_stem().unwrap_or_default().to_string_lossy();
         let (base, locale) = project::extract_locale_suffix(&stem, enabled);
-        groups
+        let (locales, has_fallback) = groups
             .entry(path.with_file_name(format!("{base}.md")))
-            .or_default()
-            .insert(locale.unwrap_or_else(|| default.to_string()));
+            .or_default();
+        *has_fallback |= locale.is_none();
+        locales.insert(locale.unwrap_or_else(|| default.to_string()));
     }
 
-    for (base, locales) in groups {
+    for (base, (locales, has_fallback)) in groups {
         let translated = locales.iter().any(|l| l != default);
         let missing: Vec<&str> = enabled
             .iter()
@@ -444,15 +446,25 @@ fn check_fragment_locale_coverage(
             .map(String::as_str)
             .collect();
         if translated && !missing.is_empty() {
+            let missing_list = missing.join(", ");
+            let those = if missing.len() == 1 {
+                "that language"
+            } else {
+                "those languages"
+            };
             diags.push(Diagnostic {
                 check: "include-locale-coverage",
                 category: "content",
                 severity: Severity::Warning,
-                message: format!(
-                    "Fragment is translated, but has no {} version — pages in {} fall back to the untranslated file",
-                    missing.join(", "),
-                    if missing.len() == 1 { "that language" } else { "those languages" }
-                ),
+                message: if has_fallback {
+                    format!(
+                        "Fragment is translated, but has no {missing_list} version — pages in {those} fall back to the untranslated file"
+                    )
+                } else {
+                    format!(
+                        "Fragment is translated, but has no {missing_list} version and no untranslated file to fall back on — including it fails in {those}"
+                    )
+                },
                 file: Some(base),
                 line: None,
                 fix: None,
@@ -658,6 +670,37 @@ mod tests {
             coverage[0].message
         );
         assert!(coverage[0].file.as_ref().unwrap().ends_with("_shared/a.md"));
+    }
+
+    #[test]
+    fn locale_coverage_message_says_whether_there_is_a_fallback() {
+        let (_dir, diags) = doctor(
+            I18N_CONFIG,
+            &[
+                ("docs/index.md", "# Home\n"),
+                ("docs/_shared/plain.md", "A\n"),
+                ("docs/_shared/plain.fr.md", "A fr\n"),
+                ("docs/_shared/only.en.md", "B\n"),
+                ("docs/_shared/only.fr.md", "B fr\n"),
+            ],
+        );
+        let message = |name: &str| {
+            diags
+                .iter()
+                .find(|d| {
+                    d.check == "include-locale-coverage" && d.file.as_ref().unwrap().ends_with(name)
+                })
+                .map(|d| d.message.clone())
+                .unwrap_or_default()
+        };
+        assert_eq!(
+            message("_shared/plain.md"),
+            "Fragment is translated, but has no de version — pages in that language fall back to the untranslated file"
+        );
+        assert_eq!(
+            message("_shared/only.md"),
+            "Fragment is translated, but has no de version and no untranslated file to fall back on — including it fails in that language"
+        );
     }
 
     #[test]

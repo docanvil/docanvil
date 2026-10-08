@@ -1,7 +1,7 @@
 //! Includes: `:::include{file="…"}` and code blocks filled from source files.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -180,7 +180,14 @@ impl Expander<'_> {
             return;
         };
 
-        let base = resolve_path(written, file, self.project_root);
+        let base = match resolve_path(written, file, self.project_root) {
+            Ok(base) => base,
+            Err(message) => {
+                let p = problem(CHECK_INVALID, file, line, message, None);
+                self.report(p, indent, out);
+                return;
+            }
+        };
         let mut candidates = Vec::new();
         if let Some(locale) = self.locale {
             candidates.push(localized(&base, locale));
@@ -366,7 +373,8 @@ impl Expander<'_> {
             ));
         }
 
-        let path = resolve_path(written, file, self.project_root);
+        let path = resolve_path(written, file, self.project_root)
+            .map_err(|m| Invalid::new(CHECK_INVALID, m, None))?;
         if !path.is_file() {
             return Err(Invalid::new(
                 CHECK_UNRESOLVED,
@@ -591,14 +599,35 @@ fn attr_map(text: &str) -> BTreeMap<String, String> {
 
 /// `/x` → project root; anything else → relative to the directory of
 /// `current_file`. `\` is treated as `/`. Leading slashes are all stripped, so
-/// a path can never reach the filesystem root.
-fn resolve_path(written: &str, current_file: &Path, project_root: &Path) -> PathBuf {
-    let written = written.replace('\\', "/");
-    if written.starts_with('/') {
-        project_root.join(written.trim_start_matches('/'))
-    } else {
-        current_file.parent().unwrap_or(Path::new("")).join(written)
+/// a path can never reach the filesystem root. Windows drive (`C:/x`) and
+/// network (`\\server\x`) paths are rejected on every platform.
+fn resolve_path(
+    written: &str,
+    current_file: &Path,
+    project_root: &Path,
+) -> Result<PathBuf, String> {
+    let normalised = written.replace('\\', "/");
+    let rest = normalised.trim_start_matches('/');
+    if written.starts_with("\\\\") || is_filesystem_path(rest) {
+        return Err(format!(
+            "{written} is a full filesystem path — paths are relative to the file they're written in, or start with / for the project root (the folder with docanvil.toml)"
+        ));
     }
+    Ok(if normalised.starts_with('/') {
+        project_root.join(rest)
+    } else {
+        current_file.parent().unwrap_or(Path::new("")).join(rest)
+    })
+}
+
+/// A drive letter (`C:`), or anything `Path` sees as a prefix or root.
+fn is_filesystem_path(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    let drive = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
+    drive
+        || Path::new(path)
+            .components()
+            .any(|c| matches!(c, Component::Prefix(_) | Component::RootDir))
 }
 
 /// `dir/name.md` → `dir/name.{locale}.md`.
@@ -1123,6 +1152,33 @@ mod tests {
         );
         let outside = Path::new("/somewhere/else.md");
         assert_eq!(display_path(dir.path(), outside), outside);
+    }
+
+    #[test]
+    fn filesystem_paths_are_rejected_on_every_platform() {
+        let dir = project(&[(
+            "docs/page.md",
+            ":::include{file=\"C:/x.md\"}\n:::include{file=\"c:\\x.md\"}\n:::include{file=\"\\\\server\\x.md\"}\n\n```rust file=\"D:/x.rs\"\n```\n",
+        )]);
+        let out = run(&dir, "docs/page.md", None);
+        let found: Vec<(&str, usize)> = out.problems.iter().map(|p| (p.check, p.line)).collect();
+        assert_eq!(
+            found,
+            vec![
+                (CHECK_INVALID, 1),
+                (CHECK_INVALID, 2),
+                (CHECK_INVALID, 3),
+                (CHECK_INVALID, 5)
+            ]
+        );
+        assert!(
+            out.problems[0]
+                .message
+                .contains("start with / for the project root"),
+            "{}",
+            out.problems[0].message
+        );
+        assert!(out.dependencies.is_empty());
     }
 
     #[test]

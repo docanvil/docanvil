@@ -308,20 +308,23 @@ fn check_includes(
         push_include_problems(expanded.problems, &mut seen, diags);
     }
 
-    // Fragments nothing includes still deserve their includes checked.
+    // Fragments nothing includes still deserve their includes checked. Used
+    // ones were already checked in the context of the pages that include them.
+    let locales: &[String] = if config.is_i18n_enabled() {
+        &config.locale.enabled
+    } else {
+        &[]
+    };
     for path in fragments {
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+        if used.contains(&canonical) {
+            continue;
+        }
         let Ok(source) = std::fs::read_to_string(path) else {
             continue;
         };
-        let expanded = includes::expand(
-            &source,
-            path,
-            &IncludeContext {
-                project_root,
-                locale: None,
-            },
-        );
-        push_include_problems(expanded.problems, &mut seen, diags);
+        let problems = unused_fragment_problems(&source, path, project_root, locales);
+        push_include_problems(problems, &mut seen, diags);
     }
 
     for path in fragments {
@@ -342,6 +345,50 @@ fn check_includes(
     if config.is_i18n_enabled() {
         check_fragment_locale_coverage(config, fragments, diags);
     }
+}
+
+/// Include problems in a fragment no page uses. A translated fragment
+/// (`name.fr.md`) expands in its own locale; an untranslated one, with i18n on,
+/// expands in every enabled locale, and only problems shared by all of them are
+/// kept — any page could still include it in a locale where it works.
+fn unused_fragment_problems(
+    source: &str,
+    path: &Path,
+    project_root: &Path,
+    locales: &[String],
+) -> Vec<IncludeProblem> {
+    let expand_in = |locale: Option<&str>| {
+        includes::expand(
+            source,
+            path,
+            &IncludeContext {
+                project_root,
+                locale,
+            },
+        )
+        .problems
+    };
+    if locales.is_empty() {
+        return expand_in(None);
+    }
+    let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+    if let (_, Some(locale)) = project::extract_locale_suffix(&stem, locales) {
+        return expand_in(Some(&locale));
+    }
+
+    let mut per_locale = locales.iter().map(|l| expand_in(Some(l)));
+    let first = per_locale.next().unwrap_or_default();
+    let others: Vec<Vec<IncludeProblem>> = per_locale.collect();
+    first
+        .into_iter()
+        .filter(|p| {
+            others.iter().all(|problems| {
+                problems
+                    .iter()
+                    .any(|q| (q.check, &q.file, q.line) == (p.check, &p.file, p.line))
+            })
+        })
+        .collect()
 }
 
 fn push_include_problems(
@@ -625,6 +672,79 @@ mod tests {
             found(&diags, "broken-wiki-link"),
             vec![(dir.path().join("docs/_a.md"), Some(3))]
         );
+    }
+
+    const EN_FR_CONFIG: &str =
+        "[project]\nname = \"T\"\n\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n";
+
+    #[test]
+    fn translated_fragment_included_from_a_used_fragment_is_fine() {
+        let (_dir, diags) = doctor(
+            EN_FR_CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "# Home\n\n:::include{file=\"_shared/wrap.md\"}\n",
+                ),
+                (
+                    "docs/index.fr.md",
+                    "# Accueil\n\n:::include{file=\"_shared/wrap.md\"}\n",
+                ),
+                ("docs/_shared/wrap.md", ":::include{file=\"note.md\"}\n"),
+                ("docs/_shared/note.en.md", "Note\n"),
+                ("docs/_shared/note.fr.md", "Note fr\n"),
+            ],
+        );
+        assert!(found(&diags, "include-unresolved").is_empty(), "{diags:?}");
+    }
+
+    #[test]
+    fn unused_fragment_is_checked_in_every_locale() {
+        let (dir, diags) = doctor(
+            EN_FR_CONFIG,
+            &[
+                ("docs/index.md", "# Home\n"),
+                // Resolves in every locale through its translations.
+                ("docs/_shared/wrap.md", ":::include{file=\"note.md\"}\n"),
+                ("docs/_shared/note.en.md", "Note\n"),
+                ("docs/_shared/note.fr.md", "Note fr\n"),
+                // Fails in fr only, so a page in en could still use it.
+                ("docs/_shared/partial.md", ":::include{file=\"only.md\"}\n"),
+                ("docs/_shared/only.en.md", "Only en\n"),
+                // Translated fragments expand in their own locale.
+                ("docs/_shared/own.fr.md", ":::include{file=\"note.md\"}\n"),
+                (
+                    "docs/_shared/broken.fr.md",
+                    ":::include{file=\"only.md\"}\n",
+                ),
+            ],
+        );
+        assert_eq!(
+            found(&diags, "include-unresolved"),
+            vec![(canon(&dir, "docs/_shared/broken.fr.md"), Some(1))],
+            "{diags:?}"
+        );
+    }
+
+    #[test]
+    fn missing_file_in_unused_fragment_is_reported() {
+        for config in [CONFIG, EN_FR_CONFIG] {
+            let (dir, diags) = doctor(
+                config,
+                &[
+                    ("docs/index.md", "# Home\n"),
+                    (
+                        "docs/_shared/orphan.md",
+                        "Hi\n\n:::include{file=\"gone.md\"}\n",
+                    ),
+                ],
+            );
+            assert_eq!(
+                found(&diags, "include-unresolved"),
+                vec![(canon(&dir, "docs/_shared/orphan.md"), Some(3))],
+                "{diags:?}"
+            );
+        }
     }
 
     fn test_inventory() -> (tempfile::TempDir, PageInventory) {

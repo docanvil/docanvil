@@ -48,12 +48,22 @@ The everyday features people expect from a docs tool, so new projects have every
 - **Open in your editor from `docanvil serve`**: during local development, the edit link opens the source file straight in your editor instead
 - **Redirects**: keep old URLs working when pages are renamed or moved
 - **Includes**: reuse shared content (install steps, warnings, snippets) across pages, locales and versions
+- **Code blocks from files**: pull a code block's contents from a real source file, optionally just some line ranges, so examples stay in sync with code that compiles and is tested. Line numbers for any code block, with hidden lines between ranges clearly marked
 - **Draft pages**: mark a page as a draft to preview it with `docanvil serve` while keeping it out of production builds
 - **Last updated dates**: show when each page last changed, from Git history or front matter
 - **`llms.txt` output**: an AI-friendly index of your docs, generated alongside `sitemap.xml`
 - **Template components**: define your own `:::components` as Tera templates in `theme/components/`, with no Rust or build tooling needed. A template with a built-in's name (like `note.html`) restyles that component
 
 Fully backward compatible, and every feature is opt-in.
+
+### Later in 1.2
+
+Follow-ups to includes and code blocks from files, once the first version is in people's hands:
+
+- **Include a section of a page**: pull in one heading's section of a Markdown file (say, the Installation section of your README) instead of the whole file
+- **Named code regions**: mark a region in a source file with `#region` / `#endregion` comments and include it by name, so examples don't break when line numbers shift
+- **Line highlighting**: draw attention to specific lines in a code block, plus diff-style added/removed markers
+- **Remote includes**: include content or code from a URL
 
 ---
 

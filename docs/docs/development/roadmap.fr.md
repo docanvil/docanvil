@@ -24,12 +24,20 @@ Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour
 - Ouverture du fichier source dans votre éditeur directement depuis `docanvil serve`
 - Redirections, pour que les anciennes URL continuent de fonctionner quand des pages sont déplacées
 - Inclusions, pour réutiliser du contenu partagé entre pages, locales et versions
+- Blocs de code tirés de fichiers, éventuellement limités à certaines plages de lignes, et numéros de ligne pour tout bloc de code
 - Pages brouillons, visibles dans `docanvil serve` mais exclues des compilations de production
 - Dates de dernière mise à jour, issues de l'historique Git ou du front matter
 - Génération de `llms.txt`, un index de votre documentation adapté aux IA
 - Composants en templates : définissez vos propres composants sous forme de templates Tera dans votre thème, sans Rust
 
 Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
+
+Plus tard dans la 1.2, une fois la première version des inclusions entre les mains des utilisateurs :
+
+- Inclure une seule section d'une page (par exemple la section Installation de votre README) plutôt que le fichier entier
+- Régions de code nommées (`#region` / `#endregion`), pour que les exemples ne cassent pas quand les numéros de ligne changent
+- Mise en évidence de lignes et marqueurs de type diff dans les blocs de code
+- Inclusions distantes depuis une URL
 
 ## 1.3.x — Extensibilité
 

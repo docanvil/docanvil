@@ -1,4 +1,7 @@
+use std::collections::HashSet;
+
 use serde::Serialize;
+use tera::ast::Node;
 use tera::{Context, Tera};
 
 use crate::config::ColorMode;
@@ -90,6 +93,92 @@ pub struct LocaleInfo {
     pub has_page: bool,
 }
 
+/// Find a chain of `{% include %}`s that leads back to where it started, such as
+/// `["a.html", "b.html", "a.html"]`. Tera follows includes with no depth limit, so
+/// rendering a template on such a chain overflows the stack instead of erroring.
+/// Recursive macros aren't covered: they can legitimately stop on a condition.
+pub fn find_include_cycle(tera: &Tera) -> Option<Vec<String>> {
+    let mut names: Vec<&str> = tera.get_template_names().collect();
+    names.sort_unstable();
+    let mut done = HashSet::new();
+    names
+        .into_iter()
+        .find_map(|name| visit_includes(tera, name, &mut Vec::new(), &mut done))
+}
+
+/// Human-readable form of a cycle from [`find_include_cycle`].
+pub fn include_cycle_message(cycle: &[String]) -> String {
+    if let [name, _] = cycle {
+        format!("{name} includes itself, so it would never finish rendering")
+    } else {
+        format!(
+            "templates include each other in a loop ({}), so they would never finish rendering",
+            cycle.join(" → ")
+        )
+    }
+}
+
+fn visit_includes<'a>(
+    tera: &'a Tera,
+    name: &'a str,
+    path: &mut Vec<&'a str>,
+    done: &mut HashSet<&'a str>,
+) -> Option<Vec<String>> {
+    if let Some(start) = path.iter().position(|n| *n == name) {
+        let mut cycle: Vec<String> = path[start..].iter().map(|n| n.to_string()).collect();
+        cycle.push(name.to_string());
+        return Some(cycle);
+    }
+    if done.contains(name) {
+        return None;
+    }
+    // A missing template can't loop; Tera reports it (or skips it) on its own.
+    let template = tera.get_template(name).ok()?;
+    let mut includes = Vec::new();
+    collect_includes(&template.ast, &mut includes);
+
+    path.push(name);
+    for candidates in includes {
+        // `{% include ["a.html", "b.html"] %}` renders the first one that exists.
+        let Some(target) = candidates.iter().find(|c| tera.get_template(c).is_ok()) else {
+            continue;
+        };
+        if let Some(cycle) = visit_includes(tera, target, path, done) {
+            return Some(cycle);
+        }
+    }
+    path.pop();
+    done.insert(name);
+    None
+}
+
+/// Every `{% include %}` in `nodes`, including those nested inside other tags.
+fn collect_includes<'a>(nodes: &'a [Node], out: &mut Vec<&'a [String]>) {
+    for node in nodes {
+        match node {
+            Node::Include(_, candidates, _) => out.push(candidates),
+            Node::MacroDefinition(_, def, _) => collect_includes(&def.body, out),
+            Node::FilterSection(_, section, _) => collect_includes(&section.body, out),
+            Node::Block(_, block, _) => collect_includes(&block.body, out),
+            Node::Forloop(_, forloop, _) => {
+                collect_includes(&forloop.body, out);
+                if let Some(body) = &forloop.empty_body {
+                    collect_includes(body, out);
+                }
+            }
+            Node::If(if_node, _) => {
+                for (_, _, body) in &if_node.conditions {
+                    collect_includes(body, out);
+                }
+                if let Some((_, body)) = &if_node.otherwise {
+                    collect_includes(body, out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Tera-based template renderer.
 pub struct TemplateRenderer {
     tera: Tera,
@@ -101,6 +190,12 @@ impl TemplateRenderer {
         let mut tera = Tera::default();
         tera.add_raw_template("layout.html", &theme.layout_template)
             .map_err(|e| Error::Render(format!("failed to parse template: {e}")))?;
+        if let Some(cycle) = find_include_cycle(&tera) {
+            return Err(Error::Render(format!(
+                "layout template: {}",
+                include_cycle_message(&cycle)
+            )));
+        }
         Ok(Self { tera })
     }
 
@@ -198,6 +293,95 @@ pub struct PageContext {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tera_with(templates: &[(&str, &str)]) -> Tera {
+        let mut tera = Tera::default();
+        tera.add_raw_templates(templates.to_vec()).unwrap();
+        tera
+    }
+
+    #[test]
+    fn self_include_is_a_cycle() {
+        let tera = tera_with(&[("loop.html", "<div>{% include \"loop.html\" %}</div>")]);
+        assert_eq!(
+            find_include_cycle(&tera),
+            Some(vec!["loop.html".to_string(), "loop.html".to_string()])
+        );
+    }
+
+    #[test]
+    fn indirect_include_cycle_is_found() {
+        let tera = tera_with(&[
+            ("a.html", "{% include \"b.html\" %}"),
+            ("b.html", "{% include \"c.html\" %}"),
+            ("c.html", "{% include \"a.html\" %}"),
+        ]);
+        assert_eq!(
+            find_include_cycle(&tera),
+            Some(
+                vec!["a.html", "b.html", "c.html", "a.html"]
+                    .into_iter()
+                    .map(String::from)
+                    .collect()
+            )
+        );
+    }
+
+    #[test]
+    fn includes_inside_nested_tags_are_followed() {
+        for body in [
+            "{% if x %}{% include \"t.html\" %}{% endif %}",
+            "{% if x %}{% else %}{% include \"t.html\" %}{% endif %}",
+            "{% for i in xs %}{% include \"t.html\" %}{% endfor %}",
+            "{% for i in xs %}{% else %}{% include \"t.html\" %}{% endfor %}",
+            "{% filter upper %}{% include \"t.html\" %}{% endfilter %}",
+            "{% block b %}{% include \"t.html\" %}{% endblock %}",
+            "{% macro m() %}{% include \"t.html\" %}{% endmacro %}",
+        ] {
+            let tera = tera_with(&[("t.html", body)]);
+            assert!(
+                find_include_cycle(&tera).is_some(),
+                "missed cycle in {body}"
+            );
+        }
+    }
+
+    #[test]
+    fn shared_includes_without_a_cycle_pass() {
+        // a → b → d and a → c → d: d is reached twice, but nothing loops.
+        let tera = tera_with(&[
+            ("a.html", "{% include \"b.html\" %}{% include \"c.html\" %}"),
+            ("b.html", "{% include \"d.html\" %}"),
+            ("c.html", "{% include \"d.html\" %}"),
+            ("d.html", "leaf"),
+        ]);
+        assert_eq!(find_include_cycle(&tera), None);
+    }
+
+    #[test]
+    fn missing_optional_include_is_not_a_cycle() {
+        let tera = tera_with(&[("a.html", "{% include \"nope.html\" ignore missing %}")]);
+        assert_eq!(find_include_cycle(&tera), None);
+    }
+
+    #[test]
+    fn self_including_layout_is_rejected() {
+        let theme = Theme {
+            layout_template: "{% include \"layout.html\" %}".into(),
+            default_css: String::new(),
+            default_js: String::new(),
+            css_overrides: None,
+            custom_css_path: None,
+            custom_css: None,
+        };
+        let err = TemplateRenderer::new(&theme)
+            .err()
+            .expect("cycle should be an error");
+        assert!(
+            err.to_string().contains("layout.html includes itself"),
+            "{err}"
+        );
+    }
 
     fn crumb(label: &str, slug: Option<&str>) -> Crumb {
         Crumb {

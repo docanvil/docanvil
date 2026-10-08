@@ -8,7 +8,7 @@ use regex::Regex;
 use syntect::parsing::SyntaxSet;
 
 use crate::pipeline::code_blocks::BlockMeta;
-use crate::pipeline::directives::{ATTR_RE, FenceState};
+use crate::pipeline::directives::{ATTR_RE, FenceState, inline_code_ranges};
 use crate::render::templates::include_cycle_message;
 use crate::util::html_escape;
 
@@ -52,6 +52,26 @@ pub struct IncludeProblem {
     pub line: usize,
     pub message: String,
     pub hint: Option<String>,
+}
+
+/// 1-based lines holding a `:::include{…}` that isn't alone on its line
+/// (outside code fences and inline code). Those are shown as written, not
+/// expanded — `docanvil doctor` points them out.
+pub fn inline_include_lines(source: &str) -> Vec<usize> {
+    let mut fence = FenceState::default();
+    source
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| {
+            if fence.consume(line) || INCLUDE_LINE_RE.is_match(line) {
+                return false;
+            }
+            let code = inline_code_ranges(line);
+            line.match_indices(":::include{")
+                .any(|(start, _)| !code.iter().any(|&(s, e)| start >= s && start < e))
+        })
+        .map(|(i, _)| i + 1)
+        .collect()
 }
 
 /// Expand `:::include{file="…"}` lines (recursively) in a page's Markdown.
@@ -1349,5 +1369,11 @@ mod tests {
         let p = &run(&dir, "docs/page.md", None).problems[0];
         assert_eq!(p.check, CHECK_UNRESOLVED);
         assert!(p.message.contains("UTF-8"));
+    }
+
+    #[test]
+    fn finds_includes_inside_other_text() {
+        let source = "Intro\nSee :::include{file=\"_x.md\"} here\n:::include{file=\"_y.md\"}\n```md\nx :::include{file=\"_z.md\"}\n```\nUse `:::include{file=\"_w.md\"}` like this\n";
+        assert_eq!(inline_include_lines(source), vec![2]);
     }
 }

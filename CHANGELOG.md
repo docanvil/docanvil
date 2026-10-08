@@ -18,6 +18,7 @@ All notable changes to DocAnvil will be documented in this file.
 - Line numbers on any code block with `numbers` (or `numbers="10"` to start elsewhere), or on every block with `line_numbers = true` under `[syntax]`. The copy button still copies just the code. `title="…"` adds a caption to any code block
 - A missing include, an include loop or a `lines` range past the end of the file shows an error box on the page and a build warning, and fails `--strict`
 - `docanvil serve` now watches included files that live outside the usual content/theme/asset folders (e.g. `../src/` or `/examples/`), so editing them live-reloads the page
+- `docanvil doctor` checks every `:::include` and `file="…"` code block up front, warns about `:::include` written inside a sentence, translated fragments that are missing a language, and a `theme/components/include.html` that can never be used, and lists fragments nothing includes. Fragments get the same readability checks as pages
 
 ### Changed
 

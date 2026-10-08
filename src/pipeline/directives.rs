@@ -229,7 +229,7 @@ fn replace_inline_in_line(
 }
 
 /// Find byte ranges of inline code spans (backtick-delimited) in a line.
-fn inline_code_ranges(line: &str) -> Vec<(usize, usize)> {
+pub(crate) fn inline_code_ranges(line: &str) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
     let bytes = line.as_bytes();
     let len = bytes.len();

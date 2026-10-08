@@ -7,7 +7,7 @@ use regex::Regex;
 
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Severity};
-use crate::project::PageInventory;
+use crate::project::{self, PageInventory};
 
 // ---------------------------------------------------------------------------
 // Static regexes
@@ -239,47 +239,67 @@ fn is_setext_underline(line: &str, line_num: usize, raw_lines: &[&str]) -> bool 
 
 /// Run all readability checks against every page in the inventory.
 pub fn check_readability(
-    _project_root: &Path,
+    project_root: &Path,
     config: &Config,
     inventory: &PageInventory,
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     for slug in &inventory.ordered {
         let page = &inventory.pages[slug];
-        let source = match std::fs::read_to_string(&page.source_path) {
-            Ok(s) => s,
-            Err(_) => continue,
-        };
-        let lines = active_lines(&source);
-
-        // Heading structure
-        check_multiple_h1(&lines, &page.source_path, &mut diags);
-        check_skipped_heading_level(&lines, &page.source_path, &mut diags);
-        check_consecutive_headings(&lines, &page.source_path, &mut diags);
-        check_empty_heading(&lines, &page.source_path, &mut diags);
-        check_heading_punctuation(&lines, &page.source_path, &mut diags);
-        check_duplicate_heading_text(&lines, &page.source_path, &mut diags);
-        check_emphasis_used_as_heading(&lines, &page.source_path, &mut diags);
-        check_no_document_title(&source, &lines, &page.source_path, &mut diags);
-        check_heading_adjacent_separator(&source, &lines, &page.source_path, config, &mut diags);
-
-        // Links and images
-        check_missing_alt_text(&lines, &page.source_path, &mut diags);
-        check_reversed_link_syntax(&lines, &page.source_path, &mut diags);
-        check_empty_link(&lines, &page.source_path, &mut diags);
-        check_non_descriptive_link_text(&lines, &page.source_path, &mut diags);
-        check_bare_url(&lines, &page.source_path, &mut diags);
-
-        // Code blocks
-        check_missing_fenced_code_language(&source, &page.source_path, &mut diags);
-
-        // Prose quality
-        check_long_paragraph(&lines, &page.source_path, config, &mut diags);
-        check_repeated_word(&lines, &page.source_path, &mut diags);
-        check_todo_comment(&lines, &page.source_path, &mut diags);
-        check_placeholder_text(&lines, &page.source_path, &mut diags);
+        if let Ok(source) = std::fs::read_to_string(&page.source_path) {
+            check_file(&source, &page.source_path, config, true, &mut diags);
+        }
+    }
+    // Fragments aren't pages, but readers see their text wherever they're
+    // included — check each one once, against its own lines.
+    let content_dir = project_root.join(&config.project.content_dir);
+    for path in project::fragment_files(&content_dir) {
+        if let Ok(source) = std::fs::read_to_string(&path) {
+            check_file(&source, &path, config, false, &mut diags);
+        }
     }
     diags
+}
+
+/// All readability checks for one file. `is_page` is false for `_` fragments,
+/// which don't need a title of their own.
+fn check_file(
+    source: &str,
+    path: &Path,
+    config: &Config,
+    is_page: bool,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let lines = active_lines(source);
+
+    // Heading structure
+    check_multiple_h1(&lines, path, diags);
+    check_skipped_heading_level(&lines, path, diags);
+    check_consecutive_headings(&lines, path, diags);
+    check_empty_heading(&lines, path, diags);
+    check_heading_punctuation(&lines, path, diags);
+    check_duplicate_heading_text(&lines, path, diags);
+    check_emphasis_used_as_heading(&lines, path, diags);
+    if is_page {
+        check_no_document_title(source, &lines, path, diags);
+    }
+    check_heading_adjacent_separator(source, &lines, path, config, diags);
+
+    // Links and images
+    check_missing_alt_text(&lines, path, diags);
+    check_reversed_link_syntax(&lines, path, diags);
+    check_empty_link(&lines, path, diags);
+    check_non_descriptive_link_text(&lines, path, diags);
+    check_bare_url(&lines, path, diags);
+
+    // Code blocks
+    check_missing_fenced_code_language(source, path, diags);
+
+    // Prose quality
+    check_long_paragraph(&lines, path, config, diags);
+    check_repeated_word(&lines, path, diags);
+    check_todo_comment(&lines, path, diags);
+    check_placeholder_text(&lines, path, diags);
 }
 
 // ---------------------------------------------------------------------------
@@ -1934,5 +1954,26 @@ mod tests {
             &mut diags,
         );
         assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn fragments_are_checked_against_their_own_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        std::fs::create_dir_all(docs.join("_shared")).unwrap();
+        std::fs::write(docs.join("index.md"), "# Home\n").unwrap();
+        std::fs::write(docs.join("_shared/frag.md"), "## Setup\n\n#### Too deep\n").unwrap();
+        let inventory = PageInventory::scan(&docs, None, None, None).unwrap();
+
+        let diags = check_readability(dir.path(), &test_config(), &inventory);
+        let frag = docs.join("_shared/frag.md");
+        assert!(diags.iter().any(|d| d.check == "skipped-heading-level"
+            && d.file.as_deref() == Some(frag.as_path())
+            && d.line == Some(3)));
+        assert!(
+            !diags.iter().any(
+                |d| d.check == "no-document-title" && d.file.as_deref() == Some(frag.as_path())
+            )
+        );
     }
 }

@@ -7,6 +7,7 @@ use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Fix, Severity};
 use crate::error::Error;
+use crate::pipeline::directives::INCLUDE_DIRECTIVE;
 use crate::render::templates::{find_include_cycle, include_cycle_message};
 
 /// Check theme: custom CSS existence, layout template validity.
@@ -129,6 +130,19 @@ fn check_component_templates(project_root: &Path) -> Vec<Diagnostic> {
                 message: format!(
                     "Component template '{stem}.html' can't be used: names may only contain letters, numbers, '_' and '-'"
                 ),
+                file: Some(path),
+                line: None,
+                fix: None,
+            });
+            continue;
+        }
+
+        if stem == INCLUDE_DIRECTIVE {
+            diags.push(Diagnostic {
+                check: "component-reserved-name",
+                category: "theme",
+                severity: Severity::Warning,
+                message: "'include.html' is never used: :::include is reserved for including Markdown files. Rename the template to use it as a component".to_string(),
                 file: Some(path),
                 line: None,
                 fix: None,
@@ -259,5 +273,11 @@ mod tests {
     fn extends_a_builtin_template_passes() {
         let dir = component_project(&[("alert.html", "{% extends \"note.html\" %}")]);
         assert!(checks_for(&dir).is_empty());
+    }
+
+    #[test]
+    fn include_template_is_reserved() {
+        let dir = component_project(&[("include.html", "<div>{{ body | safe }}</div>")]);
+        assert_eq!(checks_for(&dir), vec!["component-reserved-name"]);
     }
 }

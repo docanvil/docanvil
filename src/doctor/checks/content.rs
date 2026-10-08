@@ -1,21 +1,23 @@
-use std::collections::HashMap;
-use std::path::Path;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use std::sync::LazyLock;
 
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Severity};
-use crate::pipeline::directives::FenceState;
-use crate::project::PageInventory;
+use crate::pipeline::directives::{FenceState, INCLUDE_DIRECTIVE};
+use crate::pipeline::includes::{self, IncludeContext, IncludeProblem};
+use crate::project::{self, PageInventory};
 
 static OPEN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(:{3,})\s*([\w][\w-]*)\s*(\{.*\})?\s*$").unwrap());
 
-/// Check content: broken wiki-links, unclosed directives, front-matter errors, duplicate slugs.
+/// Check content: broken wiki-links, unclosed directives, front-matter errors,
+/// duplicate slugs, and includes (pages and `_` fragments).
 pub fn check_content(
-    _project_root: &Path,
-    _config: &Config,
+    project_root: &Path,
+    config: &Config,
     inventory: &PageInventory,
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
@@ -42,7 +44,22 @@ pub fn check_content(
         );
         check_unclosed_directives(&source, &page.source_path, &mut diags);
         check_frontmatter(&source, &page.source_path, &mut diags);
+        check_inline_includes(&source, &page.source_path, &mut diags);
     }
+
+    // Fragments aren't pages, but their text ends up on pages — check each once,
+    // as written, so diagnostics point at the fragment's own lines.
+    let fragments = project::fragment_files(&project_root.join(&config.project.content_dir));
+    for path in &fragments {
+        let Ok(source) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        check_broken_wikilinks(&source, path, None, inventory, &mut diags);
+        check_unclosed_directives(&source, path, &mut diags);
+        check_inline_includes(&source, path, &mut diags);
+    }
+
+    check_includes(project_root, config, inventory, &fragments, &mut diags);
 
     diags
 }
@@ -178,6 +195,10 @@ fn check_unclosed_directives(source: &str, source_path: &Path, diags: &mut Vec<D
         if let Some(caps) = OPEN_RE.captures(trimmed) {
             let colons = caps[1].len();
             let name = caps[2].to_string();
+            // `:::include{…}` lines have no closing fence.
+            if name == INCLUDE_DIRECTIVE {
+                continue;
+            }
             stack.push((name, colons, i + 1));
             continue;
         }
@@ -238,11 +259,373 @@ fn check_frontmatter(source: &str, source_path: &Path, diags: &mut Vec<Diagnosti
     }
 }
 
+fn check_inline_includes(source: &str, source_path: &Path, diags: &mut Vec<Diagnostic>) {
+    for line in includes::inline_include_lines(source) {
+        diags.push(Diagnostic {
+            check: "include-inline",
+            category: "content",
+            severity: Severity::Warning,
+            message: ":::include needs a line of its own — inside other text it's shown as written, not included".to_string(),
+            file: Some(source_path.to_path_buf()),
+            line: Some(line),
+            fix: None,
+        });
+    }
+}
+
+/// Expand every page (and every fragment on its own) the way the build does,
+/// reporting each include problem once; then list unused and partly
+/// translated fragments.
+fn check_includes(
+    project_root: &Path,
+    config: &Config,
+    inventory: &PageInventory,
+    fragments: &[PathBuf],
+    diags: &mut Vec<Diagnostic>,
+) {
+    let mut seen: HashSet<(PathBuf, usize)> = HashSet::new();
+    let mut used: BTreeSet<PathBuf> = BTreeSet::new();
+
+    for slug in &inventory.ordered {
+        let page = &inventory.pages[slug];
+        let Ok(source) = std::fs::read_to_string(&page.source_path) else {
+            continue;
+        };
+        let locale = if config.is_i18n_enabled() {
+            page.locale.as_deref()
+        } else {
+            None
+        };
+        let expanded = includes::expand(
+            &source,
+            &page.source_path,
+            &IncludeContext {
+                project_root,
+                locale,
+            },
+        );
+        used.extend(expanded.dependencies);
+        push_include_problems(expanded.problems, &mut seen, diags);
+    }
+
+    // Fragments nothing includes still deserve their includes checked.
+    for path in fragments {
+        let Ok(source) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        let expanded = includes::expand(
+            &source,
+            path,
+            &IncludeContext {
+                project_root,
+                locale: None,
+            },
+        );
+        push_include_problems(expanded.problems, &mut seen, diags);
+    }
+
+    for path in fragments {
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+        if !used.contains(&canonical) {
+            diags.push(Diagnostic {
+                check: "include-unused-fragment",
+                category: "content",
+                severity: Severity::Info,
+                message: "Fragment isn't included by any page".to_string(),
+                file: Some(path.clone()),
+                line: None,
+                fix: None,
+            });
+        }
+    }
+
+    if config.is_i18n_enabled() {
+        check_fragment_locale_coverage(config, fragments, diags);
+    }
+}
+
+fn push_include_problems(
+    problems: Vec<IncludeProblem>,
+    seen: &mut HashSet<(PathBuf, usize)>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    for problem in problems {
+        if seen.insert((problem.file.clone(), problem.line)) {
+            diags.push(Diagnostic {
+                check: problem.check,
+                category: "content",
+                severity: Severity::Error,
+                message: problem.message,
+                file: Some(problem.file),
+                line: Some(problem.line),
+                fix: None,
+            });
+        }
+    }
+}
+
+/// A fragment translated into some enabled locales but not others.
+fn check_fragment_locale_coverage(
+    config: &Config,
+    fragments: &[PathBuf],
+    diags: &mut Vec<Diagnostic>,
+) {
+    let enabled = &config.locale.enabled;
+    let default = config.default_locale().unwrap_or("en");
+
+    // Untranslated path → locales it exists in (an unsuffixed file counts as the default).
+    let mut groups: BTreeMap<PathBuf, BTreeSet<String>> = BTreeMap::new();
+    for path in fragments {
+        let stem = path.file_stem().unwrap_or_default().to_string_lossy();
+        let (base, locale) = project::extract_locale_suffix(&stem, enabled);
+        groups
+            .entry(path.with_file_name(format!("{base}.md")))
+            .or_default()
+            .insert(locale.unwrap_or_else(|| default.to_string()));
+    }
+
+    for (base, locales) in groups {
+        let translated = locales.iter().any(|l| l != default);
+        let missing: Vec<&str> = enabled
+            .iter()
+            .filter(|l| !locales.contains(*l))
+            .map(String::as_str)
+            .collect();
+        if translated && !missing.is_empty() {
+            diags.push(Diagnostic {
+                check: "include-locale-coverage",
+                category: "content",
+                severity: Severity::Warning,
+                message: format!(
+                    "Fragment is translated, but has no {} version — pages in {} fall back to the untranslated file",
+                    missing.join(", "),
+                    if missing.len() == 1 { "that language" } else { "those languages" }
+                ),
+                file: Some(base),
+                line: None,
+                fix: None,
+            });
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::doctor::Severity;
     use std::fs;
+    use std::path::PathBuf;
+
+    const CONFIG: &str = "[project]\nname = \"T\"\n";
+    const I18N_CONFIG: &str = "[project]\nname = \"T\"\n\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\", \"de\"]\n";
+
+    fn doctor(config: &str, files: &[(&str, &str)]) -> (tempfile::TempDir, Vec<Diagnostic>) {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("docanvil.toml"), config).unwrap();
+        for (path, content) in files {
+            let p = dir.path().join(path);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            std::fs::write(p, content).unwrap();
+        }
+        let config = Config::load(dir.path()).unwrap();
+        let locales = config
+            .is_i18n_enabled()
+            .then(|| config.locale.enabled.clone());
+        let inventory = PageInventory::scan(
+            &dir.path().join("docs"),
+            locales.as_deref(),
+            config.default_locale(),
+            None,
+        )
+        .unwrap();
+        let diags = check_content(dir.path(), &config, &inventory);
+        (dir, diags)
+    }
+
+    fn found(diags: &[Diagnostic], check: &str) -> Vec<(PathBuf, Option<usize>)> {
+        diags
+            .iter()
+            .filter(|d| d.check == check)
+            .map(|d| (d.file.clone().unwrap_or_default(), d.line))
+            .collect()
+    }
+
+    fn canon(dir: &tempfile::TempDir, rel: &str) -> PathBuf {
+        dir.path().join(rel).canonicalize().unwrap()
+    }
+
+    #[test]
+    fn clean_project_has_no_include_diagnostics() {
+        let (_dir, diags) = doctor(
+            CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "# Home\n\n:::include{file=\"_shared/a.md\"}\n",
+                ),
+                ("docs/_shared/a.md", "Shared.\n"),
+            ],
+        );
+        let include: Vec<_> = diags
+            .iter()
+            .filter(|d| d.check.starts_with("include-"))
+            .collect();
+        assert!(include.is_empty(), "{include:?}");
+    }
+
+    #[test]
+    fn include_lines_are_not_unclosed_directives() {
+        let (_dir, diags) = doctor(
+            CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "# Home\n\n  :::include{file=\"_shared/a.md\"}\n",
+                ),
+                ("docs/_shared/a.md", "Shared.\n"),
+            ],
+        );
+        assert!(found(&diags, "unclosed-directive").is_empty());
+    }
+
+    #[test]
+    fn missing_include_is_an_error_at_the_page_line() {
+        let (dir, diags) = doctor(
+            CONFIG,
+            &[("docs/index.md", "# Home\n\n:::include{file=\"_nope.md\"}\n")],
+        );
+        assert_eq!(
+            found(&diags, "include-unresolved"),
+            vec![(canon(&dir, "docs/index.md"), Some(3))]
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.check == "include-unresolved" && d.severity == Severity::Error)
+        );
+    }
+
+    #[test]
+    fn fragment_problem_is_reported_once() {
+        let (dir, diags) = doctor(
+            CONFIG,
+            &[
+                ("docs/a.md", "# A\n\n:::include{file=\"_shared/code.md\"}\n"),
+                ("docs/b.md", "# B\n\n:::include{file=\"_shared/code.md\"}\n"),
+                (
+                    "docs/_shared/code.md",
+                    "```rust file=\"x.rs\" lines=\"5-9\"\n```\n",
+                ),
+                ("docs/_shared/x.rs", "fn x() {}\n"),
+            ],
+        );
+        assert_eq!(
+            found(&diags, "include-invalid"),
+            vec![(canon(&dir, "docs/_shared/code.md"), Some(1))]
+        );
+    }
+
+    #[test]
+    fn include_cycle_is_reported() {
+        let (_dir, diags) = doctor(
+            CONFIG,
+            &[
+                ("docs/index.md", "# Home\n\n:::include{file=\"_a.md\"}\n"),
+                ("docs/_a.md", ":::include{file=\"_b.md\"}\n"),
+                ("docs/_b.md", ":::include{file=\"_a.md\"}\n"),
+            ],
+        );
+        assert!(!found(&diags, "include-cycle").is_empty());
+    }
+
+    #[test]
+    fn inline_include_is_a_warning() {
+        let (dir, diags) = doctor(
+            CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "# Home\n\nSee :::include{file=\"_a.md\"} here.\n",
+                ),
+                ("docs/_a.md", "A\n"),
+            ],
+        );
+        assert_eq!(
+            found(&diags, "include-inline"),
+            vec![(dir.path().join("docs/index.md"), Some(3))]
+        );
+    }
+
+    #[test]
+    fn unused_fragments_are_listed() {
+        let (dir, diags) = doctor(
+            CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "# Home\n\n:::include{file=\"_shared/used.md\"}\n",
+                ),
+                ("docs/_shared/used.md", ":::include{file=\"nested.md\"}\n"),
+                ("docs/_shared/nested.md", "Nested.\n"),
+                ("docs/_shared/orphan.md", "Nobody includes me.\n"),
+            ],
+        );
+        assert_eq!(
+            found(&diags, "include-unused-fragment"),
+            vec![(dir.path().join("docs/_shared/orphan.md"), None)]
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.check == "include-unused-fragment" && d.severity == Severity::Info)
+        );
+    }
+
+    #[test]
+    fn partly_translated_fragment_is_flagged() {
+        let (_dir, diags) = doctor(
+            I18N_CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "# Home\n\n:::include{file=\"_shared/a.md\"}\n:::include{file=\"_shared/b.md\"}\n",
+                ),
+                (
+                    "docs/index.fr.md",
+                    "# Accueil\n\n:::include{file=\"_shared/a.md\"}\n:::include{file=\"_shared/b.md\"}\n",
+                ),
+                ("docs/_shared/a.md", "A\n"),
+                ("docs/_shared/a.fr.md", "A fr\n"),
+                ("docs/_shared/b.md", "B\n"),
+            ],
+        );
+        let coverage: Vec<_> = diags
+            .iter()
+            .filter(|d| d.check == "include-locale-coverage")
+            .collect();
+        assert_eq!(coverage.len(), 1, "{coverage:?}");
+        assert!(
+            coverage[0].message.contains("de"),
+            "{}",
+            coverage[0].message
+        );
+        assert!(coverage[0].file.as_ref().unwrap().ends_with("_shared/a.md"));
+    }
+
+    #[test]
+    fn broken_link_in_fragment_points_at_fragment() {
+        let (dir, diags) = doctor(
+            CONFIG,
+            &[
+                ("docs/index.md", "# Home\n\n:::include{file=\"_a.md\"}\n"),
+                ("docs/_a.md", "Intro\n\nSee [[nowhere]].\n"),
+            ],
+        );
+        assert_eq!(
+            found(&diags, "broken-wiki-link"),
+            vec![(dir.path().join("docs/_a.md"), Some(3))]
+        );
+    }
 
     fn test_inventory() -> (tempfile::TempDir, PageInventory) {
         let dir = tempfile::tempdir().unwrap();

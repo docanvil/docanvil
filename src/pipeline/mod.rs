@@ -170,6 +170,31 @@ mod tests {
     }
 
     #[test]
+    fn include_errors_inside_code_group_are_shown() {
+        let (dir, inv) = site(&[
+            (
+                "docs/index.md",
+                ":::code-group\n```rust file=\"gone.rs\"\n```\n```rust file=\"a.rs\" lines=\"9\"\n```\n```text\nkept\n```\n:::\n",
+            ),
+            ("docs/a.rs", "fn a() {}\n"),
+        ]);
+        let out = run(dir.path(), &inv, false);
+        assert_eq!(
+            out.html.matches("<div class=\"include-error\">").count(),
+            2,
+            "{}",
+            out.html
+        );
+        assert!(out.html.contains("can't find gone.rs"), "{}", out.html);
+        assert!(
+            out.html.find("include-error") < out.html.find("class=\"code-group\""),
+            "{}",
+            out.html
+        );
+        assert!(out.html.contains(">kept</code>"), "{}", out.html);
+    }
+
+    #[test]
     fn mid_line_include_stays_literal_text() {
         let (dir, inv) = site(&[
             ("docs/index.md", "See :::include{file=\"_x.md\"} here.\n"),

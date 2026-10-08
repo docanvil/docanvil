@@ -32,6 +32,9 @@ impl Component for CodeGroup {
         let mut lang = String::new();
         let mut meta = String::new();
         let mut code: Vec<&str> = Vec::new();
+        // Include and `file="…"` error boxes sit between the fences; keep them
+        // so the reader sees what went wrong.
+        let mut errors: Vec<&str> = Vec::new();
 
         for line in ctx.body_raw.lines() {
             let trimmed = line.trim();
@@ -58,12 +61,19 @@ impl Component for CodeGroup {
                     open = None;
                 }
                 Some(_) => code.push(line),
+                None if is_include_error(trimmed) => errors.push(trimmed),
                 None => {}
             }
         }
 
         let mut data = tera::Context::new();
         data.insert("blocks", &blocks);
+        data.insert("errors", &errors);
         Ok(data)
     }
+}
+
+/// An error box written by the include stage (its message is already escaped).
+fn is_include_error(line: &str) -> bool {
+    line.starts_with("<div class=\"include-error\">") && line.ends_with("</div>")
 }

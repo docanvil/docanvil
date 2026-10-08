@@ -5,12 +5,15 @@
                   lang defaults to "text"; meta is the rest of the fence's info
                   string (DocAnvil's line numbers and captions — keep it as
                   data-meta on <code>); code is plain text (autoescaped — no | safe).
+     errors       include / file="…" error boxes found between the blocks, as
+                  ready-made HTML (render with | safe, outside the tabs)
      attrs        directive attributes
      name         "code-group"
    The built-in script switches tabs using the tab-header / tab-content classes,
    the data-tab index and the active class — keep those if you restyle.
    Docs: https://docanvil.github.io/docanvil/en/writing/components.html#custom-components #}
-<div class="code-group">
+{% for error in errors %}{{ error | safe }}
+{% endfor %}<div class="code-group">
 <div class="tab-headers">
 {% for item in blocks %}  <button class="tab-header{% if loop.first %} active{% endif %}" data-tab="{{ loop.index0 }}">{{ item.lang }}</button>
 {% endfor %}</div>

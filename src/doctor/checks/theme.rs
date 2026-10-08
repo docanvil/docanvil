@@ -7,6 +7,7 @@ use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Fix, Severity};
 use crate::error::Error;
+use crate::render::templates::{find_include_cycle, include_cycle_message};
 
 /// Check theme: custom CSS existence, layout template validity.
 pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
@@ -51,7 +52,11 @@ pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
         };
 
         let mut tera = tera::Tera::default();
-        if let Err(e) = tera.add_raw_template("layout.html", &template_content) {
+        let error = match tera.add_raw_template("layout.html", &template_content) {
+            Err(e) => Some(e.to_string()),
+            Ok(()) => find_include_cycle(&tera).map(|cycle| include_cycle_message(&cycle)),
+        };
+        if let Some(e) = error {
             diags.push(Diagnostic {
                 check: "layout-tera-error",
                 category: "theme",
@@ -184,6 +189,25 @@ mod tests {
     fn valid_component_templates_pass() {
         let dir = component_project(&[("card.html", "<div>{{ body | safe }}</div>")]);
         assert!(checks_for(&dir).is_empty());
+    }
+
+    #[test]
+    fn component_include_cycle_is_reported() {
+        let dir = component_project(&[("loop.html", "{% include \"loop.html\" %}")]);
+        assert_eq!(checks_for(&dir), vec!["component-tera-error"]);
+    }
+
+    #[test]
+    fn layout_include_cycle_is_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        let templates = dir.path().join("theme/templates");
+        std::fs::create_dir_all(&templates).unwrap();
+        std::fs::write(
+            templates.join("layout.html"),
+            "{% include \"layout.html\" %}",
+        )
+        .unwrap();
+        assert!(checks_for(&dir).contains(&"layout-tera-error"));
     }
 
     #[test]

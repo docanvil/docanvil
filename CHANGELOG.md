@@ -25,6 +25,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 - Directive examples inside fenced code blocks are shown as written instead of being rendered as components
 - A heading's custom `{#id}` no longer swallows the blank line after it, which merged the following paragraph into the same block and left the literal `{#id}` text visible on the page
+- A component or layout template that `{% include %}`s itself, directly or through other templates, is now reported as an error naming the loop (in `docanvil build` and `docanvil doctor`) instead of crashing the build with a stack overflow (#52)
 
 ## [1.1.5] - 2026-10-07
 

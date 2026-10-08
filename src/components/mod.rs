@@ -12,6 +12,7 @@ use crate::diagnostics::warn_component_render;
 use crate::error::{Error, Result};
 use crate::pipeline::directives::{self, DirectiveBlock};
 use crate::pipeline::{headings, markdown, popovers};
+use crate::render::templates::{find_include_cycle, include_cycle_message};
 use crate::util::html_escape;
 
 /// What a component's data provider sees.
@@ -176,6 +177,18 @@ impl ComponentRegistry {
                 .unwrap_or_else(|| dir.clone());
             Error::ComponentTemplate { path, message }
         })?;
+
+        if let Some(cycle) = find_include_cycle(&registry.tera) {
+            let path = sources
+                .iter()
+                .find(|(_, stem, _)| template_name(stem) == cycle[0])
+                .map(|(path, _, _)| path.clone())
+                .unwrap_or(dir);
+            return Err(Error::ComponentTemplate {
+                path,
+                message: include_cycle_message(&cycle),
+            });
+        }
 
         Ok(registry)
     }
@@ -541,6 +554,27 @@ mod tests {
         let html = registry.render_markdown(":::alert\nHi\n:::\n", Path::new("t.md"));
         assert!(html.contains("admonition note"), "{html}");
         assert!(html.contains("Hi"), "{html}");
+    }
+
+    #[test]
+    fn load_rejects_include_cycles_naming_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let comps = dir.path().join("theme/components");
+        std::fs::create_dir_all(&comps).unwrap();
+        std::fs::write(comps.join("card.html"), "<div>{{ body | safe }}</div>").unwrap();
+        std::fs::write(comps.join("ping.html"), "{% include \"pong.html\" %}").unwrap();
+        std::fs::write(comps.join("pong.html"), "{% include \"ping.html\" %}").unwrap();
+        match ComponentRegistry::load(dir.path()) {
+            Err(Error::ComponentTemplate { path, message }) => {
+                assert_eq!(path, comps.join("ping.html"));
+                assert!(
+                    message.contains("ping.html → pong.html → ping.html"),
+                    "{message}"
+                );
+            }
+            Err(e) => panic!("wrong error: {e}"),
+            Ok(_) => panic!("include cycle should fail to load"),
+        }
     }
 
     #[test]

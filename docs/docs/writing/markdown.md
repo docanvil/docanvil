@@ -119,6 +119,8 @@ const greet = (name) => {
 };
 ```
 
+To fill a code block from a source file, number its lines or give it a caption, see [[writing/code-blocks-from-files|Code Blocks from Files]].
+
 ## Blockquotes
 
 > Blockquotes are rendered with a colored left border and a subtle background.

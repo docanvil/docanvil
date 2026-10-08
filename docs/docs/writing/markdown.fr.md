@@ -119,6 +119,8 @@ const saluer = (nom) => {
 };
 ```
 
+Pour remplir un bloc de code depuis un fichier source, numéroter ses lignes ou lui ajouter une légende, consultez [[writing/code-blocks-from-files|Blocs de code depuis des fichiers]].
+
 ## Citations
 
 > Les citations sont rendues avec une bordure gauche colorée et un arrière-plan subtil.

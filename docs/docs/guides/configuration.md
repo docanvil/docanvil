@@ -35,6 +35,11 @@ color_mode = "both"
 color-primary = "#059669"
 font-body = "Georgia, serif"
 
+[syntax]
+enabled = true
+theme = "base16-ocean.dark"
+line_numbers = false
+
 [search]
 enabled = true
 
@@ -121,6 +126,16 @@ content-max-width = "960px"
 ```
 
 See [[reference/css-variables|CSS Variables]] for the complete list of available variables.
+
+### `[syntax]` Section
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `enabled` | `true` | Highlight fenced code blocks at build time |
+| `theme` | `"base16-ocean.dark"` | Highlighting theme |
+| `line_numbers` | `false` | Number the lines of every code block |
+
+A single block can still opt in or out with `numbers` or `numbers="false"`. See [[writing/code-blocks-from-files|Code Blocks from Files]] for line numbers, captions and showing code straight from source files.
 
 ### `[search]` Section
 

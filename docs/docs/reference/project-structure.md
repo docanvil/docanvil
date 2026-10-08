@@ -52,6 +52,10 @@ The `docs/` directory (configurable via `content_dir` in `docanvil.toml`) contai
 
 Subdirectories create URL path segments. The directory structure maps directly to the output structure.
 
+#### Fragments
+
+Files and folders whose names start with `_` are fragments, not pages: `_shared/install.md` or `guides/_flags.md` are never built, listed in the sidebar or indexed for search. Pull them into pages with `:::include` — see [[writing/includes|Includes]].
+
 ### Theme Directory
 
 The `theme/` directory holds customization files:
@@ -150,7 +154,7 @@ See [[guides/versioning|Versioning]] for a complete guide to setting up multi-ve
 
 ## Page Discovery
 
-DocAnvil discovers pages by walking the content directory recursively and collecting all `.md` files. Each file becomes a page with a slug, title, and output path.
+DocAnvil discovers pages by walking the content directory recursively and collecting all `.md` files. Each file becomes a page with a slug, title, and output path. Files and folders starting with `_` are skipped — they're fragments for `:::include`.
 
 ### Slug Derivation
 

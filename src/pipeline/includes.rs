@@ -52,6 +52,8 @@ pub struct IncludeProblem {
     pub line: usize,
     pub message: String,
     pub hint: Option<String>,
+    /// The page still renders sensibly, so doctor reports a warning, not an error.
+    pub warning: bool,
 }
 
 /// 1-based lines holding a `:::include{…}` that isn't alone on its line
@@ -237,9 +239,34 @@ impl Expander<'_> {
 
         let lines: Vec<&str> = text.lines().collect();
         let first = front_matter_end(&lines);
+        let start = out.len();
         self.stack.push(found.clone());
         self.expand_lines(&lines, first, &found, indent, out);
         self.stack.pop();
+
+        // A fence left open would run on through the rest of the page.
+        let mut fence = FenceState::default();
+        for spliced in &out[start..] {
+            fence.consume(spliced);
+        }
+        if let Some(close) = fence.closing_fence() {
+            out.push(format!("{indent}{close}"));
+            let name = match self.locale {
+                Some(locale) if found != canonical(&base) => localized_written(written, locale),
+                _ => written.clone(),
+            };
+            let mut p = problem(
+                CHECK_INVALID,
+                &found,
+                lines.len(),
+                format!(
+                    "{name} ends inside a code block; closed it so the rest of the page isn't swallowed"
+                ),
+                Some("Add the closing ``` (or ~~~) line at the end of the fragment."),
+            );
+            p.warning = true;
+            self.report(p, indent, out);
+        }
     }
 
     /// Handle a fenced code block opening at `start`; returns the index after it.
@@ -565,6 +592,7 @@ fn problem(
         line,
         message,
         hint: hint.map(String::from),
+        warning: false,
     }
 }
 
@@ -1179,6 +1207,47 @@ mod tests {
             out.problems[0].message
         );
         assert!(out.dependencies.is_empty());
+    }
+
+    #[test]
+    fn unclosed_fence_in_fragment_is_closed_at_its_end() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "- Step\n\n  :::include{file=\"_code.md\"}\n\nAfter\n",
+            ),
+            ("docs/_code.md", "Intro\n\n~~~~sh\nls\n"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert!(
+            out.source.starts_with(
+                "- Step\n\n  Intro\n\n  ~~~~sh\n  ls\n  ~~~~\n  <div class=\"include-error\">"
+            ),
+            "{}",
+            out.source
+        );
+        assert!(out.source.ends_with("\n\nAfter\n"), "{}", out.source);
+        assert_eq!(out.problems.len(), 1);
+        let p = &out.problems[0];
+        assert_eq!(
+            (p.check, p.file.clone(), p.line, p.warning),
+            (CHECK_INVALID, canon(&dir, "docs/_code.md"), 4, true)
+        );
+        assert_eq!(
+            p.message,
+            "_code.md ends inside a code block; closed it so the rest of the page isn't swallowed"
+        );
+    }
+
+    #[test]
+    fn closed_and_file_filled_fences_are_not_flagged() {
+        let dir = project(&[
+            ("docs/page.md", ":::include{file=\"_a.md\"}\nAfter\n"),
+            ("docs/_a.md", "```sh\nls\n```\n```rust file=\"x.rs\"\n"),
+            ("docs/x.rs", "fn x() {}\n"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert!(out.problems.is_empty(), "{:?}", out.problems);
     }
 
     #[test]

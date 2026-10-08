@@ -402,7 +402,11 @@ fn push_include_problems(
             diags.push(Diagnostic {
                 check: problem.check,
                 category: "content",
-                severity: Severity::Error,
+                severity: if problem.warning {
+                    Severity::Warning
+                } else {
+                    Severity::Error
+                },
                 message: problem.message,
                 file: Some(includes::display_path(project_root, &problem.file)),
                 line: Some(problem.line),
@@ -668,6 +672,26 @@ mod tests {
         assert_eq!(
             found(&diags, "broken-wiki-link"),
             vec![(dir.path().join("docs/_a.md"), Some(3))]
+        );
+    }
+
+    #[test]
+    fn unclosed_fence_in_fragment_is_a_warning() {
+        let (dir, diags) = doctor(
+            CONFIG,
+            &[
+                ("docs/index.md", "# Home\n\n:::include{file=\"_a.md\"}\n"),
+                ("docs/_a.md", "```sh\nls\n"),
+            ],
+        );
+        let invalid: Vec<_> = diags
+            .iter()
+            .filter(|d| d.check == "include-invalid")
+            .map(|d| (d.file.clone().unwrap(), d.line, d.severity))
+            .collect();
+        assert_eq!(
+            invalid,
+            vec![(dir.path().join("docs/_a.md"), Some(2), Severity::Warning)]
         );
     }
 

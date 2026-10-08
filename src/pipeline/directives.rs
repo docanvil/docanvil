@@ -62,6 +62,11 @@ impl FenceState {
     pub(crate) fn is_open(&self) -> bool {
         self.open.is_some()
     }
+
+    /// The line that would close the open fence (e.g. "````"), if one is open.
+    pub(crate) fn closing_fence(&self) -> Option<String> {
+        self.open.map(|(c, len)| c.to_string().repeat(len))
+    }
 }
 
 /// Pre-comrak pass: parse `:::directive{attrs}` blocks and replace them with

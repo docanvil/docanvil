@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use regex::Regex;
+use syntect::parsing::SyntaxSet;
 
+use crate::pipeline::code_blocks::BlockMeta;
 use crate::pipeline::directives::{ATTR_RE, FenceState};
 use crate::render::templates::include_cycle_message;
 use crate::util::html_escape;
@@ -96,13 +98,8 @@ impl Expander<'_> {
     ) {
         let mut i = first;
         while i < lines.len() {
-            if starts_fence(lines[i]) {
-                let (body_end, close) = fence_extent(lines, i);
-                let end = close.map_or(body_end, |c| c + 1);
-                for line in &lines[i..end] {
-                    push(out, prefix, line);
-                }
-                i = end;
+            if let Some(open) = FenceOpen::parse(lines[i]) {
+                i = self.fence(&open, lines, i, file, prefix, out);
                 continue;
             }
             if let Some(caps) = INCLUDE_LINE_RE.captures(lines[i]) {
@@ -217,6 +214,169 @@ impl Expander<'_> {
         self.stack.pop();
     }
 
+    /// Handle a fenced code block opening at `start`; returns the index after it.
+    /// Fences without DocAnvil attributes are copied unchanged.
+    fn fence(
+        &mut self,
+        open: &FenceOpen,
+        lines: &[&str],
+        start: usize,
+        file: &Path,
+        prefix: &str,
+        out: &mut Vec<String>,
+    ) -> usize {
+        let (body_end, close) = fence_extent(lines, start);
+        let next = close.map_or(body_end, |c| c + 1);
+        let body = &lines[start + 1..body_end];
+        let info = FenceInfo::parse(open.info);
+        if !info.has_attrs() {
+            for line in &lines[start..next] {
+                push(out, prefix, line);
+            }
+            return next;
+        }
+
+        let indent = format!("{prefix}{}", open.indent);
+        let body_blank = body.iter().all(|l| l.trim().is_empty());
+        match self.fill(&info, body_blank, file) {
+            Ok(Filled {
+                lang,
+                meta,
+                content: Some(content),
+            }) => {
+                let marker = longer_marker(open.marker, &content);
+                out.push(format!("{indent}{marker}{lang} {}", meta.encode()));
+                for line in &content {
+                    push(out, &indent, line);
+                }
+                out.push(format!("{indent}{marker}"));
+            }
+            Ok(Filled {
+                lang,
+                meta,
+                content: None,
+            }) => {
+                out.push(format!("{indent}{}{lang} {}", open.marker, meta.encode()));
+                for line in &lines[start + 1..next] {
+                    push(out, prefix, line);
+                }
+            }
+            Err(invalid) => {
+                let p = problem(
+                    invalid.check,
+                    file,
+                    start + 1,
+                    invalid.message,
+                    invalid.hint,
+                );
+                self.report(p, &indent, out);
+                if !body_blank {
+                    let lang = info.lang.as_deref().unwrap_or("");
+                    out.push(format!("{indent}{}{lang}", open.marker));
+                    for line in body {
+                        push(out, prefix, line);
+                    }
+                    out.push(format!("{indent}{}", open.marker));
+                }
+            }
+        }
+        next
+    }
+
+    /// Validate a fence's attributes and, for `file` blocks, read the lines to show.
+    fn fill(&mut self, info: &FenceInfo, body_blank: bool, file: &Path) -> Result<Filled, Invalid> {
+        let mut meta = BlockMeta {
+            title: info.title.clone(),
+            ..BlockMeta::default()
+        };
+        match info.numbers.as_ref() {
+            None => {}
+            Some(None) => meta.numbers = Some(true),
+            Some(Some(value)) if value == "false" => meta.numbers = Some(false),
+            Some(Some(value)) => match value.trim().parse::<usize>() {
+                Ok(start) => {
+                    meta.numbers = Some(true);
+                    meta.start = Some(start);
+                }
+                Err(_) => {
+                    return Err(Invalid::new(
+                        CHECK_INVALID,
+                        format!(
+                            "numbers=\"{value}\" isn't a line number — use numbers, numbers=\"10\" or numbers=\"false\""
+                        ),
+                        None,
+                    ));
+                }
+            },
+        }
+
+        let Some(written) = &info.file else {
+            if info.lines.is_some() {
+                return Err(Invalid::new(
+                    CHECK_INVALID,
+                    "lines=\"…\" picks lines from a file, so it needs file=\"…\" too".to_string(),
+                    Some(
+                        "Add file=\"path/to/source\", or remove lines to keep the code you wrote.",
+                    ),
+                ));
+            }
+            return Ok(Filled {
+                lang: info.lang.clone().unwrap_or_else(|| "text".to_string()),
+                meta,
+                content: None,
+            });
+        };
+        if !body_blank {
+            return Err(Invalid::new(
+                CHECK_INVALID,
+                format!(
+                    "this code block has file=\"{written}\" and code of its own — use one or the other"
+                ),
+                Some(
+                    "Leave the block empty to show the file, or remove file=\"…\" to keep the code you wrote.",
+                ),
+            ));
+        }
+        if info.lines.is_some() && meta.start.is_some() {
+            return Err(Invalid::new(
+                CHECK_INVALID,
+                "numbers=\"N\" can't be combined with lines=\"…\" — the block already shows the file's real line numbers".to_string(),
+                Some("Drop the number and write just numbers, or leave numbers out."),
+            ));
+        }
+
+        let path = resolve_path(written, file, self.project_root);
+        if !path.is_file() {
+            return Err(Invalid::new(
+                CHECK_UNRESOLVED,
+                format!("can't find {written} (looked for {})", path.display()),
+                Some(PATH_HINT),
+            ));
+        }
+        let text =
+            read_utf8(&path, written).map_err(|m| Invalid::new(CHECK_UNRESOLVED, m, None))?;
+        self.expanded.dependencies.insert(canonical(&path));
+
+        let all: Vec<&str> = text.lines().collect();
+        let ranges = match &info.lines {
+            Some(spec) => parse_line_ranges(spec, all.len())
+                .map_err(|m| Invalid::new(CHECK_INVALID, format!("{m} ({written})"), None))?,
+            None => Vec::new(),
+        };
+        let selected = if ranges.is_empty() {
+            all
+        } else {
+            select_lines(&all, &ranges)
+        };
+        meta.ranges = ranges;
+        meta.file = Some(written.clone());
+        Ok(Filled {
+            lang: info.lang.clone().unwrap_or_else(|| language_for(&path)),
+            meta,
+            content: Some(dedent(&selected)),
+        })
+    }
+
     /// Emit the error box in place of the content and record the problem.
     fn report(&mut self, problem: IncludeProblem, indent: &str, out: &mut Vec<String>) {
         out.push(format!(
@@ -235,6 +395,132 @@ impl Expander<'_> {
             .to_string_lossy()
             .replace('\\', "/")
     }
+}
+
+/// The opening line of a ``` / ~~~ fence (same rule as `FenceState`).
+struct FenceOpen<'l> {
+    indent: &'l str,
+    /// The run of fence characters, e.g. "```" or "~~~~".
+    marker: &'l str,
+    /// The trimmed info string after the marker.
+    info: &'l str,
+}
+
+impl<'l> FenceOpen<'l> {
+    fn parse(line: &'l str) -> Option<Self> {
+        let rest = line.trim_start();
+        let indent = &line[..line.len() - rest.len()];
+        let c = rest.chars().next().filter(|c| *c == '`' || *c == '~')?;
+        let len = rest.chars().take_while(|&ch| ch == c).count();
+        if len < 3 {
+            return None;
+        }
+        Some(Self {
+            indent,
+            marker: &rest[..len],
+            info: rest[len..].trim(),
+        })
+    }
+}
+
+/// DocAnvil attributes in a fence info string.
+#[derive(Default)]
+struct FenceInfo {
+    lang: Option<String>,
+    file: Option<String>,
+    lines: Option<String>,
+    /// `Some(None)` for a bare `numbers`, `Some(Some(v))` for `numbers="v"`.
+    numbers: Option<Option<String>>,
+    title: Option<String>,
+}
+
+impl FenceInfo {
+    fn parse(info: &str) -> Self {
+        let mut parsed = Self::default();
+        let mut rest = info;
+        if let Some(first) = info.split_whitespace().next()
+            && !first.contains('=')
+            && first != "numbers"
+        {
+            parsed.lang = Some(first.to_string());
+            rest = &info[first.len()..];
+        }
+        for caps in ATTR_RE.captures_iter(rest) {
+            let value = caps[2].to_string();
+            match &caps[1] {
+                "file" => parsed.file = Some(value),
+                "lines" => parsed.lines = Some(value),
+                "numbers" => parsed.numbers = Some(Some(value)),
+                "title" => parsed.title = Some(value),
+                _ => {}
+            }
+        }
+        if parsed.numbers.is_none()
+            && ATTR_RE
+                .replace_all(rest, "")
+                .split_whitespace()
+                .any(|token| token == "numbers")
+        {
+            parsed.numbers = Some(None);
+        }
+        parsed
+    }
+
+    fn has_attrs(&self) -> bool {
+        self.file.is_some()
+            || self.lines.is_some()
+            || self.numbers.is_some()
+            || self.title.is_some()
+    }
+}
+
+struct Filled {
+    lang: String,
+    meta: BlockMeta,
+    /// The file's selected, dedented lines; `None` keeps the fence's own body.
+    content: Option<Vec<String>>,
+}
+
+struct Invalid {
+    check: &'static str,
+    message: String,
+    hint: Option<&'static str>,
+}
+
+impl Invalid {
+    fn new(check: &'static str, message: String, hint: Option<&'static str>) -> Self {
+        Self {
+            check,
+            message,
+            hint,
+        }
+    }
+}
+
+/// A fence of `marker`'s character long enough that no line of `content` can close it.
+fn longer_marker(marker: &str, content: &[String]) -> String {
+    let c = marker.chars().next().unwrap_or('`');
+    let longest = content
+        .iter()
+        .map(|line| line.trim_start().chars().take_while(|&ch| ch == c).count())
+        .max()
+        .unwrap_or(0);
+    c.to_string().repeat(marker.len().max(longest + 1))
+}
+
+static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
+
+/// Language token for a file block without one: the extension (or the bare
+/// file name, e.g. `Makefile`) when syntect knows it, otherwise `text`.
+/// `syntax.rs` looks tokens up with `find_syntax_by_token`, which checks
+/// extensions first, so the same syntax is picked.
+fn language_for(path: &Path) -> String {
+    [path.extension(), path.file_name()]
+        .into_iter()
+        .flatten()
+        .map(|s| s.to_string_lossy().into_owned())
+        .find(|token| SYNTAXES.find_syntax_by_extension(token).is_some())
+        .unwrap_or_else(|| "text".to_string())
 }
 
 fn problem(
@@ -259,10 +545,6 @@ fn push(out: &mut Vec<String>, prefix: &str, line: &str) {
     } else {
         out.push(format!("{prefix}{line}"));
     }
-}
-
-fn starts_fence(line: &str) -> bool {
-    FenceState::default().consume(line)
 }
 
 /// For a fence opening at `start`: the index just past its body, and the
@@ -851,5 +1133,221 @@ mod tests {
             p.message,
             "docs/page.md includes itself, so it would never finish rendering"
         );
+    }
+
+    #[test]
+    fn file_block_fills_whole_file() {
+        let dir = project(&[
+            ("docs/page.md", "```rust file=\"/examples/hello.rs\"\n```\n"),
+            (
+                "examples/hello.rs",
+                "fn main() {\n    println!(\"hi\");\n}\n",
+            ),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert_eq!(
+            out.source,
+            "```rust docanvil file=/examples/hello.rs\nfn main() {\n    println!(\"hi\");\n}\n```\n"
+        );
+        assert_eq!(
+            out.dependencies,
+            BTreeSet::from([canon(&dir, "examples/hello.rs")])
+        );
+    }
+
+    #[test]
+    fn file_block_with_lines_selects_and_dedents() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "```rust file=\"src.rs\" lines=\"2-3,7\"\n```\n",
+            ),
+            (
+                "docs/src.rs",
+                "fn a() {\n    one\n    two\n}\n\nfn b() {\n    three\n}\n",
+            ),
+        ]);
+        assert_eq!(
+            run(&dir, "docs/page.md", None).source,
+            "```rust docanvil ranges=2-3,7-7 file=src.rs\none\ntwo\nthree\n```\n"
+        );
+    }
+
+    #[test]
+    fn language_comes_from_extension_unless_given() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "``` file=\"x.py\"\n```\n\n```text file=\"x.py\"\n```\n\n``` file=\"notes.zzz\"\n```\n",
+            ),
+            ("docs/x.py", "print(1)\n"),
+            ("docs/notes.zzz", "n\n"),
+        ]);
+        let source = run(&dir, "docs/page.md", None).source;
+        assert!(
+            source.contains("```py docanvil file=x.py\nprint(1)\n```"),
+            "{source}"
+        );
+        assert!(
+            source.contains("```text docanvil file=x.py\nprint(1)\n```"),
+            "{source}"
+        );
+        assert!(
+            source.contains("```text docanvil file=notes.zzz\nn\n```"),
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn language_for_known_and_unknown_files() {
+        assert_eq!(language_for(Path::new("a/b.rs")), "rs");
+        assert_eq!(language_for(Path::new("x.unknownzzz")), "text");
+        assert_eq!(language_for(Path::new("README")), "text");
+    }
+
+    #[test]
+    fn numbers_and_title_on_plain_fences() {
+        let dir = project(&[(
+            "docs/page.md",
+            "```rust numbers=\"10\"\nlet x = 1;\n```\n```rust numbers\nx\n```\n```rust numbers=\"false\"\nx\n```\n```rust title=\"Hello world\"\nx\n```\n```numbers\nx\n```\n",
+        )]);
+        assert_eq!(
+            run(&dir, "docs/page.md", None).source,
+            "```rust docanvil numbers=on start=10\nlet x = 1;\n```\n```rust docanvil numbers=on\nx\n```\n```rust docanvil numbers=off\nx\n```\n```rust docanvil title=Hello%20world\nx\n```\n```text docanvil numbers=on\nx\n```\n"
+        );
+    }
+
+    #[test]
+    fn fences_without_docanvil_attributes_are_untouched() {
+        let source = "```js {1,3}\nx\n```\n```rust,ignore\ny\n```\n~~~\nz\n~~~\n";
+        let dir = project(&[("docs/page.md", source)]);
+        assert_eq!(run(&dir, "docs/page.md", None).source, source);
+    }
+
+    #[test]
+    fn file_with_fences_gets_a_longer_fence() {
+        let dir = project(&[
+            ("docs/page.md", "```md file=\"a.md\"\n```\n"),
+            ("docs/a.md", "Run:\n\n```sh\nls\n```\n"),
+        ]);
+        assert_eq!(
+            run(&dir, "docs/page.md", None).source,
+            "````md docanvil file=a.md\nRun:\n\n```sh\nls\n```\n````\n"
+        );
+    }
+
+    #[test]
+    fn file_block_inside_list_item_stays_indented() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "1. Step\n\n   ```rust file=\"x.rs\"\n   ```\n",
+            ),
+            ("docs/x.rs", "fn x() {}\n"),
+        ]);
+        assert_eq!(
+            run(&dir, "docs/page.md", None).source,
+            "1. Step\n\n   ```rust docanvil file=x.rs\n   fn x() {}\n   ```\n"
+        );
+    }
+
+    #[test]
+    fn crlf_code_files_are_normalised() {
+        let dir = project(&[("docs/page.md", "```text file=\"x.txt\"\n```\n")]);
+        std::fs::write(dir.path().join("docs/x.txt"), "a\r\nb\r\n").unwrap();
+        assert_eq!(
+            run(&dir, "docs/page.md", None).source,
+            "```text docanvil file=x.txt\na\nb\n```\n"
+        );
+    }
+
+    #[test]
+    fn file_block_inside_fragment_and_code_group() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                ":::include{file=\"_shared/frag.md\"}\n:::code-group\n```rust file=\"x.rs\"\n```\n:::\n",
+            ),
+            ("docs/_shared/frag.md", "```rust file=\"code/y.rs\"\n```\n"),
+            ("docs/_shared/code/y.rs", "fn y() {}\n"),
+            ("docs/x.rs", "fn x() {}\n"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert_eq!(
+            out.source,
+            "```rust docanvil file=code/y.rs\nfn y() {}\n```\n:::code-group\n```rust docanvil file=x.rs\nfn x() {}\n```\n:::\n"
+        );
+        assert_eq!(out.dependencies.len(), 3);
+    }
+
+    #[test]
+    fn body_and_file_is_an_error_that_keeps_the_body() {
+        let dir = project(&[
+            ("docs/page.md", "```rust file=\"x.rs\"\nlet y = 2;\n```\n"),
+            ("docs/x.rs", "fn x() {}\n"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert_eq!(out.problems[0].check, CHECK_INVALID);
+        assert_eq!(out.problems[0].line, 1);
+        assert!(
+            out.source.starts_with("<div class=\"include-error\">"),
+            "{}",
+            out.source
+        );
+        assert!(
+            out.source.ends_with("\n\n```rust\nlet y = 2;\n```\n"),
+            "{}",
+            out.source
+        );
+    }
+
+    #[test]
+    fn fence_attribute_errors() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "```rust lines=\"1-2\"\nx\n```\n```rust file=\"src.rs\" lines=\"2-3\" numbers=\"5\"\n```\n```rust numbers=\"abc\"\nx\n```\n```rust file=\"missing.rs\"\n```\n```rust file=\"src.rs\" lines=\"7-20\"\n```\n",
+            ),
+            ("docs/src.rs", "1\n2\n3\n4\n5\n6\n7\n8\n"),
+        ]);
+        let problems = run(&dir, "docs/page.md", None).problems;
+        let summary: Vec<(&str, usize)> = problems.iter().map(|p| (p.check, p.line)).collect();
+        assert_eq!(
+            summary,
+            vec![
+                (CHECK_INVALID, 1),
+                (CHECK_INVALID, 4),
+                (CHECK_INVALID, 6),
+                (CHECK_UNRESOLVED, 9),
+                (CHECK_INVALID, 11),
+            ]
+        );
+        assert!(problems[0].message.contains("needs file="));
+        assert!(problems[1].hint.as_deref().unwrap().contains("numbers"));
+        assert!(
+            problems[4].message.contains("past the end"),
+            "{}",
+            problems[4].message
+        );
+    }
+
+    #[test]
+    fn errored_file_block_shows_only_the_error() {
+        let dir = project(&[("docs/page.md", "```rust file=\"missing.rs\"\n```\nAfter\n")]);
+        let out = run(&dir, "docs/page.md", None);
+        assert!(
+            out.source
+                .starts_with("<div class=\"include-error\">can't find missing.rs")
+        );
+        assert!(out.source.ends_with("</div>\n\nAfter\n"), "{}", out.source);
+    }
+
+    #[test]
+    fn non_utf8_code_file_is_reported() {
+        let dir = project(&[("docs/page.md", "```text file=\"bin.dat\"\n```\n")]);
+        std::fs::write(dir.path().join("docs/bin.dat"), [0xff, 0xfe]).unwrap();
+        let p = &run(&dir, "docs/page.md", None).problems[0];
+        assert_eq!(p.check, CHECK_UNRESOLVED);
+        assert!(p.message.contains("UTF-8"));
     }
 }

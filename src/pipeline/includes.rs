@@ -187,13 +187,14 @@ impl Expander<'_> {
         }
         candidates.push(base.clone());
         let Some(found) = candidates.into_iter().find(|p| p.is_file()) else {
-            let p = problem(
-                CHECK_UNRESOLVED,
-                file,
-                line,
-                format!("can't find {written} (looked for {})", base.display()),
-                Some(PATH_HINT),
-            );
+            let message = match self.locale {
+                Some(locale) => format!(
+                    "can't find {} or {written}",
+                    localized_written(written, locale)
+                ),
+                None => format!("can't find {written}"),
+            };
+            let p = problem(CHECK_UNRESOLVED, file, line, message, Some(PATH_HINT));
             self.report(p, indent, out);
             return;
         };
@@ -369,7 +370,7 @@ impl Expander<'_> {
         if !path.is_file() {
             return Err(Invalid::new(
                 CHECK_UNRESOLVED,
-                format!("can't find {written} (looked for {})", path.display()),
+                format!("can't find {written}"),
                 Some(PATH_HINT),
             ));
         }
@@ -609,6 +610,25 @@ fn localized(path: &Path, locale: &str) -> PathBuf {
             ext.to_string_lossy()
         )),
         _ => path.to_path_buf(),
+    }
+}
+
+/// A `file="…"` value as written, with the locale added: `_shared/a.md` →
+/// `_shared/a.fr.md`. For messages, which never show absolute paths.
+fn localized_written(written: &str, locale: &str) -> String {
+    localized(Path::new(&written.replace('\\', "/")), locale)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+/// How to show a (canonical) problem file in warnings and doctor reports:
+/// under the project root it's `project_root` (as the caller gave it) joined
+/// with the relative part, so reports can strip the root; elsewhere it stays
+/// canonical.
+pub fn display_path(project_root: &Path, canonical_file: &Path) -> PathBuf {
+    match canonical_file.strip_prefix(canonical(project_root)) {
+        Ok(relative) => project_root.join(relative),
+        Err(_) => canonical_file.to_path_buf(),
     }
 }
 
@@ -1070,6 +1090,39 @@ mod tests {
             out.source
                 .contains("<div class=\"include-error\">can't find _missing.md")
         );
+    }
+
+    #[test]
+    fn missing_file_messages_show_paths_as_written() {
+        let dir = project(&[(
+            "docs/page.fr.md",
+            ":::include{file=\"_shared\\x.md\"}\n\n```rust file=\"/gone.rs\"\n```\n",
+        )]);
+        let out = run(&dir, "docs/page.fr.md", Some("fr"));
+        let messages: Vec<&str> = out.problems.iter().map(|p| p.message.as_str()).collect();
+        assert_eq!(
+            messages,
+            vec![
+                "can't find _shared/x.fr.md or _shared\\x.md",
+                "can't find /gone.rs"
+            ]
+        );
+        let root = canon(&dir, "");
+        for path in [dir.path(), root.as_path()] {
+            assert!(!out.source.contains(&*path.to_string_lossy()));
+        }
+    }
+
+    #[test]
+    fn display_path_is_relative_to_the_given_root() {
+        let dir = project(&[("docs/page.md", "")]);
+        let file = canon(&dir, "docs/page.md");
+        assert_eq!(
+            display_path(Path::new(dir.path()), &file),
+            dir.path().join("docs/page.md")
+        );
+        let outside = Path::new("/somewhere/else.md");
+        assert_eq!(display_path(dir.path(), outside), outside);
     }
 
     #[test]

@@ -1222,6 +1222,25 @@ fn test_strict_fails_on_include_problems() {
 }
 
 #[test]
+fn test_include_errors_never_show_absolute_paths() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[(
+            "index.md",
+            "# Home\n\n:::include{file=\"_nope.md\"}\n\n```rust file=\"/missing.rs\"\n```\n",
+        )],
+    );
+    build_project(dir.path()).expect("build should succeed");
+    let html = read_output(dir.path(), "index.html");
+    assert_eq!(html.matches("<div class=\"include-error\">").count(), 2);
+    let root = dir.path().canonicalize().unwrap();
+    for path in [dir.path(), root.as_path()] {
+        let path = path.to_string_lossy();
+        assert!(!html.contains(&*path), "page shows {path}");
+    }
+}
+
+#[test]
 fn test_underscore_files_are_not_pages() {
     let dir = create_project(
         DEFAULT_CONFIG,

@@ -305,7 +305,7 @@ fn check_includes(
             },
         );
         used.extend(expanded.dependencies);
-        push_include_problems(expanded.problems, &mut seen, diags);
+        push_include_problems(project_root, expanded.problems, &mut seen, diags);
     }
 
     // Fragments nothing includes still deserve their includes checked. Used
@@ -324,7 +324,7 @@ fn check_includes(
             continue;
         };
         let problems = unused_fragment_problems(&source, path, project_root, locales);
-        push_include_problems(problems, &mut seen, diags);
+        push_include_problems(project_root, problems, &mut seen, diags);
     }
 
     for path in fragments {
@@ -392,6 +392,7 @@ fn unused_fragment_problems(
 }
 
 fn push_include_problems(
+    project_root: &Path,
     problems: Vec<IncludeProblem>,
     seen: &mut HashSet<(PathBuf, usize)>,
     diags: &mut Vec<Diagnostic>,
@@ -403,7 +404,7 @@ fn push_include_problems(
                 category: "content",
                 severity: Severity::Error,
                 message: problem.message,
-                file: Some(problem.file),
+                file: Some(includes::display_path(project_root, &problem.file)),
                 line: Some(problem.line),
                 fix: None,
             });
@@ -497,10 +498,6 @@ mod tests {
             .collect()
     }
 
-    fn canon(dir: &tempfile::TempDir, rel: &str) -> PathBuf {
-        dir.path().join(rel).canonicalize().unwrap()
-    }
-
     #[test]
     fn clean_project_has_no_include_diagnostics() {
         let (_dir, diags) = doctor(
@@ -543,7 +540,7 @@ mod tests {
         );
         assert_eq!(
             found(&diags, "include-unresolved"),
-            vec![(canon(&dir, "docs/index.md"), Some(3))]
+            vec![(dir.path().join("docs/index.md"), Some(3))]
         );
         assert!(
             diags
@@ -568,7 +565,7 @@ mod tests {
         );
         assert_eq!(
             found(&diags, "include-invalid"),
-            vec![(canon(&dir, "docs/_shared/code.md"), Some(1))]
+            vec![(dir.path().join("docs/_shared/code.md"), Some(1))]
         );
     }
 
@@ -721,7 +718,7 @@ mod tests {
         );
         assert_eq!(
             found(&diags, "include-unresolved"),
-            vec![(canon(&dir, "docs/_shared/broken.fr.md"), Some(1))],
+            vec![(dir.path().join("docs/_shared/broken.fr.md"), Some(1))],
             "{diags:?}"
         );
     }
@@ -741,7 +738,7 @@ mod tests {
             );
             assert_eq!(
                 found(&diags, "include-unresolved"),
-                vec![(canon(&dir, "docs/_shared/orphan.md"), Some(3))],
+                vec![(dir.path().join("docs/_shared/orphan.md"), Some(3))],
                 "{diags:?}"
             );
         }

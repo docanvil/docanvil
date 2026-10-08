@@ -238,3 +238,37 @@ fn test_cli_component_eject_requires_a_name() {
         .unwrap();
     assert!(!output.status.success());
 }
+
+#[test]
+fn test_cli_doctor_reports_name_each_file_once_with_relative_path() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[(
+            "index.md",
+            "# Home\n\nSee [[nowhere]].\n\n:::include{file=\"_nope.md\"}\n",
+        )],
+    );
+
+    for format in ["checkstyle", "junit"] {
+        let output = docanvil_cmd()
+            .current_dir(dir.path())
+            .args(["doctor", "--path", ".", "--format", format])
+            .output()
+            .unwrap();
+        let report = String::from_utf8(output.stdout).unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        assert!(
+            !report.contains(&*root.to_string_lossy())
+                && !report.contains(&*dir.path().to_string_lossy()),
+            "{format} report has absolute paths:\n{report}"
+        );
+        assert!(report.contains("broken-wiki-link") && report.contains("include-unresolved"));
+        if format == "checkstyle" {
+            assert_eq!(
+                report.matches("<file name=\"docs/index.md\">").count(),
+                1,
+                "{report}"
+            );
+        }
+    }
+}

@@ -3,6 +3,8 @@ use std::path::Path;
 
 use owo_colors::OwoColorize;
 
+use crate::pipeline::includes::display_path;
+
 // Thread-local so each build counts only its own warnings. A build runs start to
 // finish on one thread, so concurrent builds (parallel tests, the dev server's
 // rebuilds) can't reset or inflate each other's counts.
@@ -40,13 +42,20 @@ pub fn warn_broken_link(source_file: &Path, link_target: &str) {
 }
 
 /// Emit a warning about an `:::include` or `file="…"` code block that couldn't be filled in.
-pub fn warn_include(file: &Path, line: usize, message: &str, hint: Option<&str>) {
+/// `file` is canonical; it's shown relative to `project_root` when it's inside it.
+pub fn warn_include(
+    project_root: &Path,
+    file: &Path,
+    line: usize,
+    message: &str,
+    hint: Option<&str>,
+) {
     increment();
     eprintln!(
         "{}: {} ({}:{})",
         "warning".yellow().bold(),
         message,
-        file.display(),
+        display_path(project_root, file).display(),
         line
     );
     eprintln!(

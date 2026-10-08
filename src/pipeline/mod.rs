@@ -57,6 +57,7 @@ pub fn process(
     );
     for problem in &expanded.problems {
         diagnostics::warn_include(
+            project_root,
             &problem.file,
             problem.line,
             &problem.message,

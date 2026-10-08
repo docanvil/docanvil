@@ -1088,3 +1088,166 @@ fn test_home_title_not_repeated_when_h1_is_project_name() {
     build_project(dir.path()).unwrap();
     assert!(read_output(dir.path(), "index.html").contains("<title>Test Docs</title>"));
 }
+
+const STRICT_CONFIG: &str =
+    "[project]\nname = \"Test Docs\"\n\n[build]\nsite_url = \"https://docs.example.com\"\n";
+
+fn write_file(root: &std::path::Path, path: &str, content: &str) {
+    let full = root.join(path);
+    fs::create_dir_all(full.parent().unwrap()).unwrap();
+    fs::write(full, content).unwrap();
+}
+
+fn strip_tags(html: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for c in html.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out
+}
+
+#[test]
+fn test_includes_and_file_blocks() {
+    let dir = create_project(
+        STRICT_CONFIG,
+        &[
+            (
+                "index.md",
+                "# Home\n\n:::include{file=\"_shared/install.md\"}\n\n```rust file=\"/examples/server.rs\" lines=\"1-2,5-6\"\n```\n\n:::code-group\n```rust file=\"/examples/server.rs\" lines=\"5-6\"\n```\n```text\nplain\n```\n:::\n",
+            ),
+            (
+                "_shared/install.md",
+                "## Install\n\nRun the installer, then restart.\n",
+            ),
+        ],
+    );
+    write_file(
+        dir.path(),
+        "examples/server.rs",
+        "fn start() {\n    listen();\n}\n\nfn stop() {\n    close();\n}\n",
+    );
+    build_project_strict(dir.path()).expect("strict build should succeed");
+
+    assert!(!output_exists(dir.path(), "_shared/install.html"));
+    let html = read_output(dir.path(), "index.html");
+    assert!(
+        html.contains("id=\"install\""),
+        "fragment heading gets an id for the TOC"
+    );
+    assert!(html.contains("Run the installer"));
+    assert!(html.contains("data-hidden=\"2\""), "lines 3–4 are hidden");
+    assert!(html.contains("<span class=\"code-block-lines\">lines 1–2, 5–6</span>"));
+    assert!(!html.contains("data-meta"));
+    assert!(
+        html.contains(">rust</button>"),
+        "code group tab shows the language"
+    );
+    assert!(html.contains("<span class=\"line\" data-line=\"5\">"));
+
+    // What the copy button copies (textContent) is only the code.
+    let figure = html.find("<figure class=\"code-block\">").unwrap();
+    let pre_start = figure + html[figure..].find("<pre").unwrap();
+    let pre_end = pre_start + html[pre_start..].find("</pre>").unwrap();
+    assert_eq!(
+        strip_tags(&html[pre_start..pre_end]).trim_start_matches('\n'),
+        "fn start() {\n    listen();\nfn stop() {\n    close();\n"
+    );
+
+    let index = read_output(dir.path(), "search-index.json");
+    assert!(
+        index.contains("Run the installer"),
+        "search indexes fragment text"
+    );
+}
+
+#[test]
+fn test_includes_with_locales_and_versions() {
+    let page = |title: &str| {
+        format!(
+            "# {title}\n\n:::include{{file=\"_shared/note.md\"}}\n\n:::include{{file=\"/_shared/footer.md\"}}\n"
+        )
+    };
+    let dir = create_project(
+        VERSION_I18N_CONFIG,
+        &[
+            ("v1/index.md", page("Home v1").as_str()),
+            ("v1/_shared/note.md", "Version one note.\n"),
+            ("v2/index.md", page("Home v2").as_str()),
+            ("v2/index.fr.md", page("Accueil v2").as_str()),
+            ("v2/_shared/note.md", "Version two note.\n"),
+            ("v2/_shared/note.fr.md", "Note de la version deux.\n"),
+        ],
+    );
+    write_file(dir.path(), "_shared/footer.md", "Shared footer.\n");
+    build_project(dir.path()).expect("build should succeed");
+
+    let v1 = read_output(dir.path(), "v1/en/index.html");
+    assert!(v1.contains("Version one note.") && v1.contains("Shared footer."));
+    let v2 = read_output(dir.path(), "v2/en/index.html");
+    assert!(v2.contains("Version two note.") && v2.contains("Shared footer."));
+    let fr = read_output(dir.path(), "v2/fr/index.html");
+    assert!(fr.contains("Note de la version deux.") && fr.contains("Shared footer."));
+    assert!(!fr.contains("Version two note."));
+    assert!(!output_exists(dir.path(), "v2/en/_shared/note.html"));
+}
+
+#[test]
+fn test_strict_fails_on_include_problems() {
+    let missing = create_project(
+        STRICT_CONFIG,
+        &[("index.md", "# Home\n\n:::include{file=\"_nope.md\"}\n")],
+    );
+    assert!(matches!(
+        build_project_strict(missing.path()),
+        Err(docanvil::error::Error::StrictWarnings(_))
+    ));
+    build_project(missing.path()).expect("a normal build still succeeds");
+    assert!(read_output(missing.path(), "index.html").contains("<div class=\"include-error\">"));
+
+    let stale = create_project(
+        STRICT_CONFIG,
+        &[(
+            "index.md",
+            "# Home\n\n```rust file=\"/a.rs\" lines=\"5-9\"\n```\n",
+        )],
+    );
+    write_file(stale.path(), "a.rs", "fn a() {}\n");
+    assert!(build_project_strict(stale.path()).is_err());
+}
+
+#[test]
+fn test_underscore_files_are_not_pages() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            ("_draft.md", "# Draft"),
+            ("_notes/idea.md", "# Idea"),
+        ],
+    );
+    build_project(dir.path()).expect("build should succeed");
+    assert!(!output_exists(dir.path(), "_draft.html"));
+    assert!(!output_exists(dir.path(), "_notes/idea.html"));
+    assert!(!read_output(dir.path(), "index.html").contains("_draft.html"));
+}
+
+#[test]
+fn test_dev_build_reports_include_dependencies() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[(
+            "index.md",
+            "# Home\n\n```rust file=\"/examples/a.rs\"\n```\n",
+        )],
+    );
+    write_file(dir.path(), "examples/a.rs", "fn a() {}\n");
+    let dev_out = tempfile::tempdir().unwrap();
+    let deps = docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true).unwrap();
+    assert!(deps.contains(&dir.path().join("examples/a.rs").canonicalize().unwrap()));
+}

@@ -228,6 +228,8 @@ impl Default for ThemeConfig {
 pub struct SyntaxConfig {
     pub enabled: bool,
     pub theme: String,
+    /// Number the lines of every code block (blocks can opt out with `numbers="false"`).
+    pub line_numbers: bool,
 }
 
 impl Default for SyntaxConfig {
@@ -235,6 +237,7 @@ impl Default for SyntaxConfig {
         Self {
             enabled: true,
             theme: String::from("base16-ocean.dark"),
+            line_numbers: false,
         }
     }
 }
@@ -502,6 +505,15 @@ name = "My Docs"
         // Missing sections use defaults
         assert_eq!(config.build.output_dir, PathBuf::from("dist"));
         assert_eq!(config.theme.color_mode, ColorMode::Light);
+        assert!(config.syntax.enabled);
+    }
+
+    #[test]
+    fn syntax_line_numbers_default_off() {
+        let config: Config = toml::from_str("").unwrap();
+        assert!(!config.syntax.line_numbers);
+        let config: Config = toml::from_str("[syntax]\nline_numbers = true\n").unwrap();
+        assert!(config.syntax.line_numbers);
         assert!(config.syntax.enabled);
     }
 

@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Severity};
+use crate::pipeline::directives::FenceState;
 use crate::project::PageInventory;
 
 static OPEN_RE: LazyLock<Regex> =
@@ -68,6 +69,32 @@ fn check_duplicate_slugs(inventory: &PageInventory, diags: &mut Vec<Diagnostic>)
     }
 }
 
+/// Blank out inline `` `code` `` spans on a single line, replacing the backticks
+/// and their content with spaces so `[[…]]` inside them is never matched, while
+/// keeping byte offsets (and thus column positions) unchanged.
+fn mask_inline_code(line: &str) -> String {
+    let mut result = String::with_capacity(line.len());
+    let mut remaining = line;
+
+    while let Some(start) = remaining.find('`') {
+        result.push_str(&remaining[..start]);
+        let after = &remaining[start + 1..];
+        if let Some(end) = after.find('`') {
+            let span = &remaining[start..start + 1 + end + 1];
+            result.push_str(&" ".repeat(span.len()));
+            remaining = &after[end + 1..];
+        } else {
+            // No closing backtick on this line — leave the rest untouched.
+            result.push_str(&remaining[start..]);
+            remaining = "";
+            break;
+        }
+    }
+
+    result.push_str(remaining);
+    result
+}
+
 fn check_broken_wikilinks(
     source: &str,
     source_path: &Path,
@@ -75,8 +102,28 @@ fn check_broken_wikilinks(
     inventory: &PageInventory,
     diags: &mut Vec<Diagnostic>,
 ) {
-    let mut remaining = source;
-    let mut offset = 0;
+    let mut fence = FenceState::default();
+
+    for (i, line) in source.lines().enumerate() {
+        if fence.consume(line) {
+            // Inside a fenced code block — code is left exactly as written.
+            continue;
+        }
+
+        let masked = mask_inline_code(line);
+        check_broken_wikilinks_in_line(&masked, i + 1, source_path, locale, inventory, diags);
+    }
+}
+
+fn check_broken_wikilinks_in_line(
+    line: &str,
+    line_number: usize,
+    source_path: &Path,
+    locale: Option<&str>,
+    inventory: &PageInventory,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let mut remaining = line;
 
     while let Some(start) = remaining.find("[[") {
         let after_open = &remaining[start + 2..];
@@ -102,21 +149,17 @@ fn check_broken_wikilinks(
                 None => inventory.resolve_link(target),
             };
             if !target.is_empty() && resolved.is_none() {
-                // Calculate line number
-                let pos = offset + start;
-                let line = source[..pos].matches('\n').count() + 1;
                 diags.push(Diagnostic {
                     check: "broken-wiki-link",
                     category: "content",
                     severity: Severity::Warning,
                     message: format!("Broken link [[{target}]]"),
                     file: Some(source_path.to_path_buf()),
-                    line: Some(line),
+                    line: Some(line_number),
                     fix: None,
                 });
             }
 
-            offset += start + 2 + end + 2;
             remaining = &after_open[end + 2..];
         } else {
             break;
@@ -192,5 +235,64 @@ fn check_frontmatter(source: &str, source_path: &Path, diags: &mut Vec<Diagnosti
             line: Some(1),
             fix: None,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::doctor::Severity;
+    use std::fs;
+
+    fn test_inventory() -> (tempfile::TempDir, PageInventory) {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("index.md"), "# Home").unwrap();
+        fs::write(docs.join("setup.md"), "# Setup").unwrap();
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
+        (dir, inv)
+    }
+
+    fn broken_link_diags(source: &str) -> Vec<Diagnostic> {
+        let (_dir, inv) = test_inventory();
+        let mut diags = Vec::new();
+        check_broken_wikilinks(source, Path::new("test.md"), None, &inv, &mut diags);
+        diags
+    }
+
+    #[test]
+    fn real_broken_link_still_warns() {
+        let diags = broken_link_diags("See [[nonexistent]] page.");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].check, "broken-wiki-link");
+        assert_eq!(diags[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn wikilink_resolves_without_warning() {
+        let diags = broken_link_diags("See [[setup]] for details.");
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn toml_double_bracket_in_fenced_block_ignored() {
+        let source = "```toml\n[[nav]]\npage = \"x\"\n```\n";
+        let diags = broken_link_diags(source);
+        assert!(diags.is_empty(), "expected no diagnostics, got {diags:?}");
+    }
+
+    #[test]
+    fn toml_double_bracket_in_inline_code_ignored() {
+        let diags = broken_link_diags("Inline `[[nav]]` too.");
+        assert!(diags.is_empty(), "expected no diagnostics, got {diags:?}");
+    }
+
+    #[test]
+    fn broken_link_outside_code_still_detected_alongside_code() {
+        let source = "```toml\n[[nav]]\n```\n\nSee [[nonexistent]] please.\n";
+        let diags = broken_link_diags(source);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].message, "Broken link [[nonexistent]]");
     }
 }

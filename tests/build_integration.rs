@@ -153,6 +153,40 @@ fn test_wikilinks_resolve() {
 }
 
 #[test]
+fn test_wikilink_syntax_in_code_block_does_not_warn_strict() {
+    // TOML's `[[nav]]` table-array syntax looks like a wiki-link but lives inside
+    // a fenced code block and an inline code span — neither should be rewritten
+    // or trigger a broken-link warning, even under --strict (issue #57).
+    // `site_url` is set so the only warning we could trip here is the one under test.
+    let config =
+        "[project]\nname = \"Test Docs\"\n\n[build]\nsite_url = \"https://docs.example.com\"\n";
+    let dir = create_project(
+        config,
+        &[(
+            "index.md",
+            "# Home\n\n\
+             ```toml\n\
+             [[nav]]\n\
+             page = \"x\"\n\
+             ```\n\n\
+             Inline `[[nav]]` too.\n",
+        )],
+    );
+
+    build_project_strict(dir.path()).expect("strict build should succeed with no broken links");
+
+    let html = read_output(dir.path(), "index.html");
+    assert!(
+        html.contains("[[nav]]"),
+        "code block content should be left exactly as written, got: {html}"
+    );
+    assert!(
+        !html.contains("broken-link popover-trigger"),
+        "code block content should not trigger a broken-link popover, got: {html}"
+    );
+}
+
+#[test]
 fn test_strict_mode_broken_link() {
     let dir = create_project(
         DEFAULT_CONFIG,

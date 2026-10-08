@@ -22,14 +22,14 @@ static INLINE_RE: LazyLock<Regex> =
 
 /// Tracks whether we're inside a ``` / ~~~ fenced code block, line by line.
 #[derive(Default)]
-struct FenceState {
+pub(crate) struct FenceState {
     open: Option<(char, usize)>,
 }
 
 impl FenceState {
     /// Feed one line; returns true if the line is part of a code block
     /// (an opening fence, its contents, or its closing fence).
-    fn consume(&mut self, line: &str) -> bool {
+    pub(crate) fn consume(&mut self, line: &str) -> bool {
         let trimmed = line.trim();
         match self.open {
             None => {

@@ -323,6 +323,63 @@
       color: inherit;
     }
 
+    /* Code block captions, line numbers and hidden-line gaps */
+    figure.code-block {
+      margin: 0.75em 0 1.25em;
+    }
+
+    figure.code-block figcaption {
+      display: flex;
+      justify-content: space-between;
+      gap: 1em;
+      padding: 0.35em 1.1em;
+      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 8pt;
+      color: var(--pdf-ink-muted);
+      border: 1px solid var(--pdf-rule);
+      border-left: 3pt solid var(--pdf-accent);
+      border-bottom: none;
+    }
+
+    figure.code-block pre {
+      margin: 0;
+    }
+
+    pre.line-numbers { --line-number-width: 2ch; }
+    pre.line-numbers[data-line-digits="3"] { --line-number-width: 3ch; }
+    pre.line-numbers[data-line-digits="4"] { --line-number-width: 4ch; }
+    pre.line-numbers[data-line-digits="5"] { --line-number-width: 5ch; }
+    pre.line-numbers[data-line-digits="6"] { --line-number-width: 6ch; }
+
+    pre.line-numbers .line::before {
+      content: attr(data-line);
+      display: inline-block;
+      width: var(--line-number-width);
+      margin-right: 0.9em;
+      padding-right: 0.6em;
+      border-right: 1px solid var(--pdf-rule);
+      text-align: right;
+      color: var(--pdf-ink-muted);
+    }
+
+    pre .line-gap {
+      display: block;
+      font-style: italic;
+      font-size: 0.85em;
+      color: var(--pdf-ink-muted);
+    }
+
+    pre .line-gap::before { content: "⋯ " attr(data-hidden) " lines hidden"; }
+    pre .line-gap[data-hidden="1"]::before { content: "⋯ 1 line hidden"; }
+
+    .include-error {
+      border: 1px solid var(--pdf-warn-border);
+      background: var(--pdf-warn-bg);
+      padding: 0.5em 0.8em;
+      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-size: 8pt;
+    }
+
     /* ──────────────────────────────────────────────────────────
        Tables
        ────────────────────────────────────────────────────────── */

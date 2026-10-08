@@ -559,4 +559,25 @@ mod tests {
         assert_eq!(BlockMeta::parse("ignore"), None);
         assert_eq!(BlockMeta::parse("docanvil"), Some(BlockMeta::default()));
     }
+
+    #[test]
+    fn theme_styles_the_markup() {
+        for (name, css) in [
+            ("style.css", include_str!("../theme/default/style.css")),
+            ("pdf.html", include_str!("../theme/default/pdf.html")),
+        ] {
+            for needle in [
+                "pre.line-numbers",
+                ".line::before",
+                "attr(data-line)",
+                ".line-gap",
+                "lines hidden",
+                "figure.code-block",
+                "figcaption",
+                ".include-error",
+            ] {
+                assert!(css.contains(needle), "{name} is missing {needle}");
+            }
+        }
+    }
 }

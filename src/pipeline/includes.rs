@@ -693,10 +693,15 @@ fn canonical(path: &Path) -> PathBuf {
     path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
 }
 
+/// Read a fragment or code file as UTF-8, dropping a leading byte order mark.
 fn read_utf8(path: &Path, written: &str) -> Result<String, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("can't read {written}: {e}"))?;
-    String::from_utf8(bytes)
-        .map_err(|_| format!("{written} isn't valid UTF-8 — save it as UTF-8 to include it"))
+    let text = String::from_utf8(bytes)
+        .map_err(|_| format!("{written} isn't valid UTF-8 — save it as UTF-8 to include it"))?;
+    Ok(match text.strip_prefix('\u{FEFF}') {
+        Some(rest) => rest.to_string(),
+        None => text,
+    })
 }
 
 /// Index of the first line after a `---` … `---` front matter block (0 if none).
@@ -1282,6 +1287,24 @@ mod tests {
         );
         assert!(problems[1].message.contains("only takes file"));
         assert!(problems[2].message.contains("needs a file"));
+    }
+
+    #[test]
+    fn byte_order_marks_are_dropped() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                ":::include{file=\"_f.md\"}\n```rust file=\"x.rs\"\n```\n",
+            ),
+            ("docs/_f.md", "\u{FEFF}---\n{\"title\": \"F\"}\n---\nBody\n"),
+            ("docs/x.rs", "\u{FEFF}fn x() {}\n"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert_eq!(
+            out.source,
+            "Body\n```rust docanvil file=x.rs\nfn x() {}\n```\n"
+        );
+        assert!(out.problems.is_empty());
     }
 
     #[test]

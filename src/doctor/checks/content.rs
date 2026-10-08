@@ -6,6 +6,7 @@ use std::sync::LazyLock;
 
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Severity};
+use crate::pipeline::directives::FenceState;
 use crate::project::PageInventory;
 
 static OPEN_RE: LazyLock<Regex> =
@@ -64,42 +65,6 @@ fn check_duplicate_slugs(inventory: &PageInventory, diags: &mut Vec<Diagnostic>)
                 line: None,
                 fix: None,
             });
-        }
-    }
-}
-
-/// Tracks whether we're inside a ``` / ~~~ fenced code block, line by line.
-/// Mirrors `pipeline::directives::FenceState` — kept local since it's a tiny,
-/// self-contained state machine and this check works line-by-line already.
-#[derive(Default)]
-struct FenceState {
-    open: Option<(char, usize)>,
-}
-
-impl FenceState {
-    /// Feed one line; returns true if the line is part of a code block
-    /// (an opening fence, its contents, or its closing fence).
-    fn consume(&mut self, line: &str) -> bool {
-        let trimmed = line.trim();
-        match self.open {
-            None => {
-                let first = trimmed.chars().next();
-                if let Some(c @ ('`' | '~')) = first {
-                    let len = trimmed.chars().take_while(|&ch| ch == c).count();
-                    if len >= 3 {
-                        self.open = Some((c, len));
-                        return true;
-                    }
-                }
-                false
-            }
-            Some((c, len)) => {
-                let count = trimmed.chars().take_while(|&ch| ch == c).count();
-                if count >= len && trimmed.chars().skip(count).all(char::is_whitespace) {
-                    self.open = None;
-                }
-                true
-            }
         }
     }
 }

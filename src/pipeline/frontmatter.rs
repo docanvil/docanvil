@@ -198,7 +198,10 @@ mod tests {
 
     #[test]
     fn llms_opt_out() {
-        assert_eq!(extract("---\n{\"llms\": false}\n---\n# A").llms, Some(false));
+        assert_eq!(
+            extract("---\n{\"llms\": false}\n---\n# A").llms,
+            Some(false)
+        );
         assert_eq!(extract("# A").llms, None);
     }
 

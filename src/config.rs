@@ -830,10 +830,9 @@ root = "site"
 
     #[test]
     fn llms_parses() {
-        let config: Config = toml::from_str(
-            "[llms]\nenabled = true\ndescription = \"Fast docs.\"\nfull = false\n",
-        )
-        .unwrap();
+        let config: Config =
+            toml::from_str("[llms]\nenabled = true\ndescription = \"Fast docs.\"\nfull = false\n")
+                .unwrap();
         assert!(config.llms.enabled);
         assert!(!config.llms.full);
         assert_eq!(config.llms.description.as_deref(), Some("Fast docs."));

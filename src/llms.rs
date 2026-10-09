@@ -1,6 +1,7 @@
 //! `llms.txt` and `llms-full.txt`: an index of the docs for AI tools, and every
 //! page's Markdown in one file (<https://llmstxt.org>).
 
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -10,7 +11,7 @@ use crate::pipeline::code_blocks::META_MARKER;
 use crate::pipeline::directives::{FenceState, inline_code_ranges};
 use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::images;
-use crate::project::{PageInfo, PageInventory};
+use crate::project::{self, NavNode, PageInfo, PageInventory};
 
 /// DocAnvil's `docanvil key=value …` meta after a fence's language.
 static FENCE_META_RE: LazyLock<Regex> =
@@ -166,6 +167,186 @@ fn clean_text(
         .into_owned()
 }
 
+/// Section for top-level pages before any labelled nav separator.
+const DOCS_SECTION: &str = "Docs";
+/// Section for published pages the nav doesn't list.
+const OTHER_SECTION: &str = "Other pages";
+
+/// One (version, locale) part of the site and the pages it lists.
+#[derive(Debug)]
+pub struct LlmsScope {
+    /// Output folder relative to the site root: `""`, `"fr/"`, `"v2/"` or `"v2/fr/"`.
+    pub dir: String,
+    /// How the root file's Optional section names it (e.g. `"v1.0 · Français"`).
+    pub label: String,
+    pub nav: Vec<NavNode>,
+    pub pages: Vec<LlmsPage>,
+}
+
+/// A `## heading` in `llms.txt` and the pages under it.
+#[derive(Debug)]
+pub struct Section<'a> {
+    pub title: String,
+    pub pages: Vec<&'a LlmsPage>,
+}
+
+/// Group `pages` by the nav: each top-level group is a section (nested groups
+/// flattened), top-level pages go under the labelled separator above them (or
+/// "Docs"), and pages the nav doesn't list go last under "Other pages". Each
+/// page appears once; empty sections are dropped.
+pub fn sections_from_nav<'a>(nav: &[NavNode], pages: &'a [LlmsPage]) -> Vec<Section<'a>> {
+    let by_slug: HashMap<&str, &'a LlmsPage> = pages.iter().map(|p| (p.slug.as_str(), p)).collect();
+    let mut listed: HashSet<String> = HashSet::new();
+    let mut sections: Vec<Section<'a>> = Vec::new();
+    let mut loose_title = DOCS_SECTION.to_string();
+    // Index of the section collecting top-level pages, once it has one.
+    let mut loose_at: Option<usize> = None;
+
+    for node in nav {
+        match node {
+            NavNode::Page { slug, .. } => {
+                if let Some(page) = take(slug, &by_slug, &mut listed) {
+                    let at = *loose_at.get_or_insert_with(|| {
+                        sections.push(Section {
+                            title: loose_title.clone(),
+                            pages: Vec::new(),
+                        });
+                        sections.len() - 1
+                    });
+                    sections[at].pages.push(page);
+                }
+            }
+            NavNode::Group {
+                label,
+                slug,
+                children,
+            } => {
+                let slugs = slug.iter().cloned().chain(
+                    project::flatten_nav_pages(children)
+                        .into_iter()
+                        .map(|(slug, _)| slug),
+                );
+                let pages = slugs
+                    .filter_map(|s| take(&s, &by_slug, &mut listed))
+                    .collect();
+                sections.push(Section {
+                    title: label.clone(),
+                    pages,
+                });
+            }
+            NavNode::Separator { label: Some(label) } => {
+                loose_title = label.clone();
+                loose_at = None;
+            }
+            NavNode::Separator { label: None } => {}
+        }
+    }
+
+    let others = pages.iter().filter(|p| !listed.contains(&p.slug)).collect();
+    sections.push(Section {
+        title: OTHER_SECTION.to_string(),
+        pages: others,
+    });
+    sections.retain(|s| !s.pages.is_empty());
+    sections
+}
+
+/// The page for `slug`, unless it isn't listed or was already taken.
+fn take<'a>(
+    slug: &str,
+    by_slug: &HashMap<&str, &'a LlmsPage>,
+    listed: &mut HashSet<String>,
+) -> Option<&'a LlmsPage> {
+    let page = *by_slug.get(slug)?;
+    listed.insert(slug.to_string()).then_some(page)
+}
+
+/// `llms.txt`: title, optional summary, a link list per section, then the
+/// `## Optional` links (other versions and languages) when there are any.
+pub fn generate_index(
+    name: &str,
+    description: Option<&str>,
+    sections: &[Section],
+    optional: &[(String, String)],
+) -> String {
+    let mut out = header(name, description);
+    for section in sections {
+        out.push_str(&format!("\n## {}\n\n", section.title));
+        for page in &section.pages {
+            out.push_str(&format!("- [{}]({})", link_text(&page.title), page.url));
+            if let Some(description) = page
+                .description
+                .as_deref()
+                .map(one_line)
+                .filter(|d| !d.is_empty())
+            {
+                out.push_str(&format!(": {description}"));
+            }
+            out.push('\n');
+        }
+    }
+    if !optional.is_empty() {
+        out.push_str("\n## Optional\n\n");
+        for (label, url) in optional {
+            out.push_str(&format!("- [{}]({url})\n", link_text(label)));
+        }
+    }
+    out
+}
+
+/// `llms-full.txt`: title, optional summary, then every page in `sections`
+/// order, each starting with its `# title` and a `Source:` line.
+pub fn generate_full(name: &str, description: Option<&str>, sections: &[Section]) -> String {
+    let mut out = header(name, description);
+    for page in sections.iter().flat_map(|s| s.pages.iter()) {
+        out.push('\n');
+        out.push_str(&full_page(page));
+        out.push_str("\n---\n");
+    }
+    out
+}
+
+/// One page in `llms-full.txt`. A page that opens with its own `# H1` keeps it
+/// (no duplicate title); otherwise `# {title}` is added.
+fn full_page(page: &LlmsPage) -> String {
+    let markdown = page.markdown.trim();
+    let first_line = markdown.lines().next().unwrap_or("");
+    let (title, body) = if first_line.starts_with("# ") {
+        (
+            first_line.to_string(),
+            markdown[first_line.len()..].trim_start(),
+        )
+    } else {
+        (format!("# {}", page.title), markdown)
+    };
+    let mut out = format!("{title}\nSource: {}\n", page.url);
+    if !body.is_empty() {
+        out.push('\n');
+        out.push_str(body);
+        out.push('\n');
+    }
+    out
+}
+
+/// `# name`, plus `> description` when there is one.
+fn header(name: &str, description: Option<&str>) -> String {
+    let mut out = format!("# {name}\n");
+    if let Some(description) = description.map(one_line).filter(|d| !d.is_empty()) {
+        out.push_str(&format!("\n> {description}\n"));
+    }
+    out
+}
+
+/// Escape brackets so a title can't end a Markdown link early.
+fn link_text(text: &str) -> String {
+    text.replace('[', "\\[").replace(']', "\\]")
+}
+
+/// Collapse whitespace (including newlines) so the text stays on one line.
+fn one_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,5 +487,163 @@ mod tests {
         assert_eq!(entry.url, "https://x.dev/guide/setup.html");
         assert_eq!(entry.description.as_deref(), Some("Get going"));
         assert_eq!(entry.markdown, "# Setup\n");
+    }
+
+    fn entry(slug: &str, title: &str) -> LlmsPage {
+        LlmsPage {
+            slug: slug.into(),
+            title: title.into(),
+            url: format!("https://x.dev/{slug}.html"),
+            description: None,
+            markdown: format!("# {title}\n\nBody of {title}.\n"),
+        }
+    }
+
+    fn nav_page(slug: &str) -> NavNode {
+        NavNode::Page {
+            label: slug.into(),
+            slug: slug.into(),
+        }
+    }
+
+    fn summary(sections: &[Section]) -> Vec<(String, Vec<String>)> {
+        sections
+            .iter()
+            .map(|s| {
+                (
+                    s.title.clone(),
+                    s.pages.iter().map(|p| p.slug.clone()).collect(),
+                )
+            })
+            .collect()
+    }
+
+    fn owned(title: &str, slugs: &[&str]) -> (String, Vec<String>) {
+        (
+            title.to_string(),
+            slugs.iter().map(|s| s.to_string()).collect(),
+        )
+    }
+
+    #[test]
+    fn groups_loose_pages_and_other_pages() {
+        let nav = vec![
+            nav_page("index"),
+            NavNode::Group {
+                label: "Guide".into(),
+                slug: Some("guide".into()),
+                children: vec![
+                    nav_page("guide/a"),
+                    NavNode::Group {
+                        label: "Deep".into(),
+                        slug: None,
+                        children: vec![nav_page("guide/deep/b")],
+                    },
+                ],
+            },
+            nav_page("faq"),
+        ];
+        let pages: Vec<LlmsPage> = ["index", "guide", "guide/a", "guide/deep/b", "faq", "orphan"]
+            .iter()
+            .map(|s| entry(s, s))
+            .collect();
+        assert_eq!(
+            summary(&sections_from_nav(&nav, &pages)),
+            vec![
+                owned("Docs", &["index", "faq"]),
+                owned("Guide", &["guide", "guide/a", "guide/deep/b"]),
+                owned("Other pages", &["orphan"]),
+            ]
+        );
+    }
+
+    #[test]
+    fn labelled_separators_start_sections() {
+        let nav = vec![
+            nav_page("a"),
+            NavNode::Separator {
+                label: Some("Reference".into()),
+            },
+            nav_page("b"),
+            NavNode::Separator { label: None },
+            nav_page("c"),
+        ];
+        let pages: Vec<LlmsPage> = ["a", "b", "c"].iter().map(|s| entry(s, s)).collect();
+        assert_eq!(
+            summary(&sections_from_nav(&nav, &pages)),
+            vec![owned("Docs", &["a"]), owned("Reference", &["b", "c"])]
+        );
+    }
+
+    #[test]
+    fn missing_duplicate_and_empty() {
+        // "excluded" is in the nav but not a listed page (llms: false); "a" appears twice.
+        let nav = vec![
+            nav_page("a"),
+            NavNode::Group {
+                label: "Empty".into(),
+                slug: None,
+                children: vec![nav_page("excluded")],
+            },
+            nav_page("a"),
+        ];
+        let pages = vec![entry("a", "A")];
+        assert_eq!(
+            summary(&sections_from_nav(&nav, &pages)),
+            vec![owned("Docs", &["a"])]
+        );
+    }
+
+    #[test]
+    fn index_with_description_and_optional() {
+        let pages = vec![LlmsPage {
+            description: Some("First\n  page".into()),
+            ..entry("a", "A [beta]")
+        }];
+        let sections = sections_from_nav(&[nav_page("a")], &pages);
+        let optional = vec![(
+            "Français".to_string(),
+            "https://x.dev/fr/llms.txt".to_string(),
+        )];
+        assert_eq!(
+            generate_index("Proj", Some(" Summary.\n"), &sections, &optional),
+            "# Proj\n\n> Summary.\n\n## Docs\n\n- [A \\[beta\\]](https://x.dev/a.html): First page\n\n## Optional\n\n- [Français](https://x.dev/fr/llms.txt)\n"
+        );
+    }
+
+    #[test]
+    fn index_without_extras() {
+        let pages = vec![LlmsPage {
+            description: Some("  ".into()),
+            ..entry("a", "A")
+        }];
+        let sections = sections_from_nav(&[nav_page("a")], &pages);
+        assert_eq!(
+            generate_index("Proj", None, &sections, &[]),
+            "# Proj\n\n## Docs\n\n- [A](https://x.dev/a.html)\n"
+        );
+    }
+
+    #[test]
+    fn full_text_reuses_or_adds_the_title() {
+        let pages = vec![
+            entry("a", "A"),
+            LlmsPage {
+                markdown: "\nIntro without heading.\n".into(),
+                ..entry("b", "B")
+            },
+            LlmsPage {
+                markdown: "# Only a title\n".into(),
+                ..entry("c", "C")
+            },
+        ];
+        let sections = sections_from_nav(&[nav_page("a"), nav_page("b"), nav_page("c")], &pages);
+        assert_eq!(
+            generate_full("Proj", Some("Sum."), &sections),
+            "# Proj\n\n> Sum.\n\
+             \n# A\nSource: https://x.dev/a.html\n\nBody of A.\n\n---\n\
+             \n# B\nSource: https://x.dev/b.html\n\nIntro without heading.\n\n---\n\
+             \n# Only a title\nSource: https://x.dev/c.html\n\n---\n"
+        );
     }
 }

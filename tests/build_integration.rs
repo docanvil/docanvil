@@ -1691,3 +1691,158 @@ fn test_version_switcher_skips_drafts() {
     assert!(!v1.contains("&#x2F;v2&#x2F;guide.html"));
     assert!(v1.contains("&#x2F;v2&#x2F;index.html"));
 }
+
+// ── Redirects ──
+
+const MOVED_PAGE: &str = "---\n{\"redirect_from\": [\"setup\"]}\n---\n# Install";
+
+// `site_url` is set so a missing one doesn't trip --strict; only redirect warnings can.
+const SITE_CONFIG: &str =
+    "[project]\nname = \"Test Docs\"\n\n[build]\nsite_url = \"https://x.dev/\"\n";
+
+#[test]
+fn test_redirect_from_front_matter() {
+    let dir = create_project(
+        SITE_CONFIG,
+        &[("index.md", "# Home"), ("guides/install.md", MOVED_PAGE)],
+    );
+    build_project_strict(dir.path()).unwrap();
+
+    let stub = read_output(dir.path(), "setup.html");
+    assert!(stub.contains("http-equiv=\"refresh\" content=\"0; url=/guides/install.html\""));
+    assert!(stub.contains("<meta name=\"robots\" content=\"noindex\">"));
+    assert!(stub.contains("location.replace"));
+    // The real page is still a real page.
+    assert!(read_output(dir.path(), "guides/install.html").contains("<h1"));
+}
+
+#[test]
+fn test_redirects_table_and_external() {
+    let config = format!(
+        "{SITE_CONFIG}\n[redirects]\n\"old-faq\" = \"help/faq\"\n\"/blog/\" = \"https://blog.example.com\"\n"
+    );
+    let dir = create_project(&config, &[("index.md", "# Home"), ("help/faq.md", "# FAQ")]);
+    build_project_strict(dir.path()).unwrap();
+
+    assert!(read_output(dir.path(), "old-faq.html").contains("url=/help/faq.html"));
+    assert!(read_output(dir.path(), "blog/index.html").contains("url=https://blog.example.com"));
+}
+
+#[test]
+fn test_redirects_i18n() {
+    let config = format!("{SITE_CONFIG}\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n");
+    let dir = create_project(
+        &config,
+        &[
+            ("index.en.md", "# Home"),
+            ("index.fr.md", "# Accueil"),
+            ("guides/install.en.md", MOVED_PAGE),
+            ("guides/install.fr.md", "# Installer"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+
+    let en = read_output(dir.path(), "en/setup.html");
+    assert!(en.contains("url=/en/guides/install.html"));
+    let fr = read_output(dir.path(), "fr/setup.html");
+    assert!(fr.contains("url=/fr/guides/install.html"));
+    assert!(fr.contains("<html lang=\"fr\">"));
+    // The root redirect still goes to the default language, via the shared stub.
+    let root = read_output(dir.path(), "index.html");
+    assert!(root.contains("http-equiv=\"refresh\""));
+    assert!(root.contains("en/index.html"));
+}
+
+#[test]
+fn test_redirects_versioned_unprefixed() {
+    let config = format!(
+        "{SITE_CONFIG}\n[version]\nenabled = [\"v1\", \"v2\"]\n\n[redirects]\nunprefixed = true\n"
+    );
+    let dir = create_project(
+        &config,
+        &[
+            ("v1/index.md", "# One"),
+            ("v2/index.md", "# Two"),
+            ("v2/guide.md", MOVED_PAGE),
+        ],
+    );
+    build_project_strict(dir.path()).unwrap();
+
+    assert!(read_output(dir.path(), "guide.html").contains("url=/v2/guide.html"));
+    assert!(read_output(dir.path(), "v2/setup.html").contains("url=/v2/guide.html"));
+    assert!(!output_exists(dir.path(), "v1/setup.html"));
+    let root = read_output(dir.path(), "index.html");
+    assert!(root.contains("v2/index.html"));
+}
+
+#[test]
+fn test_redirect_to_missing_page_fails_strict() {
+    let config = format!("{SITE_CONFIG}\n[redirects]\n\"old\" = \"nowhere\"\n");
+    let dir = create_project(&config, &[("index.md", "# Home")]);
+    assert!(build_project_strict(dir.path()).is_err());
+    build_project(dir.path()).unwrap();
+    assert!(!output_exists(dir.path(), "old.html"));
+}
+
+#[test]
+fn test_redirect_never_overwrites_page() {
+    let dir = create_project(
+        SITE_CONFIG,
+        &[
+            ("setup.md", "# Setup page"),
+            ("guides/install.md", MOVED_PAGE),
+        ],
+    );
+    assert!(build_project_strict(dir.path()).is_err());
+    build_project(dir.path()).unwrap();
+    assert!(read_output(dir.path(), "setup.html").contains("Setup page"));
+}
+
+#[test]
+fn test_redirects_stay_out_of_sitemap_and_search() {
+    let dir = create_project(
+        SITE_CONFIG,
+        &[("index.md", "# Home"), ("guides/install.md", MOVED_PAGE)],
+    );
+    build_project_strict(dir.path()).unwrap();
+
+    assert!(
+        read_output(dir.path(), "setup.html")
+            .contains("<link rel=\"canonical\" href=\"https://x.dev/guides/install.html\">")
+    );
+    assert!(!read_output(dir.path(), "sitemap.xml").contains("setup.html"));
+    assert!(!read_output(dir.path(), "search-index.json").contains("setup.html"));
+}
+
+#[test]
+fn test_redirect_to_draft() {
+    let config = format!("{SITE_CONFIG}\n[redirects]\n\"old\" = \"wip\"\n");
+    let dir = create_project(
+        &config,
+        &[
+            ("index.md", "# Home"),
+            ("wip.md", "---\n{\"draft\": true}\n---\n# WIP"),
+        ],
+    );
+    build_project_strict(dir.path()).unwrap();
+    assert!(!output_exists(dir.path(), "old.html"));
+
+    // With --drafts the draft is built, and so is the redirect to it.
+    let out = dir.path().join("dist");
+    docanvil::cli::build::run(dir.path(), Some(&out), false, true, true, true).unwrap();
+    assert!(read_output(dir.path(), "old.html").contains("url=/wip.html"));
+}
+
+#[test]
+fn test_redirect_respects_base_url() {
+    let config = "[project]\nname = \"Test Docs\"\n\n[build]\nbase_url = \"/docs/\"\nsite_url = \"https://x.dev/docs/\"\n";
+    let dir = create_project(
+        config,
+        &[("index.md", "# Home"), ("guides/install.md", MOVED_PAGE)],
+    );
+    build_project_strict(dir.path()).unwrap();
+
+    let stub = read_output(dir.path(), "setup.html");
+    assert!(stub.contains("url=/docs/guides/install.html"));
+    assert!(stub.contains("href=\"https://x.dev/docs/guides/install.html\""));
+}

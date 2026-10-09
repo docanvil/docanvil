@@ -19,6 +19,7 @@ use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::markdown;
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInfo, PageInventory};
+use crate::redirects::{self, PageSet};
 use crate::render::assets;
 use crate::render::templates::{
     LocaleInfo, PageContext, PageLink, TemplateRenderer, VersionInfo, page_breadcrumbs,
@@ -463,6 +464,26 @@ fn page_last_updated(
     }
 }
 
+/// Work out this build's redirects, warn about any problems, and write the stubs.
+fn write_redirects(
+    project_root: &Path,
+    config: &Config,
+    sets: &[PageSet],
+    output_dir: &Path,
+    base_url: &str,
+) -> Result<()> {
+    let plan = redirects::plan(config, sets);
+    for problem in &plan.problems {
+        diagnostics::warn_redirect(project_root, problem);
+    }
+    redirects::write_stubs(
+        output_dir,
+        &plan.redirects,
+        base_url,
+        config.site_url().as_deref(),
+    )
+}
+
 /// Core build logic shared between CLI and serve.
 fn build_site(
     project_root: &Path,
@@ -579,8 +600,9 @@ fn build_site(
         let latest_version = config.current_version().map(String::from);
         let current_ver_str = config.current_version().unwrap_or("").to_string();
 
-        // Collect all version inventories for the post-build sitemap.
-        let mut all_version_inventories: Vec<PageInventory> = Vec::new();
+        // Each version's pages and front matter, for the sitemap and redirects.
+        let mut version_sets: Vec<(String, PageInventory, HashMap<String, FrontMatter>)> =
+            Vec::new();
         // Save the latest version's nav tree and base URL for the 404 page.
         let mut latest_nav_tree: Vec<project::NavNode> = Vec::new();
         let mut latest_version_base_url = root_base_url.clone();
@@ -1018,7 +1040,7 @@ fn build_site(
                 }
             }
 
-            all_version_inventories.push(ver_inventory);
+            version_sets.push((version.clone(), ver_inventory, ver_front_matters));
         }
 
         // Write root redirect to current/latest version
@@ -1039,21 +1061,22 @@ fn build_site(
         } else {
             format!("{}{}/index.html", root_base_url, redirect_ver)
         };
-        let redirect_html = format!(
-            "<!DOCTYPE html>\n\
-             <html>\n\
-             <head>\n\
-             <meta http-equiv=\"refresh\" content=\"0; url={url}\">\n\
-             <link rel=\"canonical\" href=\"{url}\">\n\
-             </head>\n\
-             <body>\n\
-             <p><a href=\"{url}\">Redirecting to latest documentation...</a></p>\n\
-             </body>\n\
-             </html>\n",
-            url = redirect_target
-        );
         let redirect_path = output_dir.join("index.html");
-        std::fs::write(&redirect_path, redirect_html).map_err(io_context(&redirect_path))?;
+        std::fs::write(
+            &redirect_path,
+            redirects::stub_html(&redirect_target, &redirect_target, None),
+        )
+        .map_err(io_context(&redirect_path))?;
+
+        let sets: Vec<PageSet> = version_sets
+            .iter()
+            .map(|(version, inventory, front_matters)| PageSet {
+                version: Some(version),
+                inventory,
+                front_matters,
+            })
+            .collect();
+        write_redirects(project_root, config, &sets, output_dir, &root_base_url)?;
 
         // Generate robots.txt and sitemap (merged across all versions)
         if !live_reload {
@@ -1072,7 +1095,7 @@ fn build_site(
             // No hreflang annotations for versions — versions aren't translations.
             let mut merged_pages: HashMap<String, project::PageInfo> = HashMap::new();
             let mut merged_ordered: Vec<String> = Vec::new();
-            for inv in &all_version_inventories {
+            for (_, inv, _) in &version_sets {
                 for key in &inv.ordered {
                     let page = &inv.pages[key];
                     let unique_key = page.output_path.to_string_lossy().into_owned();
@@ -1559,22 +1582,20 @@ fn build_site(
     if config.is_i18n_enabled() {
         let default_locale = config.default_locale().unwrap_or("en");
         let redirect_target = format!("{}{}/index.html", root_base_url, default_locale);
-        let redirect_html = format!(
-            "<!DOCTYPE html>\n\
-             <html>\n\
-             <head>\n\
-             <meta http-equiv=\"refresh\" content=\"0; url={url}\">\n\
-             <link rel=\"canonical\" href=\"{url}\">\n\
-             </head>\n\
-             <body>\n\
-             <p><a href=\"{url}\">Redirecting to documentation...</a></p>\n\
-             </body>\n\
-             </html>\n",
-            url = redirect_target
-        );
         let redirect_path = output_dir.join("index.html");
-        std::fs::write(&redirect_path, redirect_html).map_err(io_context(&redirect_path))?;
+        std::fs::write(
+            &redirect_path,
+            redirects::stub_html(&redirect_target, &redirect_target, None),
+        )
+        .map_err(io_context(&redirect_path))?;
     }
+
+    let sets = [PageSet {
+        version: None,
+        inventory: &inventory,
+        front_matters: &front_matters,
+    }];
+    write_redirects(project_root, config, &sets, output_dir, &root_base_url)?;
 
     // Generate 404 page
     {

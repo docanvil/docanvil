@@ -187,7 +187,7 @@ fn validate_items<T: NavItem>(items: &[T], inventory: &PageInventory, locale: Op
                 Some(l) => format!("{l}:{slug}"),
                 None => slug.to_string(),
             };
-            if !inventory.pages.contains_key(&key) {
+            if !inventory.pages.contains_key(&key) && !inventory.drafts.contains_key(&key) {
                 diagnostics::warn_nav_missing_page(slug);
             }
         }
@@ -249,7 +249,10 @@ fn item_to_nodes(
         if let Some(label) = item.label() {
             return vec![NavNode::Group {
                 label: label.to_string(),
-                slug: item.page().map(String::from),
+                slug: item
+                    .page()
+                    .filter(|slug| !is_draft(slug, inventory, locale))
+                    .map(String::from),
                 children: discovered,
             }];
         }
@@ -259,11 +262,18 @@ fn item_to_nodes(
     // Group entry
     if let Some(group_items) = item.group() {
         let label = item.label().unwrap_or_default().to_string();
-        let slug = item.page().map(String::from);
+        let slug = item
+            .page()
+            .filter(|slug| !is_draft(slug, inventory, locale))
+            .map(String::from);
         let children: Vec<NavNode> = group_items
             .iter()
             .flat_map(|child| item_to_nodes(child, inventory, locale))
             .collect();
+        // A group left with nothing in it because its pages are drafts disappears.
+        if slug.is_none() && children.is_empty() && !group_items.is_empty() {
+            return vec![];
+        }
         return vec![NavNode::Group {
             label,
             slug,
@@ -271,8 +281,10 @@ fn item_to_nodes(
         }];
     }
 
-    // Page entry
-    if let Some(slug) = item.page() {
+    // Page entry (drafts left out of this build are skipped)
+    if let Some(slug) = item.page()
+        && !is_draft(slug, inventory, locale)
+    {
         let label = item
             .label()
             .map(String::from)
@@ -284,6 +296,15 @@ fn item_to_nodes(
     }
 
     vec![]
+}
+
+/// Whether `slug` is a draft page that this build leaves out.
+fn is_draft(slug: &str, inventory: &PageInventory, locale: Option<&str>) -> bool {
+    let key = match locale {
+        Some(l) => format!("{l}:{slug}"),
+        None => slug.to_string(),
+    };
+    inventory.drafts.contains_key(&key)
 }
 
 /// Resolve a label for a page slug — use the page title from inventory, or derive from slug.
@@ -394,6 +415,54 @@ page = "guide"
         let result = load_nav(dir.path()).unwrap();
         assert!(result.is_some());
         assert_eq!(result.unwrap().len(), 3);
+    }
+
+    #[test]
+    fn nav_skips_drafts_quietly() {
+        use std::fs;
+
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        for page in ["index", "wip", "a", "b"] {
+            fs::write(docs.join(format!("{page}.md")), "# Page").unwrap();
+        }
+        let mut inventory = PageInventory::scan(&docs, None, None, None).unwrap();
+        inventory.exclude_drafts(
+            &["wip".to_string(), "a".to_string(), "b".to_string()],
+            crate::config::DraftLinks::Text,
+        );
+
+        let nav: NavFile = toml::from_str(
+            r#"
+[[nav]]
+page = "index"
+
+[[nav]]
+page = "wip"
+
+[[nav]]
+label = "All drafts"
+group = [{ page = "a" }, { page = "b" }]
+
+[[nav]]
+label = "Draft landing"
+page = "wip"
+group = [{ page = "index" }]
+"#,
+        )
+        .unwrap();
+
+        crate::diagnostics::reset_warnings();
+        validate(&nav.nav, &inventory);
+        assert_eq!(crate::diagnostics::warning_count(), 0);
+
+        let tree = nav_tree_from_config(&nav.nav, &inventory);
+        assert_eq!(tree.len(), 2);
+        assert!(matches!(&tree[0], NavNode::Page { slug, .. } if slug == "index"));
+        assert!(
+            matches!(&tree[1], NavNode::Group { slug: None, children, .. } if children.len() == 1)
+        );
     }
 
     #[test]

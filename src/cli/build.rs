@@ -43,6 +43,7 @@ pub fn run(
     clean: bool,
     quiet: bool,
     strict: bool,
+    drafts: bool,
 ) -> Result<()> {
     let start = Instant::now();
     let config = Config::load(project_root)?;
@@ -63,7 +64,11 @@ pub fn run(
     crate::pipeline::popovers::reset_popover_ids();
 
     let mut dependencies = BTreeSet::new();
-    let count = build_into(project_root, &config, &output_dir, false, &mut dependencies)?;
+    let mode = BuildMode {
+        live_reload: false,
+        drafts,
+    };
+    let built = build_into(project_root, &config, &output_dir, mode, &mut dependencies)?;
 
     if strict && warning_count() > 0 {
         return Err(Error::StrictWarnings(warning_count()));
@@ -72,13 +77,60 @@ pub fn run(
     if !quiet {
         let elapsed = start.elapsed();
         eprintln!(
-            "Built {count} page{} in {:.0?}",
-            if count == 1 { "" } else { "s" },
+            "Built {} page{} in {:.0?}",
+            built.pages,
+            plural(built.pages),
             elapsed
         );
+        if built.drafts_skipped > 0 {
+            eprintln!(
+                "Skipped {} draft page{} (include them with --drafts)",
+                built.drafts_skipped,
+                plural(built.drafts_skipped)
+            );
+        }
     }
 
     Ok(())
+}
+
+/// How a build treats the dev server's extras and draft pages.
+#[derive(Debug, Clone, Copy)]
+struct BuildMode {
+    /// Building for `docanvil serve`: inject live reload, use `/` as the base URL.
+    live_reload: bool,
+    /// Include pages marked `"draft": true` (always on for `docanvil serve`).
+    drafts: bool,
+}
+
+/// What a build produced.
+struct Built {
+    pages: usize,
+    drafts_skipped: usize,
+}
+
+fn plural(n: usize) -> &'static str {
+    if n == 1 { "" } else { "s" }
+}
+
+/// Unless drafts are included, move pages marked `"draft": true` out of the
+/// inventory so nothing in the build sees them. Returns how many were left out.
+pub(crate) fn exclude_drafts(
+    inventory: &mut PageInventory,
+    front_matters: &HashMap<String, FrontMatter>,
+    config: &Config,
+    include_drafts: bool,
+) -> usize {
+    if include_drafts {
+        return 0;
+    }
+    let keys: Vec<String> = front_matters
+        .iter()
+        .filter(|(_, fm)| fm.draft)
+        .map(|(key, _)| key.clone())
+        .collect();
+    inventory.exclude_drafts(&keys, config.build.draft_links);
+    keys.len()
 }
 
 /// Refuse to delete an output directory that would take project files with it.
@@ -140,14 +192,13 @@ pub fn run_with_options(
     crate::pipeline::popovers::reset_popover_ids();
 
     let mut dependencies = BTreeSet::new();
-    let count = build_into(
-        project_root,
-        &config,
-        output_dir,
+    // The dev server always shows drafts, so authors can see them as they write.
+    let mode = BuildMode {
         live_reload,
-        &mut dependencies,
-    )?;
-    eprintln!("Built {count} page{}", if count == 1 { "" } else { "s" });
+        drafts: true,
+    };
+    let built = build_into(project_root, &config, output_dir, mode, &mut dependencies)?;
+    eprintln!("Built {} page{}", built.pages, plural(built.pages));
     Ok(dependencies)
 }
 
@@ -161,9 +212,9 @@ fn build_into(
     project_root: &Path,
     config: &Config,
     output_dir: &Path,
-    live_reload: bool,
+    mode: BuildMode,
     dependencies: &mut BTreeSet<PathBuf>,
-) -> Result<usize> {
+) -> Result<Built> {
     if output_dir.exists() {
         ensure_safe_to_remove(project_root, config, output_dir)?;
     }
@@ -179,8 +230,8 @@ fn build_into(
         std::fs::remove_dir_all(&staging).map_err(io_context(&staging))?;
     }
 
-    let count = match build_site(project_root, config, &staging, live_reload, dependencies) {
-        Ok(count) => count,
+    let built = match build_site(project_root, config, &staging, mode, dependencies) {
+        Ok(built) => built,
         Err(e) => {
             let _ = std::fs::remove_dir_all(&staging);
             return Err(e);
@@ -189,7 +240,7 @@ fn build_into(
 
     sync_output(&staging, output_dir)?;
     std::fs::remove_dir_all(&staging).map_err(io_context(&staging))?;
-    Ok(count)
+    Ok(built)
 }
 
 /// Move everything from `staging` into `output_dir`, then delete whatever in
@@ -306,9 +357,13 @@ fn build_site(
     project_root: &Path,
     config: &Config,
     output_dir: &Path,
-    live_reload: bool,
+    mode: BuildMode,
     dependencies: &mut BTreeSet<PathBuf>,
-) -> Result<usize> {
+) -> Result<Built> {
+    let BuildMode {
+        live_reload,
+        drafts: include_drafts,
+    } = mode;
     let content_dir = project_root.join(&config.project.content_dir);
     if !content_dir.exists() {
         return Err(Error::ContentDirNotFound(content_dir));
@@ -402,6 +457,14 @@ fn build_site(
         }
     }
 
+    // Versioned builds scan each version below and count their drafts there.
+    let unversioned_drafts = exclude_drafts(&mut inventory, &front_matters, config, include_drafts);
+    let mut drafts_skipped = if config.is_versioning_enabled() {
+        0
+    } else {
+        unversioned_drafts
+    };
+
     let registry = ComponentRegistry::load(project_root)?;
 
     // Create syntax highlighter if enabled
@@ -459,7 +522,8 @@ fn build_site(
 
         // Pre-scan all version directories to know which base slugs exist per version.
         // This powers the version switcher's has_page flag without full re-scans later.
-        let version_slug_sets = prescan_version_slugs(&content_dir, config, enabled_locales)?;
+        let version_slug_sets =
+            prescan_version_slugs(&content_dir, config, enabled_locales, include_drafts)?;
         let latest_version = config.current_version().map(String::from);
         let current_ver_str = config.current_version().unwrap_or("").to_string();
 
@@ -539,6 +603,13 @@ fn build_site(
                     ver_front_matters.insert(full_new_slug, fm);
                 }
             }
+
+            drafts_skipped += exclude_drafts(
+                &mut ver_inventory,
+                &ver_front_matters,
+                config,
+                include_drafts,
+            );
 
             if config.is_i18n_enabled() {
                 // ── versioned + i18n: per-locale loop ──
@@ -707,6 +778,7 @@ fn build_site(
                             edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                             breadcrumbs,
                             last_updated,
+                            draft: fm.draft,
                             meta_author: fm.author.clone(),
                             meta_date: fm.date.clone(),
                             prev_page,
@@ -754,7 +826,12 @@ fn build_site(
                 // Emit missing translation warnings
                 for (slug, locales_with_page) in &slug_coverage {
                     for locale in &config.locale.enabled {
-                        if !locales_with_page.contains(locale) {
+                        // A draft translation isn't missing, just unpublished.
+                        if !locales_with_page.contains(locale)
+                            && !ver_inventory
+                                .drafts
+                                .contains_key(&format!("{locale}:{slug}"))
+                        {
                             crate::diagnostics::warn_missing_translation(slug, locale);
                         }
                     }
@@ -900,6 +977,7 @@ fn build_site(
                         edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                         breadcrumbs,
                         last_updated,
+                        draft: fm.draft,
                         meta_author: fm.author.clone(),
                         meta_date: fm.date.clone(),
                         prev_page,
@@ -1008,6 +1086,8 @@ fn build_site(
                 ordered: merged_ordered,
                 slug_aliases: HashMap::new(),
                 discovered_locales: HashSet::new(),
+                drafts: HashMap::new(),
+                draft_links: Default::default(),
             };
             let sitemap = seo::generate_sitemap_xml(
                 &merged_inv,
@@ -1063,6 +1143,7 @@ fn build_site(
                 edit_url: None,
                 breadcrumbs: Vec::new(),
                 last_updated: None,
+                draft: false,
                 meta_author: None,
                 meta_date: None,
                 prev_page: None,
@@ -1088,7 +1169,10 @@ fn build_site(
 
         assets::copy_assets(project_root, output_dir, config.theme.custom_css.as_deref())?;
 
-        return Ok(count);
+        return Ok(Built {
+            pages: count,
+            drafts_skipped,
+        });
     }
 
     if config.is_i18n_enabled() {
@@ -1240,6 +1324,7 @@ fn build_site(
                     edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                     breadcrumbs,
                     last_updated,
+                    draft: fm.draft,
                     meta_author: fm.author.clone(),
                     meta_date: fm.date.clone(),
                     prev_page,
@@ -1278,7 +1363,10 @@ fn build_site(
         // Emit missing translation warnings
         for (slug, locales_with_page) in &slug_coverage {
             for locale in &config.locale.enabled {
-                if !locales_with_page.contains(locale) {
+                // A draft translation isn't missing, just unpublished.
+                if !locales_with_page.contains(locale)
+                    && !inventory.drafts.contains_key(&format!("{locale}:{slug}"))
+                {
                     crate::diagnostics::warn_missing_translation(slug, locale);
                 }
             }
@@ -1400,6 +1488,7 @@ fn build_site(
                 edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                 breadcrumbs,
                 last_updated,
+                draft: fm.draft,
                 meta_author: fm.author.clone(),
                 meta_date: fm.date.clone(),
                 prev_page,
@@ -1561,6 +1650,7 @@ fn build_site(
             edit_url: None,
             breadcrumbs: Vec::new(),
             last_updated: None,
+            draft: false,
             meta_author: None,
             meta_date: None,
             prev_page: None,
@@ -1587,15 +1677,20 @@ fn build_site(
     // Copy static assets
     assets::copy_assets(project_root, output_dir, config.theme.custom_css.as_deref())?;
 
-    Ok(count)
+    Ok(Built {
+        pages: count,
+        drafts_skipped,
+    })
 }
 
 /// Scan all enabled version directories and collect the set of base slugs per version.
 /// Used to build the version switcher (so we can show has_page correctly).
+/// Drafts are left out unless `include_drafts`, so the switcher never links to them.
 fn prescan_version_slugs(
     content_dir: &Path,
     config: &Config,
     enabled_locales: Option<&[String]>,
+    include_drafts: bool,
 ) -> Result<std::collections::HashMap<String, HashSet<String>>> {
     let mut sets = std::collections::HashMap::new();
     for version in &config.version.enabled {
@@ -1607,7 +1702,17 @@ fn prescan_version_slugs(
         // Scan without version prefix — we only need slugs, not output paths
         let inv =
             PageInventory::scan(&version_dir, enabled_locales, config.default_locale(), None)?;
-        let slugs: HashSet<String> = inv.pages.values().map(|p| p.slug.clone()).collect();
+        let mut slugs = HashSet::new();
+        for page in inv.pages.values() {
+            if !include_drafts {
+                let source = std::fs::read_to_string(&page.source_path)
+                    .map_err(io_context(&page.source_path))?;
+                if frontmatter::extract(&source).draft {
+                    continue;
+                }
+            }
+            slugs.insert(page.slug.clone());
+        }
         sets.insert(version.clone(), slugs);
     }
     Ok(sets)

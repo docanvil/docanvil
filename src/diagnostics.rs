@@ -41,6 +41,22 @@ pub fn warn_broken_link(source_file: &Path, link_target: &str) {
     );
 }
 
+/// Emit a warning about a wiki-link to a draft page that this build leaves out
+/// (only when `[build] draft_links = "warn"`).
+pub fn warn_draft_link(source_file: &Path, link_target: &str) {
+    increment();
+    eprintln!(
+        "{}: [[{}]] in {} links to a draft page, so it's shown as plain text",
+        "warning".yellow().bold(),
+        link_target,
+        source_file.display()
+    );
+    eprintln!(
+        "  {}: Publish the page (remove \"draft\": true) or remove the link.",
+        "hint".dimmed()
+    );
+}
+
 /// Emit a warning about an `:::include` or `file="…"` code block that couldn't be filled in.
 /// `file` is canonical; it's shown relative to `project_root` when it's inside it.
 pub fn warn_include(

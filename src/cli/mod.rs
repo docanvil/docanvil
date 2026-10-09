@@ -98,6 +98,9 @@ pub enum Command {
         /// Treat warnings as errors
         #[arg(long)]
         strict: bool,
+        /// Include pages marked `"draft": true` (e.g. for a preview deploy)
+        #[arg(long)]
+        drafts: bool,
         /// Path to the project root
         #[arg(long, default_value = ".")]
         path: PathBuf,

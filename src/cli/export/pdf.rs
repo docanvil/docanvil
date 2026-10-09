@@ -7,6 +7,7 @@ use regex::Regex;
 use serde::Serialize;
 use tera::{Context, Tera};
 
+use crate::cli::build::exclude_drafts;
 use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::error::{Error, Result};
@@ -456,6 +457,9 @@ fn run_single_locale(
             front_matters.insert(full_new_key, fm);
         }
     }
+
+    // Drafts never go into the PDF.
+    exclude_drafts(&mut inventory, &front_matters, config, false);
 
     // ── Build nav tree (after slug updates) ───────────────────────────────────
     let nav_tree = if let Some(locale) = export_locale {

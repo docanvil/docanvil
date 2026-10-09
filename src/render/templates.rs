@@ -239,6 +239,7 @@ impl TemplateRenderer {
         context.insert("edit_url", &ctx.edit_url);
         context.insert("breadcrumbs", &ctx.breadcrumbs);
         context.insert("last_updated", &ctx.last_updated);
+        context.insert("draft", &ctx.draft);
 
         self.tera
             .render("layout.html", &context)
@@ -292,6 +293,8 @@ pub struct PageContext {
     pub breadcrumbs: Vec<Breadcrumb>,
     /// When the page last changed, as `YYYY-MM-DD`; `None` hides the date.
     pub last_updated: Option<String>,
+    /// The page is marked `"draft": true` (only rendered by `serve` and `build --drafts`).
+    pub draft: bool,
 }
 
 #[cfg(test)]

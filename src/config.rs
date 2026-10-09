@@ -230,6 +230,19 @@ pub struct BuildConfig {
     pub output_dir: PathBuf,
     pub base_url: String,
     pub site_url: Option<String>,
+    /// How a published page's wiki-links to a draft page render when drafts are left out.
+    pub draft_links: DraftLinks,
+}
+
+/// What happens to a wiki-link pointing at a draft page in a build that leaves drafts out.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DraftLinks {
+    /// Render the link text as plain text, quietly.
+    #[default]
+    Text,
+    /// Render plain text and print a warning (so `--strict` fails).
+    Warn,
 }
 
 #[derive(Debug, Deserialize)]
@@ -316,6 +329,7 @@ impl Default for BuildConfig {
             output_dir: PathBuf::from("dist"),
             base_url: "/".to_string(),
             site_url: None,
+            draft_links: DraftLinks::Text,
         }
     }
 }
@@ -778,5 +792,14 @@ root = "site"
             .unwrap_err()
             .to_string();
         assert!(err.contains("git") && err.contains("front-matter"), "{err}");
+    }
+
+    #[test]
+    fn draft_links_default_to_text() {
+        let config: Config = toml::from_str("").unwrap();
+        assert_eq!(config.build.draft_links, DraftLinks::Text);
+        let config: Config = toml::from_str("[build]\ndraft_links = \"warn\"\n").unwrap();
+        assert_eq!(config.build.draft_links, DraftLinks::Warn);
+        assert!(toml::from_str::<Config>("[build]\ndraft_links = \"error\"\n").is_err());
     }
 }

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::config::DraftLinks;
 use crate::diagnostics;
 use crate::project::PageInventory;
 
@@ -108,6 +109,12 @@ fn resolve_segment(
             if let Some(page) = resolved {
                 let href = format!("{}{}", base_url, page.output_path.display());
                 result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
+            } else if inventory.resolve_draft(target, locale).is_some() {
+                // The page exists but this build leaves it out: keep the words, drop the link.
+                if inventory.draft_links == DraftLinks::Warn {
+                    diagnostics::warn_draft_link(source_file, target);
+                }
+                result.push_str(display);
             } else {
                 diagnostics::warn_broken_link(source_file, target);
                 result.push_str(&format!(
@@ -173,6 +180,27 @@ mod tests {
         assert!(result.contains("popover-error"));
         assert!(result.contains("<code>nonexistent</code>"));
         assert!(result.contains("Page not found"));
+    }
+
+    #[test]
+    fn draft_link_renders_as_text() {
+        let (_dir, mut inv) = test_inventory();
+        inv.exclude_drafts(&["setup".to_string()], DraftLinks::Text);
+        diagnostics::reset_warnings();
+        let html = "<p>See [[setup|the setup guide]].</p>";
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
+        assert_eq!(result, "<p>See the setup guide.</p>");
+        assert_eq!(diagnostics::warning_count(), 0);
+    }
+
+    #[test]
+    fn draft_link_warns_when_configured() {
+        let (_dir, mut inv) = test_inventory();
+        inv.exclude_drafts(&["setup".to_string()], DraftLinks::Warn);
+        diagnostics::reset_warnings();
+        let result = resolve("<p>[[setup]]</p>", &inv, Path::new("test.md"), "/", None);
+        assert_eq!(result, "<p>setup</p>");
+        assert_eq!(diagnostics::warning_count(), 1);
     }
 
     #[test]

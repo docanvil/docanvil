@@ -20,6 +20,8 @@ pub struct FrontMatter {
     /// Old paths that should redirect to this page. Kept as raw JSON so a bad value
     /// can't discard the rest of the front matter; `redirects` interprets it.
     pub redirect_from: Option<serde_json::Value>,
+    /// Set to `false` to leave this page out of `llms.txt` and `llms-full.txt`.
+    pub llms: Option<bool>,
 }
 
 /// Extract JSON front matter from a Markdown source string.
@@ -47,6 +49,29 @@ pub fn extract(source: &str) -> FrontMatter {
 
     let content = &rest[..end];
     serde_json::from_str(content).unwrap_or_default()
+}
+
+/// `source` without its front matter block, whatever the JSON inside it holds.
+/// Sources without a complete `---` … `---` block come back unchanged.
+pub fn strip(source: &str) -> &str {
+    let Some(after_open) = source.trim_start().strip_prefix("---") else {
+        return source;
+    };
+    let Some(rest) = after_open
+        .strip_prefix('\n')
+        .or_else(|| after_open.strip_prefix("\r\n"))
+    else {
+        return source;
+    };
+    let Some(end) = rest.find("\n---") else {
+        return source;
+    };
+    // Skip the rest of the closing `---` line.
+    let after_close = &rest[end + 4..];
+    match after_close.find('\n') {
+        Some(newline) => &after_close[newline + 1..],
+        None => "",
+    }
 }
 
 #[cfg(test)]
@@ -169,5 +194,26 @@ mod tests {
         let fm = extract("---\n{\"title\": \"Kept\", \"redirect_from\": 5}\n---\n# Hi");
         assert_eq!(fm.title.as_deref(), Some("Kept"));
         assert_eq!(fm.redirect_from, Some(serde_json::json!(5)));
+    }
+
+    #[test]
+    fn llms_opt_out() {
+        assert_eq!(extract("---\n{\"llms\": false}\n---\n# A").llms, Some(false));
+        assert_eq!(extract("# A").llms, None);
+    }
+
+    #[test]
+    fn strip_removes_front_matter() {
+        assert_eq!(strip("---\n{\"title\": \"X\"}\n---\n# X\n"), "# X\n");
+        assert_eq!(strip("---\r\n{}\r\n---\r\nBody\r\n"), "Body\r\n");
+        assert_eq!(strip("---\n{not json}\n---\nBody"), "Body");
+        assert_eq!(strip("---\n{}\n---"), "");
+    }
+
+    #[test]
+    fn strip_leaves_other_sources_alone() {
+        assert_eq!(strip("# No front matter\n"), "# No front matter\n");
+        assert_eq!(strip("---\nnever closed\n"), "---\nnever closed\n");
+        assert_eq!(strip("--- not a block\n"), "--- not a block\n");
     }
 }

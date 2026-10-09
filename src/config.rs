@@ -202,6 +202,27 @@ pub struct RedirectsConfig {
     pub paths: BTreeMap<String, String>,
 }
 
+/// `[llms]`: `llms.txt` and `llms-full.txt` for AI tools (<https://llmstxt.org>).
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct LlmsConfig {
+    pub enabled: bool,
+    /// The one-line summary under the title, written as a `>` blockquote.
+    pub description: Option<String>,
+    /// Also write `llms-full.txt`, with every page's Markdown in one file.
+    pub full: bool,
+}
+
+impl Default for LlmsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            description: None,
+            full: true,
+        }
+    }
+}
+
 /// Returns `true` for right-to-left locales.
 pub fn is_rtl_locale(code: &str) -> bool {
     matches!(code, "ar" | "he" | "ur" | "fa" | "ug")
@@ -225,6 +246,7 @@ pub struct Config {
     pub edit: EditConfig,
     pub last_updated: LastUpdatedConfig,
     pub redirects: RedirectsConfig,
+    pub llms: LlmsConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -796,6 +818,25 @@ root = "site"
             toml::from_str("[last_updated]\nenabled = true\nsource = \"front-matter\"\n").unwrap();
         assert!(config.last_updated.enabled);
         assert_eq!(config.last_updated.source, LastUpdatedSource::FrontMatter);
+    }
+
+    #[test]
+    fn llms_defaults_off_with_full_text() {
+        let config: Config = toml::from_str("").unwrap();
+        assert!(!config.llms.enabled);
+        assert!(config.llms.full);
+        assert!(config.llms.description.is_none());
+    }
+
+    #[test]
+    fn llms_parses() {
+        let config: Config = toml::from_str(
+            "[llms]\nenabled = true\ndescription = \"Fast docs.\"\nfull = false\n",
+        )
+        .unwrap();
+        assert!(config.llms.enabled);
+        assert!(!config.llms.full);
+        assert_eq!(config.llms.description.as_deref(), Some("Fast docs."));
     }
 
     #[test]

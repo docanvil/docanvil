@@ -238,6 +238,7 @@ impl TemplateRenderer {
         context.insert("latest_version_url", &ctx.latest_version_url);
         context.insert("edit_url", &ctx.edit_url);
         context.insert("breadcrumbs", &ctx.breadcrumbs);
+        context.insert("last_updated", &ctx.last_updated);
 
         self.tera
             .render("layout.html", &context)
@@ -289,6 +290,8 @@ pub struct PageContext {
     pub edit_url: Option<String>,
     /// Trail of ancestor nav groups down to this page; empty for top-level pages.
     pub breadcrumbs: Vec<Breadcrumb>,
+    /// When the page last changed, as `YYYY-MM-DD`; `None` hides the date.
+    pub last_updated: Option<String>,
 }
 
 #[cfg(test)]

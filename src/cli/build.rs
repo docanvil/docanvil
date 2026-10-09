@@ -650,6 +650,7 @@ fn build_site(
                             meta_description: fm.description.clone(),
                             edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                             breadcrumbs,
+                            last_updated: None,
                             meta_author: fm.author.clone(),
                             meta_date: fm.date.clone(),
                             prev_page,
@@ -833,6 +834,7 @@ fn build_site(
                         meta_description: fm.description.clone(),
                         edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                         breadcrumbs,
+                        last_updated: None,
                         meta_author: fm.author.clone(),
                         meta_date: fm.date.clone(),
                         prev_page,
@@ -942,8 +944,13 @@ fn build_site(
                 slug_aliases: HashMap::new(),
                 discovered_locales: HashSet::new(),
             };
-            let sitemap =
-                seo::generate_sitemap_xml(&merged_inv, &root_base_url, site_url.as_deref(), None);
+            let sitemap = seo::generate_sitemap_xml(
+                &merged_inv,
+                &root_base_url,
+                site_url.as_deref(),
+                None,
+                &HashMap::new(),
+            );
             let sitemap_path = output_dir.join("sitemap.xml");
             std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
         }
@@ -990,6 +997,7 @@ fn build_site(
                 meta_description: None,
                 edit_url: None,
                 breadcrumbs: Vec::new(),
+                last_updated: None,
                 meta_author: None,
                 meta_date: None,
                 prev_page: None,
@@ -1161,6 +1169,7 @@ fn build_site(
                     meta_description: fm.description.clone(),
                     edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                     breadcrumbs,
+                    last_updated: None,
                     meta_author: fm.author.clone(),
                     meta_date: fm.date.clone(),
                     prev_page,
@@ -1315,6 +1324,7 @@ fn build_site(
                 meta_description: fm.description.clone(),
                 edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                 breadcrumbs,
+                last_updated: None,
                 meta_author: fm.author.clone(),
                 meta_date: fm.date.clone(),
                 prev_page,
@@ -1374,6 +1384,7 @@ fn build_site(
             &root_base_url,
             site_url.as_deref(),
             locale_config.as_ref(),
+            &HashMap::new(),
         );
         let sitemap_path = output_dir.join("sitemap.xml");
         std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
@@ -1474,6 +1485,7 @@ fn build_site(
             meta_description: None,
             edit_url: None,
             breadcrumbs: Vec::new(),
+            last_updated: None,
             meta_author: None,
             meta_date: None,
             prev_page: None,

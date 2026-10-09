@@ -20,6 +20,9 @@
   {% if meta_date %}
   <meta property="article:published_time" content="{{ meta_date }}">
   {% endif %}
+  {% if last_updated %}
+  <meta property="article:modified_time" content="{{ last_updated }}">
+  {% endif %}
   <meta property="og:title" content="{{ page_title }}">
   <meta property="og:type" content="article">
   {% if canonical_url %}
@@ -153,16 +156,26 @@
     {{ content | safe }}
     {% endblock %}
 
-    {% block edit_link %}
-    {% if edit_url %}
-    <div class="edit-link">
-      <a href="{{ edit_url }}" target="_blank" rel="noopener">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        Edit this page
-      </a>
+    {% if last_updated or edit_url %}
+    <div class="page-meta">
+      {% block last_updated %}
+      {% if last_updated %}
+      <p class="last-updated">Last updated <time datetime="{{ last_updated }}">{{ last_updated }}</time></p>
+      {% endif %}
+      {% endblock %}
+
+      {% block edit_link %}
+      {% if edit_url %}
+      <div class="edit-link">
+        <a href="{{ edit_url }}" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Edit this page
+        </a>
+      </div>
+      {% endif %}
+      {% endblock %}
     </div>
     {% endif %}
-    {% endblock %}
 
     {% if prev_page or next_page %}
     <nav class="prev-next" aria-label="Page navigation">

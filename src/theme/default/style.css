@@ -1491,9 +1491,23 @@ body {
    Previous / Next page navigation
    ---------------------------------------------------------------- */
 
-.edit-link {
+.page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
   margin-top: 3rem;
   font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.last-updated {
+  margin: 0;
+}
+
+.edit-link {
+  margin-inline-start: auto;
 }
 
 .edit-link a {
@@ -1509,7 +1523,7 @@ body {
   color: var(--color-primary);
 }
 
-.edit-link + .prev-next {
+.page-meta + .prev-next {
   margin-top: 1.25rem;
 }
 

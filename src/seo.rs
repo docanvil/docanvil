@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 
 use crate::project::PageInventory;
 
@@ -22,12 +23,14 @@ pub fn generate_robots_txt(sitemap_url: Option<&str>) -> String {
 /// Generate a `sitemap.xml` file from the page inventory.
 /// Uses `site_url` for absolute URLs when available, otherwise falls back to
 /// `base_url` for relative paths. When `locale_config` is provided, emits
-/// `xhtml:link` hreflang annotations for multilingual pages.
+/// `xhtml:link` hreflang annotations for multilingual pages. `lastmod` maps a
+/// page's output path to its last-updated date.
 pub fn generate_sitemap_xml(
     inventory: &PageInventory,
     base_url: &str,
     site_url: Option<&str>,
     locale_config: Option<&SitemapLocaleConfig>,
+    lastmod: &HashMap<PathBuf, String>,
 ) -> String {
     let has_i18n = locale_config.is_some();
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -51,6 +54,10 @@ pub fn generate_sitemap_xml(
         };
 
         xml.push_str(&format!("  <url>\n    <loc>{loc}</loc>\n"));
+
+        if let Some(date) = lastmod.get(&page.output_path) {
+            xml.push_str(&format!("    <lastmod>{date}</lastmod>\n"));
+        }
 
         // Emit hreflang alternates for i18n pages
         if let Some(lc) = locale_config {
@@ -119,13 +126,36 @@ mod tests {
         fs::write(docs.join("guide.md"), "# Guide").unwrap();
 
         let inv = PageInventory::scan(&docs, None, None, None).unwrap();
-        let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"), None);
+        let xml = generate_sitemap_xml(
+            &inv,
+            "/",
+            Some("https://example.com/"),
+            None,
+            &HashMap::new(),
+        );
 
         assert!(xml.contains("<loc>https://example.com/guide.html</loc>"));
         assert!(xml.contains("<loc>https://example.com/index.html</loc>"));
         assert!(xml.starts_with("<?xml"));
         assert!(xml.contains("<urlset"));
         assert!(xml.ends_with("</urlset>\n"));
+    }
+
+    #[test]
+    fn sitemap_lastmod_when_known() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("index.md"), "# Home").unwrap();
+        fs::write(docs.join("guide.md"), "# Guide").unwrap();
+
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
+        let lastmod = HashMap::from([(PathBuf::from("guide.html"), "2026-10-09".to_string())]);
+        let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"), None, &lastmod);
+        assert!(xml.contains(
+            "<loc>https://example.com/guide.html</loc>\n    <lastmod>2026-10-09</lastmod>\n"
+        ));
+        assert_eq!(xml.matches("<lastmod>").count(), 1);
     }
 
     #[test]
@@ -136,7 +166,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
 
         let inv = PageInventory::scan(&docs, None, None, None).unwrap();
-        let xml = generate_sitemap_xml(&inv, "/docs/", None, None);
+        let xml = generate_sitemap_xml(&inv, "/docs/", None, None, &HashMap::new());
 
         assert!(xml.contains("<loc>/docs/index.html</loc>"));
     }
@@ -150,7 +180,13 @@ mod tests {
         fs::write(docs.join("guides/setup.md"), "# Setup").unwrap();
 
         let inv = PageInventory::scan(&docs, None, None, None).unwrap();
-        let xml = generate_sitemap_xml(&inv, "/", Some("https://example.com/"), None);
+        let xml = generate_sitemap_xml(
+            &inv,
+            "/",
+            Some("https://example.com/"),
+            None,
+            &HashMap::new(),
+        );
 
         assert!(xml.contains("<loc>https://example.com/guides/setup.html</loc>"));
     }
@@ -179,6 +215,7 @@ mod tests {
             "/",
             Some("https://example.com/"),
             Some(&locale_config),
+            &HashMap::new(),
         );
 
         // Should have xhtml namespace
@@ -200,7 +237,7 @@ mod tests {
         fs::write(docs.join("index.md"), "# Home").unwrap();
 
         let inv = PageInventory::scan(&docs, None, None, None).unwrap();
-        let xml = generate_sitemap_xml(&inv, "/", None, None);
+        let xml = generate_sitemap_xml(&inv, "/", None, None, &HashMap::new());
 
         assert!(!xml.contains("xmlns:xhtml="));
         assert!(!xml.contains("xhtml:link"));

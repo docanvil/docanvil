@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use walkdir::WalkDir;
 
+use crate::config::DraftLinks;
 use crate::error::Result;
 use crate::util::html_escape;
 
@@ -34,6 +35,11 @@ pub struct PageInventory {
     pub slug_aliases: HashMap<String, String>,
     /// Locales discovered during scanning (populated only when i18n is enabled).
     pub discovered_locales: HashSet<String>,
+    /// Draft pages left out of this build, keyed like `pages`. Kept so links and
+    /// nav entries pointing at them can be told apart from missing pages.
+    pub drafts: HashMap<String, PageInfo>,
+    /// How wiki-links to `drafts` render (`[build] draft_links`).
+    pub draft_links: DraftLinks,
 }
 
 /// A node in the navigation tree.
@@ -51,6 +57,41 @@ pub enum NavNode {
     Separator {
         label: Option<String>,
     },
+}
+
+/// Look up a wiki-link target: exact key, then alias, then basename. With a
+/// locale, keys are `{locale}:{slug}` and basename matches stay in that locale.
+fn find_page<'a>(
+    pages: &'a HashMap<String, PageInfo>,
+    aliases: &HashMap<String, String>,
+    target: &str,
+    locale: Option<&str>,
+) -> Option<&'a PageInfo> {
+    let normalized = target.trim().replace('\\', "/");
+    let key = match locale {
+        Some(l) => format!("{l}:{normalized}"),
+        None => normalized.clone(),
+    };
+
+    if let Some(page) = pages.get(&key) {
+        return Some(page);
+    }
+
+    // Alias match (old filename-based slug → new slug)
+    if let Some(new_slug) = aliases.get(&key)
+        && let Some(page) = pages.get(new_slug)
+    {
+        return Some(page);
+    }
+
+    // Basename match
+    pages.values().find(|p| {
+        (locale.is_none() || p.locale.as_deref() == locale)
+            && p.slug
+                .rsplit('/')
+                .next()
+                .is_some_and(|base| base == normalized)
+    })
 }
 
 /// Extract locale suffix from a filename stem, if it matches an enabled locale.
@@ -202,6 +243,8 @@ impl PageInventory {
             ordered,
             slug_aliases: HashMap::new(),
             discovered_locales,
+            drafts: HashMap::new(),
+            draft_links: DraftLinks::default(),
         })
     }
 
@@ -260,55 +303,32 @@ impl PageInventory {
     /// Resolve a wiki-link target within a specific locale.
     /// Looks up `{locale}:{normalized_target}`, then alias, then basename — all within the same locale.
     pub fn resolve_link_in_locale(&self, target: &str, locale: &str) -> Option<&PageInfo> {
-        let normalized = target.trim().replace('\\', "/");
-        let key = format!("{}:{}", locale, normalized);
-
-        // Exact match with locale prefix
-        if let Some(page) = self.pages.get(&key) {
-            return Some(page);
-        }
-
-        // Alias match within locale
-        if let Some(new_slug) = self.slug_aliases.get(&key)
-            && let Some(page) = self.pages.get(new_slug)
-        {
-            return Some(page);
-        }
-
-        // Basename match within same locale
-        self.pages.values().find(|p| {
-            p.locale.as_deref() == Some(locale)
-                && p.slug
-                    .rsplit('/')
-                    .next()
-                    .is_some_and(|base| base == normalized)
-        })
+        find_page(&self.pages, &self.slug_aliases, target, Some(locale))
     }
 
     /// Resolve a wiki-link target to a page slug.
     /// Tries exact match first, then alias lookup, then basename match.
     pub fn resolve_link(&self, target: &str) -> Option<&PageInfo> {
-        let normalized = target.trim().replace('\\', "/");
+        find_page(&self.pages, &self.slug_aliases, target, None)
+    }
 
-        // Exact match
-        if let Some(page) = self.pages.get(&normalized) {
-            return Some(page);
+    /// Resolve a wiki-link target against the drafts left out of this build,
+    /// using the same rules as [`resolve_link`](Self::resolve_link).
+    pub fn resolve_draft(&self, target: &str, locale: Option<&str>) -> Option<&PageInfo> {
+        find_page(&self.drafts, &self.slug_aliases, target, locale)
+    }
+
+    /// Move the pages with these keys out of the inventory and into `drafts`,
+    /// so nav, search, the sitemap and prev/next links never see them.
+    /// `links` sets how wiki-links to them render.
+    pub fn exclude_drafts(&mut self, keys: &[String], links: DraftLinks) {
+        self.draft_links = links;
+        for key in keys {
+            if let Some(page) = self.pages.remove(key) {
+                self.drafts.insert(key.clone(), page);
+            }
         }
-
-        // Alias match (old filename-based slug → new slug)
-        if let Some(new_slug) = self.slug_aliases.get(&normalized)
-            && let Some(page) = self.pages.get(new_slug)
-        {
-            return Some(page);
-        }
-
-        // Try matching just the last component (basename)
-        self.pages.values().find(|p| {
-            p.slug
-                .rsplit('/')
-                .next()
-                .is_some_and(|base| base == normalized)
-        })
+        self.ordered.retain(|key| !self.drafts.contains_key(key));
     }
 
     /// Return the ordered keys for pages matching a specific locale.
@@ -793,6 +813,47 @@ mod tests {
             inv.slug_aliases.get("en:reference/cli").map(String::as_str),
             Some("en:reference/cli-commands")
         );
+    }
+
+    #[test]
+    fn exclude_drafts_moves_pages_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(docs.join("guides")).unwrap();
+        fs::write(docs.join("index.md"), "# Home").unwrap();
+        fs::write(docs.join("guides/wip.md"), "# WIP").unwrap();
+
+        let mut inv = PageInventory::scan(&docs, None, None, None).unwrap();
+        inv.exclude_drafts(&["guides/wip".to_string()], DraftLinks::Text);
+
+        assert!(inv.resolve_link("guides/wip").is_none());
+        assert!(inv.resolve_link("wip").is_none());
+        assert_eq!(inv.ordered, vec!["index"]);
+        assert!(
+            inv.nav_tree()
+                .iter()
+                .all(|n| !matches!(n, NavNode::Group { .. }))
+        );
+        assert_eq!(inv.resolve_draft("wip", None).unwrap().slug, "guides/wip");
+        assert!(inv.resolve_draft("index", None).is_none());
+    }
+
+    #[test]
+    fn resolve_draft_respects_locale() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        fs::create_dir_all(&docs).unwrap();
+        fs::write(docs.join("page.en.md"), "# Page").unwrap();
+        fs::write(docs.join("page.fr.md"), "# Page").unwrap();
+
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let mut inv = PageInventory::scan(&docs, Some(&locales), Some("en"), None).unwrap();
+        inv.exclude_drafts(&["fr:page".to_string()], DraftLinks::Text);
+
+        assert!(inv.resolve_link_in_locale("page", "en").is_some());
+        assert!(inv.resolve_link_in_locale("page", "fr").is_none());
+        assert!(inv.resolve_draft("page", Some("fr")).is_some());
+        assert!(inv.resolve_draft("page", Some("en")).is_none());
     }
 
     #[test]

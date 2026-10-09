@@ -15,6 +15,8 @@ pub struct FrontMatter {
     /// Kept as raw JSON so a bad value can't discard the rest of the front matter;
     /// `last_updated::parse_override` interprets it.
     pub last_updated: Option<serde_json::Value>,
+    /// `true` keeps the page out of `docanvil build` (it still shows in `docanvil serve`).
+    pub draft: bool,
 }
 
 /// Extract JSON front matter from a Markdown source string.
@@ -144,5 +146,12 @@ mod tests {
             assert_eq!(fm.title.as_deref(), Some("Kept"), "value {value}");
             assert_eq!(fm.slug.as_deref(), Some("kept"), "value {value}");
         }
+    }
+
+    #[test]
+    fn draft_flag() {
+        assert!(extract("---\n{\"draft\": true}\n---\n# Hi").draft);
+        assert!(!extract("---\n{\"title\": \"Hi\"}\n---\n# Hi").draft);
+        assert!(!extract("# Hi").draft);
     }
 }

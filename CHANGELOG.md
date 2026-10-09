@@ -7,6 +7,7 @@ All notable changes to DocAnvil will be documented in this file.
 ### Added
 
 - "Edit this page" links: set `repo` in a new `[edit]` section and every page links (in a new tab) to its Markdown source on GitHub, GitLab or Bitbucket, so readers can suggest fixes as pull requests. Translated and versioned pages link to their own source file, self-hosted GitHub and GitLab work via `provider`, and a page can opt out with `"edit_link": false` in its front matter. `docanvil doctor` warns if the settings can't produce working links (#45)
+- Open in your editor from `docanvil serve`: while the dev server is running, every page links straight to its source file in your local editor ("Open in editor"), even without an `[edit]` section. VS Code by default; choose `cursor`, `zed`, `idea`, `none`, or your own URL template with `{path}` via `serve --editor` or `DOCANVIL_EDITOR`, or let DocAnvil pick it up from `$VISUAL` / `$EDITOR`. `docanvil build` output is unchanged (#78)
 - Template components: drop a Tera template into `theme/components/<name>.html` and use it as `:::name{…}`. A template with a built-in's name restyles that built-in, keeping its data (e.g. `tabs`)
 - Components can now be nested — `::::card` containing `:::note` and inline `:::lozenge{…}` just works
 - `docanvil component list` and `docanvil component eject <name>` to see components and copy a built-in's template into your project

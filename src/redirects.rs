@@ -201,7 +201,7 @@ enum Found<'a> {
 pub fn plan(config: &Config, sets: &[PageSet]) -> RedirectPlan {
     let mut problems = Vec::new();
     let mut candidates = Vec::new();
-    front_matter_candidates(sets, &mut candidates, &mut problems);
+    front_matter_candidates(config, sets, &mut candidates, &mut problems);
     let drafted = table_candidates(config, sets, &mut candidates, &mut problems);
     unprefixed_candidates(config, sets, &mut candidates);
     resolve(config, sets, candidates, &drafted, problems)
@@ -285,7 +285,32 @@ fn redirect_from_entries(value: &serde_json::Value) -> Option<Vec<&str>> {
     }
 }
 
+/// The page a literal `redirect_from` path goes to: `page`'s copy in the current
+/// version and default language, so every copy of a page that declares the same
+/// path agrees on one target. Falls back to the declaring version's copy, then to
+/// `page` itself.
+fn home_page<'a>(
+    config: &Config,
+    sets: &[PageSet<'a>],
+    set: &PageSet<'a>,
+    page: &'a PageInfo,
+) -> &'a PageInfo {
+    fn copy_in<'a>(set: &PageSet<'a>, slug: &str, lang: Option<&str>) -> Option<&'a PageInfo> {
+        let key = match lang {
+            Some(lang) => format!("{lang}:{slug}"),
+            None => slug.to_string(),
+        };
+        set.inventory.pages.get(&key)
+    }
+    let lang = default_lang(config);
+    current_set(config, sets)
+        .and_then(|current| copy_in(current, &page.slug, lang))
+        .or_else(|| copy_in(set, &page.slug, lang))
+        .unwrap_or(page)
+}
+
 fn front_matter_candidates(
+    config: &Config,
     sets: &[PageSet],
     out: &mut Vec<Candidate>,
     problems: &mut Vec<RedirectProblem>,
@@ -336,13 +361,16 @@ fn front_matter_candidates(
                             });
                         }
                     }
-                    Ok(Spec::Literal(path)) => out.push(Candidate {
-                        from: path,
-                        to: Target::Page(output_path(page)),
-                        lang: page.locale.clone(),
-                        origin: origin.clone(),
-                        must_resolve: false,
-                    }),
+                    Ok(Spec::Literal(path)) => {
+                        let home = home_page(config, sets, set, page);
+                        out.push(Candidate {
+                            from: path,
+                            to: Target::Page(output_path(home)),
+                            lang: home.locale.clone(),
+                            origin: origin.clone(),
+                            must_resolve: false,
+                        });
+                    }
                     // parse_spec only returns External for targets.
                     Ok(Spec::External(_)) => {}
                     Err(why) => problems.push(invalid(origin.clone(), why)),
@@ -1072,6 +1100,53 @@ mod tests {
             pairs(&site.plan()),
             vec![("start.html", page("guide.html"))]
         );
+    }
+
+    #[test]
+    fn literal_in_every_version_points_at_the_current_one() {
+        let config = format!("{VERSIONED}\ncurrent = \"v2\"\n");
+        let moved = moved(&["/old-guide.html"]);
+        let site = Site::new(&config, &[("v1/guide.md", &moved), ("v2/guide.md", &moved)]);
+        let plan = site.plan();
+        assert_eq!(
+            pairs(&plan),
+            vec![("old-guide.html", page("v2/guide.html"))]
+        );
+        assert!(plan.problems.is_empty(), "{:?}", plan.problems);
+    }
+
+    #[test]
+    fn literal_in_translations_points_at_the_default_language() {
+        let moved = moved(&["/legacy.html"]);
+        let site = Site::new(I18N, &[("guide.en.md", &moved), ("guide.fr.md", &moved)]);
+        let plan = site.plan();
+        assert_eq!(pairs(&plan), vec![("legacy.html", page("en/guide.html"))]);
+        assert!(plan.problems.is_empty(), "{:?}", plan.problems);
+
+        let french_default = I18N.replace("default = \"en\"", "default = \"fr\"");
+        let site = Site::new(
+            &french_default,
+            &[("guide.en.md", &moved), ("guide.fr.md", &moved)],
+        );
+        assert_eq!(
+            pairs(&site.plan()),
+            vec![("legacy.html", page("fr/guide.html"))]
+        );
+    }
+
+    #[test]
+    fn literal_on_a_translation_points_at_the_default_language() {
+        let site = Site::new(
+            I18N,
+            &[
+                ("guide.en.md", "# Guide"),
+                ("guide.fr.md", &moved(&["/legacy.html"])),
+            ],
+        );
+        let plan = site.plan();
+        let legacy = &plan.redirects[0];
+        assert_eq!(legacy.to, page("en/guide.html"));
+        assert_eq!(legacy.lang.as_deref(), Some("en"));
     }
 
     #[test]

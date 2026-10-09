@@ -13,6 +13,7 @@ use crate::diagnostics::{self, reset_warnings, warning_count};
 use crate::edit::{EditLinks, Editor};
 use crate::error::{Error, Result};
 use crate::last_updated::{self, DateSource, GitDates, NoDates, Override};
+use crate::llms::{self, LlmsScope};
 use crate::nav;
 use crate::pipeline;
 use crate::pipeline::frontmatter::{self, FrontMatter};
@@ -493,6 +494,55 @@ fn write_redirects(
     )
 }
 
+/// Write each scope's `llms.txt` (and `llms-full.txt`) into its folder. The
+/// `root_dir` scope is also copied to the site root with an `## Optional`
+/// section linking every other scope, since AI tools only look at `/llms.txt`.
+fn write_llms(
+    output_dir: &Path,
+    config: &Config,
+    scopes: &[LlmsScope],
+    root_dir: &str,
+    base: &str,
+) -> Result<()> {
+    for scope in scopes {
+        let sections = llms::sections_from_nav(&scope.nav, &scope.pages);
+        write_llms_pair(&output_dir.join(&scope.dir), config, &sections, &[])?;
+        if !scope.dir.is_empty() && scope.dir == root_dir {
+            let optional: Vec<(String, String)> = scopes
+                .iter()
+                .filter(|other| other.dir != root_dir)
+                .map(|other| (other.label.clone(), format!("{base}{}llms.txt", other.dir)))
+                .collect();
+            write_llms_pair(output_dir, config, &sections, &optional)?;
+        }
+    }
+    Ok(())
+}
+
+/// Write `llms.txt`, plus `llms-full.txt` unless `[llms] full = false`.
+fn write_llms_pair(
+    dir: &Path,
+    config: &Config,
+    sections: &[llms::Section],
+    optional: &[(String, String)],
+) -> Result<()> {
+    std::fs::create_dir_all(dir)?;
+    let name = &config.project.name;
+    let description = config.llms.description.as_deref();
+    let index_path = dir.join("llms.txt");
+    std::fs::write(
+        &index_path,
+        llms::generate_index(name, description, sections, optional),
+    )
+    .map_err(io_context(&index_path))?;
+    if config.llms.full {
+        let full_path = dir.join("llms-full.txt");
+        std::fs::write(&full_path, llms::generate_full(name, description, sections))
+            .map_err(io_context(&full_path))?;
+    }
+    Ok(())
+}
+
 /// Core build logic shared between CLI and serve.
 fn build_site(
     project_root: &Path,
@@ -563,6 +613,10 @@ fn build_site(
     } else {
         config.base_url()
     };
+    // llms.txt: one scope per (version, locale), written after all pages render.
+    let llms_on = config.llms.enabled && !live_reload;
+    let llms_base = config.site_url().unwrap_or_else(|| root_base_url.clone());
+    let mut llms_scopes: Vec<LlmsScope> = Vec::new();
     // Compute logo and favicon paths with root base_url prefix
     let logo_path = config
         .project
@@ -685,6 +739,7 @@ fn build_site(
                         prev_next_map.insert(slug.clone(), (prev, next));
                     }
 
+                    let mut llms_pages = llms_on.then(Vec::new);
                     let mut search_entries = if config.search.enabled {
                         Some(Vec::new())
                     } else {
@@ -709,6 +764,18 @@ fn build_site(
                             project_root,
                             Some(locale),
                         )?;
+                        if let Some(pages) = llms_pages.as_mut().filter(|_| fm.llms != Some(false))
+                        {
+                            pages.push(llms::page_entry(
+                                page,
+                                fm,
+                                &processed.markdown,
+                                &ver_inventory,
+                                Some(locale),
+                                &llms_base,
+                                project_root,
+                            ));
+                        }
                         let last_updated = page_last_updated(
                             &mut last_updated_dates,
                             page,
@@ -835,6 +902,19 @@ fn build_site(
                         count += 1;
                     }
 
+                    if let Some(pages) = llms_pages {
+                        llms_scopes.push(LlmsScope {
+                            dir: format!("{version}/{locale}/"),
+                            label: format!(
+                                "{} · {}",
+                                config.version_display_name(version),
+                                config.locale_display_name(locale)
+                            ),
+                            nav: nav_tree.clone(),
+                            pages,
+                        });
+                    }
+
                     // Write per-locale search index for this version
                     if let Some(entries) = search_entries {
                         let json = search::build_index(&entries);
@@ -905,6 +985,7 @@ fn build_site(
                     prev_next_map.insert(slug.clone(), (prev, next));
                 }
 
+                let mut llms_pages = llms_on.then(Vec::new);
                 let mut search_entries = if config.search.enabled {
                     Some(Vec::new())
                 } else {
@@ -928,6 +1009,17 @@ fn build_site(
                         project_root,
                         None,
                     )?;
+                    if let Some(pages) = llms_pages.as_mut().filter(|_| fm.llms != Some(false)) {
+                        pages.push(llms::page_entry(
+                            page,
+                            fm,
+                            &processed.markdown,
+                            &ver_inventory,
+                            None,
+                            &llms_base,
+                            project_root,
+                        ));
+                    }
                     let last_updated = page_last_updated(
                         &mut last_updated_dates,
                         page,
@@ -1035,6 +1127,15 @@ fn build_site(
                     count += 1;
                 }
 
+                if let Some(pages) = llms_pages {
+                    llms_scopes.push(LlmsScope {
+                        dir: format!("{version}/"),
+                        label: config.version_display_name(version),
+                        nav: nav_tree.clone(),
+                        pages,
+                    });
+                }
+
                 // Write search index for this version
                 if let Some(entries) = search_entries {
                     let json = search::build_index(&entries);
@@ -1089,6 +1190,11 @@ fn build_site(
             })
             .collect();
         write_redirects(project_root, config, &sets, output_dir, &root_base_url)?;
+        let llms_root = match config.default_locale().filter(|_| config.is_i18n_enabled()) {
+            Some(locale) => format!("{current_ver_str}/{locale}/"),
+            None => format!("{current_ver_str}/"),
+        };
+        write_llms(output_dir, config, &llms_scopes, &llms_root, &llms_base)?;
 
         // Generate robots.txt and sitemap (merged across all versions)
         if !live_reload {
@@ -1254,6 +1360,7 @@ fn build_site(
                 prev_next_map.insert(slug.clone(), (prev, next));
             }
 
+            let mut llms_pages = llms_on.then(Vec::new);
             let mut search_entries = if config.search.enabled {
                 Some(Vec::new())
             } else {
@@ -1278,6 +1385,17 @@ fn build_site(
                     project_root,
                     Some(locale),
                 )?;
+                if let Some(pages) = llms_pages.as_mut().filter(|_| fm.llms != Some(false)) {
+                    pages.push(llms::page_entry(
+                        page,
+                        fm,
+                        &processed.markdown,
+                        &inventory,
+                        Some(locale),
+                        &llms_base,
+                        project_root,
+                    ));
+                }
                 let last_updated =
                     page_last_updated(&mut last_updated_dates, page, fm, &processed.dependencies);
                 if let Some(date) = &last_updated {
@@ -1385,6 +1503,15 @@ fn build_site(
                 count += 1;
             }
 
+            if let Some(pages) = llms_pages {
+                llms_scopes.push(LlmsScope {
+                    dir: format!("{locale}/"),
+                    label: config.locale_display_name(locale),
+                    nav: nav_tree.clone(),
+                    pages,
+                });
+            }
+
             // Write per-locale search index
             if let Some(entries) = search_entries {
                 let json = search::build_index(&entries);
@@ -1447,6 +1574,7 @@ fn build_site(
             prev_next_map.insert(slug.clone(), (prev, next));
         }
 
+        let mut llms_pages = llms_on.then(Vec::new);
         let mut search_entries = if config.search.enabled {
             Some(Vec::new())
         } else {
@@ -1469,6 +1597,17 @@ fn build_site(
                 project_root,
                 None,
             )?;
+            if let Some(pages) = llms_pages.as_mut().filter(|_| fm.llms != Some(false)) {
+                pages.push(llms::page_entry(
+                    page,
+                    fm,
+                    &processed.markdown,
+                    &inventory,
+                    None,
+                    &llms_base,
+                    project_root,
+                ));
+            }
             let last_updated =
                 page_last_updated(&mut last_updated_dates, page, fm, &processed.dependencies);
             if let Some(date) = &last_updated {
@@ -1550,6 +1689,15 @@ fn build_site(
             count += 1;
         }
 
+        if let Some(pages) = llms_pages {
+            llms_scopes.push(LlmsScope {
+                dir: String::new(),
+                label: config.project.name.clone(),
+                nav: nav_tree.clone(),
+                pages,
+            });
+        }
+
         // Write search index
         if let Some(entries) = search_entries {
             let json = search::build_index(&entries);
@@ -1557,6 +1705,12 @@ fn build_site(
             std::fs::write(&path, json).map_err(io_context(&path))?;
         }
     }
+
+    let llms_root = match config.default_locale().filter(|_| config.is_i18n_enabled()) {
+        Some(locale) => format!("{locale}/"),
+        None => String::new(),
+    };
+    write_llms(output_dir, config, &llms_scopes, &llms_root, &llms_base)?;
 
     // Generate robots.txt and sitemap.xml for production builds
     if !live_reload {

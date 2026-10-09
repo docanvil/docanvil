@@ -41,6 +41,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
 | `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
 | `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see [[guides/configuration|Configuration → `[last_updated]`]]) |
+| `draft` | Boolean | Set to `true` to keep the page out of production builds while you work on it (see [Draft Pages](#draft-pages)) |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 
@@ -108,6 +109,46 @@ The `slug` value is normalized to a URL-safe format automatically — spaces bec
 ### Backward-Compatible Links
 
 When a slug changes (via `title` or `slug`), wiki-links using the old filename-based slug still resolve correctly. For example, if `01-setup.md` gets the title "Setup Guide", both `01-setup` and `setup-guide` will link to the same page.
+
+## Draft Pages
+
+Mark a page as a draft to keep working on it in the open — commit it, review it, preview it — without publishing it yet:
+
+```markdown
+---
+{
+  "draft": true
+}
+---
+
+# New Deployment Guide
+
+Still being written...
+```
+
+- **`docanvil serve`** shows drafts like any other page, with a **Draft** banner at the top so you don't forget.
+- **`docanvil build`** leaves drafts out completely: no HTML file, and no entry in the sidebar, search, sitemap or previous/next links. The build output tells you how many it skipped.
+- **`docanvil export pdf`** leaves them out too.
+
+When the page is ready, remove `"draft": true` (or set it to `false`) and it's published with your next build.
+
+### Links and navigation to drafts
+
+You don't need to tidy up around a draft before building:
+
+- A `nav.toml` entry pointing at a draft is skipped. A group whose pages are all drafts disappears until one is published.
+- A wiki-link from a published page to a draft shows its text without a link, so readers never land on a missing page.
+- A draft translation (say `guide.fr.md`) isn't reported as a missing translation.
+
+If you'd rather catch links to unpublished pages, set `draft_links = "warn"` under [[guides/configuration|`[build]`]]. Those links then print a warning, and `docanvil build --strict` fails.
+
+### Previewing drafts
+
+`docanvil build --drafts` includes drafts in a static build, which is handy for preview deploys of a pull request. Drafts keep their banner and get a `noindex` tag, so search engines skip them even if the preview is public.
+
+:::note
+Drafts are about publishing, not privacy. The Markdown is still in your repository, so don't use `draft` for anything that must stay secret.
+:::
 
 ## SEO Meta Tags
 

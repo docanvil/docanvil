@@ -335,6 +335,7 @@ docanvil serve [--host <adresse>] [--port <port>] [--path <rép>]
 Le serveur :
 
 - Compile le site au démarrage dans un répertoire temporaire — votre dossier `dist/` n'est jamais modifié, donc une compilation de développement ne peut pas être déployée par erreur
+- Affiche aussi les [[writing/front-matter|pages brouillon]], avec un bandeau **Draft**
 - Surveille votre répertoire de contenu (`content_dir`), `theme/`, `assets/`, `static/`, `docanvil.toml` et chaque `nav*.toml` (y compris les fichiers de navigation par langue et par version)
 - Recompile les pages affectées lors d'un changement de fichier
 - Notifie le navigateur via WebSocket à `/__docanvil_ws`
@@ -369,7 +370,7 @@ docanvil serve --path ../mes-docs
 Génère le site HTML statique pour le déploiement.
 
 ```bash
-docanvil build [--out <chemin>] [--clean] [--path <rép>]
+docanvil build [--out <chemin>] [--clean] [--strict] [--drafts] [--path <rép>]
 ```
 
 | Option | Défaut | Description |
@@ -377,6 +378,7 @@ docanvil build [--out <chemin>] [--clean] [--path <rép>]
 | `--out` | `[build] output_dir` (`dist`) | Répertoire de sortie pour le site généré. Remplace `output_dir` de `docanvil.toml` |
 | `--clean` | `false` | Supprimer le répertoire de sortie avant la compilation. Refuse si le répertoire contient la racine du projet, le contenu, le thème ou les assets |
 | `--strict` | `false` | Émettre les avertissements comme erreurs et quitter avec le code `3` |
+| `--drafts` | `false` | Inclure les [[writing/front-matter|pages brouillon]] (pour les déploiements de prévisualisation). Elles gardent leur bandeau et sont marquées `noindex` |
 | `--path` | `.` | Chemin vers la racine du projet |
 
 Le pipeline de compilation traite chaque page en passant par :
@@ -404,6 +406,11 @@ docanvil build --out public --clean
 ```bash
 # Compiler un projet depuis un autre répertoire
 docanvil build --path ../mes-docs
+```
+
+```bash
+# Compilation de prévisualisation qui inclut les brouillons
+docanvil build --drafts --out preview
 ```
 :::
 

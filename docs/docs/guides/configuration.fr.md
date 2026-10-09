@@ -104,6 +104,7 @@ Le champ `name` sous `[project]` est obligatoire. DocAnvil ne pourra pas démarr
 | `output_dir` | `"dist"` | Répertoire où le site statique est généré |
 | `base_url` | `"/"` | Préfixe de chemin URL pour les déploiements dans des sous-répertoires (ex. `"/mon-projet/"`) |
 | `site_url` | `None` | URL complète du site (ex. `"https://exemple.com/"`) pour les URLs canoniques, les balises hreflang, et le sitemap |
+| `draft_links` | `"text"` | Rendu des wiki-links vers des [[writing/front-matter|pages brouillon]] dans les compilations qui les excluent. `"text"` affiche le texte du lien sans rien signaler ; `"warn"` affiche aussi un avertissement, donc `--strict` échoue |
 
 :::note{title="Recommandé pour l'i18n"}
 Définir `site_url` est fortement recommandé lors de l'utilisation de la localisation. Cela permet les URLs hreflang absolues, les balises `<link>` canoniques, et les balises meta `og:url` — toutes importantes pour le SEO multilingue.

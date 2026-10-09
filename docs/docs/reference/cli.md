@@ -334,6 +334,7 @@ docanvil serve [--host <address>] [--port <port>] [--path <dir>]
 The server:
 
 - Builds the site on startup into a temporary directory — your `dist/` folder is never touched, so a dev build can't be deployed by accident
+- Shows [[writing/front-matter|draft pages]] too, with a **Draft** banner
 - Watches your content directory (`content_dir`), `theme/`, `assets/`, `static/`, `docanvil.toml` and every `nav*.toml` (including per-locale and per-version nav files)
 - Rebuilds affected pages on file change
 - Notifies the browser via WebSocket at `/__docanvil_ws`
@@ -368,7 +369,7 @@ docanvil serve --path ../my-docs
 Generate the static HTML site for deployment.
 
 ```bash
-docanvil build [--out <path>] [--clean] [--path <dir>]
+docanvil build [--out <path>] [--clean] [--strict] [--drafts] [--path <dir>]
 ```
 
 | Option | Default | Description |
@@ -376,6 +377,7 @@ docanvil build [--out <path>] [--clean] [--path <dir>]
 | `--out` | `[build] output_dir` (`dist`) | Output directory for the generated site. Overrides `output_dir` in `docanvil.toml` |
 | `--clean` | `false` | Remove the output directory before building. Refuses if the directory contains the project root, content, theme or assets |
 | `--strict` | `false` | Emit warnings as errors and exit with code `3` |
+| `--drafts` | `false` | Include [[writing/front-matter|draft pages]] (for preview deploys). They keep their banner and are marked `noindex` |
 | `--path` | `.` | Path to the project root |
 
 The build pipeline processes each page through:
@@ -403,6 +405,11 @@ docanvil build --out public --clean
 ```bash
 # Build a project from another directory
 docanvil build --path ../my-docs
+```
+
+```bash
+# Preview build that includes draft pages
+docanvil build --drafts --out preview
 ```
 :::
 

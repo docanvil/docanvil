@@ -19,14 +19,14 @@ pub async fn start(host: &str, port: u16, output_dir: &Path, project_root: &Path
         .map_err(|e| crate::error::Error::General(format!("invalid address: {e}")))?;
 
     // Initial build with live_reload enabled
-    crate::cli::build::run_with_options(project_root, output_dir, true)?;
+    let dependencies = crate::cli::build::run_with_options(project_root, output_dir, true)?;
 
     // Start file watcher
     let tx_clone = tx.clone();
     let watch_root = project_root.to_path_buf();
     let watch_output = output_dir.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        if let Err(e) = watcher::watch(tx_clone, &watch_root, &watch_output) {
+        if let Err(e) = watcher::watch(tx_clone, &watch_root, &watch_output, dependencies) {
             eprintln!("watcher error: {e}");
         }
     });

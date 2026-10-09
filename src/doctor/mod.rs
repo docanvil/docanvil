@@ -258,17 +258,27 @@ fn xml_escape(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// A diagnostic's file as reports name it: relative to the project root, with `/`
+/// separators on every OS so CI tools can match it against repository paths.
+fn report_path(file: &Path, project_root: &Path) -> String {
+    let rel = file
+        .strip_prefix(project_root)
+        .unwrap_or(file)
+        .to_string_lossy();
+    if cfg!(windows) {
+        rel.replace('\\', "/")
+    } else {
+        rel.into_owned()
+    }
+}
+
 /// Format diagnostics as Checkstyle XML (compatible with reviewdog, GitHub Actions).
 pub fn format_checkstyle(diagnostics: &[Diagnostic], project_root: &Path) -> String {
     // Group diagnostics by file path (preserving encounter order)
     let mut groups: Vec<(String, Vec<&Diagnostic>)> = Vec::new();
     for d in diagnostics {
         let name = match &d.file {
-            Some(f) => f
-                .strip_prefix(project_root)
-                .unwrap_or(f)
-                .to_string_lossy()
-                .into_owned(),
+            Some(f) => report_path(f, project_root),
             None => String::new(),
         };
         if let Some(entry) = groups.iter_mut().find(|(n, _)| n == &name) {
@@ -363,11 +373,7 @@ pub fn format_junit(diagnostics: &[Diagnostic], project_root: &Path) -> String {
         } else {
             for d in diags {
                 let classname = match &d.file {
-                    Some(f) => f
-                        .strip_prefix(project_root)
-                        .unwrap_or(f)
-                        .to_string_lossy()
-                        .into_owned(),
+                    Some(f) => report_path(f, project_root),
                     None => cat.to_string(),
                 };
                 out.push_str(&format!(
@@ -382,19 +388,11 @@ pub fn format_junit(diagnostics: &[Diagnostic], project_root: &Path) -> String {
                     Severity::Warning | Severity::Error => {
                         let location = match (&d.file, d.line) {
                             (Some(f), Some(l)) => {
-                                let rel = f
-                                    .strip_prefix(project_root)
-                                    .unwrap_or(f)
-                                    .to_string_lossy()
-                                    .into_owned();
+                                let rel = report_path(f, project_root);
                                 format!(" at {rel}:{l}")
                             }
                             (Some(f), None) => {
-                                let rel = f
-                                    .strip_prefix(project_root)
-                                    .unwrap_or(f)
-                                    .to_string_lossy()
-                                    .into_owned();
+                                let rel = report_path(f, project_root);
                                 format!(" at {rel}")
                             }
                             _ => String::new(),

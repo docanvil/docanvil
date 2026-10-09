@@ -13,11 +13,18 @@ All notable changes to DocAnvil will be documented in this file.
 - `docanvil doctor` checks component templates for syntax errors, unusable file names, and `{{ body }}` without `| safe`
 - Breadcrumbs above the page title, following the sidebar: nav groups (linked when they have a page) and labelled separators. Top-level pages don't get one. Override the new `breadcrumbs` template block to change them
 - A page's front matter `description` now shows as a subtitle under its title, as well as in the SEO meta tags
+- Includes: write shared content once in a fragment (any file or folder starting with `_`) and drop it into a page with `:::include{file="_shared/install.md"}`. Fragments can include other fragments, translated pages pick up `install.fr.md` automatically when it exists, and paths starting with `/` work the same in every version
+- Code blocks from files: give an empty code block `file="/examples/server.rs"` and it shows the real source file, so samples can't drift from the code. Add `lines="1-6,30-35"` to show just those lines — the skipped ones are marked, and the caption shows the file and ranges
+- Line numbers on any code block with `numbers` (or `numbers="10"` to start elsewhere), or on every block with `line_numbers = true` under `[syntax]`. The copy button still copies just the code. `title="…"` adds a caption to any code block
+- A missing include, an include loop, a `lines` range past the end of the file or a full filesystem path such as `C:/code/x.rs` shows an error box on the page and a build warning, and fails `--strict`. A fragment that ends inside an unclosed code block gets it closed for it, with the same warning, so the rest of the page still renders
+- `docanvil serve` now watches included files that live outside the usual content/theme/asset folders (e.g. `../src/` or `/examples/`), so editing them live-reloads the page
+- `docanvil doctor` checks every `:::include` and `file="…"` code block up front, warns about `:::include` written inside a sentence, translated fragments that are missing a language, and a `theme/components/include.html` that can never be used, and lists fragments nothing includes. Fragments get the same readability checks as pages
 
 ### Changed
 
 - A page without a front matter `title` now takes its title from its first `# Heading` instead of its filename, so sidebar labels, breadcrumbs, search results and the browser tab match the page. URLs are unchanged — only a front matter `title` or `slug` affects them. Set `label` in `nav.toml` or `title` in front matter to keep a different label
 - Built-in component attribute values (such as a note's `title` or a lozenge's `text`) are now HTML-escaped, so `title="Fish & Chips"` renders as written. Put HTML in the body instead
+- Files and folders whose names start with `_` in the content directory are no longer built as pages. They're fragments, meant to be pulled into pages with `:::include`. If you have a page such as `_drafts/idea.md` that you do want published, rename it
 - Text directly after a component's closing `:::` (no blank line) is now rendered as Markdown rather than raw HTML
 - On long pages, the right-hand table of contents only expands sub-headings for the section you're reading (a › marks sections that have them), and keeps the highlighted heading in view as you scroll
 
@@ -27,6 +34,7 @@ All notable changes to DocAnvil will be documented in this file.
 - A heading's custom `{#id}` no longer swallows the blank line after it, which merged the following paragraph into the same block and left the literal `{#id}` text visible on the page
 - A component or layout template that `{% include %}`s itself, directly or through other templates, is now reported as an error naming the loop (in `docanvil build` and `docanvil doctor`) instead of crashing the build with a stack overflow (#52)
 - Wiki-link syntax inside code — fenced blocks and inline `` `code` `` spans — is left exactly as written instead of being rewritten or flagged as a broken link. This was tripping up TOML's own `[[nav]]` table-array syntax in examples; `docanvil doctor`'s broken-link check is fixed the same way (#57)
+- `docanvil doctor --format checkstyle|junit` now writes file paths with `/` on Windows too, so CI tools such as reviewdog can match them to files in the repository
 
 ## [1.1.5] - 2026-10-07
 

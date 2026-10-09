@@ -39,6 +39,8 @@ document.querySelectorAll('.content pre:not(.mermaid)').forEach(pre => {
 
   btn.addEventListener('click', () => {
     const code = pre.querySelector('code');
+    // Line numbers and "lines hidden" rows are CSS ::before content, so
+    // textContent is exactly the code.
     const text = (code || pre).textContent;
     navigator.clipboard.writeText(text).then(() => {
       btn.classList.add('copied');

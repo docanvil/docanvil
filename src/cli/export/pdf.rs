@@ -515,9 +515,11 @@ fn run_single_locale(
             &registry,
             "/",
             highlighter.as_ref(),
+            config.syntax.line_numbers,
             project_root,
             export_locale,
-        )?;
+        )?
+        .html;
         let html_body = rewrite_links_for_pdf(&html_body, &inventory, export_locale);
 
         chapters.push(ChapterData {

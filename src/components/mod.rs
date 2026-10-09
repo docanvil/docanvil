@@ -186,7 +186,7 @@ impl ComponentRegistry {
                 .unwrap_or(dir);
             return Err(Error::ComponentTemplate {
                 path,
-                message: include_cycle_message(&cycle),
+                message: include_cycle_message(&cycle, "templates"),
             });
         }
 
@@ -755,6 +755,33 @@ mod tests {
         assert_eq!(
             render("code-group", &[], body),
             "<div class=\"code-group\">\n<div class=\"tab-headers\">\n  <button class=\"tab-header active\" data-tab=\"0\">rust</button>\n  <button class=\"tab-header\" data-tab=\"1\">text</button>\n</div>\n<div class=\"tab-content active\" data-tab=\"0\"><pre><code class=\"language-rust\">fn main() {}</code></pre></div>\n<div class=\"tab-content\" data-tab=\"1\"><pre><code class=\"language-text\">a &lt; b</code></pre></div>\n</div>"
+        );
+    }
+
+    #[test]
+    fn code_group_splits_language_from_meta() {
+        let html = render_page(
+            ":::code-group\n```rust docanvil numbers=on\nfn a() {}\n```\n```py\nx = 1\n```\n:::\n",
+        );
+        assert!(html.contains(">rust</button>"), "{html}");
+        assert!(
+            html.contains(
+                r#"<code class="language-rust" data-meta="docanvil numbers=on">fn a() {}</code>"#
+            ),
+            "{html}"
+        );
+        assert!(
+            html.contains(r#"<code class="language-py">x = 1</code>"#),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn code_group_longer_fence_keeps_inner_fences() {
+        let html = render_page(":::code-group\n````md\n```sh\nls\n```\n````\n:::\n");
+        assert!(
+            html.contains("<code class=\"language-md\">```sh\nls\n```</code>"),
+            "{html}"
         );
     }
 

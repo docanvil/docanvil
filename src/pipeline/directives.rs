@@ -15,10 +15,15 @@ pub struct DirectiveBlock {
 static OPEN_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(:{3,})\s*([\w][\w-]*)\s*(\{.*\})?\s*$").unwrap());
 
-static ATTR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(\w[\w-]*)="([^"]*)""#).unwrap());
+pub(crate) static ATTR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(\w[\w-]*)="([^"]*)""#).unwrap());
 
 static INLINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r":::([\w][\w-]*)\{([^}]*)\}").unwrap());
+
+/// Reserved directive name: the include pass consumes `:::include` lines
+/// before components run.
+pub const INCLUDE_DIRECTIVE: &str = "include";
 
 /// Tracks whether we're inside a ``` / ~~~ fenced code block, line by line.
 #[derive(Default)]
@@ -51,6 +56,16 @@ impl FenceState {
                 true
             }
         }
+    }
+
+    /// Whether a fence is currently open (after the last `consume`).
+    pub(crate) fn is_open(&self) -> bool {
+        self.open.is_some()
+    }
+
+    /// The line that would close the open fence (e.g. "````"), if one is open.
+    pub(crate) fn closing_fence(&self) -> Option<String> {
+        self.open.map(|(c, len)| c.to_string().repeat(len))
     }
 }
 
@@ -193,6 +208,11 @@ fn replace_inline_in_line(
             continue;
         }
 
+        // `:::include` only works on a line of its own; mid-line it stays as text.
+        if &caps[1] == INCLUDE_DIRECTIVE {
+            continue;
+        }
+
         out.push_str(&line[last..m.start()]);
 
         let name = caps[1].to_string();
@@ -214,7 +234,7 @@ fn replace_inline_in_line(
 }
 
 /// Find byte ranges of inline code spans (backtick-delimited) in a line.
-fn inline_code_ranges(line: &str) -> Vec<(usize, usize)> {
+pub(crate) fn inline_code_ranges(line: &str) -> Vec<(usize, usize)> {
     let mut ranges = Vec::new();
     let bytes = line.as_bytes();
     let len = bytes.len();
@@ -418,6 +438,13 @@ mod tests {
         let input = "```\ncode\n```\n:::note\nHi\n:::\n";
         let output = process_directives(input, &mut |_| "RENDERED".to_string());
         assert_eq!(output, "```\ncode\n```\nRENDERED\n");
+    }
+
+    #[test]
+    fn inline_include_is_left_as_text() {
+        let input = "See :::include{file=\"_x.md\"} here";
+        let output = process_inline_directives(input, &mut |_| "RENDERED".to_string());
+        assert_eq!(output, input);
     }
 
     #[test]

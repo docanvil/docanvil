@@ -886,6 +886,83 @@ body {
   word-break: normal;
 }
 
+/* ---- Code block captions, line numbers and hidden-line gaps ---- */
+
+.content figure.code-block {
+  margin: 0 0 1.25rem;
+}
+
+.content figure.code-block figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--color-text-muted);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.content figure.code-block .code-block-title {
+  overflow-wrap: anywhere;
+}
+
+.content figure.code-block .code-block-lines {
+  flex-shrink: 0;
+}
+
+.content figure.code-block pre {
+  margin: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* Numbers and gap labels are drawn here, not written into the code, so the
+   copy button (which copies textContent) only ever copies code. */
+.content pre.line-numbers { --line-number-width: 2ch; }
+.content pre.line-numbers[data-line-digits="3"] { --line-number-width: 3ch; }
+.content pre.line-numbers[data-line-digits="4"] { --line-number-width: 4ch; }
+.content pre.line-numbers[data-line-digits="5"] { --line-number-width: 5ch; }
+.content pre.line-numbers[data-line-digits="6"] { --line-number-width: 6ch; }
+
+.content pre.line-numbers .line::before {
+  content: attr(data-line);
+  display: inline-block;
+  width: var(--line-number-width);
+  margin-right: 1rem;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--color-border);
+  text-align: right;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+  user-select: none;
+}
+
+.content pre .line-gap {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.8em;
+  font-style: italic;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.content pre .line-gap::before {
+  content: "⋯ " attr(data-hidden) " lines hidden";
+}
+
+.content pre .line-gap[data-hidden="1"]::before {
+  content: "⋯ 1 line hidden";
+}
+
+/* Keep the gutter blank on gap rows: indent the label past it. */
+.content pre.line-numbers .line-gap::before {
+  margin-left: calc(var(--line-number-width) + 1.75rem + 1px);
+}
+
 /* ---- Heading anchor links ---- */
 
 .heading-anchor {
@@ -1179,6 +1256,16 @@ body {
   box-shadow: none;
 }
 
+.code-group .tab-content figure.code-block {
+  margin: 0;
+}
+
+.code-group .tab-content figure.code-block figcaption {
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
 /* ----------------------------------------------------------------
    Footnotes
    ---------------------------------------------------------------- */
@@ -1202,7 +1289,8 @@ body {
   border-radius: 2px;
 }
 
-.directive-error {
+.directive-error,
+.include-error {
   background: var(--color-warning-bg);
   border: 1px solid var(--color-warning-border);
   border-radius: var(--radius-md);

@@ -67,6 +67,28 @@ pub fn extract_locale_suffix(stem: &str, enabled_locales: &[String]) -> (String,
     (stem.to_string(), None)
 }
 
+/// Whether a path relative to the content directory is a fragment: any
+/// component (file or folder) whose name starts with `_`. Fragments are never
+/// built as pages; they're pulled into pages with `:::include`.
+pub fn is_fragment_path(relative: &Path) -> bool {
+    relative
+        .components()
+        .any(|c| c.as_os_str().to_string_lossy().starts_with('_'))
+}
+
+/// Every Markdown fragment under `content_dir`, sorted.
+pub fn fragment_files(content_dir: &Path) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = WalkDir::new(content_dir)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file() && e.path().extension().is_some_and(|ext| ext == "md"))
+        .map(|e| e.into_path())
+        .filter(|p| p.strip_prefix(content_dir).is_ok_and(is_fragment_path))
+        .collect();
+    files.sort();
+    files
+}
+
 impl PageInventory {
     /// Scan the content directory and build the page inventory.
     ///
@@ -103,6 +125,11 @@ impl PageInventory {
                 crate::diagnostics::warn_unexpected_content_path(&path);
                 continue;
             };
+
+            // `_` files and folders are fragments for `:::include`, not pages.
+            if is_fragment_path(relative) {
+                continue;
+            }
 
             // Build raw slug: drop .md extension, use forward slashes
             let raw_slug = relative
@@ -1105,5 +1132,79 @@ mod tests {
         assert!(coverage["index"].contains("fr"));
         assert_eq!(coverage["guide"].len(), 1);
         assert!(coverage["guide"].contains("en"));
+    }
+
+    fn write_file(path: &Path, content: &str) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn fragment_paths() {
+        assert!(is_fragment_path(Path::new("_note.md")));
+        assert!(is_fragment_path(Path::new("_shared/install.md")));
+        assert!(is_fragment_path(Path::new("guides/_flags.md")));
+        assert!(!is_fragment_path(Path::new("api_reference.md")));
+        assert!(!is_fragment_path(Path::new("guides/setup.md")));
+    }
+
+    #[test]
+    fn scan_skips_fragments() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        write_file(&docs.join("index.md"), "# Home");
+        write_file(&docs.join("_note.md"), "Fragment");
+        write_file(&docs.join("_shared/install.md"), "Fragment");
+        write_file(&docs.join("guides/_flags.md"), "Fragment");
+        write_file(&docs.join("guides/setup.md"), "# Setup");
+
+        let inv = PageInventory::scan(&docs, None, None, None).unwrap();
+        let mut slugs: Vec<_> = inv.pages.keys().cloned().collect();
+        slugs.sort();
+        assert_eq!(slugs, vec!["guides/setup", "index"]);
+    }
+
+    #[test]
+    fn scan_skips_fragments_with_i18n_and_versions() {
+        let dir = tempfile::tempdir().unwrap();
+        let v2 = dir.path().join("docs/v2");
+        write_file(&v2.join("index.md"), "# Home");
+        write_file(&v2.join("index.fr.md"), "# Accueil");
+        write_file(&v2.join("_shared/install.fr.md"), "Fragment");
+        write_file(&v2.join("_note.md"), "Fragment");
+
+        let locales = vec!["en".to_string(), "fr".to_string()];
+        let inv = PageInventory::scan(&v2, Some(&locales), Some("en"), Some("v2")).unwrap();
+        let mut keys: Vec<_> = inv.pages.keys().cloned().collect();
+        keys.sort();
+        assert_eq!(keys, vec!["en:index", "fr:index"]);
+
+        let plain = PageInventory::scan(&v2, None, None, Some("v2")).unwrap();
+        assert!(
+            plain.pages.keys().all(|k| !k.contains('_')),
+            "{:?}",
+            plain.pages.keys()
+        );
+    }
+
+    #[test]
+    fn fragment_files_lists_only_fragments() {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        write_file(&docs.join("index.md"), "# Home");
+        write_file(&docs.join("_note.md"), "x");
+        write_file(&docs.join("_shared/install.md"), "x");
+        write_file(&docs.join("_shared/logo.png"), "x");
+        write_file(&docs.join("guides/_flags.md"), "x");
+
+        assert_eq!(
+            fragment_files(&docs),
+            vec![
+                docs.join("_note.md"),
+                docs.join("_shared/install.md"),
+                docs.join("guides/_flags.md"),
+            ]
+        );
+        assert!(fragment_files(&dir.path().join("missing")).is_empty());
     }
 }

@@ -92,12 +92,14 @@ src/
 
   pipeline/
     mod.rs                     # process() — orchestrates all pipeline stages
+    includes.rs                # :::include splicing + file="…" code fences (lines=, dedent, locale variants, cycle guard); runs first
     directives.rs              # :::directive{attrs} pre-comrak pass (block + inline)
     popovers.rs                # ^[content] → popover HTML conversion
     headings.rs                # Custom heading ID extraction {#id} and auto-generation
     frontmatter.rs             # JSON front matter extraction
     markdown.rs                # comrak rendering with GFM extensions; first_h1_text() for page titles
     syntax.rs                  # syntect-based code block highlighting
+    code_blocks.rs             # BlockMeta (fence meta encoding); line numbers, hidden-line gaps, captions after syntax.rs
     wikilinks.rs               # [[link]] and [[link|text]] resolution against PageInventory
     attributes.rs              # {.class #id} post-comrak injection into HTML tags
     images.rs                  # Relative image path rewriting
@@ -144,6 +146,7 @@ The full rendering pipeline in `src/pipeline/mod.rs` runs these stages in order:
 
 ```
 Markdown source
+→ includes.rs        (source-level: :::include fragments, file="…" fences → BlockMeta in the info string)
   ┌ ComponentRegistry::render_markdown() — also used for component bodies (nesting)
   │ → directives.rs    (pre-comrak: :::name{attrs} → component HTML stored behind placeholders)
   │ → popovers.rs      (^[content] → popover spans)
@@ -151,11 +154,14 @@ Markdown source
   │ → markdown.rs      (comrak: Markdown → HTML with GFM extensions)
   └ → placeholders swapped back for component HTML
   → syntax.rs          (syntect: code block syntax highlighting)
+  → code_blocks.rs     (line numbers, gaps, captions; strips data-meta)
   → wikilinks.rs       (resolve [[links]] against PageInventory)
   → attributes.rs      (inject {.class #id} into preceding HTML tags)
   → headings.rs        (inject auto-generated heading IDs)
   → output
 ```
+
+`markdown.rs` enables comrak's `full_info_string` and normalises `class`/`data-meta` order in the fence's info string.
 
 ### Key Design Decisions
 
@@ -176,17 +182,18 @@ Markdown source
 - **Versioning**: Version subdirectories inside `content_dir` (`docs/v2/…`, not file suffixes), version-prefixed output (`/v2/page.html`), per-version nav/search, version switcher, and a banner on older versions; combines with i18n (`/v2/en/page.html`)
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
 - **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
-- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled
+- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages
+- **Includes**: `:::include{file=…}` alone on a line, expanded before components; files/folders starting with `_` in `content_dir` are fragments, never pages; paths relative to the including file, `/` = project root; `file=`/`lines=`/`numbers`/`title` fence attributes are encoded as `docanvil key=value` in the fence info string and travel as `data-meta`; `process()` returns `Processed { html, dependencies }` and the dev server watches dependencies outside its folders
 
 ### Key Types and Where They Live
 
 | Type | File | Purpose |
 |------|------|---------|
-| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig`, `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `VersionConfig`, `PdfConfig`, `DoctorConfig`, `EditConfig` |
+| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig` (incl. `line_numbers`, `[syntax] line_numbers = false` by default), `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `VersionConfig`, `PdfConfig`, `DoctorConfig`, `EditConfig` |
 | `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
 | `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale`, `version`. `title` = front matter `title` → first `# H1` → filename; only front matter `title`/`slug` change the slug |
-| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()`, `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()` |
+| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.toml entry: `page`, `label`, `separator`, `group`, `autodiscover` |
 | `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ConfigNotFound`, `ContentDirNotFound`, `Render`, `General`, `UnsafeOutputDir { path, reason }`, `StrictWarnings`, `DoctorFailed { warnings, errors }`, `ChromeNotFound`, `Update { message, hint }`, `ComponentTemplate { path, message }` |
@@ -205,6 +212,11 @@ Markdown source
 | `DoctorConfig` | `config.rs` | Doctor / linting config: `max_paragraph_words` (default: 150; set to 0 to disable) |
 | `EditConfig` | `config.rs` | "Edit this page" config: `repo` (set = enabled), `branch` (default `"main"`), `provider: Option<EditProvider>` (GitHub/GitLab/Bitbucket; inferred from host), `root` (auto-detected from nearest `.git`) |
 | `EditLinks` | `edit.rs` | Resolved per build: `from_config()` → `Result<Option<Self>, String>` (`Err` = user-facing warning), `url_for(source_path)` |
+| `IncludeContext` | `pipeline/includes.rs` | Where includes resolve from: `project_root: &Path`, `locale: Option<&str>` |
+| `Expanded` | `pipeline/includes.rs` | Result of `includes::expand()`: `source` (Markdown with includes spliced in and file code blocks filled), `dependencies: BTreeSet<PathBuf>` (every file read, for the watcher), `problems: Vec<IncludeProblem>` |
+| `IncludeProblem` | `pipeline/includes.rs` | `check` (`CHECK_UNRESOLVED`/`CHECK_INVALID`/`CHECK_CYCLE`), `file: PathBuf`, `line: usize`, `message`, `hint: Option<String>`, `warning: bool` (warning-level in doctor, e.g. a fragment that ends inside a code block). Shown as an inline error box and a `diagnostics::warn_include(project_root, …)` warning; paths shown via `includes::display_path()` |
+| `BlockMeta` | `pipeline/code_blocks.rs` | Fence meta for one code block: `numbers: Option<bool>`, `start: Option<usize>`, `ranges: Vec<(usize, usize)>`, `file: Option<String>`, `title: Option<String>`. `encode()`/`parse()` round-trip it through comrak's fence info string as `docanvil key=value …` (`data-meta`) |
+| `Processed` | `pipeline/mod.rs` | Return of `process()`: `html: String`, `dependencies: BTreeSet<PathBuf>` (files pulled in via `:::include` / `file="…"`, for the dev server's watcher) |
 
 ### Build Flow (cli/build.rs)
 
@@ -220,6 +232,8 @@ Markdown source
 6. **Otherwise:** single-pass rendering (backward compatible)
 7. Copy shared assets (JS, CSS), generate robots.txt + sitemap.xml, 404 page
 
+`run_with_options()` returns the set of files pulled in through `:::include` / `file="…"` across the whole build (`Result<BTreeSet<PathBuf>>`); `serve` passes it to `server/watcher.rs::watch()`, which watches those files' parent directories non-recursively alongside the project's own folders, so an included file outside `content_dir`/`theme/` still triggers a rebuild.
+
 ### How to Extend
 
 **Add a builtin component:**
@@ -229,7 +243,7 @@ Markdown source
 **Add a pipeline stage:**
 1. Create `src/pipeline/my_stage.rs` with a `pub fn process(html: &str, ...) -> String`
 2. Add `pub mod my_stage;` to `src/pipeline/mod.rs`
-3. Insert the call in the `process()` function chain in `src/pipeline/mod.rs`
+3. Insert the call in the `process()` function chain in `src/pipeline/mod.rs` — note that `pipeline::process()` itself returns `Result<Processed>` (not a bare `String`) and takes `line_numbers: bool` (from `[syntax] line_numbers`) alongside the highlighter, project root and locale
 
 **Add a doctor check:**
 1. Create `src/doctor/checks/my_check.rs` returning `Vec<Diagnostic>`
@@ -257,10 +271,12 @@ Rough sizes, so this table doesn't go stale with every PR.
 |-------|------|-------|
 | ~1.9k | `doctor/checks/readability.rs` | Readability lints (headings, alt text, link text, paragraph length) |
 | ~1.6k | `cli/build.rs` | Full build orchestration; the versioned build loop is the largest section |
+| ~1.4k | `pipeline/includes.rs` | `:::include` expansion + `file="…"` code block filling: path resolution, locale variants, cycle detection, dedent, `lines=` ranges |
 | ~1.1k | `cli/export/pdf.rs` | PDF export: page assembly, cover page, Chrome printing |
 | ~1.0k | `project.rs` | Nav tree construction, page discovery, render_nav() |
 | ~700 | `update/mod.rs` | Release lookup, checksum verification, self-replace |
 | ~700 | `doctor/mod.rs` | Diagnostic runner, fix application, output formats |
+| ~600 | `doctor/checks/content.rs` | Markdown content checks, incl. the `include-*` family and fragment scanning |
 | ~500 | `cli/new.rs` | Project scaffolding templates |
 
 ### Dependencies

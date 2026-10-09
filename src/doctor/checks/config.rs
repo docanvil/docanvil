@@ -1,8 +1,9 @@
 use std::path::Path;
 
-use crate::config::Config;
+use crate::config::{Config, LastUpdatedSource};
 use crate::doctor::{Diagnostic, Severity};
 use crate::edit::EditLinks;
+use crate::last_updated::GitDates;
 use crate::nav;
 use crate::project::PageInventory;
 
@@ -85,6 +86,33 @@ pub fn check_config(
             line: None,
             fix: None,
         });
+    }
+
+    // Check [last_updated] can read Git history
+    if config.last_updated.enabled && config.last_updated.source == LastUpdatedSource::Git {
+        match GitDates::collect(project_root) {
+            Err(message) => diags.push(Diagnostic {
+                check: "last-updated-no-git",
+                category: "config",
+                severity: Severity::Warning,
+                message: format!(
+                    "{message}. Pages only show front matter dates; set source = \"front-matter\" to skip Git"
+                ),
+                file: None,
+                line: None,
+                fix: None,
+            }),
+            Ok(git) if git.is_shallow() => diags.push(Diagnostic {
+                check: "last-updated-shallow-clone",
+                category: "config",
+                severity: Severity::Warning,
+                message: "[last_updated] this is a shallow Git clone, so every page shows the date of the latest commit. Fetch the full history (e.g. `fetch-depth: 0` on actions/checkout)".to_string(),
+                file: None,
+                line: None,
+                fix: None,
+            }),
+            Ok(_) => {}
+        }
     }
 
     // Validate nav.toml
@@ -205,5 +233,42 @@ mod tests {
     fn edit_link_valid_or_unset_is_clean() {
         assert!(edit_diags("[edit]\nrepo = \"https://github.com/org/repo\"\n").is_empty());
         assert!(edit_diags("").is_empty());
+    }
+
+    fn last_updated_diags(config_toml: &str, project_root: &Path) -> Vec<Diagnostic> {
+        let config: Config = toml::from_str(config_toml).unwrap();
+        check_config(project_root, &config, None)
+            .into_iter()
+            .filter(|d| d.check.starts_with("last-updated"))
+            .collect()
+    }
+
+    #[test]
+    fn last_updated_without_repo_warns() {
+        if std::process::Command::new("git")
+            .arg("--version")
+            .output()
+            .is_err()
+        {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let diags = last_updated_diags("[last_updated]\nenabled = true\n", dir.path());
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].check, "last-updated-no-git");
+        assert_eq!(diags[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn last_updated_off_or_front_matter_needs_no_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(last_updated_diags("", dir.path()).is_empty());
+        assert!(
+            last_updated_diags(
+                "[last_updated]\nenabled = true\nsource = \"front-matter\"\n",
+                dir.path()
+            )
+            .is_empty()
+        );
     }
 }

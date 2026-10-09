@@ -102,6 +102,29 @@ pub fn warn_edit_link_config(message: &str) {
     );
 }
 
+/// Emit a warning that Git history can't be read for "last updated" dates.
+pub fn warn_last_updated_no_git(message: &str) {
+    increment();
+    eprintln!("{}: {message}", "warning".yellow().bold());
+    eprintln!(
+        "  {}: Pages only show front matter `last_updated` dates. Set source = \"front-matter\" under [last_updated] to skip Git.",
+        "hint".dimmed()
+    );
+}
+
+/// Emit a warning that a shallow clone makes every page look last changed in the newest commit.
+pub fn warn_last_updated_shallow() {
+    increment();
+    eprintln!(
+        "{}: [last_updated] this is a shallow Git clone, so every page shows the date of the latest commit",
+        "warning".yellow().bold()
+    );
+    eprintln!(
+        "  {}: Fetch the full history, e.g. `fetch-depth: 0` on GitHub's actions/checkout.",
+        "hint".dimmed()
+    );
+}
+
 /// Emit a warning that an autodiscover folder has no matching pages.
 pub fn warn_nav_autodiscover_empty(folder: &str) {
     increment();

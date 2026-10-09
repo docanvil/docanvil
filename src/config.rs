@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -191,6 +191,17 @@ impl Default for LastUpdatedConfig {
     }
 }
 
+/// `[redirects]`: old paths that send readers on to where a page lives now.
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct RedirectsConfig {
+    /// Also redirect each `page.html` to the current version and default language.
+    pub unprefixed: bool,
+    /// Old path → new path, as written in `[redirects]`.
+    #[serde(flatten)]
+    pub paths: BTreeMap<String, String>,
+}
+
 /// Returns `true` for right-to-left locales.
 pub fn is_rtl_locale(code: &str) -> bool {
     matches!(code, "ar" | "he" | "ur" | "fa" | "ug")
@@ -213,6 +224,7 @@ pub struct Config {
     pub doctor: DoctorConfig,
     pub edit: EditConfig,
     pub last_updated: LastUpdatedConfig,
+    pub redirects: RedirectsConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -801,5 +813,32 @@ root = "site"
         let config: Config = toml::from_str("[build]\ndraft_links = \"warn\"\n").unwrap();
         assert_eq!(config.build.draft_links, DraftLinks::Warn);
         assert!(toml::from_str::<Config>("[build]\ndraft_links = \"error\"\n").is_err());
+    }
+
+    #[test]
+    fn redirects_default_to_none() {
+        let config: Config = toml::from_str("").unwrap();
+        assert!(!config.redirects.unprefixed);
+        assert!(config.redirects.paths.is_empty());
+    }
+
+    #[test]
+    fn redirects_parse_flag_and_paths() {
+        let config: Config = toml::from_str(
+            "[redirects]\nunprefixed = true\n\"old-faq\" = \"help/faq\"\n\"/blog.html\" = \"https://blog.example.com\"\n",
+        )
+        .unwrap();
+        assert!(config.redirects.unprefixed);
+        assert_eq!(config.redirects.paths.len(), 2);
+        assert_eq!(config.redirects.paths["old-faq"], "help/faq");
+        assert_eq!(
+            config.redirects.paths["/blog.html"],
+            "https://blog.example.com"
+        );
+    }
+
+    #[test]
+    fn redirects_reject_non_string_targets() {
+        assert!(toml::from_str::<Config>("[redirects]\n\"old\" = 3\n").is_err());
     }
 }

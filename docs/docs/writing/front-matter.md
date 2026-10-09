@@ -40,6 +40,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `author` | String | Renders as `<meta name="author">` |
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
 | `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
+| `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see [[guides/configuration|Configuration → `[last_updated]`]]) |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 
@@ -179,3 +180,5 @@ Pages without front matter work exactly as before — the title comes from the f
 ## Date Format
 
 The `date` field is passed through as-is to the `article:published_time` meta tag. ISO 8601 format (`YYYY-MM-DD`) is recommended for best compatibility with search engines and social platforms.
+
+`date` is when a page was first published; `last_updated` is when it last changed. `last_updated` must be a real `YYYY-MM-DD` date (or `false`). Anything else is ignored, and `docanvil doctor` reports it as an error.

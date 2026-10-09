@@ -79,6 +79,9 @@ heading_adjacent_separator = true
 [edit]
 repo = "https://github.com/org/repo"
 branch = "main"
+
+[last_updated]
+enabled = true
 ```
 :::
 ::::
@@ -263,6 +266,49 @@ Les liens pointent toujours vers le fichier à partir duquel la page a été gé
 :::note{title="Git auto-hébergé"}
 GitHub Enterprise et GitLab auto-hébergé fonctionnent en définissant `provider`. Bitbucket Server et Data Center ne sont pas encore pris en charge, car ils ne proposent pas de lien de modification direct. `docanvil doctor` vous avertit si vos paramètres `[edit]` ne peuvent pas produire de liens valides.
 :::
+
+### Section `[last_updated]`
+
+Indique aux lecteurs quand chaque page a changé pour la dernière fois, pour qu'ils voient d'un coup d'œil que la documentation est entretenue. La date provient de votre historique Git et s'affiche sous la page, à côté de « Edit this page ».
+
+| Clé | Défaut | Description |
+|-----|---------|-------------|
+| `enabled` | `false` | Affiche une date « Last updated » sur chaque page |
+| `source` | `"git"` | D'où viennent les dates : `"git"` utilise votre historique de commits, `"front-matter"` n'utilise que les dates que vous définissez vous-même et n'exécute jamais Git |
+
+```toml
+[last_updated]
+enabled = true
+```
+
+Avec `source = "git"`, la date d'une page est celle du commit le plus récent qui l'a modifiée, ou qui a modifié un fichier qu'elle intègre avec `:::include` ou `file="…"`. Mettez à jour un fragment d'instructions d'installation partagé, et toutes les pages qui l'incluent avancent aussi. DocAnvil utilise la date d'auteur du commit : rebaser ou fusionner une pull request en squash ne donne donc pas l'impression que toutes les pages ont été modifiées le jour de la fusion.
+
+Pour fixer la date d'une page à la main, utilisez `last_updated` dans son [[writing/front-matter|front matter]] :
+
+```markdown
+---
+{
+  "last_updated": "2026-10-09"
+}
+---
+```
+
+Définissez-le à `false` pour masquer la date sur cette page.
+
+Les dates s'affichent dans la langue de la page (« 9 octobre 2026 », « 9 October 2026 ») et alimentent aussi la balise meta `article:modified_time` de la page ainsi que les entrées `<lastmod>` de `sitemap.xml`, ce qui aide les moteurs de recherche à repérer le contenu récent. Les pages traduites et les anciennes versions reçoivent chacune la date de leur propre fichier source.
+
+:::warning{title="Récupérez tout l'historique en CI"}
+La plupart des systèmes de CI ne clonent par défaut que le dernier commit. Avec cet historique superficiel, toutes les pages afficheraient la même date : DocAnvil émet donc un avertissement et les builds `--strict` échouent. Récupérez plutôt tout l'historique : `fetch-depth: 0` sur `actions/checkout` de GitHub, ou `clone: depth: full` sur Bitbucket Pipelines. Voir [[deployment/github-pages|GitHub Pages]] et [[deployment/bitbucket-pipelines|Bitbucket Pipelines]].
+:::
+
+Bon à savoir :
+
+- **Les fichiers renommés ou déplacés** affichent la date du commit qui les a déplacés.
+- **Les modifications non commitées** ne comptent pas : une page affiche sa dernière date commitée jusqu'à ce que vous commitiez.
+- **Les fichiers d'un sous-module Git** n'apportent pas de date.
+- **Pas de dépôt Git ?** DocAnvil émet un avertissement et se rabat sur les dates du front matter. Définissez `source = "front-matter"` si c'est ce que vous voulez, et l'avertissement disparaît.
+
+`docanvil doctor` signale les clones superficiels et les dépôts manquants, ainsi que tout `last_updated` du front matter qui n'est pas une date valide.
 
 ## nav.toml
 

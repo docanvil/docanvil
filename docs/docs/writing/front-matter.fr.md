@@ -40,6 +40,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `author` | Chaîne | Génère la balise `<meta name="author">` |
 | `date` | Chaîne | Génère la balise `<meta property="article:published_time">` pour les moteurs de recherche et le partage social |
 | `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
+| `last_updated` | Chaîne ou Booléen | La date de dernière modification de la page, au format `"YYYY-MM-DD"`. Remplace la date tirée de l'historique Git. Définissez à `false` pour masquer la date sur cette page (voir [[guides/configuration|Configuration → `[last_updated]`]]) |
 
 Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos propres métadonnées personnalisées sans déclencher d'erreurs.
 
@@ -179,3 +180,5 @@ Les pages sans front matter fonctionnent exactement comme avant — le titre vie
 ## Format de date
 
 Le champ `date` est transmis tel quel à la balise meta `article:published_time`. Le format ISO 8601 (`YYYY-MM-DD`) est recommandé pour une meilleure compatibilité avec les moteurs de recherche et les plateformes sociales.
+
+`date` indique quand une page a été publiée ; `last_updated` indique quand elle a changé pour la dernière fois. `last_updated` doit être une vraie date `YYYY-MM-DD` (ou `false`). Toute autre valeur est ignorée, et `docanvil doctor` la signale comme une erreur.

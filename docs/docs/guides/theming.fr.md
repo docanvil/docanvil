@@ -215,6 +215,7 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `breadcrumbs` | Le fil d'Ariane au-dessus du titre de la page |
 | `content` | Zone de contenu principale |
 | `footer` | Pied de page sous le contenu |
+| `last_updated` | La date « Last updated » sous le contenu |
 | `edit_link` | Le lien « Edit this page » sous le contenu |
 | `scripts` | JavaScript en fin de body |
 
@@ -235,6 +236,7 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `mermaid_version` | Chaîne | Version majeure de Mermaid.js à charger depuis le CDN |
 | `color_mode` | Chaîne | Mode de couleur : `"light"`, `"dark"`, ou `"both"` |
 | `edit_url` | Chaîne | URL « Edit this page » de la page courante, quand `[edit]` est configuré |
+| `last_updated` | Chaîne | Date de dernière modification de la page, au format `YYYY-MM-DD`, quand `[last_updated]` est activé. Absente quand la page n'a pas de date |
 | `breadcrumbs` | Tableau | Fil d'Ariane depuis la section de navigation jusqu'à la page — chaque élément a un `title` et une `url` (absente pour la page courante et pour les sections sans page). Vide pour les pages de premier niveau |
 
 :::note

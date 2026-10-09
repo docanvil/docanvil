@@ -118,6 +118,16 @@ on:
       - ".github/workflows/docs.yml"
 ```
 
+## Dates de dernière mise à jour
+
+Par défaut, `actions/checkout` ne récupère que le dernier commit. Si vous avez activé [[guides/configuration|`[last_updated]`]], toutes les pages afficheraient alors la même date : DocAnvil émet un avertissement et `--strict` fait échouer le build. Récupérez plutôt tout l'historique :
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+```
+
 ## Domaines personnalisés
 
 Définissez le domaine dans **Settings → Pages → Custom domain**. Comme le workflow déploie un artefact plutôt qu'une branche, aucun fichier `CNAME` n'est nécessaire dans la sortie. Mettez ensuite à jour `docanvil.toml` pour que les liens soient construits pour la racine de votre domaine :

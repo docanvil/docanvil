@@ -213,6 +213,7 @@ For complete control over the HTML structure, override the default Tera template
 | `sidebar` | The navigation sidebar |
 | `breadcrumbs` | The breadcrumb trail above the page title |
 | `content` | Main page content area |
+| `last_updated` | The "Last updated" date below the content |
 | `edit_link` | The "Edit this page" link below the content |
 | `footer` | Footer below content |
 | `scripts` | JavaScript at end of body |
@@ -234,6 +235,7 @@ For complete control over the HTML structure, override the default Tera template
 | `mermaid_version` | String | Mermaid.js major version to load from CDN |
 | `color_mode` | String | Color mode: `"light"`, `"dark"`, or `"both"` |
 | `edit_url` | String | "Edit this page" URL for the current page, when `[edit]` is configured |
+| `last_updated` | String | When the page last changed, as `YYYY-MM-DD`, when `[last_updated]` is enabled. Unset when the page has no date |
 | `breadcrumbs` | Array | Trail from the page's nav section down to the page — each item has `title` and `url` (unset for the current page and for sections without a page). Empty for top-level pages |
 
 :::note

@@ -105,7 +105,6 @@ impl DateSource for NoDates {
 /// `git log` over the project directory. Files outside the project (pulled in
 /// with `file="../…"`) are looked up one at a time, then remembered.
 pub struct GitDates {
-    repo_root: PathBuf,
     project_root: PathBuf,
     dates: HashMap<PathBuf, Date>,
     looked_up: HashMap<PathBuf, Option<Date>>,
@@ -122,23 +121,17 @@ impl GitDates {
         let repo_root = canonical(Path::new(top.trim()));
         let shallow = run_git(&repo_root, &["rev-parse", "--is-shallow-repository"])
             .is_ok_and(|s| s.trim() == "true");
-        let project_arg = project_root.to_string_lossy().into_owned();
+        // Run with cwd = project_root and pathspec "." rather than an absolute path:
+        // Git for Windows may not match a `\\?\…` canonicalised path as a pathspec.
+        // `--name-only` output stays relative to the repository top level regardless of cwd.
         // A repository without commits yet has no history to read: no dates, no error.
         let log = run_git(
-            &repo_root,
-            &[
-                "log",
-                "--format=%x00%at",
-                "--name-only",
-                "-z",
-                "--",
-                &project_arg,
-            ],
+            &project_root,
+            &["log", "--format=%x00%at", "--name-only", "-z", "--", "."],
         )
         .unwrap_or_default();
         Ok(Self {
             dates: parse_log(&log, &repo_root),
-            repo_root,
             project_root,
             looked_up: HashMap::new(),
             shallow,
@@ -151,8 +144,9 @@ impl GitDates {
     }
 
     fn look_up(&self, path: &Path) -> Option<Date> {
-        let arg = path.to_string_lossy().into_owned();
-        let out = run_git(&self.repo_root, &["log", "-1", "--format=%at", "--", &arg]).ok()?;
+        let dir = path.parent()?;
+        let name = path.file_name()?.to_string_lossy().into_owned();
+        let out = run_git(dir, &["log", "-1", "--format=%at", "--", &name]).ok()?;
         out.trim().parse::<i64>().ok().map(Date::from_unix)
     }
 }

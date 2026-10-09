@@ -9,6 +9,7 @@ pub mod last_updated;
 pub mod nav;
 pub mod pipeline;
 pub mod project;
+pub mod redirects;
 pub mod render;
 pub mod search;
 pub mod seo;

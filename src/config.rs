@@ -163,6 +163,34 @@ impl Default for EditConfig {
     }
 }
 
+/// Where "last updated" dates come from. Front matter `last_updated` always
+/// overrides the computed date.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LastUpdatedSource {
+    /// The newest commit touching the page or a file it includes.
+    Git,
+    /// Only front matter `last_updated` dates; Git is never run.
+    FrontMatter,
+}
+
+/// "Last updated" dates on pages, in `article:modified_time` and in the sitemap.
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct LastUpdatedConfig {
+    pub enabled: bool,
+    pub source: LastUpdatedSource,
+}
+
+impl Default for LastUpdatedConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            source: LastUpdatedSource::Git,
+        }
+    }
+}
+
 /// Returns `true` for right-to-left locales.
 pub fn is_rtl_locale(code: &str) -> bool {
     matches!(code, "ar" | "he" | "ur" | "fa" | "ug")
@@ -184,6 +212,7 @@ pub struct Config {
     pub pdf: PdfConfig,
     pub doctor: DoctorConfig,
     pub edit: EditConfig,
+    pub last_updated: LastUpdatedConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -726,5 +755,28 @@ root = "site"
     fn edit_config_unknown_provider_errors() {
         let toml = "[edit]\nprovider = \"gitea\"\n";
         assert!(toml::from_str::<Config>(toml).is_err());
+    }
+
+    #[test]
+    fn last_updated_defaults_off_with_git_source() {
+        let config: Config = toml::from_str("").unwrap();
+        assert!(!config.last_updated.enabled);
+        assert_eq!(config.last_updated.source, LastUpdatedSource::Git);
+    }
+
+    #[test]
+    fn last_updated_parses_sources() {
+        let config: Config =
+            toml::from_str("[last_updated]\nenabled = true\nsource = \"front-matter\"\n").unwrap();
+        assert!(config.last_updated.enabled);
+        assert_eq!(config.last_updated.source, LastUpdatedSource::FrontMatter);
+    }
+
+    #[test]
+    fn last_updated_rejects_unknown_source() {
+        let err = toml::from_str::<Config>("[last_updated]\nsource = \"svn\"\n")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("git") && err.contains("front-matter"), "{err}");
     }
 }

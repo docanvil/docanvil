@@ -11,6 +11,10 @@ pub struct FrontMatter {
     pub slug: Option<String>,
     /// Set to `false` to hide the "Edit this page" link on this page.
     pub edit_link: Option<bool>,
+    /// `"YYYY-MM-DD"` to override the page's "last updated" date, or `false` to hide it.
+    /// Kept as raw JSON so a bad value can't discard the rest of the front matter;
+    /// `last_updated::parse_override` interprets it.
+    pub last_updated: Option<serde_json::Value>,
 }
 
 /// Extract JSON front matter from a Markdown source string.
@@ -120,5 +124,25 @@ mod tests {
         let fm = extract(source);
         // No closing `---`, so no valid front matter
         assert!(fm.title.is_none());
+    }
+
+    #[test]
+    fn last_updated_date_and_false() {
+        let fm = extract("---\n{\"last_updated\": \"2026-09-30\"}\n---\n# Hi");
+        assert_eq!(fm.last_updated, Some(serde_json::json!("2026-09-30")));
+        let fm = extract("---\n{\"last_updated\": false}\n---\n# Hi");
+        assert_eq!(fm.last_updated, Some(serde_json::json!(false)));
+    }
+
+    #[test]
+    fn invalid_last_updated_keeps_other_fields() {
+        for value in ["\"2026-9-1\"", "true", "42", "{\"a\": 1}"] {
+            let source = format!(
+                "---\n{{\"title\": \"Kept\", \"slug\": \"kept\", \"last_updated\": {value}}}\n---\n# Hi"
+            );
+            let fm = extract(&source);
+            assert_eq!(fm.title.as_deref(), Some("Kept"), "value {value}");
+            assert_eq!(fm.slug.as_deref(), Some("kept"), "value {value}");
+        }
     }
 }

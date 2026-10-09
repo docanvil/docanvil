@@ -57,6 +57,7 @@ src/
   nav.rs                       # nav.toml parsing (NavEntry, NavGroupItem, autodiscover)
   search.rs                    # Search index generation (extract sections from HTML)
   seo.rs                       # robots.txt and sitemap.xml generation
+  redirects.rs                 # Redirect stubs: plan() from front matter redirect_from + [redirects] (+ unprefixed), stub_html(), write_stubs()
   edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection)
   last_updated.rs              # "Last updated" dates: Date, DateSource trait, NoDates, GitDates (one scoped git log per build)
   error.rs                     # thiserror Error enum
@@ -88,6 +89,7 @@ src/
       output.rs                # Output directory checks
       project.rs               # Project structure checks
       readability.rs           # Markdown readability checks (headings, alt text, paragraph length)
+      redirects.rs             # Redirect checks (same problems the build warns about, via build::scan_site)
       theme.rs                 # Theme checks
       version.rs               # Versioning checks (current in enabled, version dirs exist and have pages)
 
@@ -179,7 +181,7 @@ Markdown source
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
-- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]` sections; serde deserialization
+- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]`, `[redirects]` sections; serde deserialization
 - **Versioning**: Version subdirectories inside `content_dir` (`docs/v2/…`, not file suffixes), version-prefixed output (`/v2/page.html`), per-version nav/search, version switcher, and a banner on older versions; combines with i18n (`/v2/en/page.html`)
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
 - **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
@@ -187,6 +189,7 @@ Markdown source
 - **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages. `config.rs` adds `last-updated-no-git`/`last-updated-shallow-clone` (warning); `content.rs` adds `last-updated-invalid` (error)
 - **Drafts**: Front matter `"draft": true`. `serve` (and `build --drafts`) render drafts with a banner + `noindex`; `build` and `export pdf` move them into `PageInventory.drafts` during the pre-pass (`build::exclude_drafts()`), so nav, search, sitemap, prev/next, the version switcher and missing-translation warnings never see them. Wiki-links to a draft render as plain text; `[build] draft_links = "warn"` also warns (fails `--strict`). `nav.toml` entries for drafts are skipped silently
 - **Includes**: `:::include{file=…}` alone on a line, expanded before components; files/folders starting with `_` in `content_dir` are fragments, never pages; paths relative to the including file, `/` = project root; `file=`/`lines=`/`numbers`/`title` fence attributes are encoded as `docanvil key=value` in the fence info string and travel as `data-meta`; `process()` returns `Processed { html, dependencies }` and the dev server watches dependencies outside its folders
+- **Redirects**: Front matter `redirect_from` (old slugs in the page's version; applies to every translation of the page; a `/literal` entry points at the page's copy in the current version and default language) + `[redirects]` table (`"old" = "new"`: a slug is expanded per version × language where the target exists, `/path` is a literal site path, a `://` value is external) + `unprefixed = true` (`page.html` → current version/default language). Written as HTML stubs (meta refresh + `location.replace` keeping `?query`/`#hash`, canonical, `noindex`), never in the sitemap, search or nav. Precedence front matter > table > unprefixed; chains are flattened; a stub never replaces a page (drafts included), `404.html`, or the root `index.html` on i18n/versioned sites. `redirects::plan()` runs once per build after every version/language is scanned and is shared with doctor: `redirect-target-missing`/`-shadowed`/`-conflict`/`-loop` (warning, fail `--strict`) and `redirect-invalid` (error). The root `index.html` redirects use the same `stub_html()`
 
 ### Key Types and Where They Live
 
@@ -215,6 +218,7 @@ Markdown source
 | `PdfConfig` | `config.rs` | PDF export config: `author`, `cover_page`, `custom_css`, `paper_size` (optional, e.g. `"A4"`, `"Letter"`) |
 | `DoctorConfig` | `config.rs` | Doctor / linting config: `max_paragraph_words` (default: 150; set to 0 to disable) |
 | `EditConfig` | `config.rs` | "Edit this page" config: `repo` (set = enabled), `branch` (default `"main"`), `provider: Option<EditProvider>` (GitHub/GitLab/Bitbucket; inferred from host), `root` (auto-detected from nearest `.git`) |
+| `RedirectsConfig` | `config.rs` | `unprefixed: bool` + flattened `paths: BTreeMap<String, String>` (old → new, as written in `[redirects]`) |
 | `LastUpdatedConfig` | `config.rs` | `enabled` (default false), `source: LastUpdatedSource` (`Git` default / `FrontMatter`, TOML `"git"`/`"front-matter"`) |
 | `DateSource` | `last_updated.rs` | Trait: `date_for(&mut self, path) -> Option<Date>`. Impls: `NoDates` (front-matter source), `GitDates` (`collect(project_root) -> Result<Self, String>`, `is_shallow()`). Helpers: `parse_override(&Value) -> Override { Date, Hide, Invalid }`, `page_date(source, page, deps)` |
 | `Date` | `last_updated.rs` | UTC calendar date: `from_unix()`, strict `parse("YYYY-MM-DD")`, `Display` → ISO, `Ord` |
@@ -224,12 +228,15 @@ Markdown source
 | `IncludeProblem` | `pipeline/includes.rs` | `check` (`CHECK_UNRESOLVED`/`CHECK_INVALID`/`CHECK_CYCLE`), `file: PathBuf`, `line: usize`, `message`, `hint: Option<String>`, `warning: bool` (warning-level in doctor, e.g. a fragment that ends inside a code block). Shown as an inline error box and a `diagnostics::warn_include(project_root, …)` warning; paths shown via `includes::display_path()` |
 | `BlockMeta` | `pipeline/code_blocks.rs` | Fence meta for one code block: `numbers: Option<bool>`, `start: Option<usize>`, `ranges: Vec<(usize, usize)>`, `file: Option<String>`, `title: Option<String>`. `encode()`/`parse()` round-trip it through comrak's fence info string as `docanvil key=value …` (`data-meta`) |
 | `Processed` | `pipeline/mod.rs` | Return of `process()`: `html: String`, `dependencies: BTreeSet<PathBuf>` (files pulled in via `:::include` / `file="…"`, for the dev server's watcher) |
+| `PageSet` | `redirects.rs` | One version's pages for `plan()`: `version: Option<&str>`, `inventory`, `front_matters` (keyed like `inventory.pages`; drafts already moved to `inventory.drafts`) |
+| `RedirectPlan` | `redirects.rs` | Return of `plan(config, sets)`: `redirects: Vec<Redirect { from, to: Target, lang }>` (sorted by `from`, an output path) + `problems: Vec<RedirectProblem { check, origin, message }>` |
+| `Target` / `Origin` | `redirects.rs` | `Target`: `Page(output path)`, `Path(site path)`, `External(url)`. `Origin` (variant order = precedence): `FrontMatter(source path)`, `Table(key)`, `Unprefixed` |
 
 ### Build Flow (cli/build.rs)
 
 1. `Config::load(project_root)` → config struct
 2. `PageInventory::scan(content_dir, enabled_locales, default_locale, version)` → all pages with slugs (`version` is `None` outside versioned builds)
-3. Pre-pass: read sources, extract front matter, apply slug overrides, then `exclude_drafts()` (unless serving or `--drafts`)
+3. Pre-pass (`read_sources()`, shared by the plain and versioned paths): read sources, extract front matter, set titles, apply slug overrides, then `exclude_drafts()` (unless serving or `--drafts`)
 4. **When versioning enabled:** per-version loop (scan each `content_dir/{version}/`, `load_nav_for_version()`, version-prefixed output and search index, i18n nested inside each version), then a root redirect to the current version and an early return
 5. **When i18n enabled:** per-locale loop:
    - `load_nav_for_locale()` or `inventory.nav_tree_for_locale()` → locale-specific nav
@@ -238,6 +245,9 @@ Markdown source
    - Emit missing translation warnings
 6. **Otherwise:** single-pass rendering (backward compatible)
 7. Copy shared assets (JS, CSS), generate robots.txt + sitemap.xml, 404 page
+8. Redirect stubs: `write_redirects()` runs `redirects::plan()` once over every version's `PageSet` (one call in the versioned path before its early return, one otherwise), warns about problems, and writes the stubs into staging, so `sync_output` removes stale ones
+
+`scan_site(project_root, config)` gives doctor the same view of the site as a production build: one inventory per version, `read_sources()` applied, drafts excluded.
 
 `run_with_options()` returns the set of files pulled in through `:::include` / `file="…"` across the whole build (`Result<BTreeSet<PathBuf>>`); `serve` passes it to `server/watcher.rs::watch()`, which watches those files' parent directories non-recursively alongside the project's own folders, so an included file outside `content_dir`/`theme/` still triggers a rebuild.
 

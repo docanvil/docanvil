@@ -34,6 +34,7 @@ All notable changes to DocAnvil will be documented in this file.
 - A heading's custom `{#id}` no longer swallows the blank line after it, which merged the following paragraph into the same block and left the literal `{#id}` text visible on the page
 - A component or layout template that `{% include %}`s itself, directly or through other templates, is now reported as an error naming the loop (in `docanvil build` and `docanvil doctor`) instead of crashing the build with a stack overflow (#52)
 - Wiki-link syntax inside code — fenced blocks and inline `` `code` `` spans — is left exactly as written instead of being rewritten or flagged as a broken link. This was tripping up TOML's own `[[nav]]` table-array syntax in examples; `docanvil doctor`'s broken-link check is fixed the same way (#57)
+- `docanvil doctor --format checkstyle|junit` now writes file paths with `/` on Windows too, so CI tools such as reviewdog can match them to files in the repository
 
 ## [1.1.5] - 2026-10-07
 

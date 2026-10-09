@@ -125,9 +125,22 @@ impl GitDates {
         // Git for Windows may not match a `\\?\…` canonicalised path as a pathspec.
         // `--name-only` output stays relative to the repository top level regardless of cwd.
         // A repository without commits yet has no history to read: no dates, no error.
+        // Pass -c flags to harden against user config: diff.relative=true makes paths relative
+        // to cwd, and log.showSignature=true adds GPG text that breaks parsing.
         let log = run_git(
             &project_root,
-            &["log", "--format=%x00%at", "--name-only", "-z", "--", "."],
+            &[
+                "-c",
+                "diff.relative=false",
+                "-c",
+                "log.showSignature=false",
+                "log",
+                "--format=%x00%at",
+                "--name-only",
+                "-z",
+                "--",
+                ".",
+            ],
         )
         .unwrap_or_default();
         Ok(Self {
@@ -146,7 +159,21 @@ impl GitDates {
     fn look_up(&self, path: &Path) -> Option<Date> {
         let dir = path.parent()?;
         let name = path.file_name()?.to_string_lossy().into_owned();
-        let out = run_git(dir, &["log", "-1", "--format=%at", "--", &name]).ok()?;
+        let out = run_git(
+            dir,
+            &[
+                "-c",
+                "diff.relative=false",
+                "-c",
+                "log.showSignature=false",
+                "log",
+                "-1",
+                "--format=%at",
+                "--",
+                &name,
+            ],
+        )
+        .ok()?;
         out.trim().parse::<i64>().ok().map(Date::from_unix)
     }
 }
@@ -454,5 +481,57 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let err = GitDates::collect(dir.path()).err().unwrap();
         assert!(err.contains("[last_updated]"), "{err}");
+    }
+
+    #[test]
+    fn collect_tolerates_user_git_config_for_relative_paths_and_signatures() {
+        if !git_available() {
+            return;
+        }
+        // Test that collect() works even when diff.relative=true and log.showSignature=true
+        // in user config, which would break parsing if we didn't override them.
+        let repo = tempfile::tempdir().unwrap();
+        let project = repo.path().join("site");
+        std::fs::create_dir_all(project.join("docs")).unwrap();
+        std::fs::write(project.join("docs/index.md"), "# Home").unwrap();
+        git(repo.path(), &["init", "-q"], "2026-01-02T10:00:00Z");
+        git(repo.path(), &["add", "-A"], "2026-01-02T10:00:00Z");
+        git(
+            repo.path(),
+            &["commit", "-q", "-m", "one"],
+            "2026-01-02T10:00:00Z",
+        );
+        std::fs::write(project.join("docs/index.md"), "# Home v2").unwrap();
+        git(
+            repo.path(),
+            &["commit", "-q", "-am", "two"],
+            "2026-02-05T23:30:00Z",
+        );
+
+        // Set problematic config values that would break parsing without the -c overrides
+        let status = std::process::Command::new("git")
+            .args(["config", "diff.relative", "true"])
+            .current_dir(repo.path())
+            .status()
+            .unwrap();
+        assert!(status.success(), "failed to set diff.relative");
+
+        let status = std::process::Command::new("git")
+            .args(["config", "log.showSignature", "true"])
+            .current_dir(repo.path())
+            .status()
+            .unwrap();
+        assert!(status.success(), "failed to set log.showSignature");
+
+        // Despite the problematic config, collect should still work
+        let mut dates = GitDates::collect(&project).unwrap();
+        assert!(!dates.is_shallow());
+        assert_eq!(
+            dates
+                .date_for(&project.join("docs/index.md"))
+                .map(|d| d.to_string()),
+            Some("2026-02-05".to_string()),
+            "collect() failed to parse git log with diff.relative=true and log.showSignature=true"
+        );
     }
 }

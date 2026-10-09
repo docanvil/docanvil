@@ -1463,7 +1463,12 @@ fn test_last_updated_shallow_clone_warns() {
 
     let clone_parent = tempfile::tempdir().unwrap();
     let clone = clone_parent.path().join("clone");
-    let url = format!("file://{}", origin.path().display());
+    let origin_path = origin.path().to_string_lossy().replace('\\', "/");
+    let url = if origin_path.starts_with('/') {
+        format!("file://{origin_path}")
+    } else {
+        format!("file:///{origin_path}")
+    };
     git(
         clone_parent.path(),
         &["clone", "-q", "--depth", "1", &url, clone.to_str().unwrap()],

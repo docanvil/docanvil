@@ -400,6 +400,17 @@ body {
   margin-left: 0.35rem;
 }
 
+/* Draft pages (only rendered by `docanvil serve` and `build --drafts`) */
+.draft-banner {
+  margin: 0 0 1.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
 /* Breadcrumbs */
 .breadcrumbs {
   margin: 0 0 0.75rem;

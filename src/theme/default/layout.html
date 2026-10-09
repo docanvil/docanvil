@@ -23,6 +23,9 @@
   {% if last_updated %}
   <meta property="article:modified_time" content="{{ last_updated }}">
   {% endif %}
+  {% if draft %}
+  <meta name="robots" content="noindex">
+  {% endif %}
   <meta property="og:title" content="{{ page_title }}">
   <meta property="og:type" content="article">
   {% if canonical_url %}
@@ -149,6 +152,14 @@
         {% endfor %}
       </ol>
     </nav>
+    {% endif %}
+    {% endblock %}
+
+    {% block draft_banner %}
+    {% if draft %}
+    <div class="draft-banner" role="note">
+      📝 <strong>Draft</strong> — this page is left out of production builds.
+    </div>
     {% endif %}
     {% endblock %}
 

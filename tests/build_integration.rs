@@ -1548,3 +1548,146 @@ enabled = true
         "<loc>https://example.com/v2/index.html</loc>\n    <lastmod>2026-02-05</lastmod>"
     ));
 }
+
+const DRAFT_PAGE: &str = "---\n{\"draft\": true}\n---\n# Work in progress\n\nNot ready yet.";
+
+/// Appended to a config so `--strict` builds don't trip the "no site_url" warning.
+const SITE_URL: &str = "\n[build]\nsite_url = \"https://example.com\"\n";
+
+const DRAFT_NAV: &str = r#"
+[[nav]]
+page = "index"
+
+[[nav]]
+page = "wip"
+"#;
+
+#[test]
+fn test_draft_left_out_of_build() {
+    let config = format!("{DEFAULT_CONFIG}{SITE_URL}");
+    let dir = create_project(
+        &config,
+        &[
+            ("index.md", "# Home\n\nSee [[wip|the new guide]] soon."),
+            ("wip.md", DRAFT_PAGE),
+        ],
+    );
+    fs::write(dir.path().join("nav.toml"), DRAFT_NAV).unwrap();
+
+    // A link to a draft and a nav entry for it are fine, even with --strict
+    build_project_strict(dir.path()).expect("strict build with a draft should succeed");
+
+    assert!(!output_exists(dir.path(), "wip.html"));
+    let index = read_output(dir.path(), "index.html");
+    assert!(index.contains("See the new guide soon."));
+    assert!(!index.contains("wip.html"));
+    assert!(!index.contains("broken-link popover-trigger"));
+    assert!(!read_output(dir.path(), "search-index.json").contains("Work in progress"));
+    assert!(!read_output(dir.path(), "sitemap.xml").contains("wip"));
+}
+
+#[test]
+fn test_draft_links_warn_fails_strict() {
+    let config = format!("{DEFAULT_CONFIG}{SITE_URL}draft_links = \"warn\"\n");
+    let dir = create_project(
+        &config,
+        &[
+            ("index.md", "# Home\n\nSee [[wip]]."),
+            ("wip.md", DRAFT_PAGE),
+        ],
+    );
+
+    let err = build_project_strict(dir.path()).unwrap_err();
+    assert!(
+        matches!(err, docanvil::error::Error::StrictWarnings(1)),
+        "{err}"
+    );
+
+    // Without --strict it still builds, with the link as plain text
+    build_project(dir.path()).expect("non-strict build should succeed");
+    assert!(read_output(dir.path(), "index.html").contains("See wip."));
+}
+
+#[test]
+fn test_drafts_flag_includes_drafts() {
+    let dir = create_project(
+        &format!("{DEFAULT_CONFIG}{SITE_URL}"),
+        &[
+            ("index.md", "# Home\n\nSee [[wip]]."),
+            ("wip.md", DRAFT_PAGE),
+        ],
+    );
+    let out = dir.path().join("dist");
+    docanvil::cli::build::run(dir.path(), Some(&out), false, true, true, true)
+        .expect("build --drafts should succeed");
+
+    let wip = read_output(dir.path(), "wip.html");
+    assert!(wip.contains("left out of production builds"));
+    assert!(wip.contains("<meta name=\"robots\" content=\"noindex\">"));
+    assert!(read_output(dir.path(), "index.html").contains("<a href=\"/wip.html\">wip</a>"));
+    assert!(!read_output(dir.path(), "index.html").contains("left out of production builds"));
+}
+
+#[test]
+fn test_dev_build_shows_drafts() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[("index.md", "# Home"), ("wip.md", DRAFT_PAGE)],
+    );
+    fs::write(dir.path().join("nav.toml"), DRAFT_NAV).unwrap();
+    let dev_out = tempfile::tempdir().unwrap();
+
+    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true)
+        .expect("dev build should succeed");
+
+    let wip = fs::read_to_string(dev_out.path().join("wip.html")).unwrap();
+    assert!(wip.contains("left out of production builds"));
+    let index = fs::read_to_string(dev_out.path().join("index.html")).unwrap();
+    assert!(
+        index.contains("wip.html"),
+        "draft should be in the dev server's nav"
+    );
+}
+
+#[test]
+fn test_draft_translation_in_versioned_build() {
+    let dir = create_project(
+        &format!("{VERSION_I18N_CONFIG}{SITE_URL}"),
+        &[
+            ("v1/index.en.md", "# Home"),
+            ("v1/index.fr.md", "# Accueil"),
+            ("v1/guide.en.md", "# Guide"),
+            ("v1/guide.fr.md", "# Guide"),
+            ("v2/index.en.md", "# Home"),
+            ("v2/index.fr.md", "# Accueil"),
+            ("v2/guide.en.md", "# Guide"),
+            ("v2/guide.fr.md", DRAFT_PAGE),
+        ],
+    );
+
+    // A draft translation isn't reported as a missing one
+    build_project_strict(dir.path()).expect("strict build should succeed");
+
+    assert!(output_exists(dir.path(), "v2/en/guide.html"));
+    assert!(!output_exists(dir.path(), "v2/fr/guide.html"));
+}
+
+#[test]
+fn test_version_switcher_skips_drafts() {
+    let dir = create_project(
+        &format!("{VERSION_CONFIG}{SITE_URL}"),
+        &[
+            ("v1/index.md", "# Home"),
+            ("v1/guide.md", "# Guide"),
+            ("v2/index.md", "# Home"),
+            ("v2/guide.md", DRAFT_PAGE),
+        ],
+    );
+    build_project_strict(dir.path()).expect("strict build should succeed");
+
+    assert!(!output_exists(dir.path(), "v2/guide.html"));
+    // v1's guide offers v2's home page, not the unpublished v2 guide (Tera escapes `/`)
+    let v1 = read_output(dir.path(), "v1/guide.html");
+    assert!(!v1.contains("&#x2F;v2&#x2F;guide.html"));
+    assert!(v1.contains("&#x2F;v2&#x2F;index.html"));
+}

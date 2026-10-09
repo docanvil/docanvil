@@ -32,7 +32,7 @@ Unit tests are inline `#[cfg(test)]` modules within their respective source file
 The binary exposes eight subcommands:
 
 - `docanvil new <name>` — scaffold a new documentation project
-- `docanvil serve [--host <addr>] [--port <port>] [--path <path>]` — dev server with hot reload (defaults: 127.0.0.1:3000); builds into a per-project temp dir (never `output_dir`) with `base_url` forced to `/`
+- `docanvil serve [--host <addr>] [--port <port>] [--path <path>] [--editor <name>]` — dev server with hot reload (defaults: 127.0.0.1:3000); builds into a per-project temp dir (never `output_dir`) with `base_url` forced to `/`; page edit links open the source in the local editor (`--editor` → `DOCANVIL_EDITOR` → `$VISUAL`/`$EDITOR` → VS Code; `none` turns it off)
 - `docanvil build [--path <path>] [--out <path>] [--clean] [--strict] [--drafts]` — generate static HTML site (default output: `dist/`); `--drafts` includes draft pages
 - `docanvil theme [--path <path>] [--overwrite]` — interactive color theme generator
 - `docanvil doctor [--path <path>] [--fix] [--strict] [--format human|checkstyle|junit]` — project diagnostics with auto-fix
@@ -58,7 +58,7 @@ src/
   search.rs                    # Search index generation (extract sections from HTML)
   seo.rs                       # robots.txt and sitemap.xml generation
   redirects.rs                 # Redirect stubs: plan() from front matter redirect_from + [redirects] (+ unprefixed), stub_html(), write_stubs()
-  edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection)
+  edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection); Editor: serve's open-in-editor URL schemes
   last_updated.rs              # "Last updated" dates: Date, DateSource trait, NoDates, GitDates (one scoped git log per build)
   error.rs                     # thiserror Error enum
   diagnostics.rs               # Colored warnings (owo-colors)
@@ -208,7 +208,7 @@ Markdown source
 | `ComponentContext` | `components/mod.rs` | `attributes: &HashMap<String, String>`, `body_raw: &str`, `inline: bool`, `render_markdown: &dyn Fn(&str) -> String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` (embedded templates + providers), `load(project_root)` (+ `theme/components/`), `render_markdown()` (pre-comrak + comrak + placeholder swap), `render_block()`. Templates get `attrs`, `body`, `body_raw`, `name`, `inline` (public 1.x API) |
 | `DraftLinks` | `config.rs` | `[build] draft_links`: `Text` (default; links to drafts become plain text) / `Warn` (also warns) |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `breadcrumbs`, `last_updated` (ISO date or `None`), `draft` |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `edit_local` (`edit_url` opens the local editor; changes the label and drops `target="_blank"`), `breadcrumbs`, `last_updated` (ISO date or `None`), `draft` |
 | `Crumb` | `project.rs` | Nav breadcrumb step: `label`, `slug: Option<String>` (`None` for groups without a page and labelled separators). `build_breadcrumb_map()` → slug → trail; `crumb_labels()` for the search index |
 | `Breadcrumb` | `render/templates.rs` | Template breadcrumb: `title`, `url: Option<String>`. `page_breadcrumbs()` builds them (empty for top-level pages); `with_page_description()` puts the front matter `description` under the leading `<h1>` |
 | `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `absolute_url`, `is_current`, `has_page` |
@@ -223,6 +223,7 @@ Markdown source
 | `DateSource` | `last_updated.rs` | Trait: `date_for(&mut self, path) -> Option<Date>`. Impls: `NoDates` (front-matter source), `GitDates` (`collect(project_root) -> Result<Self, String>`, `is_shallow()`). Helpers: `parse_override(&Value) -> Override { Date, Hide, Invalid }`, `page_date(source, page, deps)` |
 | `Date` | `last_updated.rs` | UTC calendar date: `from_unix()`, strict `parse("YYYY-MM-DD")`, `Display` → ISO, `Ord` |
 | `EditLinks` | `edit.rs` | Resolved per build: `from_config()` → `Result<Option<Self>, String>` (`Err` = user-facing warning), `url_for(source_path)` |
+| `Editor` | `edit.rs` | `docanvil serve`'s local editor: `Vscode`/`Cursor`/`Zed`/`Idea`/`Custom(template with {path})`. `resolve(flag) -> (Option<Self>, Option<warning>)` (`None` = `none`), `url_for(source_path)` → editor URL scheme (`vscode://file/…`); replaces the Git host link in serve builds only |
 | `IncludeContext` | `pipeline/includes.rs` | Where includes resolve from: `project_root: &Path`, `locale: Option<&str>` |
 | `Expanded` | `pipeline/includes.rs` | Result of `includes::expand()`: `source` (Markdown with includes spliced in and file code blocks filled), `dependencies: BTreeSet<PathBuf>` (every file read, for the watcher), `problems: Vec<IncludeProblem>` |
 | `IncludeProblem` | `pipeline/includes.rs` | `check` (`CHECK_UNRESOLVED`/`CHECK_INVALID`/`CHECK_CYCLE`), `file: PathBuf`, `line: usize`, `message`, `hint: Option<String>`, `warning: bool` (warning-level in doctor, e.g. a fragment that ends inside a code block). Shown as an inline error box and a `diagnostics::warn_include(project_root, …)` warning; paths shown via `includes::display_path()` |
@@ -249,7 +250,7 @@ Markdown source
 
 `scan_site(project_root, config)` gives doctor the same view of the site as a production build: one inventory per version, `read_sources()` applied, drafts excluded.
 
-`run_with_options()` returns the set of files pulled in through `:::include` / `file="…"` across the whole build (`Result<BTreeSet<PathBuf>>`); `serve` passes it to `server/watcher.rs::watch()`, which watches those files' parent directories non-recursively alongside the project's own folders, so an included file outside `content_dir`/`theme/` still triggers a rebuild.
+`run_with_options(project_root, output_dir, live_reload, editor: Option<&Editor>)` returns the set of files pulled in through `:::include` / `file="…"` across the whole build (`Result<BTreeSet<PathBuf>>`); `serve` passes it to `server/watcher.rs::watch()`, which watches those files' parent directories non-recursively alongside the project's own folders, so an included file outside `content_dir`/`theme/` still triggers a rebuild.
 
 ### How to Extend
 

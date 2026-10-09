@@ -8,9 +8,11 @@ use walkdir::WalkDir;
 
 use crate::components::ComponentRegistry;
 use crate::config::Config;
+use crate::config::LastUpdatedSource;
 use crate::diagnostics::{self, reset_warnings, warning_count};
 use crate::edit::EditLinks;
 use crate::error::{Error, Result};
+use crate::last_updated::{self, DateSource, GitDates, NoDates, Override};
 use crate::nav;
 use crate::pipeline;
 use crate::pipeline::frontmatter::{self, FrontMatter};
@@ -258,6 +260,47 @@ fn page_edit_url(
     edit_links?.url_for(&page.source_path)
 }
 
+/// The source of "last updated" dates for this build, or `None` when the feature is off.
+fn last_updated_source(config: &Config, project_root: &Path) -> Option<Box<dyn DateSource>> {
+    if !config.last_updated.enabled {
+        return None;
+    }
+    match config.last_updated.source {
+        LastUpdatedSource::FrontMatter => Some(Box::new(NoDates)),
+        LastUpdatedSource::Git => match GitDates::collect(project_root) {
+            Ok(git) => {
+                if git.is_shallow() {
+                    diagnostics::warn_last_updated_shallow();
+                }
+                Some(Box::new(git))
+            }
+            Err(message) => {
+                diagnostics::warn_last_updated_no_git(&message);
+                Some(Box::new(NoDates))
+            }
+        },
+    }
+}
+
+/// A page's "last updated" date: its front matter override, else the newest
+/// date across its source file and the files it pulls in.
+fn page_last_updated(
+    dates: &mut Option<Box<dyn DateSource>>,
+    page: &PageInfo,
+    fm: &FrontMatter,
+    deps: &BTreeSet<PathBuf>,
+) -> Option<String> {
+    let source = dates.as_mut()?;
+    match fm.last_updated.as_ref().map(last_updated::parse_override) {
+        Some(Override::Hide) => None,
+        Some(Override::Date(date)) => Some(date.to_string()),
+        None | Some(Override::Invalid) => {
+            last_updated::page_date(source.as_mut(), &page.source_path, deps)
+                .map(|date| date.to_string())
+        }
+    }
+}
+
 /// Core build logic shared between CLI and serve.
 fn build_site(
     project_root: &Path,
@@ -282,6 +325,10 @@ fn build_site(
             None
         }
     };
+
+    let mut last_updated_dates = last_updated_source(config, project_root);
+    // Output path → date, for <lastmod> in the sitemap
+    let mut lastmod: HashMap<PathBuf, String> = HashMap::new();
 
     // Build page inventory for wiki-link resolution and navigation
     let enabled_locales = if config.is_i18n_enabled() {
@@ -560,6 +607,15 @@ fn build_site(
                             project_root,
                             Some(locale),
                         )?;
+                        let last_updated = page_last_updated(
+                            &mut last_updated_dates,
+                            page,
+                            fm,
+                            &processed.dependencies,
+                        );
+                        if let Some(date) = &last_updated {
+                            lastmod.insert(page.output_path.clone(), date.clone());
+                        }
                         dependencies.extend(processed.dependencies);
                         let html_body = processed.html;
 
@@ -650,6 +706,7 @@ fn build_site(
                             meta_description: fm.description.clone(),
                             edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                             breadcrumbs,
+                            last_updated,
                             meta_author: fm.author.clone(),
                             meta_date: fm.date.clone(),
                             prev_page,
@@ -762,6 +819,15 @@ fn build_site(
                         project_root,
                         None,
                     )?;
+                    let last_updated = page_last_updated(
+                        &mut last_updated_dates,
+                        page,
+                        fm,
+                        &processed.dependencies,
+                    );
+                    if let Some(date) = &last_updated {
+                        lastmod.insert(page.output_path.clone(), date.clone());
+                    }
                     dependencies.extend(processed.dependencies);
                     let html_body = processed.html;
 
@@ -833,6 +899,7 @@ fn build_site(
                         meta_description: fm.description.clone(),
                         edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                         breadcrumbs,
+                        last_updated,
                         meta_author: fm.author.clone(),
                         meta_date: fm.date.clone(),
                         prev_page,
@@ -942,8 +1009,13 @@ fn build_site(
                 slug_aliases: HashMap::new(),
                 discovered_locales: HashSet::new(),
             };
-            let sitemap =
-                seo::generate_sitemap_xml(&merged_inv, &root_base_url, site_url.as_deref(), None);
+            let sitemap = seo::generate_sitemap_xml(
+                &merged_inv,
+                &root_base_url,
+                site_url.as_deref(),
+                None,
+                &lastmod,
+            );
             let sitemap_path = output_dir.join("sitemap.xml");
             std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
         }
@@ -990,6 +1062,7 @@ fn build_site(
                 meta_description: None,
                 edit_url: None,
                 breadcrumbs: Vec::new(),
+                last_updated: None,
                 meta_author: None,
                 meta_date: None,
                 prev_page: None,
@@ -1086,6 +1159,11 @@ fn build_site(
                     project_root,
                     Some(locale),
                 )?;
+                let last_updated =
+                    page_last_updated(&mut last_updated_dates, page, fm, &processed.dependencies);
+                if let Some(date) = &last_updated {
+                    lastmod.insert(page.output_path.clone(), date.clone());
+                }
                 dependencies.extend(processed.dependencies);
                 let html_body = processed.html;
 
@@ -1161,6 +1239,7 @@ fn build_site(
                     meta_description: fm.description.clone(),
                     edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                     breadcrumbs,
+                    last_updated,
                     meta_author: fm.author.clone(),
                     meta_date: fm.date.clone(),
                     prev_page,
@@ -1266,6 +1345,11 @@ fn build_site(
                 project_root,
                 None,
             )?;
+            let last_updated =
+                page_last_updated(&mut last_updated_dates, page, fm, &processed.dependencies);
+            if let Some(date) = &last_updated {
+                lastmod.insert(page.output_path.clone(), date.clone());
+            }
             dependencies.extend(processed.dependencies);
             let html_body = processed.html;
 
@@ -1315,6 +1399,7 @@ fn build_site(
                 meta_description: fm.description.clone(),
                 edit_url: page_edit_url(edit_links.as_ref(), page, fm),
                 breadcrumbs,
+                last_updated,
                 meta_author: fm.author.clone(),
                 meta_date: fm.date.clone(),
                 prev_page,
@@ -1374,6 +1459,7 @@ fn build_site(
             &root_base_url,
             site_url.as_deref(),
             locale_config.as_ref(),
+            &lastmod,
         );
         let sitemap_path = output_dir.join("sitemap.xml");
         std::fs::write(&sitemap_path, sitemap).map_err(io_context(&sitemap_path))?;
@@ -1474,6 +1560,7 @@ fn build_site(
             meta_description: None,
             edit_url: None,
             breadcrumbs: Vec::new(),
+            last_updated: None,
             meta_author: None,
             meta_date: None,
             prev_page: None,

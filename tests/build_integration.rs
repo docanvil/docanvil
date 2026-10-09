@@ -1,6 +1,8 @@
 mod integration_helpers;
 
 use std::fs;
+use std::path::Path;
+use std::process::Command;
 
 use integration_helpers::{
     DEFAULT_CONFIG, build_project, build_project_strict, create_project, output_exists, read_output,
@@ -1273,4 +1275,276 @@ fn test_dev_build_reports_include_dependencies() {
     let dev_out = tempfile::tempdir().unwrap();
     let deps = docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true).unwrap();
     assert!(deps.contains(&dir.path().join("examples/a.rs").canonicalize().unwrap()));
+}
+
+// ---------------------------------------------------------------------------
+// Last updated dates
+// ---------------------------------------------------------------------------
+
+const LAST_UPDATED_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[build]
+site_url = "https://example.com/"
+
+[last_updated]
+enabled = true
+"#;
+
+fn git_available() -> bool {
+    Command::new("git")
+        .arg("--version")
+        .output()
+        .is_ok_and(|o| o.status.success())
+}
+
+fn git(dir: &Path, args: &[&str]) {
+    let status = Command::new("git")
+        .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+        .args([
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "init.defaultBranch=main",
+        ])
+        .args(args)
+        .current_dir(dir)
+        .status()
+        .unwrap();
+    assert!(status.success(), "git {args:?} failed");
+}
+
+/// Commit everything with a fixed author date (and a later committer date, so
+/// tests prove the author date is used).
+fn commit_all(dir: &Path, author_date: &str) {
+    git(dir, &["add", "-A"]);
+    let status = Command::new("git")
+        .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+        .args(["-c", "commit.gpgsign=false", "commit", "-q", "-m", "change"])
+        .current_dir(dir)
+        .env("GIT_AUTHOR_DATE", author_date)
+        .env("GIT_COMMITTER_DATE", "2030-06-15T12:00:00Z")
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
+fn git_project(config: &str, pages: &[(&str, &str)]) -> tempfile::TempDir {
+    let dir = create_project(config, pages);
+    git(dir.path(), &["init", "-q"]);
+    // Keep build output out of the history
+    std::fs::write(dir.path().join(".gitignore"), "dist/\n").unwrap();
+    commit_all(dir.path(), "2026-01-02T10:00:00Z");
+    dir
+}
+
+#[test]
+fn test_last_updated_from_git() {
+    if !git_available() {
+        return;
+    }
+    let dir = git_project(
+        LAST_UPDATED_CONFIG,
+        &[("index.md", "# Home"), ("guide.md", "# Guide")],
+    );
+    std::fs::write(dir.path().join("docs/guide.md"), "# Guide\n\nMore.").unwrap();
+    commit_all(dir.path(), "2026-02-05T23:30:00Z");
+    build_project_strict(dir.path()).unwrap();
+
+    let index = read_output(dir.path(), "index.html");
+    assert!(index.contains(r#"<time datetime="2026-01-02">"#));
+    assert!(index.contains(r#"<meta property="article:modified_time" content="2026-01-02">"#));
+    let guide = read_output(dir.path(), "guide.html");
+    assert!(guide.contains(r#"<time datetime="2026-02-05">"#));
+
+    let sitemap = read_output(dir.path(), "sitemap.xml");
+    assert!(
+        sitemap.contains(
+            "<loc>https://example.com/guide.html</loc>\n    <lastmod>2026-02-05</lastmod>"
+        )
+    );
+}
+
+#[test]
+fn test_last_updated_includes_bump_page_date() {
+    if !git_available() {
+        return;
+    }
+    let dir = git_project(
+        LAST_UPDATED_CONFIG,
+        &[
+            ("index.md", "# Home\n\n:::include{file=\"_steps.md\"}\n"),
+            ("_steps.md", "Step one."),
+        ],
+    );
+    std::fs::write(dir.path().join("docs/_steps.md"), "Step one, revised.").unwrap();
+    commit_all(dir.path(), "2026-03-10T09:00:00Z");
+    build_project_strict(dir.path()).unwrap();
+    let index = read_output(dir.path(), "index.html");
+    assert!(index.contains(r#"<time datetime="2026-03-10">"#));
+}
+
+#[test]
+fn test_last_updated_front_matter_override_and_hide() {
+    if !git_available() {
+        return;
+    }
+    let dir = git_project(
+        LAST_UPDATED_CONFIG,
+        &[
+            (
+                "index.md",
+                "---\n{\"last_updated\": \"2025-12-24\"}\n---\n# Home",
+            ),
+            ("hidden.md", "---\n{\"last_updated\": false}\n---\n# Hidden"),
+        ],
+    );
+    build_project_strict(dir.path()).unwrap();
+    let index = read_output(dir.path(), "index.html");
+    assert!(index.contains(r#"<time datetime="2025-12-24">"#));
+    let hidden = read_output(dir.path(), "hidden.html");
+    assert!(!hidden.contains(r#"class="last-updated""#));
+}
+
+#[test]
+fn test_last_updated_off_by_default() {
+    if !git_available() {
+        return;
+    }
+    let config =
+        "[project]\nname = \"Test Docs\"\n\n[build]\nsite_url = \"https://example.com/\"\n";
+    let dir = git_project(config, &[("index.md", "# Home")]);
+    build_project_strict(dir.path()).unwrap();
+    let index = read_output(dir.path(), "index.html");
+    assert!(!index.contains(r#"class="last-updated""#));
+    assert!(!index.contains("article:modified_time"));
+    assert!(!read_output(dir.path(), "sitemap.xml").contains("<lastmod>"));
+}
+
+#[test]
+fn test_last_updated_front_matter_source_needs_no_repo() {
+    let config = "[project]\nname = \"Test Docs\"\n\n[build]\nsite_url = \"https://example.com/\"\n\n[last_updated]\nenabled = true\nsource = \"front-matter\"\n";
+    let dir = create_project(
+        config,
+        &[
+            (
+                "index.md",
+                "---\n{\"last_updated\": \"2026-04-01\"}\n---\n# Home",
+            ),
+            ("other.md", "# Other"),
+        ],
+    );
+    // No Git repository, but strict passes: the front-matter source never runs git
+    build_project_strict(dir.path()).unwrap();
+    assert!(read_output(dir.path(), "index.html").contains(r#"<time datetime="2026-04-01">"#));
+    assert!(!read_output(dir.path(), "other.html").contains(r#"class="last-updated""#));
+}
+
+#[test]
+fn test_last_updated_without_repo_warns() {
+    if !git_available() {
+        return;
+    }
+    let dir = create_project(LAST_UPDATED_CONFIG, &[("index.md", "# Home")]);
+    assert!(build_project_strict(dir.path()).is_err());
+    build_project(dir.path()).unwrap();
+    assert!(!read_output(dir.path(), "index.html").contains(r#"class="last-updated""#));
+}
+
+#[test]
+fn test_last_updated_shallow_clone_warns() {
+    if !git_available() {
+        return;
+    }
+    let origin = git_project(LAST_UPDATED_CONFIG, &[("index.md", "# Home")]);
+    std::fs::write(origin.path().join("docs/index.md"), "# Home v2").unwrap();
+    commit_all(origin.path(), "2026-02-05T23:30:00Z");
+
+    let clone_parent = tempfile::tempdir().unwrap();
+    let clone = clone_parent.path().join("clone");
+    let origin_path = origin.path().to_string_lossy().replace('\\', "/");
+    let url = if origin_path.starts_with('/') {
+        format!("file://{origin_path}")
+    } else {
+        format!("file:///{origin_path}")
+    };
+    git(
+        clone_parent.path(),
+        &["clone", "-q", "--depth", "1", &url, clone.to_str().unwrap()],
+    );
+    assert!(build_project_strict(&clone).is_err());
+    // Without --strict it still builds and shows dates
+    build_project(&clone).unwrap();
+    assert!(read_output(&clone, "index.html").contains(r#"class="last-updated""#));
+}
+
+#[test]
+fn test_last_updated_i18n_sitemap_per_locale() {
+    if !git_available() {
+        return;
+    }
+    let config = r#"
+[project]
+name = "Test Docs"
+
+[build]
+site_url = "https://example.com/"
+
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+
+[last_updated]
+enabled = true
+"#;
+    let dir = git_project(
+        config,
+        &[("index.en.md", "# Home"), ("index.fr.md", "# Accueil")],
+    );
+    std::fs::write(dir.path().join("docs/index.fr.md"), "# Accueil\n\nPlus.").unwrap();
+    commit_all(dir.path(), "2026-02-05T23:30:00Z");
+    build_project_strict(dir.path()).unwrap();
+
+    assert!(read_output(dir.path(), "en/index.html").contains(r#"<time datetime="2026-01-02">"#));
+    assert!(read_output(dir.path(), "fr/index.html").contains(r#"<time datetime="2026-02-05">"#));
+    let sitemap = read_output(dir.path(), "sitemap.xml");
+    assert!(sitemap.contains(
+        "<loc>https://example.com/en/index.html</loc>\n    <lastmod>2026-01-02</lastmod>"
+    ));
+    assert!(sitemap.contains(
+        "<loc>https://example.com/fr/index.html</loc>\n    <lastmod>2026-02-05</lastmod>"
+    ));
+}
+
+#[test]
+fn test_last_updated_versioned_build() {
+    if !git_available() {
+        return;
+    }
+    let config = r#"
+[project]
+name = "Test Docs"
+
+[build]
+site_url = "https://example.com/"
+
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+
+[last_updated]
+enabled = true
+"#;
+    let dir = git_project(config, &[("v1/index.md", "# V1"), ("v2/index.md", "# V2")]);
+    std::fs::write(dir.path().join("docs/v2/index.md"), "# V2\n\nNew.").unwrap();
+    commit_all(dir.path(), "2026-02-05T23:30:00Z");
+    build_project_strict(dir.path()).unwrap();
+
+    assert!(read_output(dir.path(), "v1/index.html").contains(r#"<time datetime="2026-01-02">"#));
+    assert!(read_output(dir.path(), "v2/index.html").contains(r#"<time datetime="2026-02-05">"#));
+    let sitemap = read_output(dir.path(), "sitemap.xml");
+    assert!(sitemap.contains(
+        "<loc>https://example.com/v2/index.html</loc>\n    <lastmod>2026-02-05</lastmod>"
+    ));
 }

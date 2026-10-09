@@ -468,3 +468,17 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
     }
   });
 })();
+
+// Show "last updated" dates in the page's language
+document.querySelectorAll('.last-updated time[datetime]').forEach(time => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(time.getAttribute('datetime'));
+  if (!match) return;
+  try {
+    // Built from parts so it's a local date; new Date('YYYY-MM-DD') is UTC and can show the day before
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    const lang = (document.documentElement.lang || '').replace(/_/g, '-') || undefined;
+    time.textContent = new Intl.DateTimeFormat(lang, { dateStyle: 'long' }).format(date);
+  } catch (e) {
+    // Keep the ISO date
+  }
+});

@@ -6,7 +6,9 @@ use std::sync::LazyLock;
 
 use crate::config::Config;
 use crate::doctor::{Diagnostic, Severity};
+use crate::last_updated::{self, Override};
 use crate::pipeline::directives::{FenceState, INCLUDE_DIRECTIVE};
+use crate::pipeline::frontmatter;
 use crate::pipeline::includes::{self, IncludeContext, IncludeProblem};
 use crate::project::{self, PageInventory};
 
@@ -44,6 +46,7 @@ pub fn check_content(
         );
         check_unclosed_directives(&source, &page.source_path, &mut diags);
         check_frontmatter(&source, &page.source_path, &mut diags);
+        check_last_updated(&source, &page.source_path, &mut diags);
         check_inline_includes(&source, &page.source_path, &mut diags);
     }
 
@@ -252,6 +255,25 @@ fn check_frontmatter(source: &str, source_path: &Path, diags: &mut Vec<Diagnosti
             category: "content",
             severity: Severity::Warning,
             message: format!("Front-matter JSON parse error: {e}"),
+            file: Some(source_path.to_path_buf()),
+            line: Some(1),
+            fix: None,
+        });
+    }
+}
+
+fn check_last_updated(source: &str, source_path: &Path, diags: &mut Vec<Diagnostic>) {
+    let Some(value) = frontmatter::extract(source).last_updated else {
+        return;
+    };
+    if last_updated::parse_override(&value) == Override::Invalid {
+        diags.push(Diagnostic {
+            check: "last-updated-invalid",
+            category: "content",
+            severity: Severity::Error,
+            message: format!(
+                "Front matter \"last_updated\" must be a date like \"2026-10-09\", or false to hide the date (found {value})"
+            ),
             file: Some(source_path.to_path_buf()),
             line: Some(1),
             fix: None,
@@ -701,6 +723,27 @@ mod tests {
             message("_shared/only.md"),
             "Fragment is translated, but has no de version and no untranslated file to fall back on — including it fails in that language"
         );
+    }
+
+    #[test]
+    fn invalid_last_updated_is_an_error() {
+        let (_dir, diags) = doctor(
+            CONFIG,
+            &[
+                (
+                    "docs/index.md",
+                    "---\n{\"last_updated\": \"2026-9-1\"}\n---\n# Home",
+                ),
+                ("docs/ok.md", "---\n{\"last_updated\": false}\n---\n# Ok"),
+            ],
+        );
+        let diags: Vec<_> = diags
+            .into_iter()
+            .filter(|d| d.check == "last-updated-invalid")
+            .collect();
+        assert_eq!(diags.len(), 1);
+        assert!(diags[0].message.contains("2026-9-1"));
+        assert!(diags[0].file.as_ref().unwrap().ends_with("index.md"));
     }
 
     #[test]

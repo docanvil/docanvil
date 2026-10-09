@@ -806,6 +806,7 @@ fn test_edit_link_points_at_source() {
     assert!(
         html.contains(r#"href="https://github.com/org/repo/edit/main/site/docs/guide/setup.md""#)
     );
+    assert!(html.contains(r#"target="_blank" rel="noopener""#));
 
     let not_found = read_output(dir.path(), "404.html");
     assert!(!not_found.contains("Edit this page"));

@@ -1,6 +1,6 @@
 //! "Last updated" dates for pages: from Git history, overridable in front matter.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -101,6 +101,117 @@ impl DateSource for NoDates {
     }
 }
 
+/// Dates from Git history: the newest author date of each file, read with one
+/// `git log` over the project directory. Files outside the project (pulled in
+/// with `file="../…"`) are looked up one at a time, then remembered.
+pub struct GitDates {
+    repo_root: PathBuf,
+    project_root: PathBuf,
+    dates: HashMap<PathBuf, Date>,
+    looked_up: HashMap<PathBuf, Option<Date>>,
+    shallow: bool,
+}
+
+impl GitDates {
+    /// Read the project's Git history. `Err` holds a user-facing message when
+    /// there's no repository or no `git` binary.
+    pub fn collect(project_root: &Path) -> std::result::Result<Self, String> {
+        let project_root = canonical(project_root);
+        let top = run_git(&project_root, &["rev-parse", "--show-toplevel"])
+            .map_err(|e| format!("[last_updated] can't read Git history: {e}"))?;
+        let repo_root = canonical(Path::new(top.trim()));
+        let shallow = run_git(&repo_root, &["rev-parse", "--is-shallow-repository"])
+            .is_ok_and(|s| s.trim() == "true");
+        let project_arg = project_root.to_string_lossy().into_owned();
+        // A repository without commits yet has no history to read: no dates, no error.
+        let log = run_git(
+            &repo_root,
+            &[
+                "log",
+                "--format=%x00%at",
+                "--name-only",
+                "-z",
+                "--",
+                &project_arg,
+            ],
+        )
+        .unwrap_or_default();
+        Ok(Self {
+            dates: parse_log(&log, &repo_root),
+            repo_root,
+            project_root,
+            looked_up: HashMap::new(),
+            shallow,
+        })
+    }
+
+    /// Whether the clone is shallow, so every file looks last changed in the newest commit.
+    pub fn is_shallow(&self) -> bool {
+        self.shallow
+    }
+
+    fn look_up(&self, path: &Path) -> Option<Date> {
+        let arg = path.to_string_lossy().into_owned();
+        let out = run_git(&self.repo_root, &["log", "-1", "--format=%at", "--", &arg]).ok()?;
+        out.trim().parse::<i64>().ok().map(Date::from_unix)
+    }
+}
+
+impl DateSource for GitDates {
+    fn date_for(&mut self, path: &Path) -> Option<Date> {
+        let path = canonical(path);
+        if path.starts_with(&self.project_root) {
+            return self.dates.get(&path).copied();
+        }
+        if let Some(found) = self.looked_up.get(&path) {
+            return *found;
+        }
+        let found = self.look_up(&path);
+        self.looked_up.insert(path, found);
+        found
+    }
+}
+
+/// Parse `git log --format=%x00%at --name-only -z` output into each path's newest date.
+fn parse_log(output: &str, repo_root: &Path) -> HashMap<PathBuf, Date> {
+    let mut dates = HashMap::new();
+    let mut current: Option<Date> = None;
+    let mut expect_timestamp = true;
+    for token in output.split('\0') {
+        let token = token.strip_prefix('\n').unwrap_or(token);
+        if token.is_empty() {
+            expect_timestamp = true;
+            continue;
+        }
+        if expect_timestamp {
+            current = token.parse::<i64>().ok().map(Date::from_unix);
+            expect_timestamp = false;
+        } else if let Some(date) = current {
+            let mut path = repo_root.to_path_buf();
+            path.extend(token.split('/'));
+            dates.entry(path).or_insert(date);
+        }
+    }
+    dates
+}
+
+/// Run `git` in `dir`; `Err` carries git's stderr, or why it couldn't start.
+fn run_git(dir: &Path, args: &[&str]) -> std::result::Result<String, String> {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .map_err(|e| format!("couldn't run git ({e})"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn canonical(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
 /// The newest date across a page's source file and the files it pulls in.
 pub fn page_date(
     source: &mut dyn DateSource,
@@ -117,7 +228,6 @@ pub fn page_date(
 mod tests {
     use super::*;
     use serde_json::json;
-    use std::collections::HashMap;
 
     fn d(s: &str) -> Date {
         Date::parse(s).unwrap()
@@ -229,5 +339,126 @@ mod tests {
             page_date(&mut source, Path::new("/p/page.md"), &BTreeSet::new()),
             None
         );
+    }
+
+    #[test]
+    fn parse_log_newest_first_wins() {
+        let out = "\x001770334200\0\ndocs/c.md\0\x001767348000\0\ndocs/a b.md\0docs/c.md\0";
+        let map = parse_log(out, Path::new("/repo"));
+        assert_eq!(map[Path::new("/repo/docs/c.md")].to_string(), "2026-02-05");
+        assert_eq!(
+            map[Path::new("/repo/docs/a b.md")].to_string(),
+            "2026-01-02"
+        );
+        assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn parse_log_handles_commits_without_files_and_unicode() {
+        // A merge commit with no files, then a commit touching a unicode path
+        let out = "\x001770334200\0\n\x001767348000\0\ndocs/café ☕.md\0";
+        let map = parse_log(out, Path::new("/repo"));
+        assert_eq!(
+            map[Path::new("/repo/docs/café ☕.md")].to_string(),
+            "2026-01-02"
+        );
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn parse_log_empty_output() {
+        assert!(parse_log("", Path::new("/repo")).is_empty());
+    }
+
+    fn git_available() -> bool {
+        std::process::Command::new("git")
+            .arg("--version")
+            .output()
+            .is_ok_and(|o| o.status.success())
+    }
+
+    fn git(dir: &Path, args: &[&str], author_date: &str) {
+        let status = std::process::Command::new("git")
+            .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+            .args([
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "init.defaultBranch=main",
+            ])
+            .args(args)
+            .current_dir(dir)
+            .env("GIT_AUTHOR_DATE", author_date)
+            // A committer date far from the author date proves we read the author date
+            .env("GIT_COMMITTER_DATE", "2030-06-15T12:00:00Z")
+            .status()
+            .unwrap();
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    #[test]
+    fn collect_reads_author_dates_for_a_project_in_a_subdirectory() {
+        if !git_available() {
+            return;
+        }
+        let repo = tempfile::tempdir().unwrap();
+        let project = repo.path().join("site");
+        std::fs::create_dir_all(project.join("docs")).unwrap();
+        std::fs::write(project.join("docs/index.md"), "# Home").unwrap();
+        std::fs::write(repo.path().join("README.md"), "outside").unwrap();
+        git(repo.path(), &["init", "-q"], "2026-01-02T10:00:00Z");
+        git(repo.path(), &["add", "-A"], "2026-01-02T10:00:00Z");
+        git(
+            repo.path(),
+            &["commit", "-q", "-m", "one"],
+            "2026-01-02T10:00:00Z",
+        );
+        std::fs::write(project.join("docs/index.md"), "# Home v2").unwrap();
+        git(
+            repo.path(),
+            &["commit", "-q", "-am", "two"],
+            "2026-02-05T23:30:00Z",
+        );
+
+        let mut dates = GitDates::collect(&project).unwrap();
+        assert!(!dates.is_shallow());
+        assert_eq!(
+            dates
+                .date_for(&project.join("docs/index.md"))
+                .map(|d| d.to_string()),
+            Some("2026-02-05".to_string())
+        );
+        // Outside the project dir: answered by the lazy fallback
+        assert_eq!(
+            dates
+                .date_for(&repo.path().join("README.md"))
+                .map(|d| d.to_string()),
+            Some("2026-01-02".to_string())
+        );
+        // Untracked
+        std::fs::write(project.join("docs/new.md"), "# New").unwrap();
+        assert_eq!(dates.date_for(&project.join("docs/new.md")), None);
+    }
+
+    #[test]
+    fn collect_in_a_repo_without_commits_has_no_dates() {
+        if !git_available() {
+            return;
+        }
+        let repo = tempfile::tempdir().unwrap();
+        std::fs::write(repo.path().join("index.md"), "# Home").unwrap();
+        git(repo.path(), &["init", "-q"], "2026-01-02T10:00:00Z");
+        let mut dates = GitDates::collect(repo.path()).unwrap();
+        assert_eq!(dates.date_for(&repo.path().join("index.md")), None);
+    }
+
+    #[test]
+    fn collect_outside_a_repo_is_an_error() {
+        if !git_available() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let err = GitDates::collect(dir.path()).err().unwrap();
+        assert!(err.contains("[last_updated]"), "{err}");
     }
 }

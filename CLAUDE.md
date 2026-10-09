@@ -33,7 +33,7 @@ The binary exposes eight subcommands:
 
 - `docanvil new <name>` — scaffold a new documentation project
 - `docanvil serve [--host <addr>] [--port <port>] [--path <path>]` — dev server with hot reload (defaults: 127.0.0.1:3000); builds into a per-project temp dir (never `output_dir`) with `base_url` forced to `/`
-- `docanvil build [--path <path>] [--out <path>] [--clean] [--strict]` — generate static HTML site (default output: `dist/`)
+- `docanvil build [--path <path>] [--out <path>] [--clean] [--strict] [--drafts]` — generate static HTML site (default output: `dist/`); `--drafts` includes draft pages
 - `docanvil theme [--path <path>] [--overwrite]` — interactive color theme generator
 - `docanvil doctor [--path <path>] [--fix] [--strict] [--format human|checkstyle|junit]` — project diagnostics with auto-fix
 - `docanvil export pdf --out <path> [--path <path>] [--locale <code>]` — export docs as a single PDF (requires Chrome/Chromium)
@@ -185,6 +185,7 @@ Markdown source
 - **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
 - **Last updated dates**: Opt-in `[last_updated]`. `source = "git"` runs one `git log --format=%x00%at --name-only -z -- .` per build from the project dir (author dates, never committer; relative pathspecs only, since Windows `\\?\` paths may not match; `-c diff.relative=false -c log.showSignature=false` pins the output format); files outside the project get a memoised `git log -1`. A page's date = front matter `last_updated` (`"YYYY-MM-DD"`, or `false` to hide) else the newest date across its source and `Processed.dependencies`. Rendered as `<time datetime>` (localised by `docanvil.js` via `Intl.DateTimeFormat`), `article:modified_time` and sitemap `<lastmod>`. No repo / shallow clone → one build warning each (fails `--strict`). Renames aren't followed
 - **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages. `config.rs` adds `last-updated-no-git`/`last-updated-shallow-clone` (warning); `content.rs` adds `last-updated-invalid` (error)
+- **Drafts**: Front matter `"draft": true`. `serve` (and `build --drafts`) render drafts with a banner + `noindex`; `build` and `export pdf` move them into `PageInventory.drafts` during the pre-pass (`build::exclude_drafts()`), so nav, search, sitemap, prev/next, the version switcher and missing-translation warnings never see them. Wiki-links to a draft render as plain text; `[build] draft_links = "warn"` also warns (fails `--strict`). `nav.toml` entries for drafts are skipped silently
 - **Includes**: `:::include{file=…}` alone on a line, expanded before components; files/folders starting with `_` in `content_dir` are fragments, never pages; paths relative to the including file, `/` = project root; `file=`/`lines=`/`numbers`/`title` fence attributes are encoded as `docanvil key=value` in the fence info string and travel as `data-meta`; `process()` returns `Processed { html, dependencies }` and the dev server watches dependencies outside its folders
 
 ### Key Types and Where They Live
@@ -195,7 +196,7 @@ Markdown source
 | `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
 | `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale`, `version`. `title` = front matter `title` → first `# H1` → filename; only front matter `title`/`slug` change the slug |
-| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
+| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`, `drafts` (pages left out of this build, same keys), `draft_links: DraftLinks`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `resolve_draft()`, `exclude_drafts()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.toml entry: `page`, `label`, `separator`, `group`, `autodiscover` |
 | `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ConfigNotFound`, `ContentDirNotFound`, `Render`, `General`, `UnsafeOutputDir { path, reason }`, `StrictWarnings`, `DoctorFailed { warnings, errors }`, `ChromeNotFound`, `Update { message, hint }`, `ComponentTemplate { path, message }` |
@@ -203,7 +204,8 @@ Markdown source
 | `Component` trait | `components/mod.rs` | Data provider: `name()`, `data(&ComponentContext) -> Result<tera::Context>` (extra template variables), `renders_body()` (default true) |
 | `ComponentContext` | `components/mod.rs` | `attributes: &HashMap<String, String>`, `body_raw: &str`, `inline: bool`, `render_markdown: &dyn Fn(&str) -> String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` (embedded templates + providers), `load(project_root)` (+ `theme/components/`), `render_markdown()` (pre-comrak + comrak + placeholder swap), `render_block()`. Templates get `attrs`, `body`, `body_raw`, `name`, `inline` (public 1.x API) |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `breadcrumbs`, `last_updated` (ISO date or `None`) |
+| `DraftLinks` | `config.rs` | `[build] draft_links`: `Text` (default; links to drafts become plain text) / `Warn` (also warns) |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `breadcrumbs`, `last_updated` (ISO date or `None`), `draft` |
 | `Crumb` | `project.rs` | Nav breadcrumb step: `label`, `slug: Option<String>` (`None` for groups without a page and labelled separators). `build_breadcrumb_map()` → slug → trail; `crumb_labels()` for the search index |
 | `Breadcrumb` | `render/templates.rs` | Template breadcrumb: `title`, `url: Option<String>`. `page_breadcrumbs()` builds them (empty for top-level pages); `with_page_description()` puts the front matter `description` under the leading `<h1>` |
 | `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `absolute_url`, `is_current`, `has_page` |
@@ -227,7 +229,7 @@ Markdown source
 
 1. `Config::load(project_root)` → config struct
 2. `PageInventory::scan(content_dir, enabled_locales, default_locale, version)` → all pages with slugs (`version` is `None` outside versioned builds)
-3. Pre-pass: read sources, extract front matter, apply slug overrides
+3. Pre-pass: read sources, extract front matter, apply slug overrides, then `exclude_drafts()` (unless serving or `--drafts`)
 4. **When versioning enabled:** per-version loop (scan each `content_dir/{version}/`, `load_nav_for_version()`, version-prefixed output and search index, i18n nested inside each version), then a root redirect to the current version and an early return
 5. **When i18n enabled:** per-locale loop:
    - `load_nav_for_locale()` or `inventory.nav_tree_for_locale()` → locale-specific nav

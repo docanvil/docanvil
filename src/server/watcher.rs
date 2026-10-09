@@ -6,6 +6,7 @@ use notify_debouncer_mini::{DebouncedEventKind, new_debouncer};
 use tokio::sync::broadcast;
 
 use crate::config::Config;
+use crate::edit::Editor;
 
 /// What the dev server watches for changes.
 struct WatchSet {
@@ -99,6 +100,7 @@ pub fn watch(
     project_root: &Path,
     output_dir: &Path,
     dependencies: BTreeSet<PathBuf>,
+    editor: Option<&Editor>,
 ) -> crate::error::Result<()> {
     let (notify_tx, notify_rx) = std::sync::mpsc::channel();
 
@@ -132,7 +134,12 @@ pub fn watch(
 
                 if has_changes {
                     eprintln!("Change detected, rebuilding...");
-                    match crate::cli::build::run_with_options(project_root, output_dir, true) {
+                    match crate::cli::build::run_with_options(
+                        project_root,
+                        output_dir,
+                        true,
+                        editor,
+                    ) {
                         Ok(dependencies) => {
                             let (added, removed) = watch_set.set_dependencies(&dependencies);
                             for dir in &removed {

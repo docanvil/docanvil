@@ -84,6 +84,120 @@ impl EditLinks {
     }
 }
 
+/// The local editor that `docanvil serve` links each page's source to.
+///
+/// Links use the editor's URL scheme, so the browser hands the file to the
+/// editor and the dev server never launches anything itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Editor {
+    Vscode,
+    Cursor,
+    Zed,
+    Idea,
+    /// A URL template containing `{path}`, e.g. `subl://open?url=file://{path}`.
+    Custom(String),
+}
+
+impl Editor {
+    /// Pick the editor from `--editor`, then `DOCANVIL_EDITOR`, then a guess from
+    /// `$VISUAL` / `$EDITOR`, defaulting to VS Code. `None` means links are off
+    /// (`none`). The message is a user-facing warning for an unknown name.
+    pub fn resolve(flag: Option<&str>) -> (Option<Self>, Option<String>) {
+        Self::resolve_with(flag, |key| std::env::var(key).ok())
+    }
+
+    fn resolve_with(
+        flag: Option<&str>,
+        env: impl Fn(&str) -> Option<String>,
+    ) -> (Option<Self>, Option<String>) {
+        let chosen = flag
+            .map(str::to_string)
+            .or_else(|| env("DOCANVIL_EDITOR"))
+            .filter(|name| !name.trim().is_empty());
+        let Some(name) = chosen else {
+            let guess = ["VISUAL", "EDITOR"]
+                .iter()
+                .filter_map(|key| env(key))
+                .find_map(|command| Self::from_command(&command));
+            return (Some(guess.unwrap_or(Self::Vscode)), None);
+        };
+
+        let name = name.trim();
+        if name.contains("{path}") {
+            return (Some(Self::Custom(name.to_string())), None);
+        }
+        match name.to_ascii_lowercase().as_str() {
+            "none" | "off" => (None, None),
+            "vscode" | "code" => (Some(Self::Vscode), None),
+            "cursor" => (Some(Self::Cursor), None),
+            "zed" => (Some(Self::Zed), None),
+            "idea" | "jetbrains" => (Some(Self::Idea), None),
+            _ => (
+                Some(Self::Vscode),
+                Some(format!(
+                    "unknown editor \"{name}\", using VS Code. Choose vscode, cursor, zed, \
+                     idea or none, or give a URL template containing {{path}}"
+                )),
+            ),
+        }
+    }
+
+    /// The editor an `$EDITOR`-style command runs, e.g. `code --wait` → VS Code.
+    fn from_command(command: &str) -> Option<Self> {
+        let program = command.split_whitespace().next()?;
+        let name = Path::new(program)
+            .file_stem()?
+            .to_str()?
+            .to_ascii_lowercase();
+        match name.as_str() {
+            "code" => Some(Self::Vscode),
+            "cursor" => Some(Self::Cursor),
+            "zed" | "zeditor" => Some(Self::Zed),
+            "idea" | "idea64" => Some(Self::Idea),
+            _ => None,
+        }
+    }
+
+    /// The link that opens `source_path` in this editor, or `None` if the path
+    /// can't be made absolute or isn't valid UTF-8.
+    pub fn url_for(&self, source_path: &Path) -> Option<String> {
+        let path = url_file_path(&std::path::absolute(source_path).ok()?)?;
+        Some(match self {
+            Self::Vscode => format!("vscode://file{path}"),
+            Self::Cursor => format!("cursor://file{path}"),
+            Self::Zed => format!("zed://file{path}"),
+            Self::Idea => format!("idea://open?file={path}"),
+            Self::Custom(template) => template.replace("{path}", &path),
+        })
+    }
+}
+
+/// An absolute path as a percent-encoded URL path: `/home/me/a%20b.md`, or
+/// `/C:/docs/a.md` on Windows (the drive's colon is kept).
+fn url_file_path(path: &Path) -> Option<String> {
+    use std::path::Component;
+
+    let mut out = String::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => {
+                let drive = prefix.as_os_str().to_str()?;
+                // Verbatim prefixes (`\\?\C:`) carry the drive after the marker.
+                let drive = drive.trim_start_matches(r"\\?\");
+                out.push('/');
+                out.push_str(drive);
+            }
+            Component::RootDir | Component::CurDir => {}
+            Component::ParentDir => out.push_str("/.."),
+            Component::Normal(segment) => {
+                out.push('/');
+                out.push_str(&encode_segment(segment.to_str()?));
+            }
+        }
+    }
+    Some(out)
+}
+
 /// The lowercased host of an http(s) URL, without a leading `www.`.
 fn host_of(url: &str) -> Option<String> {
     let rest = url
@@ -308,5 +422,112 @@ mod tests {
     fn source_outside_project_has_no_url() {
         let l = links(&config("https://github.com/org/repo"), Path::new("/p"));
         assert!(l.url_for(Path::new("/elsewhere/a.md")).is_none());
+    }
+
+    fn resolve(flag: Option<&str>, env: &[(&str, &str)]) -> (Option<Editor>, Option<String>) {
+        Editor::resolve_with(flag, |key| {
+            env.iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, v)| v.to_string())
+        })
+    }
+
+    #[test]
+    fn editor_defaults_to_vscode() {
+        assert_eq!(resolve(None, &[]), (Some(Editor::Vscode), None));
+    }
+
+    #[test]
+    fn editor_flag_beats_env() {
+        let env = [("DOCANVIL_EDITOR", "zed"), ("EDITOR", "cursor")];
+        assert_eq!(resolve(Some("idea"), &env).0, Some(Editor::Idea));
+        assert_eq!(resolve(None, &env).0, Some(Editor::Zed));
+    }
+
+    #[test]
+    fn editor_guessed_from_visual_then_editor() {
+        let env = [
+            ("VISUAL", "/usr/local/bin/cursor --wait"),
+            ("EDITOR", "code"),
+        ];
+        assert_eq!(resolve(None, &env).0, Some(Editor::Cursor));
+        // A terminal editor tells us nothing, so the next variable is tried.
+        let env = [("VISUAL", "vim"), ("EDITOR", "code -w")];
+        assert_eq!(resolve(None, &env).0, Some(Editor::Vscode));
+        let env = [("EDITOR", "nano")];
+        assert_eq!(resolve(None, &env).0, Some(Editor::Vscode));
+    }
+
+    #[test]
+    fn editor_none_turns_links_off() {
+        assert_eq!(resolve(Some("none"), &[]), (None, None));
+        assert_eq!(resolve(None, &[("DOCANVIL_EDITOR", "None")]), (None, None));
+    }
+
+    #[test]
+    fn editor_custom_template() {
+        let (editor, warning) = resolve(Some("subl://open?url=file://{path}"), &[]);
+        assert!(warning.is_none());
+        let editor = editor.unwrap();
+        assert_eq!(
+            editor,
+            Editor::Custom("subl://open?url=file://{path}".to_string())
+        );
+    }
+
+    #[test]
+    fn editor_unknown_name_warns_and_uses_vscode() {
+        let (editor, warning) = resolve(Some("emacs"), &[]);
+        assert_eq!(editor, Some(Editor::Vscode));
+        assert!(warning.unwrap().contains("unknown editor \"emacs\""));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_urls_per_scheme() {
+        let path = Path::new("/home/me/docs/my page.md");
+        let url = |editor: Editor| editor.url_for(path).unwrap();
+        assert_eq!(
+            url(Editor::Vscode),
+            "vscode://file/home/me/docs/my%20page.md"
+        );
+        assert_eq!(
+            url(Editor::Cursor),
+            "cursor://file/home/me/docs/my%20page.md"
+        );
+        assert_eq!(url(Editor::Zed), "zed://file/home/me/docs/my%20page.md");
+        assert_eq!(
+            url(Editor::Idea),
+            "idea://open?file=/home/me/docs/my%20page.md"
+        );
+        assert_eq!(
+            url(Editor::Custom("subl://open?url=file://{path}".into())),
+            "subl://open?url=file:///home/me/docs/my%20page.md"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn editor_url_makes_relative_paths_absolute() {
+        let url = Editor::Vscode.url_for(Path::new("docs/a.md")).unwrap();
+        let expected = url_file_path(&std::env::current_dir().unwrap().join("docs/a.md"));
+        assert_eq!(url, format!("vscode://file{}", expected.unwrap()));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn editor_url_keeps_windows_drive() {
+        assert_eq!(
+            Editor::Vscode
+                .url_for(Path::new(r"C:\Users\me\docs\a b.md"))
+                .unwrap(),
+            "vscode://file/C:/Users/me/docs/a%20b.md"
+        );
+        assert_eq!(
+            Editor::Vscode
+                .url_for(Path::new(r"\\?\C:\Users\me\docs\a.md"))
+                .unwrap(),
+            "vscode://file/C:/Users/me/docs/a.md"
+        );
     }
 }

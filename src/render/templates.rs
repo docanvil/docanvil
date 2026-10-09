@@ -237,6 +237,7 @@ impl TemplateRenderer {
         context.insert("latest_version", &ctx.latest_version);
         context.insert("latest_version_url", &ctx.latest_version_url);
         context.insert("edit_url", &ctx.edit_url);
+        context.insert("edit_local", &ctx.edit_local);
         context.insert("breadcrumbs", &ctx.breadcrumbs);
         context.insert("last_updated", &ctx.last_updated);
         context.insert("draft", &ctx.draft);
@@ -289,6 +290,8 @@ pub struct PageContext {
     pub latest_version_url: Option<String>,
     /// "Edit this page" URL for the page's source on its Git host.
     pub edit_url: Option<String>,
+    /// `edit_url` opens the source in a local editor (`docanvil serve`), not on the Git host.
+    pub edit_local: bool,
     /// Trail of ancestor nav groups down to this page; empty for top-level pages.
     pub breadcrumbs: Vec<Breadcrumb>,
     /// When the page last changed, as `YYYY-MM-DD`; `None` hides the date.

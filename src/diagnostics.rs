@@ -138,6 +138,12 @@ pub fn warn_edit_link_config(message: &str) {
     );
 }
 
+/// Emit a warning about `serve --editor` / `DOCANVIL_EDITOR`. Shown once when the
+/// dev server starts, so it isn't counted as a build warning.
+pub fn warn_editor(message: &str) {
+    eprintln!("{}: {message}", "warning".yellow().bold());
+}
+
 /// Emit a warning that Git history can't be read for "last updated" dates.
 pub fn warn_last_updated_no_git(message: &str) {
     increment();

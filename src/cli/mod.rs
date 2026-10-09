@@ -62,6 +62,10 @@ pub enum Command {
         /// Path to the project root
         #[arg(long, default_value = ".")]
         path: PathBuf,
+        /// Editor that "Open in editor" links use: vscode, cursor, zed, idea,
+        /// none, or a URL template containing {path} [env: DOCANVIL_EDITOR]
+        #[arg(long)]
+        editor: Option<String>,
     },
     /// Diagnose project configuration and content issues
     Doctor {

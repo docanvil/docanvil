@@ -8,10 +8,18 @@ use axum::Router;
 use tokio::sync::broadcast;
 use tower_http::services::{ServeDir, ServeFile};
 
+use crate::edit::Editor;
 use crate::error::Result;
 
-/// Start the dev server with file watching and hot reload.
-pub async fn start(host: &str, port: u16, output_dir: &Path, project_root: &Path) -> Result<()> {
+/// Start the dev server with file watching and hot reload. With an `editor`,
+/// each page's edit link opens its source in that editor.
+pub async fn start(
+    host: &str,
+    port: u16,
+    output_dir: &Path,
+    project_root: &Path,
+    editor: Option<Editor>,
+) -> Result<()> {
     let (tx, _rx) = broadcast::channel::<()>(16);
 
     let addr: SocketAddr = format!("{host}:{port}")
@@ -19,14 +27,21 @@ pub async fn start(host: &str, port: u16, output_dir: &Path, project_root: &Path
         .map_err(|e| crate::error::Error::General(format!("invalid address: {e}")))?;
 
     // Initial build with live_reload enabled
-    let dependencies = crate::cli::build::run_with_options(project_root, output_dir, true)?;
+    let dependencies =
+        crate::cli::build::run_with_options(project_root, output_dir, true, editor.as_ref())?;
 
     // Start file watcher
     let tx_clone = tx.clone();
     let watch_root = project_root.to_path_buf();
     let watch_output = output_dir.to_path_buf();
     tokio::task::spawn_blocking(move || {
-        if let Err(e) = watcher::watch(tx_clone, &watch_root, &watch_output, dependencies) {
+        if let Err(e) = watcher::watch(
+            tx_clone,
+            &watch_root,
+            &watch_output,
+            dependencies,
+            editor.as_ref(),
+        ) {
             eprintln!("watcher error: {e}");
         }
     });

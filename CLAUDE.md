@@ -58,6 +58,7 @@ src/
   search.rs                    # Search index generation (extract sections from HTML)
   seo.rs                       # robots.txt and sitemap.xml generation
   edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection)
+  last_updated.rs              # "Last updated" dates: Date, DateSource trait, NoDates, GitDates (one scoped git log per build)
   error.rs                     # thiserror Error enum
   diagnostics.rs               # Colored warnings (owo-colors)
   util.rs                      # HTML escape utility
@@ -178,11 +179,12 @@ Markdown source
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
-- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]` sections; serde deserialization
+- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]` sections; serde deserialization
 - **Versioning**: Version subdirectories inside `content_dir` (`docs/v2/…`, not file suffixes), version-prefixed output (`/v2/page.html`), per-version nav/search, version switcher, and a banner on older versions; combines with i18n (`/v2/en/page.html`)
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
 - **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
-- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages
+- **Last updated dates**: Opt-in `[last_updated]`. `source = "git"` runs one `git log --format=%x00%at --name-only -z -- .` per build from the project dir (author dates, never committer; relative pathspecs only, since Windows `\\?\` paths may not match; `-c diff.relative=false -c log.showSignature=false` pins the output format); files outside the project get a memoised `git log -1`. A page's date = front matter `last_updated` (`"YYYY-MM-DD"`, or `false` to hide) else the newest date across its source and `Processed.dependencies`. Rendered as `<time datetime>` (localised by `docanvil.js` via `Intl.DateTimeFormat`), `article:modified_time` and sitemap `<lastmod>`. No repo / shallow clone → one build warning each (fails `--strict`). Renames aren't followed
+- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages. `config.rs` adds `last-updated-no-git`/`last-updated-shallow-clone` (warning); `content.rs` adds `last-updated-invalid` (error)
 - **Includes**: `:::include{file=…}` alone on a line, expanded before components; files/folders starting with `_` in `content_dir` are fragments, never pages; paths relative to the including file, `/` = project root; `file=`/`lines=`/`numbers`/`title` fence attributes are encoded as `docanvil key=value` in the fence info string and travel as `data-meta`; `process()` returns `Processed { html, dependencies }` and the dev server watches dependencies outside its folders
 
 ### Key Types and Where They Live
@@ -201,16 +203,19 @@ Markdown source
 | `Component` trait | `components/mod.rs` | Data provider: `name()`, `data(&ComponentContext) -> Result<tera::Context>` (extra template variables), `renders_body()` (default true) |
 | `ComponentContext` | `components/mod.rs` | `attributes: &HashMap<String, String>`, `body_raw: &str`, `inline: bool`, `render_markdown: &dyn Fn(&str) -> String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` (embedded templates + providers), `load(project_root)` (+ `theme/components/`), `render_markdown()` (pre-comrak + comrak + placeholder swap), `render_block()`. Templates get `attrs`, `body`, `body_raw`, `name`, `inline` (public 1.x API) |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `breadcrumbs` |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `breadcrumbs`, `last_updated` (ISO date or `None`) |
 | `Crumb` | `project.rs` | Nav breadcrumb step: `label`, `slug: Option<String>` (`None` for groups without a page and labelled separators). `build_breadcrumb_map()` → slug → trail; `crumb_labels()` for the search index |
 | `Breadcrumb` | `render/templates.rs` | Template breadcrumb: `title`, `url: Option<String>`. `page_breadcrumbs()` builds them (empty for top-level pages); `with_page_description()` puts the front matter `description` under the leading `<h1>` |
 | `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `absolute_url`, `is_current`, `has_page` |
-| `SitemapLocaleConfig` | `seo.rs` | i18n data for sitemap hreflang: `enabled`, `default_locale`, `slug_coverage` |
+| `SitemapLocaleConfig` | `seo.rs` | i18n data for sitemap hreflang: `enabled`, `default_locale`, `slug_coverage`. `generate_sitemap_xml()` also takes `lastmod: &HashMap<PathBuf, String>` keyed by page output path |
 | `Diagnostic` | `doctor/mod.rs` | `check`, `category`, `severity: Severity`, `message`, `file`, `line`, `fix: Option<Fix>` |
 | `DirectiveBlock` | `pipeline/directives.rs` | Parsed `:::name{attrs}` block: `name`, `attributes`, `body`, `inline` |
 | `PdfConfig` | `config.rs` | PDF export config: `author`, `cover_page`, `custom_css`, `paper_size` (optional, e.g. `"A4"`, `"Letter"`) |
 | `DoctorConfig` | `config.rs` | Doctor / linting config: `max_paragraph_words` (default: 150; set to 0 to disable) |
 | `EditConfig` | `config.rs` | "Edit this page" config: `repo` (set = enabled), `branch` (default `"main"`), `provider: Option<EditProvider>` (GitHub/GitLab/Bitbucket; inferred from host), `root` (auto-detected from nearest `.git`) |
+| `LastUpdatedConfig` | `config.rs` | `enabled` (default false), `source: LastUpdatedSource` (`Git` default / `FrontMatter`, TOML `"git"`/`"front-matter"`) |
+| `DateSource` | `last_updated.rs` | Trait: `date_for(&mut self, path) -> Option<Date>`. Impls: `NoDates` (front-matter source), `GitDates` (`collect(project_root) -> Result<Self, String>`, `is_shallow()`). Helpers: `parse_override(&Value) -> Override { Date, Hide, Invalid }`, `page_date(source, page, deps)` |
+| `Date` | `last_updated.rs` | UTC calendar date: `from_unix()`, strict `parse("YYYY-MM-DD")`, `Display` → ISO, `Ord` |
 | `EditLinks` | `edit.rs` | Resolved per build: `from_config()` → `Result<Option<Self>, String>` (`Err` = user-facing warning), `url_for(source_path)` |
 | `IncludeContext` | `pipeline/includes.rs` | Where includes resolve from: `project_root: &Path`, `locale: Option<&str>` |
 | `Expanded` | `pipeline/includes.rs` | Result of `includes::expand()`: `source` (Markdown with includes spliced in and file code blocks filled), `dependencies: BTreeSet<PathBuf>` (every file read, for the watcher), `problems: Vec<IncludeProblem>` |

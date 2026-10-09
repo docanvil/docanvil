@@ -17,6 +17,9 @@ pub struct FrontMatter {
     pub last_updated: Option<serde_json::Value>,
     /// `true` keeps the page out of `docanvil build` (it still shows in `docanvil serve`).
     pub draft: bool,
+    /// Old paths that should redirect to this page. Kept as raw JSON so a bad value
+    /// can't discard the rest of the front matter; `redirects` interprets it.
+    pub redirect_from: Option<serde_json::Value>,
 }
 
 /// Extract JSON front matter from a Markdown source string.
@@ -153,5 +156,18 @@ mod tests {
         assert!(extract("---\n{\"draft\": true}\n---\n# Hi").draft);
         assert!(!extract("---\n{\"title\": \"Hi\"}\n---\n# Hi").draft);
         assert!(!extract("# Hi").draft);
+    }
+
+    #[test]
+    fn redirect_from_kept_as_raw_json() {
+        let fm = extract("---\n{\"redirect_from\": [\"setup\", \"old/install\"]}\n---\n# Hi");
+        assert_eq!(
+            fm.redirect_from,
+            Some(serde_json::json!(["setup", "old/install"]))
+        );
+        // A bad value doesn't discard the rest of the front matter.
+        let fm = extract("---\n{\"title\": \"Kept\", \"redirect_from\": 5}\n---\n# Hi");
+        assert_eq!(fm.title.as_deref(), Some("Kept"));
+        assert_eq!(fm.redirect_from, Some(serde_json::json!(5)));
     }
 }

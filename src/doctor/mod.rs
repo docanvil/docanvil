@@ -193,7 +193,8 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
                 .bold()
             );
         }
-        let content_diags = checks::content::check_content(project_root, &config, inv);
+        let mut content_diags = checks::content::check_content(project_root, &config, inv);
+        content_diags.extend(checks::redirects::check_redirects(project_root, &config));
         if !silent {
             print_check_results(&content_diags);
         }

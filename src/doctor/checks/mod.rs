@@ -4,5 +4,6 @@ pub mod locale;
 pub mod output;
 pub mod project;
 pub mod readability;
+pub mod redirects;
 pub mod theme;
 pub mod version;

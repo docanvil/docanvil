@@ -19,6 +19,7 @@ use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::markdown;
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{self, PageInfo, PageInventory};
+use crate::redirects::{self, PageSet};
 use crate::render::assets;
 use crate::render::templates::{
     LocaleInfo, PageContext, PageLink, TemplateRenderer, VersionInfo, page_breadcrumbs,
@@ -131,6 +132,115 @@ pub(crate) fn exclude_drafts(
         .collect();
     inventory.exclude_drafts(&keys, config.build.draft_links);
     keys.len()
+}
+
+/// Read every page's source and extract its front matter. Sets each page's title
+/// (front matter, then the first `# H1`) and applies front matter slugs to the
+/// inventory. Returns sources and front matter keyed like `inventory.pages`.
+pub(crate) fn read_sources(
+    inventory: &mut PageInventory,
+) -> Result<(HashMap<String, String>, HashMap<String, FrontMatter>)> {
+    let mut sources: HashMap<String, String> = HashMap::new();
+    let mut front_matters: HashMap<String, FrontMatter> = HashMap::new();
+    let mut slug_updates: Vec<(String, String)> = Vec::new();
+
+    for slug in &inventory.ordered {
+        let page = &inventory.pages[slug];
+        let source =
+            std::fs::read_to_string(&page.source_path).map_err(io_context(&page.source_path))?;
+        let fm = frontmatter::extract(&source);
+        // Title: front matter, then the first `# H1`, then the filename (from scan).
+        // Only front matter titles change the slug, so editing a heading never moves a URL.
+        if let Some(title) = fm
+            .title
+            .clone()
+            .or_else(|| markdown::first_h1_text(&source))
+            && let Some(page) = inventory.pages.get_mut(slug)
+        {
+            page.title = title;
+        }
+
+        // Determine slug override: explicit slug field takes priority, then title-derived.
+        // Skip title-derived slugs for "index" pages (well-known convention).
+        let current_basename = slug.rsplit('/').next().unwrap_or(slug);
+        let new_slug = if let Some(ref s) = fm.slug {
+            Some(slug::slugify(s))
+        } else if let Some(ref title) = fm.title
+            && current_basename != "index"
+        {
+            Some(slug::slugify(title))
+        } else {
+            None
+        };
+
+        // Only update if the slug actually changes (compare against filename portion)
+        if let Some(new_slug) = new_slug
+            && new_slug != current_basename
+        {
+            slug_updates.push((slug.clone(), new_slug));
+        }
+
+        sources.insert(slug.clone(), source);
+        front_matters.insert(slug.clone(), fm);
+    }
+
+    // Apply slug updates after the loop to avoid mutating while iterating.
+    for (old_slug, new_slug) in slug_updates {
+        // Re-key source and front matter entries
+        if let Some(source) = sources.remove(&old_slug) {
+            let fm = front_matters.remove(&old_slug).unwrap_or_default();
+            inventory.update_slug(&old_slug, new_slug);
+            // Find the new full slug (with directory prefix preserved)
+            let full_new_slug = inventory
+                .slug_aliases
+                .get(&old_slug)
+                .cloned()
+                .unwrap_or(old_slug);
+            sources.insert(full_new_slug.clone(), source);
+            front_matters.insert(full_new_slug, fm);
+        }
+    }
+
+    Ok((sources, front_matters))
+}
+
+/// One version's pages (version `None` without versioning): inventory and front matter.
+pub(crate) type SiteVersion = (Option<String>, PageInventory, HashMap<String, FrontMatter>);
+
+/// Scan the site the way `docanvil build` sees it: one inventory per version (or
+/// one for the whole site), with front matter slugs applied and drafts left out.
+/// Used by `docanvil doctor` to check what a build would do.
+pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<SiteVersion>> {
+    let content_dir = project_root.join(&config.project.content_dir);
+    let enabled_locales = config
+        .is_i18n_enabled()
+        .then_some(config.locale.enabled.as_slice());
+    let versions: Vec<Option<String>> = if config.is_versioning_enabled() {
+        config.version.enabled.iter().cloned().map(Some).collect()
+    } else {
+        vec![None]
+    };
+
+    let mut sites = Vec::new();
+    for version in versions {
+        let dir = match &version {
+            Some(v) => content_dir.join(v),
+            None => content_dir.clone(),
+        };
+        if !dir.is_dir() {
+            continue;
+        }
+        let mut inventory = PageInventory::scan(
+            &dir,
+            enabled_locales,
+            config.default_locale(),
+            version.as_deref(),
+        )?;
+        let (_, front_matters) = read_sources(&mut inventory)?;
+        exclude_drafts(&mut inventory, &front_matters, config, false);
+        sites.push((version, inventory, front_matters));
+    }
+    Ok(sites)
 }
 
 /// Refuse to delete an output directory that would take project files with it.
@@ -352,6 +462,26 @@ fn page_last_updated(
     }
 }
 
+/// Work out this build's redirects, warn about any problems, and write the stubs.
+fn write_redirects(
+    project_root: &Path,
+    config: &Config,
+    sets: &[PageSet],
+    output_dir: &Path,
+    base_url: &str,
+) -> Result<()> {
+    let plan = redirects::plan(config, sets);
+    for problem in &plan.problems {
+        diagnostics::warn_redirect(project_root, problem);
+    }
+    redirects::write_stubs(
+        output_dir,
+        &plan.redirects,
+        base_url,
+        config.site_url().as_deref(),
+    )
+}
+
 /// Core build logic shared between CLI and serve.
 fn build_site(
     project_root: &Path,
@@ -396,66 +526,7 @@ fn build_site(
 
     // Pre-pass: read all sources and extract front matter.
     // Override page titles and slugs from front matter before nav/search are built.
-    let mut sources: HashMap<String, String> = HashMap::new();
-    let mut front_matters: HashMap<String, FrontMatter> = HashMap::new();
-    let mut slug_updates: Vec<(String, String)> = Vec::new();
-
-    for slug in &inventory.ordered {
-        let page = &inventory.pages[slug];
-        let source =
-            std::fs::read_to_string(&page.source_path).map_err(io_context(&page.source_path))?;
-        let fm = frontmatter::extract(&source);
-        // Title: front matter, then the first `# H1`, then the filename (from scan).
-        // Only front matter titles change the slug, so editing a heading never moves a URL.
-        if let Some(title) = fm
-            .title
-            .clone()
-            .or_else(|| markdown::first_h1_text(&source))
-            && let Some(page) = inventory.pages.get_mut(slug)
-        {
-            page.title = title;
-        }
-
-        // Determine slug override: explicit slug field takes priority, then title-derived.
-        // Skip title-derived slugs for "index" pages (well-known convention).
-        let current_basename = slug.rsplit('/').next().unwrap_or(slug);
-        let new_slug = if let Some(ref s) = fm.slug {
-            Some(slug::slugify(s))
-        } else if let Some(ref title) = fm.title
-            && current_basename != "index"
-        {
-            Some(slug::slugify(title))
-        } else {
-            None
-        };
-
-        if let Some(new_slug) = new_slug {
-            // Only update if the slug actually changes (compare against filename portion)
-            if new_slug != current_basename {
-                slug_updates.push((slug.clone(), new_slug));
-            }
-        }
-
-        sources.insert(slug.clone(), source);
-        front_matters.insert(slug.clone(), fm);
-    }
-
-    // Apply slug updates after the loop to avoid mutating while iterating.
-    for (old_slug, new_slug) in slug_updates {
-        // Re-key source and front matter entries
-        if let Some(source) = sources.remove(&old_slug) {
-            let fm = front_matters.remove(&old_slug).unwrap_or_default();
-            inventory.update_slug(&old_slug, new_slug);
-            // Find the new full slug (with directory prefix preserved)
-            let full_new_slug = inventory
-                .slug_aliases
-                .get(&old_slug)
-                .cloned()
-                .unwrap_or(old_slug);
-            sources.insert(full_new_slug.clone(), source);
-            front_matters.insert(full_new_slug, fm);
-        }
-    }
+    let (sources, front_matters) = read_sources(&mut inventory)?;
 
     // Versioned builds scan each version below and count their drafts there.
     let unversioned_drafts = exclude_drafts(&mut inventory, &front_matters, config, include_drafts);
@@ -527,8 +598,9 @@ fn build_site(
         let latest_version = config.current_version().map(String::from);
         let current_ver_str = config.current_version().unwrap_or("").to_string();
 
-        // Collect all version inventories for the post-build sitemap.
-        let mut all_version_inventories: Vec<PageInventory> = Vec::new();
+        // Each version's pages and front matter, for the sitemap and redirects.
+        let mut version_sets: Vec<(String, PageInventory, HashMap<String, FrontMatter>)> =
+            Vec::new();
         // Save the latest version's nav tree and base URL for the 404 page.
         let mut latest_nav_tree: Vec<project::NavNode> = Vec::new();
         let mut latest_version_base_url = root_base_url.clone();
@@ -549,60 +621,7 @@ fn build_site(
             )?;
 
             // Pre-pass: read all sources and extract front matter for this version.
-            let mut ver_sources: HashMap<String, String> = HashMap::new();
-            let mut ver_front_matters: HashMap<String, FrontMatter> = HashMap::new();
-            let mut slug_updates: Vec<(String, String)> = Vec::new();
-
-            for slug in &ver_inventory.ordered {
-                let page = &ver_inventory.pages[slug];
-                let source = std::fs::read_to_string(&page.source_path)
-                    .map_err(io_context(&page.source_path))?;
-                let fm = frontmatter::extract(&source);
-                // Title: front matter, then the first `# H1`, then the filename (from scan).
-                // Only front matter titles change the slug, so editing a heading never moves a URL.
-                if let Some(title) = fm
-                    .title
-                    .clone()
-                    .or_else(|| markdown::first_h1_text(&source))
-                    && let Some(page) = ver_inventory.pages.get_mut(slug)
-                {
-                    page.title = title;
-                }
-
-                let current_basename = slug.rsplit('/').next().unwrap_or(slug);
-                let new_slug = if let Some(ref s) = fm.slug {
-                    Some(slug::slugify(s))
-                } else if let Some(ref title) = fm.title
-                    && current_basename != "index"
-                {
-                    Some(slug::slugify(title))
-                } else {
-                    None
-                };
-
-                if let Some(new_slug) = new_slug
-                    && new_slug != current_basename
-                {
-                    slug_updates.push((slug.clone(), new_slug));
-                }
-
-                ver_sources.insert(slug.clone(), source);
-                ver_front_matters.insert(slug.clone(), fm);
-            }
-
-            for (old_slug, new_slug) in slug_updates {
-                if let Some(source) = ver_sources.remove(&old_slug) {
-                    let fm = ver_front_matters.remove(&old_slug).unwrap_or_default();
-                    ver_inventory.update_slug(&old_slug, new_slug);
-                    let full_new_slug = ver_inventory
-                        .slug_aliases
-                        .get(&old_slug)
-                        .cloned()
-                        .unwrap_or(old_slug);
-                    ver_sources.insert(full_new_slug.clone(), source);
-                    ver_front_matters.insert(full_new_slug, fm);
-                }
-            }
+            let (ver_sources, ver_front_matters) = read_sources(&mut ver_inventory)?;
 
             drafts_skipped += exclude_drafts(
                 &mut ver_inventory,
@@ -1019,7 +1038,7 @@ fn build_site(
                 }
             }
 
-            all_version_inventories.push(ver_inventory);
+            version_sets.push((version.clone(), ver_inventory, ver_front_matters));
         }
 
         // Write root redirect to current/latest version
@@ -1040,21 +1059,22 @@ fn build_site(
         } else {
             format!("{}{}/index.html", root_base_url, redirect_ver)
         };
-        let redirect_html = format!(
-            "<!DOCTYPE html>\n\
-             <html>\n\
-             <head>\n\
-             <meta http-equiv=\"refresh\" content=\"0; url={url}\">\n\
-             <link rel=\"canonical\" href=\"{url}\">\n\
-             </head>\n\
-             <body>\n\
-             <p><a href=\"{url}\">Redirecting to latest documentation...</a></p>\n\
-             </body>\n\
-             </html>\n",
-            url = redirect_target
-        );
         let redirect_path = output_dir.join("index.html");
-        std::fs::write(&redirect_path, redirect_html).map_err(io_context(&redirect_path))?;
+        std::fs::write(
+            &redirect_path,
+            redirects::stub_html(&redirect_target, &redirect_target, None),
+        )
+        .map_err(io_context(&redirect_path))?;
+
+        let sets: Vec<PageSet> = version_sets
+            .iter()
+            .map(|(version, inventory, front_matters)| PageSet {
+                version: Some(version),
+                inventory,
+                front_matters,
+            })
+            .collect();
+        write_redirects(project_root, config, &sets, output_dir, &root_base_url)?;
 
         // Generate robots.txt and sitemap (merged across all versions)
         if !live_reload {
@@ -1073,7 +1093,7 @@ fn build_site(
             // No hreflang annotations for versions — versions aren't translations.
             let mut merged_pages: HashMap<String, project::PageInfo> = HashMap::new();
             let mut merged_ordered: Vec<String> = Vec::new();
-            for inv in &all_version_inventories {
+            for (_, inv, _) in &version_sets {
                 for key in &inv.ordered {
                     let page = &inv.pages[key];
                     let unique_key = page.output_path.to_string_lossy().into_owned();
@@ -1560,22 +1580,20 @@ fn build_site(
     if config.is_i18n_enabled() {
         let default_locale = config.default_locale().unwrap_or("en");
         let redirect_target = format!("{}{}/index.html", root_base_url, default_locale);
-        let redirect_html = format!(
-            "<!DOCTYPE html>\n\
-             <html>\n\
-             <head>\n\
-             <meta http-equiv=\"refresh\" content=\"0; url={url}\">\n\
-             <link rel=\"canonical\" href=\"{url}\">\n\
-             </head>\n\
-             <body>\n\
-             <p><a href=\"{url}\">Redirecting to documentation...</a></p>\n\
-             </body>\n\
-             </html>\n",
-            url = redirect_target
-        );
         let redirect_path = output_dir.join("index.html");
-        std::fs::write(&redirect_path, redirect_html).map_err(io_context(&redirect_path))?;
+        std::fs::write(
+            &redirect_path,
+            redirects::stub_html(&redirect_target, &redirect_target, None),
+        )
+        .map_err(io_context(&redirect_path))?;
     }
+
+    let sets = [PageSet {
+        version: None,
+        inventory: &inventory,
+        front_matters: &front_matters,
+    }];
+    write_redirects(project_root, config, &sets, output_dir, &root_base_url)?;
 
     // Generate 404 page
     {
@@ -1826,6 +1844,49 @@ fn minify_js_source(source: &str) -> String {
 mod tests {
     use super::*;
     use std::fs;
+
+    fn write(root: &Path, files: &[(&str, &str)]) {
+        for (path, content) in files {
+            let p = root.join(path);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, content).unwrap();
+        }
+    }
+
+    #[test]
+    fn scan_site_matches_the_build_view() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            &[
+                (
+                    "docanvil.toml",
+                    "[project]\nname = \"T\"\n\n[version]\nenabled = [\"v1\", \"v2\"]\n",
+                ),
+                ("docs/v1/index.md", "# One"),
+                ("docs/v2/index.md", "# Two"),
+                (
+                    "docs/v2/setup.md",
+                    "---\n{\"slug\": \"install\"}\n---\n# Setup",
+                ),
+                ("docs/v2/wip.md", "---\n{\"draft\": true}\n---\n# WIP"),
+            ],
+        );
+        let config = Config::load(dir.path()).unwrap();
+        let sites = scan_site(dir.path(), &config).unwrap();
+
+        assert_eq!(sites.len(), 2);
+        let (version, inventory, front_matters) = &sites[1];
+        assert_eq!(version.as_deref(), Some("v2"));
+        assert!(inventory.pages.contains_key("install"));
+        assert_eq!(
+            inventory.pages["install"].output_path,
+            PathBuf::from("v2/install.html")
+        );
+        assert!(!inventory.pages.contains_key("wip"));
+        assert!(inventory.drafts.contains_key("wip"));
+        assert!(front_matters.contains_key("install"));
+    }
 
     fn project() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();

@@ -4,6 +4,7 @@ use std::path::Path;
 use owo_colors::OwoColorize;
 
 use crate::pipeline::includes::display_path;
+use crate::redirects::{Origin, RedirectProblem};
 
 // Thread-local so each build counts only its own warnings. A build runs start to
 // finish on one thread, so concurrent builds (parallel tests, the dev server's
@@ -78,6 +79,25 @@ pub fn warn_include(
         "  {}: {}",
         "hint".dimmed(),
         hint.unwrap_or("Run 'docanvil doctor' to check every include and code block file.")
+    );
+}
+
+/// Emit a warning about a redirect that can't be written as declared.
+pub fn warn_redirect(project_root: &Path, problem: &RedirectProblem) {
+    increment();
+    let place = match &problem.origin {
+        Origin::FrontMatter(path) => display_path(project_root, path).display().to_string(),
+        Origin::Table(_) | Origin::Unprefixed => "docanvil.toml".to_string(),
+    };
+    eprintln!(
+        "{}: {} ({})",
+        "warning".yellow().bold(),
+        problem.message,
+        place
+    );
+    eprintln!(
+        "  {}: Run 'docanvil doctor' to check every redirect.",
+        "hint".dimmed()
     );
 }
 

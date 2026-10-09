@@ -22,11 +22,13 @@ use self::includes::IncludeContext;
 use self::syntax::SyntaxHighlighter;
 
 /// A rendered page body, plus every file pulled in through `:::include` and
-/// `file="…"` code blocks (the dev server watches these).
+/// `file="…"` code blocks (the dev server watches these), and the page's
+/// Markdown with those includes expanded (for `llms-full.txt`).
 #[derive(Debug)]
 pub struct Processed {
     pub html: String,
     pub dependencies: BTreeSet<PathBuf>,
+    pub markdown: String,
 }
 
 /// Full pipeline: includes → directives + popovers + markdown (via the component
@@ -92,6 +94,7 @@ pub fn process(
     Ok(Processed {
         html,
         dependencies: expanded.dependencies,
+        markdown: expanded.source,
     })
 }
 
@@ -151,6 +154,10 @@ mod tests {
         assert!(out.html.contains("<figcaption>"));
         assert!(!out.html.contains("data-meta"));
         assert_eq!(out.dependencies.len(), 2);
+        // The expanded Markdown comes back too, for llms-full.txt.
+        assert!(out.markdown.contains("Shared words."));
+        assert!(out.markdown.contains("fn a() {}"));
+        assert!(!out.markdown.contains(":::include"));
     }
 
     #[test]

@@ -6,46 +6,38 @@ use regex::Regex;
 static IMG_SRC_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"<img\b([^>]*)\bsrc\s*=\s*"([^"]*)"([^>]*)>"#).unwrap());
 
-/// Rewrite relative `<img src="...">` paths in rendered HTML to include the base URL.
-///
-/// Skips absolute paths (`/`), URLs (`http://`, `https://`), and data URIs (`data:`).
-/// For relative paths, checks if the file exists at project root; if not, tries under `assets/`.
+/// Where a relative image `src` is served from: `base_url` plus the path found at
+/// the project root (or under `assets/`), or plus `src` as written if neither
+/// exists. `None` for absolute paths, URLs and data URIs, which stay as they are.
+pub fn rewrite_src(src: &str, base_url: &str, project_root: &Path) -> Option<String> {
+    if src.starts_with('/')
+        || src.starts_with("http://")
+        || src.starts_with("https://")
+        || src.starts_with("data:")
+    {
+        return None;
+    }
+    let path = if project_root.join(src).exists() {
+        src.to_string()
+    } else {
+        let assets_path = format!("assets/{src}");
+        if project_root.join(&assets_path).exists() {
+            assets_path
+        } else {
+            src.to_string()
+        }
+    };
+    Some(format!("{base_url}{path}"))
+}
+
+/// Rewrite relative `<img src="...">` paths in rendered HTML to include the base URL
+/// (see [`rewrite_src`]).
 pub fn rewrite_image_paths(html: &str, base_url: &str, project_root: &Path) -> String {
     IMG_SRC_RE
         .replace_all(html, |caps: &regex::Captures| {
-            let before = &caps[1];
-            let src = &caps[2];
-            let after = &caps[3];
-
-            if src.starts_with('/')
-                || src.starts_with("http://")
-                || src.starts_with("https://")
-                || src.starts_with("data:")
-            {
-                return caps[0].to_string();
-            }
-
-            // Check if the path exists directly relative to project root
-            let resolved = if project_root.join(src).exists() {
-                Some(src.to_string())
-            } else {
-                // Try under assets/ as a fallback
-                let assets_path = format!("assets/{src}");
-                if project_root.join(&assets_path).exists() {
-                    Some(assets_path)
-                } else {
-                    None
-                }
-            };
-
-            match resolved {
-                Some(path) => {
-                    format!(r#"<img{before}src="{base_url}{path}"{after}>"#)
-                }
-                None => {
-                    // Path not found — still prepend base_url to the original src
-                    format!(r#"<img{before}src="{base_url}{src}"{after}>"#)
-                }
+            match rewrite_src(&caps[2], base_url, project_root) {
+                Some(src) => format!(r#"<img{}src="{src}"{}>"#, &caps[1], &caps[3]),
+                None => caps[0].to_string(),
             }
         })
         .into_owned()
@@ -141,5 +133,29 @@ mod tests {
             result,
             r#"<img src="/base/assets/a.png" alt="a"><img src="/base/assets/b.png" alt="b">"#
         );
+    }
+
+    #[test]
+    fn rewrite_src_resolves_like_html_images() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("assets")).unwrap();
+        fs::write(dir.path().join("assets/logo.png"), b"x").unwrap();
+
+        assert_eq!(
+            rewrite_src("logo.png", "https://x.dev/", dir.path()).as_deref(),
+            Some("https://x.dev/assets/logo.png")
+        );
+        assert_eq!(
+            rewrite_src("missing.png", "/docs/", dir.path()).as_deref(),
+            Some("/docs/missing.png")
+        );
+        for src in [
+            "/abs.png",
+            "http://e.com/a.png",
+            "https://e.com/a.png",
+            "data:image/png;base64,x",
+        ] {
+            assert_eq!(rewrite_src(src, "/", dir.path()), None);
+        }
     }
 }

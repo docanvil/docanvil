@@ -115,6 +115,19 @@ pub fn check_config(
         }
     }
 
+    // llms.txt links are only useful to AI tools when they're absolute
+    if config.llms.enabled && config.site_url().is_none() {
+        diags.push(Diagnostic {
+            check: "llms-no-site-url",
+            category: "config",
+            severity: Severity::Info,
+            message: "[llms] is on but [build] site_url isn't set, so links in llms.txt are relative. Set site_url so AI tools can follow them".to_string(),
+            file: None,
+            line: None,
+            fix: None,
+        });
+    }
+
     // Validate nav.toml
     let nav_path = project_root.join("nav.toml");
     if nav_path.exists() {
@@ -267,6 +280,34 @@ mod tests {
             last_updated_diags(
                 "[last_updated]\nenabled = true\nsource = \"front-matter\"\n",
                 dir.path()
+            )
+            .is_empty()
+        );
+    }
+
+    fn llms_diags(config_toml: &str) -> Vec<Diagnostic> {
+        let config: Config = toml::from_str(config_toml).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        check_config(dir.path(), &config, None)
+            .into_iter()
+            .filter(|d| d.check.starts_with("llms"))
+            .collect()
+    }
+
+    #[test]
+    fn llms_without_site_url_is_info() {
+        let diags = llms_diags("[llms]\nenabled = true\n");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].check, "llms-no-site-url");
+        assert_eq!(diags[0].severity, Severity::Info);
+    }
+
+    #[test]
+    fn llms_with_site_url_or_off_is_clean() {
+        assert!(llms_diags("").is_empty());
+        assert!(
+            llms_diags(
+                "[build]\nsite_url = \"https://docs.example.com\"\n\n[llms]\nenabled = true\n"
             )
             .is_empty()
         );

@@ -205,13 +205,11 @@ pub(crate) fn read_sources(
 }
 
 /// One version's pages (version `None` without versioning): inventory and front matter.
-#[allow(dead_code)] // used by doctor (Task 6)
 pub(crate) type SiteVersion = (Option<String>, PageInventory, HashMap<String, FrontMatter>);
 
 /// Scan the site the way `docanvil build` sees it: one inventory per version (or
 /// one for the whole site), with front matter slugs applied and drafts left out.
 /// Used by `docanvil doctor` to check what a build would do.
-#[allow(dead_code)] // used by doctor (Task 6)
 pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<SiteVersion>> {
     let content_dir = project_root.join(&config.project.content_dir);
     let enabled_locales = config

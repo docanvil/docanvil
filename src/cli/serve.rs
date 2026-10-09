@@ -2,16 +2,29 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
+use crate::diagnostics;
+use crate::edit::Editor;
 use crate::error::Result;
 
-pub fn run(host: &str, port: u16, project_root: &Path, quiet: bool) -> Result<()> {
+pub fn run(
+    host: &str,
+    port: u16,
+    project_root: &Path,
+    editor: Option<&str>,
+    quiet: bool,
+) -> Result<()> {
     let output_dir = dev_output_dir(project_root);
     crate::update::notice::spawn(quiet);
+
+    let (editor, warning) = Editor::resolve(editor);
+    if let Some(message) = warning {
+        diagnostics::warn_editor(&message);
+    }
 
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| crate::error::Error::General(format!("failed to start async runtime: {e}")))?;
 
-    rt.block_on(async { crate::server::start(host, port, &output_dir, project_root).await })
+    rt.block_on(async { crate::server::start(host, port, &output_dir, project_root, editor).await })
 }
 
 /// Where the dev server builds to: a per-project directory under the system

@@ -10,7 +10,7 @@ use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::config::LastUpdatedSource;
 use crate::diagnostics::{self, reset_warnings, warning_count};
-use crate::edit::EditLinks;
+use crate::edit::{EditLinks, Editor};
 use crate::error::{Error, Result};
 use crate::last_updated::{self, DateSource, GitDates, NoDates, Override};
 use crate::nav;
@@ -68,6 +68,7 @@ pub fn run(
     let mode = BuildMode {
         live_reload: false,
         drafts,
+        editor: None,
     };
     let built = build_into(project_root, &config, &output_dir, mode, &mut dependencies)?;
 
@@ -97,11 +98,13 @@ pub fn run(
 
 /// How a build treats the dev server's extras and draft pages.
 #[derive(Debug, Clone, Copy)]
-struct BuildMode {
+struct BuildMode<'a> {
     /// Building for `docanvil serve`: inject live reload, use `/` as the base URL.
     live_reload: bool,
     /// Include pages marked `"draft": true` (always on for `docanvil serve`).
     drafts: bool,
+    /// Link each page to its source in this local editor instead of the Git host.
+    editor: Option<&'a Editor>,
 }
 
 /// What a build produced.
@@ -289,12 +292,14 @@ pub(crate) fn ensure_safe_to_remove(
 }
 
 /// Build into `output_dir`, optionally with live reload (used by the dev server).
+/// With an `editor`, each page's edit link opens its source in that editor.
 /// Returns every file the build read through `:::include` and `file="…"` code
 /// blocks, so the dev server can watch the ones outside the project's folders.
 pub fn run_with_options(
     project_root: &Path,
     output_dir: &Path,
     live_reload: bool,
+    editor: Option<&Editor>,
 ) -> Result<BTreeSet<PathBuf>> {
     let config = Config::load(project_root)?;
 
@@ -306,6 +311,7 @@ pub fn run_with_options(
     let mode = BuildMode {
         live_reload,
         drafts: true,
+        editor,
     };
     let built = build_into(project_root, &config, output_dir, mode, &mut dependencies)?;
     eprintln!("Built {} page{}", built.pages, plural(built.pages));
@@ -322,7 +328,7 @@ fn build_into(
     project_root: &Path,
     config: &Config,
     output_dir: &Path,
-    mode: BuildMode,
+    mode: BuildMode<'_>,
     dependencies: &mut BTreeSet<PathBuf>,
 ) -> Result<Built> {
     if output_dir.exists() {
@@ -409,16 +415,21 @@ fn sync_output(staging: &Path, output_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// The "Edit this page" URL for a page, unless its front matter opts out.
+/// The page's edit link, unless its front matter opts out: its source in the
+/// local editor under `docanvil serve`, otherwise on the Git host.
 fn page_edit_url(
     edit_links: Option<&EditLinks>,
+    editor: Option<&Editor>,
     page: &PageInfo,
     fm: &FrontMatter,
 ) -> Option<String> {
     if fm.edit_link == Some(false) {
         return None;
     }
-    edit_links?.url_for(&page.source_path)
+    match editor {
+        Some(editor) => editor.url_for(&page.source_path),
+        None => edit_links?.url_for(&page.source_path),
+    }
 }
 
 /// The source of "last updated" dates for this build, or `None` when the feature is off.
@@ -487,12 +498,13 @@ fn build_site(
     project_root: &Path,
     config: &Config,
     output_dir: &Path,
-    mode: BuildMode,
+    mode: BuildMode<'_>,
     dependencies: &mut BTreeSet<PathBuf>,
 ) -> Result<Built> {
     let BuildMode {
         live_reload,
         drafts: include_drafts,
+        editor,
     } = mode;
     let content_dir = project_root.join(&config.project.content_dir);
     if !content_dir.exists() {
@@ -794,7 +806,8 @@ fn build_site(
                             mermaid_version: config.charts.mermaid_version.clone(),
                             search_enabled: config.search.enabled,
                             meta_description: fm.description.clone(),
-                            edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                            edit_url: page_edit_url(edit_links.as_ref(), editor, page, fm),
+                            edit_local: editor.is_some(),
                             breadcrumbs,
                             last_updated,
                             draft: fm.draft,
@@ -993,7 +1006,8 @@ fn build_site(
                         mermaid_version: config.charts.mermaid_version.clone(),
                         search_enabled: config.search.enabled,
                         meta_description: fm.description.clone(),
-                        edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                        edit_url: page_edit_url(edit_links.as_ref(), editor, page, fm),
+                        edit_local: editor.is_some(),
                         breadcrumbs,
                         last_updated,
                         draft: fm.draft,
@@ -1161,6 +1175,7 @@ fn build_site(
                 search_enabled: config.search.enabled,
                 meta_description: None,
                 edit_url: None,
+                edit_local: false,
                 breadcrumbs: Vec::new(),
                 last_updated: None,
                 draft: false,
@@ -1341,7 +1356,8 @@ fn build_site(
                     mermaid_version: config.charts.mermaid_version.clone(),
                     search_enabled: config.search.enabled,
                     meta_description: fm.description.clone(),
-                    edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                    edit_url: page_edit_url(edit_links.as_ref(), editor, page, fm),
+                    edit_local: editor.is_some(),
                     breadcrumbs,
                     last_updated,
                     draft: fm.draft,
@@ -1505,7 +1521,8 @@ fn build_site(
                 mermaid_version: config.charts.mermaid_version.clone(),
                 search_enabled: config.search.enabled,
                 meta_description: fm.description.clone(),
-                edit_url: page_edit_url(edit_links.as_ref(), page, fm),
+                edit_url: page_edit_url(edit_links.as_ref(), editor, page, fm),
+                edit_local: editor.is_some(),
                 breadcrumbs,
                 last_updated,
                 draft: fm.draft,
@@ -1666,6 +1683,7 @@ fn build_site(
             search_enabled: config.search.enabled,
             meta_description: None,
             edit_url: None,
+            edit_local: false,
             breadcrumbs: Vec::new(),
             last_updated: None,
             draft: false,

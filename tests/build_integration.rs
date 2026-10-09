@@ -748,7 +748,7 @@ fn test_dev_build_does_not_touch_output_dir() {
     let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
     let dev_out = tempfile::tempdir().unwrap();
 
-    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true)
+    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true, None)
         .expect("dev build should succeed");
 
     let html = fs::read_to_string(dev_out.path().join("index.html")).unwrap();
@@ -833,6 +833,89 @@ fn test_edit_link_front_matter_opt_out() {
     build_project(dir.path()).unwrap();
     assert!(read_output(dir.path(), "index.html").contains("Edit this page"));
     assert!(!read_output(dir.path(), "private.html").contains("Edit this page"));
+}
+
+/// Run a `docanvil serve` build with `editor` and read one output page, URL-unescaped.
+fn serve_build_page(
+    dir: &std::path::Path,
+    editor: Option<&docanvil::edit::Editor>,
+    path: &str,
+) -> String {
+    let dev_out = tempfile::tempdir().unwrap();
+    docanvil::cli::build::run_with_options(dir, dev_out.path(), true, editor)
+        .expect("dev build should succeed");
+    fs::read_to_string(dev_out.path().join(path))
+        .unwrap()
+        .replace("&#x2F;", "/")
+}
+
+/// The `vscode://` link for a source file under the project's `docs/`.
+fn vscode_href(dir: &std::path::Path, source: &str) -> String {
+    let url = docanvil::edit::Editor::Vscode
+        .url_for(&dir.join("docs").join(source))
+        .unwrap();
+    format!(r#"href="{url}""#)
+}
+
+#[test]
+fn test_serve_editor_link_replaces_remote_link() {
+    let dir = create_project(
+        EDIT_CONFIG,
+        &[("index.md", "# Home"), ("guide/setup.md", "# Setup")],
+    );
+    let editor = docanvil::edit::Editor::Vscode;
+
+    let html = serve_build_page(dir.path(), Some(&editor), "guide/setup.html");
+    assert!(html.contains("Open in editor"));
+    assert!(!html.contains("Edit this page"));
+    assert!(html.contains(&vscode_href(dir.path(), "guide/setup.md")));
+    assert!(!html.contains("github.com/org/repo/edit"));
+    assert!(!html.contains(r#"target="_blank" rel="noopener">"#));
+
+    // Without an editor, serve keeps the Git host link.
+    let html = serve_build_page(dir.path(), None, "guide/setup.html");
+    assert!(html.contains("Edit this page"));
+    assert!(!html.contains("Open in editor"));
+
+    // A production build never links to the local editor.
+    build_project(dir.path()).unwrap();
+    assert!(!read_output(dir.path(), "index.html").contains("Open in editor"));
+}
+
+#[test]
+fn test_serve_editor_link_without_edit_config() {
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[
+            ("index.md", "# Home"),
+            ("private.md", "---\n{\"edit_link\": false}\n---\n# Private"),
+        ],
+    );
+    let editor = docanvil::edit::Editor::Vscode;
+    let html = serve_build_page(dir.path(), Some(&editor), "index.html");
+    assert!(html.contains("Open in editor"));
+    assert!(html.contains(&vscode_href(dir.path(), "index.md")));
+    let private = serve_build_page(dir.path(), Some(&editor), "private.html");
+    assert!(!private.contains("Open in editor"));
+}
+
+#[test]
+fn test_serve_editor_link_in_versioned_i18n_build() {
+    let config = format!(
+        "{DEFAULT_CONFIG}\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n\
+         [version]\ncurrent = \"v2\"\nenabled = [\"v1\", \"v2\"]\n"
+    );
+    let dir = create_project(
+        &config,
+        &[
+            ("v1/index.en.md", "# Old"),
+            ("v2/index.en.md", "# Home"),
+            ("v2/index.fr.md", "# Accueil"),
+        ],
+    );
+    let editor = docanvil::edit::Editor::Vscode;
+    let html = serve_build_page(dir.path(), Some(&editor), "v2/fr/index.html");
+    assert!(html.contains(&vscode_href(dir.path(), "v2/index.fr.md")));
 }
 
 #[test]
@@ -1273,7 +1356,8 @@ fn test_dev_build_reports_include_dependencies() {
     );
     write_file(dir.path(), "examples/a.rs", "fn a() {}\n");
     let dev_out = tempfile::tempdir().unwrap();
-    let deps = docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true).unwrap();
+    let deps =
+        docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true, None).unwrap();
     assert!(deps.contains(&dir.path().join("examples/a.rs").canonicalize().unwrap()));
 }
 
@@ -1637,7 +1721,7 @@ fn test_dev_build_shows_drafts() {
     fs::write(dir.path().join("nav.toml"), DRAFT_NAV).unwrap();
     let dev_out = tempfile::tempdir().unwrap();
 
-    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true)
+    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true, None)
         .expect("dev build should succeed");
 
     let wip = fs::read_to_string(dev_out.path().join("wip.html")).unwrap();

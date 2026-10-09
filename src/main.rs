@@ -23,9 +23,12 @@ fn main() {
             format,
         } => docanvil::cli::doctor::run(path, *fix, *strict, cli.quiet, format),
         Command::Theme { path, overwrite } => docanvil::cli::theme::run(path, *overwrite),
-        Command::Serve { host, port, path } => {
-            docanvil::cli::serve::run(host, *port, path, cli.quiet)
-        }
+        Command::Serve {
+            host,
+            port,
+            path,
+            editor,
+        } => docanvil::cli::serve::run(host, *port, path, editor.as_deref(), cli.quiet),
         Command::Build {
             out,
             clean,

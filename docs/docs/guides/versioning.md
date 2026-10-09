@@ -197,6 +197,8 @@ When no `[version]` section exists in `docanvil.toml` (or `enabled` is empty):
 
 Existing projects work without any changes.
 
+Turning versioning on for a site that's already live moves every page into a version folder. To keep the old addresses working, set `unprefixed = true` under [[guides/configuration|`[redirects]`]].
+
 ## Related Pages
 
 - [[guides/configuration|Configuration]] — `[version]` config options

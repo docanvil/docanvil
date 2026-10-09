@@ -211,6 +211,8 @@ Lorsqu'aucune section `[locale]` n'existe dans `docanvil.toml` :
 
 Les projets existants en langue unique fonctionnent sans aucune modification.
 
+Activer la localisation sur un site déjà en ligne déplace toutes les pages dans un dossier de langue. Pour que les anciennes adresses continuent de fonctionner, définissez `unprefixed = true` dans [[guides/configuration|`[redirects]`]].
+
 ## Pages associées
 
 - [[guides/configuration|Configuration]] — options de configuration `[locale]`

@@ -82,6 +82,9 @@ branch = "main"
 
 [last_updated]
 enabled = true
+
+[redirects]
+"old-faq" = "help/faq"
 ```
 :::
 ::::
@@ -310,6 +313,45 @@ Bon à savoir :
 - **Pas de dépôt Git ?** DocAnvil émet un avertissement et se rabat sur les dates du front matter. Définissez `source = "front-matter"` si c'est ce que vous voulez, et l'avertissement disparaît.
 
 `docanvil doctor` signale les clones superficiels et les dépôts manquants, ainsi que tout `last_updated` du front matter qui n'est pas une date valide.
+
+### Section `[redirects]`
+
+Garde les anciennes URL fonctionnelles quand des pages sont renommées, déplacées ou supprimées, pour que les favoris, les résultats de recherche et les liens depuis d'autres sites mènent toujours quelque part d'utile. Chaque entrée associe un ancien chemin à sa nouvelle destination :
+
+| Clé | Défaut | Description |
+|-----|---------|-------------|
+| `"ancien/chemin"` | — | Autant d'entrées que nécessaire : l'ancien chemin à gauche, le nouveau à droite |
+| `unprefixed` | `false` | Redirige chaque `page.html` vers la version actuelle dans la langue par défaut (voir plus bas) |
+
+```toml
+[redirects]
+"old-faq" = "help/faq"
+"getting-started/install" = "guides/install"
+"/blog/" = "https://blog.example.com"
+```
+
+Les chemins s'écrivent de trois façons :
+
+- **Un slug de page**, comme `help/faq` : la même chose que dans un [[writing/wiki-links|wiki-link]]. Un `.html` ou un `/` final ne pose pas de problème. Sur un site traduit ou versionné, la redirection est écrite pour chaque langue et chaque version où la page cible existe : `"old-faq" = "help/faq"` donne `/en/old-faq.html`, `/fr/old-faq.html`, et ainsi de suite.
+- **Un chemin du site** commençant par `/`, comme `/old-blog.html`, ou `/blog/` pour `/blog/index.html`. Il est utilisé tel quel, une seule fois.
+- **Un autre site** : une cible contenant `://`, comme `https://blog.example.com`. Uniquement à droite.
+
+Chaque ancienne URL devient une petite page qui renvoie aussitôt le lecteur vers la nouvelle, en gardant l'éventuelle `#section` du lien. Elle indique aussi aux moteurs de recherche où la page est partie, pour que son référencement passe à la nouvelle URL. Cela fonctionne sur n'importe quel hébergement statique, sans rien configurer côté serveur, et les pages de redirection n'apparaissent jamais dans la barre latérale, la recherche ou `sitemap.xml`.
+
+Pour une page que vous avez renommée ou déplacée, le plus simple est souvent d'indiquer l'ancien chemin dans son propre [[writing/front-matter|front matter]] avec `redirect_from`. Il suit la page et couvre toutes ses traductions. La table `[redirects]` convient aux pages supprimées, ou pour déplacer beaucoup de pages d'un coup. Si les deux envoient le même ancien chemin à des endroits différents, le front matter l'emporte.
+
+**Activer les langues ou les versions** déplace toutes les pages : `/guides/install.html` devient `/en/guides/install.html` ou `/v2/guides/install.html`. Avec `unprefixed = true`, DocAnvil laisse une redirection à chaque ancienne adresse, vers la version actuelle dans la langue par défaut :
+
+```toml
+[redirects]
+unprefixed = true
+```
+
+:::note
+`unprefixed` partage la table avec vos chemins : une page dont le slug est littéralement `unprefixed` doit utiliser la forme chemin du site, `"/unprefixed.html" = "…"`.
+:::
+
+Une redirection vers une page qui n'existe pas, une redirection dont l'ancien chemin est encore une vraie page (la page l'emporte toujours), deux redirections qui envoient le même chemin à des endroits différents, et des redirections qui tournent en boucle affichent chacune un avertissement à la compilation : `docanvil build --strict` échoue donc. `docanvil doctor` vérifie toutes les redirections à l'avance et indique la ligne concernée dans `docanvil.toml` ou dans le front matter de la page. Une redirection vers une [[writing/front-matter|page brouillon]] est ignorée sans avertissement jusqu'à la publication de la page.
 
 ## nav.toml
 

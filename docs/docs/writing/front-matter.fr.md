@@ -42,6 +42,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
 | `last_updated` | Chaîne ou Booléen | La date de dernière modification de la page, au format `"YYYY-MM-DD"`. Remplace la date tirée de l'historique Git. Définissez à `false` pour masquer la date sur cette page (voir [[guides/configuration|Configuration → `[last_updated]`]]) |
 | `draft` | Booléen | Définissez à `true` pour garder la page hors des compilations de production pendant que vous y travaillez (voir [Pages brouillon](#pages-brouillon)) |
+| `redirect_from` | Liste de chaînes | Anciens chemins qui doivent renvoyer les lecteurs vers cette page, pour que les liens existants continuent de fonctionner (voir [Redirections](#redirections)) |
 
 Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos propres métadonnées personnalisées sans déclencher d'erreurs.
 
@@ -110,6 +111,8 @@ La valeur `slug` est automatiquement normalisée en format compatible avec les U
 
 Lorsqu'un slug change (via `title` ou `slug`), les wiki-links utilisant l'ancien slug basé sur le nom de fichier continuent de fonctionner. Par exemple, si `01-setup.md` reçoit le titre "Guide d'installation", `01-setup` et `guide-dinstallation` pointent tous deux vers la même page.
 
+Cela couvre les liens internes à votre documentation. L'ancienne URL, elle, disparaît : si la page était déjà publiée, ajoutez l'ancien slug à [`redirect_from`](#redirections) pour que les favoris et les liens depuis d'autres sites continuent de fonctionner.
+
 ## Pages brouillon
 
 Marquez une page comme brouillon pour continuer à y travailler ouvertement — la committer, la relire, la prévisualiser — sans la publier tout de suite :
@@ -148,6 +151,32 @@ Si vous préférez repérer les liens vers des pages non publiées, définissez 
 
 :::note
 Les brouillons concernent la publication, pas la confidentialité. Le Markdown reste dans votre dépôt, donc n'utilisez pas `draft` pour ce qui doit rester secret.
+:::
+
+## Redirections
+
+Quand vous renommez ou déplacez une page, son ancienne URL cesse de fonctionner : les favoris, les résultats de recherche et les liens depuis d'autres sites aboutissent sur la page 404. Listez les anciens chemins dans le front matter de la page, et DocAnvil laisse une redirection à chacun d'eux :
+
+```markdown
+---
+{
+  "redirect_from": ["setup", "getting-started/install"]
+}
+---
+
+# Installation
+```
+
+Chaque entrée est un ancien slug : l'ancien chemin de la page depuis le dossier de contenu, sans `.md`, comme dans un wiki-link. Il n'est pas relatif au dossier de la page : si `setup.md` est devenu `guides/install.md`, l'entrée est `"setup"`. Une chaîne seule fonctionne aussi : `"redirect_from": "setup"`.
+
+- **Pages traduites :** mettez `redirect_from` sur une seule traduction (en général la langue par défaut) et chaque langue reçoit sa propre redirection. `/en/setup.html` mène à la page anglaise et `/fr/setup.html` à la page française.
+- **Sites versionnés :** la redirection reste dans la version de la page. `docs/v2/guides/install.md` avec `"redirect_from": ["setup"]` redirige `/v2/setup.html`.
+- **Chemins du site :** une entrée commençant par `/`, comme `"/old/install.html"`, est utilisée telle quelle et mène à la page dans la version actuelle et la langue par défaut.
+
+Les lecteurs arrivent aussitôt sur la page, à la même `#section` si l'ancien lien en avait une, et les moteurs de recherche apprennent que la page a déménagé. Pour les redirections qui ne concernent pas une seule page (pages supprimées, déplacements en masse, liens vers un autre site) et pour garder les URL fonctionnelles en activant les langues ou les versions, voir [[guides/configuration|Configuration → `[redirects]`]].
+
+:::note
+Une redirection ne remplace jamais une vraie page. Si un chemin de `redirect_from` est encore une page, la page reste et la compilation vous avertit.
 :::
 
 ## Balises meta SEO

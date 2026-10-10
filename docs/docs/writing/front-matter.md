@@ -43,6 +43,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see [[guides/configuration|Configuration → `[last_updated]`]]) |
 | `draft` | Boolean | Set to `true` to keep the page out of production builds while you work on it (see [Draft Pages](#draft-pages)) |
 | `redirect_from` | List of strings | Old paths that should send readers to this page, so links to them keep working (see [Redirects](#redirects)) |
+| `llms` | Boolean | Set to `false` to leave this page out of `llms.txt` and `llms-full.txt` (see [[guides/configuration|Configuration → `[llms]`]]) |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 

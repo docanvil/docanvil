@@ -85,6 +85,9 @@ enabled = true
 
 [redirects]
 "old-faq" = "help/faq"
+
+[llms]
+enabled = true
 ```
 :::
 ::::
@@ -354,6 +357,48 @@ unprefixed = true
 :::
 
 A redirect to a page that doesn't exist, one whose old path is still a real page (the page always wins), two redirects sending the same path to different places, and redirects that go round in a loop each print a build warning, so `docanvil build --strict` fails. `docanvil doctor` checks every redirect up front and points at the line in `docanvil.toml` or the page's front matter. A redirect to a [[writing/front-matter|draft page]] is skipped quietly until the page is published.
+
+### `[llms]` Section
+
+Writes [llms.txt](https://llmstxt.org) files: a plain Markdown map of your docs that AI tools and assistants can read instead of scraping your HTML. Handy when people ask an assistant about your project, or point a coding agent at your docs.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `enabled` | `false` | Write `llms.txt` (and `llms-full.txt`) with `docanvil build` |
+| `description` | — | A one-line summary of the project, shown under its name |
+| `full` | `true` | Also write `llms-full.txt`, with every page's Markdown in one file. Set to `false` for just the index |
+
+```toml
+[llms]
+enabled = true
+description = "DocAnvil turns Markdown into fast, searchable documentation sites."
+```
+
+`llms.txt` starts with your project name and `description`, then lists every page as a link, grouped the same way as your sidebar. Each page's front matter `description` goes next to its link, so it's worth writing them:
+
+```markdown
+# My Docs
+
+> DocAnvil turns Markdown into fast, searchable documentation sites.
+
+## Guides
+
+- [Installation](https://docs.example.com/guides/install.html): Install DocAnvil on macOS, Linux or Windows
+- [Configuration](https://docs.example.com/guides/configuration.html)
+```
+
+`llms-full.txt` holds the Markdown of every page, in the same order, each starting with its title and a `Source:` link. It's your Markdown as you wrote it, tidied up so other tools can read it:
+
+- `:::include` [[writing/includes|fragments]] and `file="…"` [[writing/code-blocks-from-files|code blocks]] are filled in
+- [[writing/wiki-links|Wiki-links]] become normal Markdown links with full URLs
+- DocAnvil-only extras such as `{#custom-id}` on headings and `numbers` on code blocks are removed
+- Code blocks are left exactly as written, and [[writing/components|components]] appear as their `:::` syntax
+
+Set `site_url` under `[build]` so the links are full URLs that AI tools can follow. Without it they're relative, and `docanvil doctor` reminds you.
+
+**Translated and versioned sites** get an `llms.txt` and `llms-full.txt` in every language and version folder (`/fr/llms.txt`, `/v2/en/llms.txt`). AI tools look for `/llms.txt` at the root of your site, so that one covers the current version in the default language and ends with links to all the others.
+
+[[writing/front-matter|Draft pages]] are left out, and you can leave any other page out with `"llms": false` in its front matter. `docanvil serve` doesn't write these files.
 
 ## nav.toml
 

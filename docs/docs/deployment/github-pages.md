@@ -28,7 +28,7 @@ site_url = "https://my-user.github.io/my-repo/"
 ```
 
 - **`base_url`** is the path prefix for every link and asset. Without it, CSS, JS and navigation links point at the domain root and the site loads unstyled.
-- **`site_url`** is the full public address. DocAnvil uses it for `sitemap.xml`, canonical URLs and other SEO tags.
+- **`site_url`** is the full public address. DocAnvil uses it for `sitemap.xml`, `llms.txt`, canonical URLs and other SEO tags.
 
 If you publish a **user or organisation site** (a repository named `<user>.github.io`) or use a custom domain, the site is served from the root, so keep `base_url = "/"` and set `site_url` to that address.
 

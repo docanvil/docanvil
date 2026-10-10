@@ -21,19 +21,20 @@ DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/) et est s
 
 Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour que les nouveaux projets aient tout ce qu'il leur faut dès le premier jour :
 
-- Liens « Modifier cette page » vers la source d'une page sur GitHub, GitLab, Bitbucket ou tout autre hébergeur Git
-- Ouverture du fichier source dans votre éditeur directement depuis `docanvil serve`
-- Redirections, pour que les anciennes URL continuent de fonctionner quand des pages sont déplacées
-- Inclusions, pour réutiliser du contenu partagé entre pages, locales et versions
-- Blocs de code tirés de fichiers, éventuellement limités à certaines plages de lignes, et numéros de ligne pour tout bloc de code
-- Pages brouillons, visibles dans `docanvil serve` mais exclues des compilations de production
-- Dates de dernière mise à jour, issues de l'historique Git ou du front matter
-- Génération de `llms.txt`, un index de votre documentation adapté aux IA
-- Composants en templates : définissez vos propres composants sous forme de templates Tera dans votre thème, sans Rust
+- ✅ Liens « Modifier cette page » vers la source d'une page sur GitHub, GitLab, Bitbucket ou tout autre hébergeur Git
+- ✅ Ouverture du fichier source dans votre éditeur directement depuis `docanvil serve`
+- ✅ Redirections, pour que les anciennes URL continuent de fonctionner quand des pages sont déplacées
+- ✅ Inclusions, pour réutiliser du contenu partagé entre pages, locales et versions
+- ✅ Blocs de code tirés de fichiers, éventuellement limités à certaines plages de lignes, et numéros de ligne pour tout bloc de code
+- ✅ Pages brouillons, visibles dans `docanvil serve` mais exclues des compilations de production
+- ✅ Dates de dernière mise à jour, issues de l'historique Git ou du front matter
+- ✅ Génération de `llms.txt`, un index de votre documentation adapté aux IA
+- ✅ Composants en templates : définissez vos propres composants sous forme de templates Tera dans votre thème, sans Rust
+- ✅ Fil d'Ariane, descriptions du front matter en sous-titre des pages, et titres de page tirés du premier titre
 
 Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
 
-Plus tard dans la 1.2, une fois la première version des inclusions entre les mains des utilisateurs :
+Encore à venir dans la 1.2, maintenant que la première version des inclusions est entre les mains des utilisateurs :
 
 - Inclure une seule section d'une page (par exemple la section Installation de votre README) plutôt que le fichier entier
 - Régions de code nommées (`#region` / `#endregion`), pour que les exemples ne cassent pas quand les numéros de ligne changent

@@ -1,0 +1,4 @@
+- Un chemin est relatif au fichier où il est écrit : depuis `docs/guides/setup.md`, `_shared/install.md` désigne `docs/guides/_shared/install.md`.
+- Un chemin qui commence par `/` part de la racine du projet — le dossier qui contient `docanvil.toml` — jamais de la racine du disque.
+- `..` remonte d'un dossier, même hors du projet : pratique quand votre documentation vit dans un dépôt de code.
+- `/` et `\` fonctionnent tous deux comme séparateurs.

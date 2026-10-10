@@ -1,0 +1,4 @@
+- A path is relative to the file it's written in: from `docs/guides/setup.md`, `_shared/install.md` means `docs/guides/_shared/install.md`.
+- A path starting with `/` starts at the project root — the folder with `docanvil.toml` — never at the root of your disk.
+- `..` steps up a folder, even out of the project, which is handy when your docs live inside a code repository.
+- `/` and `\` both work as separators.

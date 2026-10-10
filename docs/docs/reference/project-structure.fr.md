@@ -53,6 +53,10 @@ Le répertoire `docs/` (configurable via `content_dir` dans `docanvil.toml`) con
 
 Les sous-répertoires créent des segments de chemin URL. La structure de répertoires est directement mappée à la structure de sortie.
 
+#### Fragments
+
+Les fichiers et dossiers dont le nom commence par `_` sont des fragments, pas des pages : `_shared/install.md` ou `guides/_flags.md` ne sont jamais construits, ni listés dans la barre latérale, ni indexés pour la recherche. Insérez-les dans vos pages avec `:::include` — voir [[writing/includes|Inclusions]].
+
 ### Répertoire de thème
 
 Le répertoire `theme/` contient les fichiers de personnalisation :
@@ -151,7 +155,7 @@ Consultez [[guides/versioning|Versionnement]] pour un guide complet sur la mise 
 
 ## Découverte des pages
 
-DocAnvil découvre les pages en parcourant récursivement le répertoire de contenu et en collectant tous les fichiers `.md`. Chaque fichier devient une page avec un slug, un titre, et un chemin de sortie.
+DocAnvil découvre les pages en parcourant récursivement le répertoire de contenu et en collectant tous les fichiers `.md`. Chaque fichier devient une page avec un slug, un titre, et un chemin de sortie. Les fichiers et dossiers qui commencent par `_` sont ignorés : ce sont des fragments pour `:::include`.
 
 ### Dérivation des slugs
 

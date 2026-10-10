@@ -35,6 +35,11 @@ color_mode = "both"
 color-primary = "#059669"
 font-body = "Georgia, serif"
 
+[syntax]
+enabled = true
+theme = "base16-ocean.dark"
+line_numbers = false
+
 [search]
 enabled = true
 
@@ -121,6 +126,16 @@ content-max-width = "960px"
 ```
 
 Consultez [[reference/css-variables|Variables CSS]] pour la liste complète des variables disponibles.
+
+### Section `[syntax]`
+
+| Clé | Défaut | Description |
+|-----|---------|-------------|
+| `enabled` | `true` | Coloration syntaxique des blocs de code à la compilation |
+| `theme` | `"base16-ocean.dark"` | Thème de coloration |
+| `line_numbers` | `false` | Numéroter les lignes de tous les blocs de code |
+
+Un bloc peut toujours activer ou désactiver les numéros avec `numbers` ou `numbers="false"`. Consultez [[writing/code-blocks-from-files|Blocs de code depuis des fichiers]] pour les numéros de ligne, les légendes et l'affichage de code directement depuis des fichiers sources.
 
 ### Section `[search]`
 

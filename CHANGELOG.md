@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-11
+
 ## [1.2.1] - 2026-10-10
 
 ### Added

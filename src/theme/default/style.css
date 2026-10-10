@@ -1122,7 +1122,7 @@ body {
 
 .hero {
   margin: 0 0 2rem;
-  padding: 2.5rem 2rem;
+  padding: 2rem 2rem;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -1130,7 +1130,7 @@ body {
 
 .content .hero-eyebrow {
   display: inline-block;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
   padding: 0.2rem 0.75rem;
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -1170,7 +1170,7 @@ body {
 .content .buttons a {
   display: inline-flex;
   align-items: center;
-  padding: 0.6rem 1.25rem;
+  padding: 0.4rem 1rem;
   font-weight: 600;
   color: var(--color-text);
   text-decoration: none;

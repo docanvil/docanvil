@@ -657,10 +657,10 @@ fn build_site(
         // Each version lives in its own subdirectory of content_dir (e.g. docs/v2/).
         // The version dimension is orthogonal to i18n — both can be enabled together.
 
-        // Pre-scan all version directories to know which base slugs exist per version.
+        // Pre-scan all version directories to know which pages each version publishes.
         // This powers the version switcher's has_page flag without full re-scans later.
-        let version_slug_sets =
-            prescan_version_slugs(&content_dir, config, enabled_locales, include_drafts)?;
+        let version_pages =
+            prescan_version_pages(&content_dir, config, enabled_locales, include_drafts)?;
         let latest_version = config.current_version().map(String::from);
         let current_ver_str = config.current_version().unwrap_or("").to_string();
 
@@ -846,7 +846,7 @@ fn build_site(
                             base_slug,
                             version,
                             Some(locale),
-                            &version_slug_sets,
+                            &version_pages,
                             &root_base_url,
                         );
                         let latest_ver_url = latest_version.as_deref().and_then(|lv| {
@@ -1071,7 +1071,7 @@ fn build_site(
                         base_slug,
                         version,
                         None,
-                        &version_slug_sets,
+                        &version_pages,
                         &root_base_url,
                     );
                     let latest_ver_url = latest_version.as_deref().and_then(|lv| {
@@ -1873,16 +1873,20 @@ fn build_site(
     })
 }
 
-/// Scan all enabled version directories and collect the set of base slugs per version.
-/// Used to build the version switcher (so we can show has_page correctly).
-/// Drafts are left out unless `include_drafts`, so the switcher never links to them.
-fn prescan_version_slugs(
+/// The pages one version publishes, as `(locale, slug)` pairs (`locale` is `None`
+/// without i18n). Powers the version switcher's `has_page` flag.
+type VersionPages = HashSet<(Option<String>, String)>;
+
+/// Scan all enabled version directories and collect the pages each one publishes.
+/// Scans the way the build does, so front matter slugs apply and drafts are left
+/// out unless `include_drafts`: the switcher only links to pages that exist.
+fn prescan_version_pages(
     content_dir: &Path,
     config: &Config,
     enabled_locales: Option<&[String]>,
     include_drafts: bool,
-) -> Result<std::collections::HashMap<String, HashSet<String>>> {
-    let mut sets = std::collections::HashMap::new();
+) -> Result<HashMap<String, VersionPages>> {
+    let mut sets = HashMap::new();
     for version in &config.version.enabled {
         let version_dir = content_dir.join(version);
         if !version_dir.exists() {
@@ -1890,20 +1894,16 @@ fn prescan_version_slugs(
             continue;
         }
         // Scan without version prefix — we only need slugs, not output paths
-        let inv =
+        let mut inv =
             PageInventory::scan(&version_dir, enabled_locales, config.default_locale(), None)?;
-        let mut slugs = HashSet::new();
-        for page in inv.pages.values() {
-            if !include_drafts {
-                let source = std::fs::read_to_string(&page.source_path)
-                    .map_err(io_context(&page.source_path))?;
-                if frontmatter::extract(&source).draft {
-                    continue;
-                }
-            }
-            slugs.insert(page.slug.clone());
-        }
-        sets.insert(version.clone(), slugs);
+        let (_, front_matters) = read_sources(&mut inv)?;
+        exclude_drafts(&mut inv, &front_matters, config, include_drafts);
+        let pages = inv
+            .pages
+            .into_values()
+            .map(|page| (page.locale, page.slug))
+            .collect();
+        sets.insert(version.clone(), pages);
     }
     Ok(sets)
 }
@@ -1914,17 +1914,19 @@ fn build_version_info(
     base_slug: &str,
     current_version: &str,
     locale: Option<&str>,
-    version_slug_sets: &std::collections::HashMap<String, HashSet<String>>,
+    version_pages: &HashMap<String, VersionPages>,
     root_base_url: &str,
 ) -> Vec<VersionInfo> {
+    let key = (locale.map(String::from), base_slug.to_string());
     config
         .version
         .enabled
         .iter()
         .map(|ver| {
-            let has_page = version_slug_sets
+            // The page must exist in this locale, or the link would 404
+            let has_page = version_pages
                 .get(ver)
-                .is_some_and(|slugs| slugs.contains(base_slug));
+                .is_some_and(|pages| pages.contains(&key));
             let url = if has_page {
                 if let Some(loc) = locale {
                     format!("{}{}/{}/{}.html", root_base_url, ver, loc, base_slug)

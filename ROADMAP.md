@@ -38,32 +38,28 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 - 🧹 **Content linting**: readability, heading structure, alt text and link checks in `docanvil doctor`, with Checkstyle and JUnit output for CI
 - 📦 **Easy installs**: install scripts for macOS, Linux and Windows, prebuilt binaries for more platforms, and `docanvil update`
 
+### 1.2 — Authoring essentials
+
+- ✏️ **Edit links**: "Edit this page" links to a page's source on GitHub, GitLab or Bitbucket, and "Open in editor" links straight to your local editor from `docanvil serve`
+- ♻️ **Includes and code from files**: reuse shared content with `:::include`, pull code blocks from real source files (optionally just some line ranges), and add line numbers to any code block
+- 🧩 **Template components**: define your own `:::components` as Tera templates, restyle the built-ins, nest components, and `docanvil component list` / `eject`
+- 📝 **Drafts and redirects**: preview draft pages in `docanvil serve` while keeping them out of production builds, and keep old URLs working when pages move
+- 🕒 **Last updated dates** from Git history or front matter, on the page and in `sitemap.xml`
+- 🤖 **`llms.txt`** and `llms-full.txt`, an AI-friendly index and full-text copy of your docs
+- 🧭 **Page headers**: breadcrumbs, front matter descriptions as subtitles, and page titles from the first heading
+
 ---
 
-## ✍️ 1.2 — Authoring Essentials
+## ✍️ Later in 1.2
 
-The everyday features people expect from a docs tool, so new projects have everything they need from day one.
-
-- **"Edit this page" links**: point readers at a page's Markdown source on GitHub, GitLab, Bitbucket or any Git host, so they can suggest fixes as pull requests. Locale- and version-aware, with a per-page opt-out
-- **Open in your editor from `docanvil serve`**: during local development, the edit link opens the source file straight in your editor instead
-- **Redirects**: keep old URLs working when pages are renamed or moved
-- **Includes**: reuse shared content (install steps, warnings, snippets) across pages, locales and versions
-- **Code blocks from files**: pull a code block's contents from a real source file, optionally just some line ranges, so examples stay in sync with code that compiles and is tested. Line numbers for any code block, with hidden lines between ranges clearly marked
-- **Draft pages**: mark a page as a draft to preview it with `docanvil serve` while keeping it out of production builds
-- **Last updated dates**: show when each page last changed, from Git history or front matter
-- **`llms.txt` output**: an AI-friendly index of your docs, generated alongside `sitemap.xml`
-- **Template components**: define your own `:::components` as Tera templates in `theme/components/`, with no Rust or build tooling needed. A template with a built-in's name (like `note.html`) restyles that component
-
-Fully backward compatible, and every feature is opt-in.
-
-### Later in 1.2
-
-Follow-ups to includes and code blocks from files, once the first version is in people's hands:
+Follow-ups to includes and code blocks from files, now that the first version is in people's hands:
 
 - **Include a section of a page**: pull in one heading's section of a Markdown file (say, the Installation section of your README) instead of the whole file
 - **Named code regions**: mark a region in a source file with `#region` / `#endregion` comments and include it by name, so examples don't break when line numbers shift
 - **Line highlighting**: draw attention to specific lines in a code block, plus diff-style added/removed markers
 - **Remote includes**: include content or code from a URL
+
+Fully backward compatible, and every feature is opt-in.
 
 ---
 

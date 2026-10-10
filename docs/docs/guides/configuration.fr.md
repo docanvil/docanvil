@@ -389,7 +389,7 @@ description = "DocAnvil transforme le Markdown en sites de documentation rapides
 
 `llms-full.txt` contient le Markdown de toutes les pages, dans le même ordre, chacune précédée de son titre et d'un lien `Source:`. C'est votre Markdown tel que vous l'avez écrit, mis au propre pour que d'autres outils puissent le lire :
 
-- les fragments `:::include` et les blocs de code `file="…"` sont remplis
+- les [[writing/includes|fragments]] `:::include` et les [[writing/code-blocks-from-files|blocs de code]] `file="…"` sont remplis
 - les [[writing/wiki-links|wiki-links]] deviennent des liens Markdown classiques avec des URL complètes
 - les ajouts propres à DocAnvil, comme `{#id-perso}` sur les titres ou `numbers` sur les blocs de code, sont retirés
 - les blocs de code restent exactement tels qu'écrits, et les [[writing/components|composants]] apparaissent avec leur syntaxe `:::`

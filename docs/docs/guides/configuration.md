@@ -389,7 +389,7 @@ description = "DocAnvil turns Markdown into fast, searchable documentation sites
 
 `llms-full.txt` holds the Markdown of every page, in the same order, each starting with its title and a `Source:` link. It's your Markdown as you wrote it, tidied up so other tools can read it:
 
-- `:::include` fragments and `file="…"` code blocks are filled in
+- `:::include` [[writing/includes|fragments]] and `file="…"` [[writing/code-blocks-from-files|code blocks]] are filled in
 - [[writing/wiki-links|Wiki-links]] become normal Markdown links with full URLs
 - DocAnvil-only extras such as `{#custom-id}` on headings and `numbers` on code blocks are removed
 - Code blocks are left exactly as written, and [[writing/components|components]] appear as their `:::` syntax

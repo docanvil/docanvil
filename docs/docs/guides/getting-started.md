@@ -1,15 +1,11 @@
 ---
 {
-  "description": "Quick start guide for getting up and running with DocAnvil"
+  "description": "Install DocAnvil and create your first documentation site."
 }
 ---
 # Getting Started
 
-Get DocAnvil running and create your first documentation site.
-
-## Install DocAnvil
-
-The install scripts download a prebuilt binary for your platform (about 5 MB), check it against the release's published SHA-256 checksums, and put it on your `PATH`. No Rust toolchain needed.
+<div id="install-docanvil"></div>
 
 ::::tabs
 :::tab{title="macOS / Linux"}
@@ -17,14 +13,14 @@ The install scripts download a prebuilt binary for your platform (about 5 MB), c
 curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
 ```
 
-Installs to `~/.local/bin`. If that folder isn't on your `PATH` yet, the script tells you the line to add to your shell profile.
+Downloads a SHA-256-verified binary to `~/.local/bin`, with no Rust toolchain needed. If that folder isn't on your `PATH` yet, the script tells you the line to add to your shell profile.
 :::
 :::tab{title="Windows"}
 ```powershell
 irm https://github.com/docanvil/docanvil/releases/latest/download/install.ps1 | iex
 ```
 
-Installs to `%LOCALAPPDATA%\docanvil\bin` and adds it to your user `PATH`. Open a new terminal afterwards.
+Downloads a SHA-256-verified binary to `%LOCALAPPDATA%\docanvil\bin` and adds it to your user `PATH`, with no Rust toolchain needed. Open a new terminal afterwards.
 :::
 :::tab{title="From crates.io"}
 ```bash
@@ -41,13 +37,9 @@ cargo install --path .
 :::
 ::::
 
-Verify the installation:
+Open a new terminal and run `docanvil --help` to check the installation.
 
-```bash
-docanvil --help
-```
-
-### Install options
+## Install options
 
 | Option | Environment variable | What it does |
 |---|---|---|
@@ -66,8 +58,9 @@ On Windows, set the environment variables before running the one-liner (for exam
 
 Re-running the script when that version is already installed does nothing and exits successfully, so it's safe to use in CI.
 
-### Manual download
+<div id="manual-download"></div>
 
+:::::details{title="Manual download"}
 Prefer not to pipe a script into your shell, or working on a locked-down machine? Every [release](https://github.com/docanvil/docanvil/releases) has a prebuilt archive per platform:
 
 | Platform | Archive |
@@ -116,6 +109,7 @@ The two hashes must match. Then add `%LOCALAPPDATA%\docanvil\bin` to your user `
 ::::
 
 Releases up to v1.1.3 have no `SHA256SUMS` file. For those, compare against the SHA-256 digest GitHub shows next to each asset on the release page.
+:::::
 
 ## Updating
 
@@ -129,8 +123,10 @@ docanvil update --yes    # upgrade without prompting
 
 If you installed with `cargo install`, update with `cargo install docanvil --force` instead.
 
-## Create a Project
+## Create your first site
 
+::::steps
+:::step{title="Create a Project"}
 Scaffold a new documentation project with `docanvil new`:
 
 ```bash
@@ -151,9 +147,8 @@ my-docs/
   theme/
     custom.css         # Your CSS overrides
 ```
-
-## Start the Dev Server
-
+:::
+:::step{title="Start the Dev Server"}
 ```bash
 cd my-docs
 docanvil serve
@@ -164,9 +159,8 @@ The dev server starts at [http://localhost:3000](http://localhost:3000) by defau
 ```bash
 docanvil serve --host 0.0.0.0 --port 8080
 ```
-
-## Write Your First Page
-
+:::
+:::step{title="Write Your First Page"}
 Create a new Markdown file anywhere in the `docs/` directory:
 
 ```markdown
@@ -179,9 +173,8 @@ Welcome to my documentation!
 ```
 
 Save the file and your browser will reload automatically. The page is discovered and added to the navigation.
-
-## Build for Production
-
+:::
+:::step{title="Build for Production"}
 When you're ready to deploy, generate the static site:
 
 ```bash
@@ -201,6 +194,8 @@ For CI/CD pipelines, use `--strict` to fail the build when there are any warning
 ```bash
 docanvil build --strict
 ```
+:::
+::::
 
 ## Checklist
 
@@ -213,10 +208,18 @@ docanvil build --strict
 
 ## Next Steps
 
-- [[guides/configuration|Configure]] your project and navigation
-- Learn about [[writing/markdown|Markdown features]] and [[writing/components|components]]
-- [[guides/theming|Customize the theme]] to match your brand
+::::cards
+:::link-card{title="Configuration" href="configuration.html" icon="lucide:settings"}
+Configure your project and navigation.
+:::
+:::link-card{title="Writing content" href="../writing/components.html" icon="lucide:blocks"}
+Explore components and [[writing/markdown|Markdown features]].
+:::
+:::link-card{title="Theming" href="theming.html" icon="lucide:palette"}
+Match the theme to your brand.
+:::
+::::
 
-:::note
+:::tip{title="Live reload"}
 DocAnvil watches all files in your project directory. Changes to Markdown, config files, CSS, and templates all trigger a live reload.
 :::

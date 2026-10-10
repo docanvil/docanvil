@@ -2,16 +2,12 @@
 {
   "title": "Premiers pas",
   "slug": "getting-started",
-  "description": "Guide de démarrage rapide pour installer DocAnvil et créer votre première documentation"
+  "description": "Installez DocAnvil et créez votre premier site de documentation."
 }
 ---
 # Premiers pas
 
-Installez DocAnvil et créez votre premier site de documentation.
-
-## Installer DocAnvil
-
-Les scripts d'installation téléchargent un binaire précompilé pour votre plateforme (environ 5 Mo), le vérifient avec les sommes de contrôle SHA-256 publiées avec la version, et l'ajoutent à votre `PATH`. Aucune chaîne d'outils Rust n'est nécessaire.
+<div id="installer-docanvil"></div>
 
 ::::tabs
 :::tab{title="macOS / Linux"}
@@ -19,14 +15,14 @@ Les scripts d'installation téléchargent un binaire précompilé pour votre pla
 curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
 ```
 
-Installe dans `~/.local/bin`. Si ce dossier n'est pas encore dans votre `PATH`, le script vous indique la ligne à ajouter à votre profil shell.
+Télécharge un binaire vérifié par SHA-256 dans `~/.local/bin`, sans chaîne d’outils Rust. Si ce dossier n'est pas encore dans votre `PATH`, le script vous indique la ligne à ajouter à votre profil shell.
 :::
 :::tab{title="Windows"}
 ```powershell
 irm https://github.com/docanvil/docanvil/releases/latest/download/install.ps1 | iex
 ```
 
-Installe dans `%LOCALAPPDATA%\docanvil\bin` et l'ajoute à votre `PATH` utilisateur. Ouvrez ensuite un nouveau terminal.
+Télécharge un binaire vérifié par SHA-256 dans `%LOCALAPPDATA%\docanvil\bin` et l’ajoute à votre `PATH` utilisateur, sans chaîne d’outils Rust. Ouvrez ensuite un nouveau terminal.
 :::
 :::tab{title="Depuis crates.io"}
 ```bash
@@ -43,13 +39,9 @@ cargo install --path .
 :::
 ::::
 
-Vérifiez l'installation :
+Ouvrez un nouveau terminal et lancez `docanvil --help` pour vérifier l’installation.
 
-```bash
-docanvil --help
-```
-
-### Options d'installation
+## Options d'installation
 
 | Option | Variable d'environnement | Effet |
 |---|---|---|
@@ -68,8 +60,9 @@ Sous Windows, définissez les variables d'environnement avant de lancer la comma
 
 Relancer le script alors que cette version est déjà installée ne fait rien et se termine sans erreur : vous pouvez l'utiliser sans risque en CI.
 
-### Téléchargement manuel
+<div id="telechargement-manuel"></div>
 
+:::::details{title="Téléchargement manuel"}
 Vous préférez ne pas exécuter un script directement dans votre shell, ou vous travaillez sur une machine verrouillée ? Chaque [version publiée](https://github.com/docanvil/docanvil/releases) fournit une archive précompilée par plateforme :
 
 | Plateforme | Archive |
@@ -118,6 +111,7 @@ Les deux empreintes doivent être identiques. Ajoutez ensuite `%LOCALAPPDATA%\do
 ::::
 
 Les versions jusqu'à v1.1.3 n'ont pas de fichier `SHA256SUMS`. Pour celles-ci, comparez avec l'empreinte SHA-256 affichée par GitHub à côté de chaque fichier sur la page de la version.
+:::::
 
 ## Mettre à jour
 
@@ -131,8 +125,10 @@ docanvil update --yes    # mettre à jour sans confirmation
 
 Si vous avez installé DocAnvil avec `cargo install`, mettez-le à jour avec `cargo install docanvil --force`.
 
-## Créer un projet
+## Créer votre premier site
 
+::::steps
+:::step{title="Créer un projet"}
 Créez un nouveau projet de documentation avec `docanvil new` :
 
 ```bash
@@ -153,9 +149,8 @@ mes-docs/
   theme/
     custom.css         # Vos surcharges CSS
 ```
-
-## Lancer le serveur de développement
-
+:::
+:::step{title="Lancer le serveur de développement"}
 ```bash
 cd mes-docs
 docanvil serve
@@ -166,9 +161,8 @@ Le serveur de développement démarre par défaut sur [http://localhost:3000](ht
 ```bash
 docanvil serve --host 0.0.0.0 --port 8080
 ```
-
-## Écrire votre première page
-
+:::
+:::step{title="Écrire votre première page"}
 Créez un nouveau fichier Markdown n'importe où dans le répertoire `docs/` :
 
 ```markdown
@@ -181,9 +175,8 @@ Bienvenue dans ma documentation !
 ```
 
 Enregistrez le fichier et votre navigateur se rechargera automatiquement. La page est découverte et ajoutée à la navigation.
-
-## Compiler pour la production
-
+:::
+:::step{title="Compiler pour la production"}
 Quand vous êtes prêt à déployer, générez le site statique :
 
 ```bash
@@ -203,6 +196,8 @@ Pour les pipelines CI/CD, utilisez `--strict` pour faire échouer le build lorsq
 ```bash
 docanvil build --strict
 ```
+:::
+::::
 
 ## Checklist
 
@@ -215,10 +210,18 @@ docanvil build --strict
 
 ## Prochaines étapes
 
-- [[guides/configuration|Configurez]] votre projet et votre navigation
-- Découvrez les [[writing/markdown|fonctionnalités Markdown]] et les [[writing/components|composants]]
-- [[guides/theming|Personnalisez le thème]] pour correspondre à votre identité visuelle
+::::cards
+:::link-card{title="Configuration" href="configuration.html" icon="lucide:settings"}
+Configurez votre projet et sa navigation.
+:::
+:::link-card{title="Écrire du contenu" href="../writing/components.html" icon="lucide:blocks"}
+Découvrez les composants et les [[writing/markdown|fonctionnalités Markdown]].
+:::
+:::link-card{title="Thèmes" href="theming.html" icon="lucide:palette"}
+Adaptez le thème à votre identité visuelle.
+:::
+::::
 
-:::note
+:::tip{title="Rechargement en direct"}
 DocAnvil surveille tous les fichiers de votre projet. Les modifications apportées aux fichiers Markdown, aux fichiers de configuration, au CSS et aux templates déclenchent toutes un rechargement en direct.
 :::

@@ -48,15 +48,23 @@ Keep [[guides/versioning|docs for every release]] side by side, with a version s
 
 ## Explore the docs
 
-| Section | What you'll learn |
-|---------|-------------------|
-| [[guides/getting-started\|Installation]] | Install DocAnvil and create your first project |
-| [[guides/configuration\|Configuration]] | Customize `docanvil.toml` and `nav.toml` |
-| [[guides/theming\|Theming]] | CSS variables, custom CSS, and template overrides |
-| [[guides/localisation\|Localisation]] | Multi-language docs with locale suffixes and language switcher |
-| [[writing/markdown\|Markdown]] | All supported Markdown and GFM features |
-| [[writing/wiki-links\|Links & Popovers]] | Wiki-link syntax and inline popovers |
-| [[writing/components\|Components]] | Notes, tabs, code groups, landing pages and your own templates |
-| [[reference/cli\|CLI Commands]] | Every command, flag, and option |
-| [[reference/project-structure\|Project Structure]] | Directory layout and page discovery |
-| [[reference/css-variables\|CSS Variables]] | Complete variable reference with defaults |
+::::cards
+:::link-card{title="Getting started" href="guides/getting-started.html" icon="lucide:rocket"}
+Install DocAnvil and build your first documentation site.
+:::
+:::link-card{title="Configuration" href="guides/configuration.html" icon="lucide:settings"}
+Set up your project, navigation, and build options.
+:::
+:::link-card{title="Theming" href="guides/theming.html" icon="lucide:palette"}
+Customise colours and templates, with a complete [[reference/css-variables|CSS variable reference]].
+:::
+:::link-card{title="Localisation" href="guides/localisation.html" icon="lucide:globe"}
+Publish in multiple languages with navigation and search for each locale.
+:::
+:::link-card{title="Writing content" href="writing/components.html" icon="lucide:blocks"}
+Add components to your [[writing/markdown|Markdown]] and connect pages with [[writing/wiki-links|wiki-links and popovers]].
+:::
+:::link-card{title="CLI reference" href="reference/cli-commands.html" icon="lucide:terminal"}
+Find every command and option, plus the [[reference/project-structure|project directory layout]].
+:::
+::::

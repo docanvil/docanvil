@@ -19,10 +19,20 @@ Si une future version majeure nécessite des changements, vous trouverez ici des
 
 Si vous déplacez un site de documentation existant vers DocAnvil, le processus est simple :
 
-1. Lancez `docanvil new mes-docs` pour créer un nouveau projet
-2. Copiez vos fichiers Markdown dans le répertoire `docs/`
-3. Configurez votre navigation dans `nav.toml` (ou laissez la découverte automatique s'en charger)
-4. Adaptez la syntaxe spécifique à l'outil précédent (format du front matter, directives de composants, etc.)
+::::steps
+:::step{title="Créer un projet"}
+Lancez `docanvil new mes-docs` pour créer un nouveau projet
+:::
+:::step{title="Copier le contenu"}
+Copiez vos fichiers Markdown dans le répertoire `docs/`
+:::
+:::step{title="Configurer la navigation"}
+Configurez votre navigation dans `nav.toml` (ou laissez la découverte automatique s'en charger)
+:::
+:::step{title="Adapter la syntaxe"}
+Adaptez la syntaxe spécifique à l'outil précédent (format du front matter, directives de composants, etc.)
+:::
+::::
 
 DocAnvil utilise un front matter JSON (pas YAML), vous devrez peut-être convertir vos blocs de front matter. Consultez [[writing/front-matter|Front Matter]] pour le format.
 

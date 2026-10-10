@@ -63,6 +63,7 @@ When `color_mode = "both"`:
 
 If you prefer to write your own dark mode CSS instead of using the generator, structure your `theme/custom.css` like this:
 
+:::details{title="Full light and dark CSS example"}
 ```css
 /* Light mode */
 :root {
@@ -86,6 +87,7 @@ If you prefer to write your own dark mode CSS instead of using the generator, st
   }
 }
 ```
+:::
 
 The `[data-theme="dark"]` selector handles explicit user choice via the toggle, while the `@media` block handles OS-level preference when no explicit choice has been made.
 
@@ -120,18 +122,18 @@ This file loads after both the default theme and config variable overrides, so i
 
 ## Common Customizations
 
-:::code-group
-```toml
-# docanvil.toml — change accent color and font
+::::columns
+:::column
+```toml title="docanvil.toml"
 [theme.variables]
 color-primary = "#059669"
 color-primary-light = "#34d399"
 color-link = "#059669"
 font-body = "Georgia, serif"
 ```
-
-```css
-/* theme/custom.css — wider content area with dark code blocks */
+:::
+:::column
+```css title="theme/custom.css"
 .content {
   max-width: 960px;
 }
@@ -147,6 +149,7 @@ font-body = "Georgia, serif"
 }
 ```
 :::
+::::
 
 ### Load Order
 
@@ -164,6 +167,7 @@ If a custom CSS rule doesn't seem to take effect, check that your selector is sp
 
 For complete control over the HTML structure, override the default Tera template. Create a file at `theme/templates/layout.html` in your project:
 
+:::details{title="Complete layout.html example"}
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -203,6 +207,7 @@ For complete control over the HTML structure, override the default Tera template
 </body>
 </html>
 ```
+:::
 
 ### Template Blocks
 

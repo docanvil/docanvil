@@ -64,6 +64,7 @@ Quand `color_mode = "both"` :
 
 Si vous préférez écrire votre propre CSS pour le mode sombre plutôt que d'utiliser le générateur, structurez votre `theme/custom.css` ainsi :
 
+:::details{title="Exemple complet de CSS clair et sombre"}
 ```css
 /* Mode clair */
 :root {
@@ -87,6 +88,7 @@ Si vous préférez écrire votre propre CSS pour le mode sombre plutôt que d'ut
   }
 }
 ```
+:::
 
 Le sélecteur `[data-theme="dark"]` gère le choix explicite de l'utilisateur via la bascule, tandis que le bloc `@media` gère la préférence système lorsqu'aucun choix explicite n'a été fait.
 
@@ -121,18 +123,18 @@ Ce fichier se charge après le thème par défaut et les surcharges de variables
 
 ## Personnalisations courantes
 
-:::code-group
-```toml
-# docanvil.toml — changer la couleur d'accent et la police
+::::columns
+:::column
+```toml title="docanvil.toml"
 [theme.variables]
 color-primary = "#059669"
 color-primary-light = "#34d399"
 color-link = "#059669"
 font-body = "Georgia, serif"
 ```
-
-```css
-/* theme/custom.css — zone de contenu plus large avec blocs de code sombres */
+:::
+:::column
+```css title="theme/custom.css"
 .content {
   max-width: 960px;
 }
@@ -148,6 +150,7 @@ font-body = "Georgia, serif"
 }
 ```
 :::
+::::
 
 ### Ordre de chargement
 
@@ -165,6 +168,7 @@ Si une règle CSS personnalisée ne semble pas prendre effet, vérifiez que votr
 
 Pour un contrôle complet sur la structure HTML, surchargez le template Tera par défaut. Créez un fichier à `theme/templates/layout.html` dans votre projet :
 
+:::details{title="Exemple complet de layout.html"}
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -204,6 +208,7 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 </body>
 </html>
 ```
+:::
 
 ### Blocs de template
 

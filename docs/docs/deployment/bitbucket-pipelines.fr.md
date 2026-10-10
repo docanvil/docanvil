@@ -80,6 +80,7 @@ Quelques points à noter :
 
 ## Adapter à la structure de votre projet
 
+:::details{title="Adapter les chemins du projet"}
 L'exemple ci-dessus suppose que votre projet DocAnvil se trouve dans un sous-répertoire `docs/` de votre dépôt. Adaptez le chemin `--path` et la source de synchronisation en fonction de votre configuration :
 
 ```yaml
@@ -91,6 +92,7 @@ L'exemple ci-dessus suppose que votre projet DocAnvil se trouve dans un sous-ré
 - docanvil build --strict --clean --path ./ma-doc
 - aws s3 sync ma-doc/dist/ s3://$S3_BUCKET --delete
 ```
+:::
 
 ## Dates de dernière mise à jour
 

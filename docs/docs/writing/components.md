@@ -193,6 +193,76 @@ Mermaid supports many diagram types including flowcharts, sequence diagrams, cla
 Mermaid is enabled by default. Disable it by setting `enabled = false` under `[charts]` in `docanvil.toml`. When disabled, `:::mermaid` blocks render as preformatted text. See [[guides/configuration|Configuration]] for details.
 :::
 
+## Landing Pages {#landing-pages}
+
+Four components turn a home page into a proper landing page: a hero, a row of call-to-action buttons and a grid of feature tiles. They're ordinary built-ins, so you can restyle or replace them like any other (see [Restyling Built-ins](#restyling-built-ins)).
+
+### Hero
+
+`::::hero` opens the page with a large title, an optional label above it (`eyebrow`) and a lead paragraph from its body. Put a `:::buttons` row inside it for your calls to action — use four colons on the hero so the inner `:::` doesn't close it early:
+
+````markdown
+::::hero{eyebrow="Markdown-powered documentation" title="Beautiful docs. Built fast."}
+Turn Markdown into fast, searchable documentation sites.
+
+:::buttons
+[[guides/getting-started|Get started →]] [View on GitHub ↗](https://github.com/docanvil/docanvil)
+:::
+::::
+````
+
+The hero's title is the page's `<h1>`, so leave out a `# Heading` of your own. The browser tab and search then use the [[writing/front-matter|front matter]] `title`, or the file name (`index` becomes "Home"). A page that opens with a hero doesn't repeat its front matter `description` under it; the description still goes into the page's meta tags.
+
+### Buttons
+
+`:::buttons` turns every link in its body into a button. The first one is the primary call to action; the rest are secondary. Use [[writing/wiki-links|wiki-links]] for your own pages, so the buttons follow the reader's language and version and broken links are still reported:
+
+:::buttons
+[[guides/getting-started|Get started →]] [[writing/components|Components]]
+:::
+
+````markdown
+:::buttons
+[[guides/getting-started|Get started →]] [[writing/components|Components]]
+:::
+````
+
+Buttons work anywhere, not just inside a hero.
+
+### Feature Tiles
+
+`::::features` lays out `:::feature` tiles in a grid that adapts to the screen width. Each tile takes an optional `icon` (an emoji works well) and `title`, and its body is Markdown, so it can link onwards:
+
+::::features
+:::feature{icon="⚡" title="Fast static builds"}
+Plain HTML you can deploy anywhere.
+:::
+:::feature{icon="🔍" title="Full-text search"}
+Ready out of the box.
+:::
+:::feature{icon="🎨" title="Custom themes"}
+See [[guides/theming|Theming]].
+:::
+::::
+
+````markdown
+::::features
+:::feature{icon="⚡" title="Fast static builds"}
+Plain HTML you can deploy anywhere.
+:::
+:::feature{icon="🔍" title="Full-text search"}
+Ready out of the box.
+:::
+:::feature{icon="🎨" title="Custom themes"}
+See [[guides/theming|Theming]].
+:::
+::::
+````
+
+:::note{title="Hiding the table of contents"}
+A landing page rarely needs the on-page table of contents. Turn it off for one page with `"toc": false` in its [[writing/front-matter|front matter]].
+:::
+
 ## Custom Components {#custom-components}
 
 Built-ins cover the common cases, but sometimes you want your own. Drop a Tera template into `theme/components/<name>.html` and use it with `:::name{...}` — same directive syntax as any built-in.
@@ -324,6 +394,9 @@ This lets you create custom styled blocks using your own CSS.
 | Tabs | `::::tabs` + `:::tab` | `title` (on tab) | `"Tab 1"`, `"Tab 2"`, ... |
 | Code Group | `:::code-group` | *(none)* | Language name from code fence |
 | Mermaid | `:::mermaid` | *(none)* | Renders diagram via Mermaid.js |
+| Hero | `::::hero` | `eyebrow`, `title` | *(none)* |
+| Buttons | `:::buttons` | *(none)* | First link is the primary button |
+| Feature tiles | `::::features` + `:::feature` | `icon`, `title` (on feature) | *(none)* |
 
 :::note
 Components are processed before Markdown rendering. This means you can use bold, italic, links, code, and other Markdown formatting inside any component.

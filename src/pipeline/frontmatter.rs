@@ -22,6 +22,8 @@ pub struct FrontMatter {
     pub redirect_from: Option<serde_json::Value>,
     /// Set to `false` to leave this page out of `llms.txt` and `llms-full.txt`.
     pub llms: Option<bool>,
+    /// Set to `false` to hide the on-page table of contents.
+    pub toc: Option<bool>,
 }
 
 /// Extract JSON front matter from a Markdown source string.

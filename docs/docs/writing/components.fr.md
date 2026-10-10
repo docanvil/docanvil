@@ -194,6 +194,76 @@ Mermaid prend en charge de nombreux types de diagrammes incluant les organigramm
 Mermaid est activé par défaut. Désactivez-le en définissant `enabled = false` sous `[charts]` dans `docanvil.toml`. Quand il est désactivé, les blocs `:::mermaid` sont rendus comme du texte préformaté. Consultez [[guides/configuration|Configuration]] pour les détails.
 :::
 
+## Pages d'accueil {#landing-pages}
+
+Quatre composants transforment une page d'accueil en véritable page de présentation : un hero, une rangée de boutons d'appel à l'action et une grille de tuiles de fonctionnalités. Ce sont des composants intégrés comme les autres, que vous pouvez restyler ou remplacer (voir [Restyler les composants intégrés](#restyler-les-composants-integres)).
+
+### Hero
+
+`::::hero` ouvre la page avec un grand titre, une étiquette facultative au-dessus (`eyebrow`) et un paragraphe d'introduction tiré de son corps. Placez une rangée `:::buttons` à l'intérieur pour vos appels à l'action — utilisez quatre deux-points sur le hero pour que le `:::` intérieur ne le ferme pas trop tôt :
+
+````markdown
+::::hero{eyebrow="Documentation propulsée par Markdown" title="De belles docs. Vite construites."}
+Transformez du Markdown en sites de documentation rapides et consultables.
+
+:::buttons
+[[guides/getting-started|Commencer →]] [Voir sur GitHub ↗](https://github.com/docanvil/docanvil)
+:::
+::::
+````
+
+Le titre du hero est le `<h1>` de la page : n'ajoutez donc pas votre propre `# Titre`. L'onglet du navigateur et la recherche utilisent alors le `title` du [[writing/front-matter|front matter]], ou le nom du fichier (`index` devient « Home »). Une page qui commence par un hero ne répète pas la `description` du front matter en dessous ; la description reste dans les balises meta de la page.
+
+### Boutons
+
+`:::buttons` transforme chaque lien de son corps en bouton. Le premier est l'appel à l'action principal, les suivants sont secondaires. Utilisez des [[writing/wiki-links|wiki-links]] pour vos propres pages : les boutons suivent alors la langue et la version du lecteur, et les liens cassés sont toujours signalés :
+
+:::buttons
+[[guides/getting-started|Commencer →]] [[writing/components|Composants]]
+:::
+
+````markdown
+:::buttons
+[[guides/getting-started|Commencer →]] [[writing/components|Composants]]
+:::
+````
+
+Les boutons fonctionnent partout, pas seulement dans un hero.
+
+### Tuiles de fonctionnalités
+
+`::::features` dispose des tuiles `:::feature` dans une grille qui s'adapte à la largeur de l'écran. Chaque tuile accepte une `icon` (un emoji convient très bien) et un `title` facultatifs, et son corps est du Markdown, qui peut donc contenir des liens :
+
+::::features
+:::feature{icon="⚡" title="Builds statiques rapides"}
+Du HTML simple à déployer n'importe où.
+:::
+:::feature{icon="🔍" title="Recherche plein texte"}
+Prête à l'emploi.
+:::
+:::feature{icon="🎨" title="Thèmes personnalisés"}
+Voir [[guides/theming|Thèmes]].
+:::
+::::
+
+````markdown
+::::features
+:::feature{icon="⚡" title="Builds statiques rapides"}
+Du HTML simple à déployer n'importe où.
+:::
+:::feature{icon="🔍" title="Recherche plein texte"}
+Prête à l'emploi.
+:::
+:::feature{icon="🎨" title="Thèmes personnalisés"}
+Voir [[guides/theming|Thèmes]].
+:::
+::::
+````
+
+:::note{title="Masquer la table des matières"}
+Une page d'accueil a rarement besoin de la table des matières de la page. Désactivez-la pour une seule page avec `"toc": false` dans son [[writing/front-matter|front matter]].
+:::
+
 ## Composants personnalisés {#custom-components}
 
 Les composants intégrés couvrent les cas courants, mais parfois vous voulez les vôtres. Déposez un template Tera dans `theme/components/<nom>.html` et utilisez-le avec `:::nom{...}` — la même syntaxe de directive que pour n'importe quel composant intégré.
@@ -325,6 +395,9 @@ Cela vous permet de créer des blocs stylisés personnalisés avec votre propre 
 | Onglets | `::::tabs` + `:::tab` | `title` (sur l'onglet) | `"Tab 1"`, `"Tab 2"`, ... |
 | Groupe de code | `:::code-group` | *(aucun)* | Nom du langage depuis la clôture de code |
 | Mermaid | `:::mermaid` | *(aucun)* | Rend le diagramme via Mermaid.js |
+| Hero | `::::hero` | `eyebrow`, `title` | *(aucun)* |
+| Boutons | `:::buttons` | *(aucun)* | Le premier lien est le bouton principal |
+| Tuiles de fonctionnalités | `::::features` + `:::feature` | `icon`, `title` (sur la tuile) | *(aucun)* |
 
 :::note
 Les composants sont traités avant le rendu Markdown. Cela signifie que vous pouvez utiliser le gras, l'italique, les liens, le code, et d'autres mises en forme Markdown à l'intérieur de n'importe quel composant.

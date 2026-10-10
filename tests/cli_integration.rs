@@ -202,6 +202,10 @@ fn test_cli_component_eject_all() {
         "mermaid",
         "tabs",
         "code-group",
+        "hero",
+        "buttons",
+        "features",
+        "feature",
     ] {
         assert!(
             dir.path()

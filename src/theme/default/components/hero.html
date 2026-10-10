@@ -1,0 +1,15 @@
+{# hero — builtin component
+   Usage:     ::::hero{eyebrow="…" title="…"}  lead text, then an optional :::buttons row, then ::::
+   Variables:
+     attrs.eyebrow  optional short label shown above the title
+     attrs.title    optional large title (an <h1>)
+     body           the rendered body HTML (print with | safe)
+     body_raw       the original Markdown body
+     name           "hero"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#landing-pages #}
+<section class="hero">
+{% if attrs.eyebrow %}<p class="hero-eyebrow">{{ attrs.eyebrow }}</p>
+{% endif %}{% if attrs.title %}<h1 class="hero-title">{{ attrs.title }}</h1>
+{% endif %}<div class="hero-body">
+{{ body | safe }}</div>
+</section>

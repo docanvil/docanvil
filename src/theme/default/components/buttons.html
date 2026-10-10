@@ -1,0 +1,10 @@
+{# buttons — builtin component
+   Usage:     :::buttons  then one or more Markdown links or [[wiki-links]], then :::
+   Variables:
+     body       the rendered body HTML (print with | safe); every link becomes a
+                button, the first one styled as the primary call to action
+     body_raw   the original Markdown body
+     name       "buttons"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html#landing-pages #}
+<div class="buttons">
+{{ body | safe }}</div>

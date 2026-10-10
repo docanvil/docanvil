@@ -346,7 +346,7 @@ Le serveur :
 
 ### Ouvrir dans votre éditeur
 
-Pendant que `docanvil serve` tourne, chaque page affiche en bas un lien **Open in editor** qui ouvre sa source Markdown directement dans votre éditeur : vous repérez une coquille, vous la corrigez en un clic. Le lien est là même si vous n'avez pas configuré les [[guides/configuration|liens `[edit]`]], et si vous l'avez fait, il les remplace jusqu'à votre prochain `docanvil build`.
+Pendant que `docanvil serve` tourne, chaque page affiche en bas un lien **Open in editor** qui ouvre sa source Markdown directement dans votre éditeur : vous repérez une coquille, vous la corrigez en un clic. Le lien est là même si vous n'avez pas configuré les liens `[edit]` dans votre [[guides/configuration|configuration]], et si vous l'avez fait, il les remplace jusqu'à votre prochain `docanvil build`.
 
 DocAnvil choisit votre éditeur dans cet ordre :
 
@@ -417,7 +417,7 @@ docanvil build [--out <chemin>] [--clean] [--strict] [--drafts] [--path <rép>]
 | `--out` | `[build] output_dir` (`dist`) | Répertoire de sortie pour le site généré. Remplace `output_dir` de `docanvil.toml` |
 | `--clean` | `false` | Supprimer le répertoire de sortie avant la compilation. Refuse si le répertoire contient la racine du projet, le contenu, le thème ou les assets |
 | `--strict` | `false` | Émettre les avertissements comme erreurs et quitter avec le code `3` |
-| `--drafts` | `false` | Inclure les [[writing/front-matter|pages brouillon]] (pour les déploiements de prévisualisation). Elles gardent leur bandeau et sont marquées `noindex` |
+| `--drafts` | `false` | Inclure les [[writing/front-matter\|pages brouillon]] (pour les déploiements de prévisualisation). Elles gardent leur bandeau et sont marquées `noindex` |
 | `--path` | `.` | Chemin vers la racine du projet |
 
 Le pipeline de compilation traite chaque page en passant par :

@@ -211,7 +211,7 @@ When no `[locale]` section exists in `docanvil.toml`:
 
 Existing single-language projects work without any changes.
 
-Turning localisation on for a site that's already live moves every page into a language folder. To keep the old addresses working, set `unprefixed = true` under [[guides/configuration|`[redirects]`]].
+Turning localisation on for a site that's already live moves every page into a language folder. To keep the old addresses working, set `unprefixed = true` under `[redirects]` in your [[guides/configuration|configuration]].
 
 ## Related Pages
 

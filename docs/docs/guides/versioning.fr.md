@@ -197,7 +197,7 @@ Quand aucune section `[version]` n'existe dans `docanvil.toml` (ou que `enabled`
 
 Les projets existants fonctionnent sans aucune modification.
 
-Activer le versionnement sur un site déjà en ligne déplace toutes les pages dans un dossier de version. Pour que les anciennes adresses continuent de fonctionner, définissez `unprefixed = true` dans [[guides/configuration|`[redirects]`]].
+Activer le versionnement sur un site déjà en ligne déplace toutes les pages dans un dossier de version. Pour que les anciennes adresses continuent de fonctionner, définissez `unprefixed = true` dans la section `[redirects]` de votre [[guides/configuration|configuration]].
 
 ## Pages associées
 

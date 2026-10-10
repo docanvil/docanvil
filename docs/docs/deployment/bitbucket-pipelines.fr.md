@@ -94,7 +94,7 @@ L'exemple ci-dessus suppose que votre projet DocAnvil se trouve dans un sous-ré
 
 ## Dates de dernière mise à jour
 
-Par défaut, Bitbucket Pipelines ne clone que les commits les plus récents. Si vous avez activé [[guides/configuration|`[last_updated]`]], les pages plus anciennes afficheraient alors une mauvaise date : DocAnvil émet un avertissement et `--strict` fait échouer le build. Clonez plutôt tout l'historique, en haut de `bitbucket-pipelines.yml` :
+Par défaut, Bitbucket Pipelines ne clone que les commits les plus récents. Si vous avez activé `[last_updated]` dans votre [[guides/configuration|configuration]], les pages plus anciennes afficheraient alors une mauvaise date : DocAnvil émet un avertissement et `--strict` fait échouer le build. Clonez plutôt tout l'historique, en haut de `bitbucket-pipelines.yml` :
 
 ```yaml
 clone:

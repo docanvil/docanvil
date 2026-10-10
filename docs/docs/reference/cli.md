@@ -345,7 +345,7 @@ The server:
 
 ### Open in your editor
 
-While `docanvil serve` is running, every page gets an **Open in editor** link at the bottom that opens its Markdown source straight in your editor, so you can go from spotting a typo to fixing it in one click. It's there even if you haven't set up [[guides/configuration|`[edit]` links]], and when you have, it takes their place until you run `docanvil build`.
+While `docanvil serve` is running, every page gets an **Open in editor** link at the bottom that opens its Markdown source straight in your editor, so you can go from spotting a typo to fixing it in one click. It's there even if you haven't set up `[edit]` links in your [[guides/configuration|configuration]], and when you have, it takes their place until you run `docanvil build`.
 
 DocAnvil picks your editor from, in order:
 
@@ -416,7 +416,7 @@ docanvil build [--out <path>] [--clean] [--strict] [--drafts] [--path <dir>]
 | `--out` | `[build] output_dir` (`dist`) | Output directory for the generated site. Overrides `output_dir` in `docanvil.toml` |
 | `--clean` | `false` | Remove the output directory before building. Refuses if the directory contains the project root, content, theme or assets |
 | `--strict` | `false` | Emit warnings as errors and exit with code `3` |
-| `--drafts` | `false` | Include [[writing/front-matter|draft pages]] (for preview deploys). They keep their banner and are marked `noindex` |
+| `--drafts` | `false` | Include [[writing/front-matter\|draft pages]] (for preview deploys). They keep their banner and are marked `noindex` |
 | `--path` | `.` | Path to the project root |
 
 The build pipeline processes each page through:

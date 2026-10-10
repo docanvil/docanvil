@@ -28,6 +28,19 @@ Utilisez un pipe pour définir un texte de lien personnalisé :
 
 <pre><code>Consultez le &#91;[guides/getting-started|guide d'installation]] pour commencer.</code></pre>
 
+Deux points d'attention pour le texte affiché :
+
+- **Gardez du texte simple.** Du code en ligne dans le texte affiché empêche le lien d'être résolu : placez plutôt le code à côté du lien.
+- **Échappez le pipe dans les tableaux.** Un `|` seul ouvre une nouvelle cellule : écrivez `\|` dans une ligne de tableau.
+
+```markdown
+Définissez `unprefixed = true` dans votre [[guides/configuration|configuration]].
+
+| Clé | Description |
+|-----|-------------|
+| `unprefixed` | Voir [[guides/configuration\|Configuration]] |
+```
+
 ### Exemples en direct
 
 Voici des wiki-links fonctionnels vers des pages de cette documentation :

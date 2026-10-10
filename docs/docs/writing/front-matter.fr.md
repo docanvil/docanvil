@@ -39,11 +39,11 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `description` | Chaîne | Affichée en sous-titre sous le titre de la page, et génère les balises `<meta name="description">` et `<meta property="og:description">` pour les moteurs de recherche et les aperçus de liens |
 | `author` | Chaîne | Génère la balise `<meta name="author">` |
 | `date` | Chaîne | Génère la balise `<meta property="article:published_time">` pour les moteurs de recherche et le partage social |
-| `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » (et « Open in editor » sous `docanvil serve`) sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
-| `last_updated` | Chaîne ou Booléen | La date de dernière modification de la page, au format `"YYYY-MM-DD"`. Remplace la date tirée de l'historique Git. Définissez à `false` pour masquer la date sur cette page (voir [[guides/configuration|Configuration → `[last_updated]`]]) |
+| `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » (et « Open in editor » sous `docanvil serve`) sur cette page (voir `[edit]` dans [[guides/configuration\|Configuration]]) |
+| `last_updated` | Chaîne ou Booléen | La date de dernière modification de la page, au format `"YYYY-MM-DD"`. Remplace la date tirée de l'historique Git. Définissez à `false` pour masquer la date sur cette page (voir `[last_updated]` dans [[guides/configuration\|Configuration]]) |
 | `draft` | Booléen | Définissez à `true` pour garder la page hors des compilations de production pendant que vous y travaillez (voir [Pages brouillon](#pages-brouillon)) |
 | `redirect_from` | Liste de chaînes | Anciens chemins qui doivent renvoyer les lecteurs vers cette page, pour que les liens existants continuent de fonctionner (voir [Redirections](#redirections)) |
-| `llms` | Booléen | Définissez à `false` pour exclure cette page de `llms.txt` et `llms-full.txt` (voir [[guides/configuration|Configuration → `[llms]`]]) |
+| `llms` | Booléen | Définissez à `false` pour exclure cette page de `llms.txt` et `llms-full.txt` (voir `[llms]` dans [[guides/configuration\|Configuration]]) |
 
 Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos propres métadonnées personnalisées sans déclencher d'erreurs.
 
@@ -144,7 +144,7 @@ Pas besoin de faire le ménage autour d'un brouillon avant de compiler :
 - Un wiki-link d'une page publiée vers un brouillon affiche son texte sans lien, pour que les lecteurs ne tombent jamais sur une page manquante.
 - Une traduction en brouillon (par exemple `guide.fr.md`) n'est pas signalée comme traduction manquante.
 
-Si vous préférez repérer les liens vers des pages non publiées, définissez `draft_links = "warn"` dans [[guides/configuration|`[build]`]]. Ces liens affichent alors un avertissement, et `docanvil build --strict` échoue.
+Si vous préférez repérer les liens vers des pages non publiées, définissez `draft_links = "warn"` dans la section `[build]` de votre [[guides/configuration|configuration]]. Ces liens affichent alors un avertissement, et `docanvil build --strict` échoue.
 
 ### Prévisualiser les brouillons
 
@@ -174,7 +174,7 @@ Chaque entrée est un ancien slug : l'ancien chemin de la page depuis le dossier
 - **Sites versionnés :** la redirection reste dans la version de la page. `docs/v2/guides/install.md` avec `"redirect_from": ["setup"]` redirige `/v2/setup.html`.
 - **Chemins du site :** une entrée commençant par `/`, comme `"/old/install.html"`, est utilisée telle quelle et mène à la page dans la version actuelle et la langue par défaut.
 
-Les lecteurs arrivent aussitôt sur la page, à la même `#section` si l'ancien lien en avait une, et les moteurs de recherche apprennent que la page a déménagé. Pour les redirections qui ne concernent pas une seule page (pages supprimées, déplacements en masse, liens vers un autre site) et pour garder les URL fonctionnelles en activant les langues ou les versions, voir [[guides/configuration|Configuration → `[redirects]`]].
+Les lecteurs arrivent aussitôt sur la page, à la même `#section` si l'ancien lien en avait une, et les moteurs de recherche apprennent que la page a déménagé. Pour les redirections qui ne concernent pas une seule page (pages supprimées, déplacements en masse, liens vers un autre site) et pour garder les URL fonctionnelles en activant les langues ou les versions, voir `[redirects]` dans [[guides/configuration|Configuration]].
 
 :::note
 Une redirection ne remplace jamais une vraie page. Si un chemin de `redirect_from` est encore une page, la page reste et la compilation vous avertit.

@@ -119,7 +119,7 @@ on:
 
 ## Last Updated Dates
 
-`actions/checkout` fetches only the latest commit by default. If you've turned on [[guides/configuration|`[last_updated]`]], that would give every page the same date, so DocAnvil warns and `--strict` fails the build. Fetch the full history instead:
+`actions/checkout` fetches only the latest commit by default. If you've turned on `[last_updated]` in your [[guides/configuration|configuration]], that would give every page the same date, so DocAnvil warns and `--strict` fails the build. Fetch the full history instead:
 
 ```yaml
       - uses: actions/checkout@v4

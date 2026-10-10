@@ -39,11 +39,11 @@ All fields are optional. You can include any combination of them or omit front m
 | `description` | String | Shown as a subtitle under the page title, and renders as `<meta name="description">` and `<meta property="og:description">` for search engines and link previews |
 | `author` | String | Renders as `<meta name="author">` |
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
-| `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link (and "Open in editor" under `docanvil serve`) on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
-| `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see [[guides/configuration|Configuration → `[last_updated]`]]) |
+| `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link (and "Open in editor" under `docanvil serve`) on this page (see `[edit]` in [[guides/configuration\|Configuration]]) |
+| `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see `[last_updated]` in [[guides/configuration\|Configuration]]) |
 | `draft` | Boolean | Set to `true` to keep the page out of production builds while you work on it (see [Draft Pages](#draft-pages)) |
 | `redirect_from` | List of strings | Old paths that should send readers to this page, so links to them keep working (see [Redirects](#redirects)) |
-| `llms` | Boolean | Set to `false` to leave this page out of `llms.txt` and `llms-full.txt` (see [[guides/configuration|Configuration → `[llms]`]]) |
+| `llms` | Boolean | Set to `false` to leave this page out of `llms.txt` and `llms-full.txt` (see `[llms]` in [[guides/configuration\|Configuration]]) |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 
@@ -144,7 +144,7 @@ You don't need to tidy up around a draft before building:
 - A wiki-link from a published page to a draft shows its text without a link, so readers never land on a missing page.
 - A draft translation (say `guide.fr.md`) isn't reported as a missing translation.
 
-If you'd rather catch links to unpublished pages, set `draft_links = "warn"` under [[guides/configuration|`[build]`]]. Those links then print a warning, and `docanvil build --strict` fails.
+If you'd rather catch links to unpublished pages, set `draft_links = "warn"` under `[build]` in your [[guides/configuration|configuration]]. Those links then print a warning, and `docanvil build --strict` fails.
 
 ### Previewing drafts
 
@@ -174,7 +174,7 @@ Each entry is an old slug: the page's old path from the content folder, without 
 - **Versioned sites:** the redirect stays in the page's own version. `docs/v2/guides/install.md` with `"redirect_from": ["setup"]` redirects `/v2/setup.html`.
 - **Site paths:** an entry starting with `/`, like `"/old/install.html"`, is used exactly as written and points at the page in the current version and default language.
 
-Readers land on the page straight away, at the same `#section` if the old link had one, and search engines are told the page has moved. For redirects that don't belong to a single page (deleted pages, bulk moves, links to another site) and for keeping URLs working when you turn on languages or versions, see [[guides/configuration|Configuration → `[redirects]`]].
+Readers land on the page straight away, at the same `#section` if the old link had one, and search engines are told the page has moved. For redirects that don't belong to a single page (deleted pages, bulk moves, links to another site) and for keeping URLs working when you turn on languages or versions, see `[redirects]` in [[guides/configuration|Configuration]].
 
 :::note
 A redirect never replaces a real page. If a path in `redirect_from` is still a page, the page stays and the build warns you.

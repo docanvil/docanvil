@@ -27,6 +27,19 @@ Use a pipe to set custom link text:
 
 <pre><code>Check the &#91;[guides/getting-started|installation guide]] to get started.</code></pre>
 
+Two things to watch for with display text:
+
+- **Keep it to plain words.** Inline code in the display text stops the link from resolving, so put the code next to the link instead.
+- **Escape the pipe inside tables.** A bare `|` starts a new table cell, so write `\|` in a table row.
+
+```markdown
+Set `unprefixed = true` in your [[guides/configuration|configuration]].
+
+| Key | Description |
+|-----|-------------|
+| `unprefixed` | See [[guides/configuration\|Configuration]] |
+```
+
 ### Live Examples
 
 Here are working wiki-links to pages in this documentation:

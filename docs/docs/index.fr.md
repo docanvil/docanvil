@@ -26,22 +26,22 @@ Ouvrez [http://localhost:3000](http://localhost:3000) et commencez à écrire �
 ## Ce que vous obtenez
 
 ::::features
-:::feature{icon="⚡" title="Builds statiques rapides"}
+:::feature{icon="lucide:zap" title="Builds statiques rapides"}
 Du HTML simple à déployer n'importe où, avec rechargement à chaud pendant l'écriture.
 :::
-:::feature{icon="🔍" title="Recherche plein texte"}
+:::feature{icon="lucide:search" title="Recherche plein texte"}
 Un index de recherche côté client, généré pour chaque page sans configuration.
 :::
-:::feature{icon="🧩" title="Composants"}
+:::feature{icon="lucide:blocks" title="Composants"}
 Notes, onglets, groupes de code, diagrammes — ou [[writing/components|vos propres templates]].
 :::
-:::feature{icon="🎨" title="Thèmes personnalisés"}
+:::feature{icon="lucide:palette" title="Thèmes personnalisés"}
 Variables CSS, un [[guides/theming|générateur de thèmes]] et la surcharge complète des templates.
 :::
-:::feature{icon="🌍" title="Localisation"}
+:::feature{icon="lucide:globe" title="Localisation"}
 [[guides/localisation|Une documentation multilingue]] avec navigation et recherche par langue.
 :::
-:::feature{icon="🗂️" title="Versions"}
+:::feature{icon="lucide:layers" title="Versions"}
 Gardez [[guides/versioning|la documentation de chaque version]] côte à côte, avec un sélecteur de version.
 :::
 ::::

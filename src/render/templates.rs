@@ -194,6 +194,7 @@ impl TemplateRenderer {
     /// Create a new renderer from the resolved theme.
     pub fn new(theme: &Theme) -> Result<Self> {
         let mut tera = Tera::default();
+        tera.register_function("icon", crate::icons::template_icon);
         tera.add_raw_template("layout.html", &theme.layout_template)
             .map_err(|e| Error::Render(format!("failed to parse template: {e}")))?;
         if let Some(cycle) = find_include_cycle(&tera) {

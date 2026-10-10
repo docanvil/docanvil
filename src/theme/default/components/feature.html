@@ -1,13 +1,15 @@
 {# feature — builtin component (one tile inside ::::features)
-   Usage:     :::feature{icon="⚡" title="…"} short description :::
+   Usage:     :::feature{icon="lucide:zap" title="…"} short description :::
    Variables:
-     attrs.icon   optional icon, usually an emoji
+     attrs.icon   optional Lucide name (lucide:zap or zap), or an emoji
      attrs.title  optional tile title
      body         the rendered body HTML (print with | safe)
      body_raw     the original Markdown body
      name         "feature"
    Docs: https://docanvil.github.io/docanvil/en/writing/components.html#landing-pages #}
 <div class="feature">
-{% if attrs.icon %}<span class="feature-icon" aria-hidden="true">{{ attrs.icon }}</span>
+{% if attrs.icon or attrs.title %}<div class="feature-header">
+{% if attrs.icon %}<span class="feature-icon" aria-hidden="true">{{ icon(name=attrs.icon) | safe }}</span>
 {% endif %}{% if attrs.title %}<p class="feature-title">{{ attrs.title }}</p>
+{% endif %}</div>
 {% endif %}{{ body | safe }}</div>

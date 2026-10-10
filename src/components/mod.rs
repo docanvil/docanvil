@@ -111,6 +111,7 @@ impl ComponentRegistry {
     pub fn with_builtins() -> Self {
         let mut tera = Tera::default();
         tera.set_escape_fn(escape_template_value);
+        tera.register_function("icon", crate::icons::template_icon);
         let mut registry = Self {
             providers: HashMap::new(),
             tera,
@@ -772,7 +773,7 @@ mod tests {
                 &[("icon", "⚡"), ("title", "Fast")],
                 "Deploy anywhere."
             ),
-            "<div class=\"feature\">\n<span class=\"feature-icon\" aria-hidden=\"true\">⚡</span>\n<p class=\"feature-title\">Fast</p>\n<p>Deploy anywhere.</p>\n</div>"
+            "<div class=\"feature\">\n<div class=\"feature-header\">\n<span class=\"feature-icon\" aria-hidden=\"true\">⚡</span>\n<p class=\"feature-title\">Fast</p>\n</div>\n<p>Deploy anywhere.</p>\n</div>"
         );
         assert_eq!(
             render("feature", &[], "Plain."),
@@ -783,6 +784,37 @@ mod tests {
         );
         assert!(html.starts_with("<div class=\"features\">"), "{html}");
         assert_eq!(html.matches("<div class=\"feature\">").count(), 2, "{html}");
+    }
+
+    #[test]
+    fn lucide_icons_render_in_features_and_custom_templates() {
+        let html = render(
+            "feature",
+            &[("icon", "lucide:zap"), ("title", "Fast")],
+            "Body.",
+        );
+        assert!(html.contains("<svg aria-hidden=\"true\" focusable=\"false\""));
+        assert!(html.contains("class=\"docanvil-icon lucide lucide-zap\""));
+        assert!(!html.contains("&lt;svg"));
+
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template("badge", "{{ icon(name=attrs.icon) | safe }}")
+            .unwrap();
+        let html = registry.render_markdown(
+            ":::badge{icon=\"lucide:rocket\"}\nLaunch\n:::\n",
+            Path::new("test.md"),
+        );
+        assert!(html.contains("lucide-rocket"));
+        assert!(!html.contains("&lt;svg"));
+        assert!(
+            registry
+                .render_markdown(
+                    ":::badge{icon=\"lucide:typo-icon\"}\nLaunch\n:::\n",
+                    Path::new("test.md")
+                )
+                .contains("Unknown Lucide icon: typo-icon")
+        );
     }
 
     #[test]

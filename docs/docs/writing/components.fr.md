@@ -232,29 +232,29 @@ Les boutons fonctionnent partout, pas seulement dans un hero.
 
 ### Tuiles de fonctionnalités
 
-`::::features` dispose des tuiles `:::feature` dans une grille qui s'adapte à la largeur de l'écran. Chaque tuile accepte une `icon` (un emoji convient très bien) et un `title` facultatifs, et son corps est du Markdown, qui peut donc contenir des liens :
+`::::features` dispose des tuiles `:::feature` dans une grille qui s'adapte à la largeur de l'écran. Chaque tuile accepte une `icon` (un nom Lucide comme `lucide:zap`, ou un emoji) et un `title` facultatifs, et son corps est du Markdown, qui peut donc contenir des liens :
 
 ::::features
-:::feature{icon="⚡" title="Builds statiques rapides"}
+:::feature{icon="lucide:zap" title="Builds statiques rapides"}
 Du HTML simple à déployer n'importe où.
 :::
-:::feature{icon="🔍" title="Recherche plein texte"}
+:::feature{icon="lucide:search" title="Recherche plein texte"}
 Prête à l'emploi.
 :::
-:::feature{icon="🎨" title="Thèmes personnalisés"}
+:::feature{icon="lucide:palette" title="Thèmes personnalisés"}
 Voir [[guides/theming|Thèmes]].
 :::
 ::::
 
 ````markdown
 ::::features
-:::feature{icon="⚡" title="Builds statiques rapides"}
+:::feature{icon="lucide:zap" title="Builds statiques rapides"}
 Du HTML simple à déployer n'importe où.
 :::
-:::feature{icon="🔍" title="Recherche plein texte"}
+:::feature{icon="lucide:search" title="Recherche plein texte"}
 Prête à l'emploi.
 :::
-:::feature{icon="🎨" title="Thèmes personnalisés"}
+:::feature{icon="lucide:palette" title="Thèmes personnalisés"}
 Voir [[guides/theming|Thèmes]].
 :::
 ::::
@@ -302,6 +302,16 @@ Chaque template de composant a accès à :
 | `inline` | booléen | `true` quand utilisé en ligne (voir ci-dessous) |
 
 Les composants intégrés qui ont besoin de données structurées passent des variables supplémentaires — `tabs` (une liste de `{title, body}`) pour le composant tabs, et `blocks` (une liste de `{lang, code}`) pour code-group. Vous les verrez si vous éjectez l'un ou l'autre.
+
+### Icônes
+
+Les [icônes Lucide](https://lucide.dev/icons/) sont disponibles par nom :
+`icon="lucide:zap"` ou `icon="zap"`. Les emojis restent pris en charge.
+Un nom inconnu avec le préfixe `lucide:` provoque un avertissement et un message d’erreur visible dans le composant.
+Les templates de composants et de mise en page peuvent utiliser
+`{{ icon(name="lucide:rocket") | safe }}`. Les SVG sont intégrés au HTML lors du
+build, héritent de la couleur du texte et utilisent la classe `.docanvil-icon`.
+Seules les icônes utilisées sont envoyées au navigateur ; aucun CDN n'est requis.
 
 ### Échappement
 

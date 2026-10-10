@@ -231,29 +231,29 @@ Buttons work anywhere, not just inside a hero.
 
 ### Feature Tiles
 
-`::::features` lays out `:::feature` tiles in a grid that adapts to the screen width. Each tile takes an optional `icon` (an emoji works well) and `title`, and its body is Markdown, so it can link onwards:
+`::::features` lays out `:::feature` tiles in a grid that adapts to the screen width. Each tile takes an optional `icon` (a Lucide name such as `lucide:zap`, or an emoji) and `title`, and its body is Markdown, so it can link onwards:
 
 ::::features
-:::feature{icon="⚡" title="Fast static builds"}
+:::feature{icon="lucide:zap" title="Fast static builds"}
 Plain HTML you can deploy anywhere.
 :::
-:::feature{icon="🔍" title="Full-text search"}
+:::feature{icon="lucide:search" title="Full-text search"}
 Ready out of the box.
 :::
-:::feature{icon="🎨" title="Custom themes"}
+:::feature{icon="lucide:palette" title="Custom themes"}
 See [[guides/theming|Theming]].
 :::
 ::::
 
 ````markdown
 ::::features
-:::feature{icon="⚡" title="Fast static builds"}
+:::feature{icon="lucide:zap" title="Fast static builds"}
 Plain HTML you can deploy anywhere.
 :::
-:::feature{icon="🔍" title="Full-text search"}
+:::feature{icon="lucide:search" title="Full-text search"}
 Ready out of the box.
 :::
-:::feature{icon="🎨" title="Custom themes"}
+:::feature{icon="lucide:palette" title="Custom themes"}
 See [[guides/theming|Theming]].
 :::
 ::::
@@ -301,6 +301,28 @@ Every component template has access to:
 | `inline` | bool | `true` when used inline (see below) |
 
 Built-in components that need structured data pass extra variables — `tabs` (a list of `{title, body}`) for the tabs component, and `blocks` (a list of `{lang, code}`) for code-group. You'll see these if you eject either one.
+
+### Icons
+
+All bundled [Lucide icons](https://lucide.dev/icons/) are available by kebab-case
+name. Feature tiles accept `icon="lucide:zap"` (or `icon="zap"`); emoji values
+such as `icon="⚡"` still work. An unknown name with the explicit `lucide:` prefix
+produces a component rendering warning and a visible error box so typos are easy to spot.
+
+Custom component and layout templates can render icons with:
+
+```html
+{{ icon(name="lucide:rocket") | safe }}
+```
+
+Icons render as decorative inline SVGs at build time, inherit the surrounding
+text colour, and use the `.docanvil-icon` class (default size: `1em`). Supply an
+accessible label on the containing button or link when the icon is its only
+content. Feature icons use the tile's existing `1.5rem` size.
+
+The full library is bundled in DocAnvil, but only selected icons appear in page
+HTML. No browser icon library, font, or CDN is needed. The ISC and Feather MIT
+licence notices ship at `js/icons/lucide/LICENSE.txt`.
 
 ### Escaping
 

@@ -151,7 +151,10 @@ mod tests {
             out.html
         );
         assert!(out.html.contains("data-hidden=\"1\""));
-        assert!(out.html.contains("<figcaption>"));
+        assert!(
+            out.html
+                .contains("<figcaption class=\"code-block-header\">")
+        );
         assert!(!out.html.contains("data-meta"));
         assert_eq!(out.dependencies.len(), 2);
         // The expanded Markdown comes back too, for llms-full.txt.

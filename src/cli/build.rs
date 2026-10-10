@@ -644,6 +644,7 @@ fn build_site(
         minify_js_source(&theme.default_js)
     };
     std::fs::create_dir_all(output_dir.join("js"))?;
+    crate::theme::write_code_icons(output_dir)?;
     let js_path = output_dir.join("js/docanvil.js");
     std::fs::write(&js_path, &js_content).map_err(io_context(&js_path))?;
 

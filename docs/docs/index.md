@@ -15,7 +15,7 @@ Turn Markdown into fast, searchable, beautifully styled documentation sites. One
 
 ## Quick start
 
-```bash
+```bash title="Quickstart"
 curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
 docanvil new my-docs
 cd my-docs && docanvil serve

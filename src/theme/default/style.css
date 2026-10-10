@@ -902,35 +902,85 @@ body {
 /* ---- Code block captions, line numbers and hidden-line gaps ---- */
 
 .content figure.code-block {
+  --code-block-bg: var(--color-code-bg);
   margin: 0 0 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
-.content figure.code-block figcaption {
+.content figure.code-block .code-block-header {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.4rem 1.25rem;
-  font-family: var(--font-mono);
-  font-size: 0.8em;
+  align-items: center;
+  gap: 0.75rem;
+  padding: calc(0.35rem + 1px) 1.25rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.4;
   color: var(--color-text-muted);
   background: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-bottom: none;
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.content figure.code-block-highlighted .code-block-header {
+  background: color-mix(in srgb, var(--code-block-bg), white 7%);
+  color: #c0c5ce;
 }
 
 .content figure.code-block .code-block-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.5rem;
   overflow-wrap: anywhere;
 }
 
-.content figure.code-block .code-block-lines {
+.code-block-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+.code-block-language {
+  white-space: nowrap;
+}
+
+.code-language-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+}
+
+.code-language-icon svg,
+.content .code-language-icon img {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  object-fit: contain;
+}
+
+.code-language-monochrome {
+  background: var(--code-language-color);
+  mask: var(--code-language-mask) center / contain no-repeat;
+}
+
+.content figure.code-block .code-block-lines {
+  font-size: 0.8em;
 }
 
 .content figure.code-block pre {
   margin: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Numbers and gap labels are drawn here, not written into the code, so the
@@ -1010,37 +1060,36 @@ body {
 }
 
 .copy-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 1px solid var(--color-border);
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  border: none;
   border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text-muted);
+  background: transparent;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
-}
-
-.content pre:hover .copy-btn {
-  opacity: 1;
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .copy-btn:hover {
-  color: var(--color-primary);
-  border-color: var(--color-primary-light);
+  background: color-mix(in srgb, currentColor, transparent 90%);
+}
+
+.copy-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
 
 .copy-btn.copied {
   color: #16a34a;
-  border-color: #86efac;
-  background: #f0fdf4;
+}
+
+.content .code-block-highlighted .copy-btn.copied {
+  color: #86efac;
 }
 
 /* ---- Tables ---- */
@@ -1407,6 +1456,9 @@ body {
 
 .code-group .tab-content figure.code-block {
   margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .code-group .tab-content figure.code-block figcaption {

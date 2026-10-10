@@ -92,3 +92,43 @@ fn build_css_overrides(variables: &HashMap<String, String>) -> Option<String> {
         .collect();
     Some(pairs.join(" "))
 }
+
+/// Ship the pinned Devicon subset and its licence beside the theme script.
+pub fn write_code_icons(output_dir: &Path) -> crate::error::Result<()> {
+    for name in DefaultTheme::iter().filter(|name| name.starts_with("icons/devicon/")) {
+        if let Some(asset) = DefaultTheme::get(&name) {
+            let dest = output_dir.join("js").join(name.as_ref());
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(dest, asset.data)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mapped_code_icons_and_licence_are_shipped() {
+        let output = tempfile::tempdir().unwrap();
+        write_code_icons(output.path()).unwrap();
+        let js = DefaultTheme::get("docanvil.js").unwrap();
+        let js = std::str::from_utf8(&js.data).unwrap();
+        let svg_names = regex::Regex::new(r"svg: '([^']+\.svg)'").unwrap();
+        let mut count = 0;
+        for capture in svg_names.captures_iter(js) {
+            let svg =
+                std::fs::read_to_string(output.path().join("js/icons/devicon").join(&capture[1]))
+                    .unwrap();
+            assert!(svg.contains("<svg"), "{} is not an SVG", &capture[1]);
+            count += 1;
+        }
+        assert!(count >= 20, "expected the common-language icon set");
+        let licence =
+            std::fs::read_to_string(output.path().join("js/icons/devicon/LICENSE.txt")).unwrap();
+        assert!(licence.contains("Copyright (c) 2015 konpa"));
+    }
+}

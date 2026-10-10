@@ -100,7 +100,7 @@ impl BlockMeta {
 /// that optional newline too; a rebuilt block (numbered/captioned) drops it,
 /// an untouched one keeps it via `original` so blocks stay byte-identical.
 static HIGHLIGHTED_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?s)<pre style="([^"]*)"(?: data-meta="([^"]*)")?>\n(.*?)</pre>\n?"#).unwrap()
+    Regex::new(r#"(?s)<pre style="([^"]*)"(?: data-language="([^"]*)")?(?: data-meta="([^"]*)")?>\n(.*?)</pre>\n?"#).unwrap()
 });
 
 /// Unhighlighted blocks: `<pre><code[ class="…"][ data-meta="…"]>…</code></pre>`,
@@ -123,12 +123,15 @@ pub fn process(html: &str, line_numbers: bool) -> String {
     }
     let html = HIGHLIGHTED_RE.replace_all(html, |caps: &Captures| {
         let style = &caps[1];
+        let language = caps.get(2).map_or(String::new(), |m| {
+            format!(" data-language=\"{}\"", m.as_str())
+        });
         render_block(
             &caps[0],
-            caps.get(2).map(|m| m.as_str()),
-            &caps[3],
+            caps.get(3).map(|m| m.as_str()),
+            &caps[4],
             line_numbers,
-            |attrs, inner| format!("<pre style=\"{style}\"{attrs}>\n{inner}</pre>"),
+            |attrs, inner| format!("<pre style=\"{style}\"{language}{attrs}>\n{inner}</pre>"),
         )
     });
     PLAIN_RE
@@ -245,7 +248,7 @@ impl BlockMeta {
         numbers
     }
 
-    /// `<figcaption>` HTML: `title` if given (`""` = none), else the file path
+    /// `<figcaption class=\"code-block-header\">` HTML: `title` if given (`""` = none), else the file path
     /// as written plus the line ranges.
     fn caption(&self) -> Option<String> {
         let (title, lines) = match (&self.title, &self.file) {
@@ -255,7 +258,7 @@ impl BlockMeta {
             (None, None) => return None,
         };
         let mut html = format!(
-            "<figcaption><span class=\"code-block-title\">{}</span>",
+            "<figcaption class=\"code-block-header\"><span class=\"code-block-title\">{}</span>",
             html_escape(title)
         );
         if let Some(lines) = lines {
@@ -396,6 +399,7 @@ mod tests {
         );
         let out = process(&html, false);
         assert!(out.starts_with("<pre style=\"background-color:"), "{out}");
+        assert!(out.contains("data-language=\"rust\""), "{out}");
         assert!(
             out.contains("class=\"line-numbers\" data-line-digits=\"1\">\n<span class=\"line\" data-line=\"1\">"),
             "{out}"
@@ -446,7 +450,7 @@ mod tests {
         );
         assert_eq!(
             out,
-            "<figure class=\"code-block\"><figcaption><span class=\"code-block-title\">src.rs</span><span class=\"code-block-lines\">lines 2–3, 7</span></figcaption><pre class=\"line-numbers\" data-line-digits=\"1\"><code class=\"language-rust\"><span class=\"line\" data-line=\"2\">one</span>\n<span class=\"line\" data-line=\"3\">two</span>\n<span class=\"line-gap\" data-hidden=\"3\"></span><span class=\"line\" data-line=\"7\">three</span>\n</code></pre></figure>"
+            "<figure class=\"code-block\"><figcaption class=\"code-block-header\"><span class=\"code-block-title\">src.rs</span><span class=\"code-block-lines\">lines 2–3, 7</span></figcaption><pre class=\"line-numbers\" data-line-digits=\"1\"><code class=\"language-rust\"><span class=\"line\" data-line=\"2\">one</span>\n<span class=\"line\" data-line=\"3\">two</span>\n<span class=\"line-gap\" data-hidden=\"3\"></span><span class=\"line\" data-line=\"7\">three</span>\n</code></pre></figure>"
         );
         assert_eq!(text_content(&out), "src.rslines 2–3, 7one\ntwo\nthree\n");
     }
@@ -478,7 +482,7 @@ mod tests {
         );
         assert!(
             titled.contains(
-                "<figcaption><span class=\"code-block-title\">Server setup</span></figcaption>"
+                "<figcaption class=\"code-block-header\"><span class=\"code-block-title\">Server setup</span></figcaption>"
             ),
             "{titled}"
         );
@@ -506,7 +510,7 @@ mod tests {
         );
         assert!(
             plain.starts_with(
-                "<figure class=\"code-block\"><figcaption><span class=\"code-block-title\">Example</span></figcaption><pre><code"
+                "<figure class=\"code-block\"><figcaption class=\"code-block-header\"><span class=\"code-block-title\">Example</span></figcaption><pre><code"
             ),
             "{plain}"
         );

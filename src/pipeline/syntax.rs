@@ -64,7 +64,9 @@ pub fn highlight_code_blocks(html: &str, highlighter: &SyntaxHighlighter) -> Str
                 Some(syntax) => {
                     match highlighted_html_for_string(&code, &highlighter.syntax_set, syntax, theme)
                     {
-                        Ok(highlighted) => with_meta(highlighted, caps.get(2).map(|m| m.as_str())),
+                        Ok(highlighted) => {
+                            with_meta(highlighted, lang, caps.get(2).map(|m| m.as_str()))
+                        }
                         Err(_) => caps[0].to_string(),
                     }
                 }
@@ -75,15 +77,16 @@ pub fn highlight_code_blocks(html: &str, highlighter: &SyntaxHighlighter) -> Str
 }
 
 /// syntect's output starts `<pre style="…">`; put the block's meta on that tag.
-fn with_meta(highlighted: String, meta: Option<&str>) -> String {
-    match (meta, highlighted.find('>')) {
-        (Some(meta), Some(end)) => format!(
-            "{} data-meta=\"{meta}\"{}",
-            &highlighted[..end],
-            &highlighted[end..]
-        ),
-        _ => highlighted,
-    }
+fn with_meta(highlighted: String, lang: &str, meta: Option<&str>) -> String {
+    let Some(end) = highlighted.find('>') else {
+        return highlighted;
+    };
+    let meta = meta.map_or(String::new(), |meta| format!(" data-meta=\"{meta}\""));
+    format!(
+        "{} data-language=\"{lang}\"{meta}{}",
+        &highlighted[..end],
+        &highlighted[end..]
+    )
 }
 
 #[cfg(test)]
@@ -164,9 +167,9 @@ mod tests {
 </code></pre>"#;
         let result = highlight_code_blocks(input, &h);
         assert!(result.starts_with("<pre style=\""), "{result}");
-        // syntect's style attribute ends with `;`, then our meta follows.
+        // Both language and fence metadata survive highlighting.
         assert!(
-            result.contains(r#";" data-meta="docanvil numbers=on">"#),
+            result.contains(r#"data-language="rust" data-meta="docanvil numbers=on">"#),
             "{result}"
         );
     }

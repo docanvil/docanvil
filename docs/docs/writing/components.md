@@ -265,6 +265,8 @@ A landing page rarely needs the on-page table of contents. Turn it off for one p
 
 ## More Layout Components
 
+Use these components to guide readers through tutorials, highlight related pages, and arrange supporting content. They work with Markdown and need no additional JavaScript.
+
 ### Link Cards
 
 Use `::::cards` to group clickable `:::link-card` tiles. Each card takes `title`,

@@ -266,6 +266,8 @@ Une page d'accueil a rarement besoin de la table des matières de la page. Désa
 
 ## Autres composants de mise en page
 
+Ces composants permettent de guider les lecteurs dans les tutoriels, de mettre en valeur les pages associées et d’organiser le contenu complémentaire. Ils fonctionnent avec Markdown, sans JavaScript supplémentaire.
+
 ### Cartes de liens
 
 `::::cards` regroupe des `:::link-card` avec `title`, `href` et une `icon`

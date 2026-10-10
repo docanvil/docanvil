@@ -24,6 +24,10 @@ branch = "master"
 [last_updated]
 enabled = true
 
+[llms]
+enabled = true
+description = "DocAnvil turns Markdown files into a polished, searchable documentation site with a single command. Built in Rust, with live reload, components, localisation, versioning and PDF export."
+
 [locale]
 default = "en"
 enabled = ["en", "fr"]

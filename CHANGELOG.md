@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Repository link in the header: set `repo` under `[project]` (e.g. `repo = "https://github.com/org/repo"`) and every page's header links to it, with the GitHub, GitLab or Bitbucket logo, or a generic Git icon for other hosts. `docanvil doctor` warns if it isn't a web address
+
 ### Fixed
 
 - `[redirects]` targets on another site must now start with `https://` or `http://`. Before, anything containing `://` was accepted (`javascript://…` included) and written into the redirect page, while a scheme-less `//cdn.example.com/x` quietly became a local page. Both are now reported as `redirect-invalid`, with a hint to write the full `https://` address (#75)

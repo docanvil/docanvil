@@ -1,6 +1,8 @@
-//! "Edit this page" links pointing at a page's source on its Git host.
+//! Links to the project's Git host: "Edit this page" links and the header repository link.
 
 use std::path::{Path, PathBuf};
+
+use serde::Serialize;
 
 use crate::config::{EditConfig, EditProvider};
 
@@ -81,6 +83,45 @@ impl EditLinks {
             EditProvider::Gitlab => format!("{}/-/edit/{branch}/{path}", self.repo),
             EditProvider::Bitbucket => format!("{}/src/{branch}/{path}?mode=edit", self.repo),
         })
+    }
+}
+
+/// The repository link shown in the site header, from `[project] repo`.
+#[derive(Debug, Clone, Serialize)]
+pub struct RepoLink {
+    pub url: String,
+    /// Which icon the header shows: "github", "gitlab", "bitbucket", or "git" for other hosts.
+    pub icon: &'static str,
+    /// Where the link goes, for its tooltip: "GitHub", or the host for unknown ones.
+    pub host_name: String,
+}
+
+impl RepoLink {
+    /// Resolve the header link. Returns `Ok(None)` when no `repo` is configured,
+    /// and `Err` with a user-facing message when it isn't a web address.
+    pub fn from_config(repo: Option<&str>) -> std::result::Result<Option<Self>, String> {
+        let Some(repo) = repo else {
+            return Ok(None);
+        };
+        let url = repo.trim().trim_end_matches('/');
+        let url = url.strip_suffix(".git").unwrap_or(url).to_string();
+        let Some(host) = host_of(&url) else {
+            return Err(format!(
+                "[project] repo \"{url}\" must be the repository's web address, \
+                 an https:// URL like \"https://github.com/org/repo\""
+            ));
+        };
+        let (icon, host_name) = match provider_for_host(&host) {
+            Some(EditProvider::Github) => ("github", "GitHub".to_string()),
+            Some(EditProvider::Gitlab) => ("gitlab", "GitLab".to_string()),
+            Some(EditProvider::Bitbucket) => ("bitbucket", "Bitbucket".to_string()),
+            None => ("git", host),
+        };
+        Ok(Some(Self {
+            url,
+            icon,
+            host_name,
+        }))
     }
 }
 
@@ -343,6 +384,41 @@ mod tests {
         let err = EditLinks::from_config(&config("git@github.com:org/repo.git"), Path::new("/p"))
             .unwrap_err();
         assert!(err.contains("https://"), "{err}");
+    }
+
+    #[test]
+    fn repo_link_unset_is_none() {
+        assert!(RepoLink::from_config(None).unwrap().is_none());
+    }
+
+    #[test]
+    fn repo_link_detects_known_hosts() {
+        for (repo, icon, host_name) in [
+            ("https://github.com/org/repo", "github", "GitHub"),
+            ("https://www.GitLab.com/group/repo", "gitlab", "GitLab"),
+            ("https://bitbucket.org/team/repo", "bitbucket", "Bitbucket"),
+        ] {
+            let link = RepoLink::from_config(Some(repo)).unwrap().unwrap();
+            assert_eq!(link.url, repo);
+            assert_eq!(link.icon, icon);
+            assert_eq!(link.host_name, host_name);
+        }
+    }
+
+    #[test]
+    fn repo_link_other_hosts_get_generic_icon() {
+        let link = RepoLink::from_config(Some(" https://codeberg.org/org/repo.git/ "))
+            .unwrap()
+            .unwrap();
+        assert_eq!(link.url, "https://codeberg.org/org/repo");
+        assert_eq!(link.icon, "git");
+        assert_eq!(link.host_name, "codeberg.org");
+    }
+
+    #[test]
+    fn repo_link_rejects_non_web_address() {
+        let err = RepoLink::from_config(Some("git@github.com:org/repo.git")).unwrap_err();
+        assert!(err.contains("[project] repo"), "{err}");
     }
 
     #[test]

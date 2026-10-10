@@ -10,7 +10,7 @@ use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::config::LastUpdatedSource;
 use crate::diagnostics::{self, reset_warnings, warning_count};
-use crate::edit::{EditLinks, Editor};
+use crate::edit::{EditLinks, Editor, RepoLink};
 use crate::error::{Error, Result};
 use crate::last_updated::{self, DateSource, GitDates, NoDates, Override};
 use crate::llms::{self, LlmsScope};
@@ -573,6 +573,14 @@ fn build_site(
         }
     };
 
+    let repo_link = match RepoLink::from_config(config.project.repo.as_deref()) {
+        Ok(link) => link,
+        Err(message) => {
+            diagnostics::warn_repo_link_config(&message);
+            None
+        }
+    };
+
     let mut last_updated_dates = last_updated_source(config, project_root);
     // Output path → date, for <lastmod> in the sitemap
     let mut lastmod: HashMap<PathBuf, String> = HashMap::new();
@@ -867,6 +875,7 @@ fn build_site(
                             custom_css: theme.custom_css.clone(),
                             base_url: root_base_url.clone(),
                             logo_path: logo_path.clone(),
+                            repo: repo_link.clone(),
                             favicon_path: favicon_path.clone(),
                             live_reload,
                             mermaid_enabled: config.charts.enabled,
@@ -1092,6 +1101,7 @@ fn build_site(
                         custom_css: theme.custom_css.clone(),
                         base_url: root_base_url.clone(),
                         logo_path: logo_path.clone(),
+                        repo: repo_link.clone(),
                         favicon_path: favicon_path.clone(),
                         live_reload,
                         mermaid_enabled: config.charts.enabled,
@@ -1274,6 +1284,7 @@ fn build_site(
                 custom_css: theme.custom_css.clone(),
                 base_url: root_base_url.clone(),
                 logo_path: logo_path.clone(),
+                repo: repo_link.clone(),
                 favicon_path: favicon_path.clone(),
                 live_reload,
                 mermaid_enabled: false,
@@ -1468,6 +1479,7 @@ fn build_site(
                     custom_css: theme.custom_css.clone(),
                     base_url: root_base_url.clone(),
                     logo_path: logo_path.clone(),
+                    repo: repo_link.clone(),
                     favicon_path: favicon_path.clone(),
                     live_reload,
                     mermaid_enabled: config.charts.enabled,
@@ -1654,6 +1666,7 @@ fn build_site(
                 custom_css: theme.custom_css.clone(),
                 base_url: base_url.clone(),
                 logo_path: logo_path.clone(),
+                repo: repo_link.clone(),
                 favicon_path: favicon_path.clone(),
                 live_reload,
                 mermaid_enabled: config.charts.enabled,
@@ -1830,6 +1843,7 @@ fn build_site(
             custom_css: theme.custom_css.clone(),
             base_url: root_base_url.clone(),
             logo_path: logo_path.clone(),
+            repo: repo_link.clone(),
             favicon_path: favicon_path.clone(),
             live_reload,
             mermaid_enabled: false,

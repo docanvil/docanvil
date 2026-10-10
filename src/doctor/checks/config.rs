@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::config::{Config, LastUpdatedSource};
 use crate::doctor::{Diagnostic, Severity};
-use crate::edit::EditLinks;
+use crate::edit::{EditLinks, RepoLink};
 use crate::last_updated::GitDates;
 use crate::nav;
 use crate::project::PageInventory;
@@ -73,6 +73,19 @@ pub fn check_config(
                 fix: None,
             });
         }
+    }
+
+    // Check [project] repo can be linked from the header
+    if let Err(message) = RepoLink::from_config(config.project.repo.as_deref()) {
+        diags.push(Diagnostic {
+            check: "repo-link-invalid",
+            category: "config",
+            severity: Severity::Warning,
+            message,
+            file: None,
+            line: None,
+            fix: None,
+        });
     }
 
     // Check [edit] can produce "Edit this page" links
@@ -246,6 +259,28 @@ mod tests {
     fn edit_link_valid_or_unset_is_clean() {
         assert!(edit_diags("[edit]\nrepo = \"https://github.com/org/repo\"\n").is_empty());
         assert!(edit_diags("").is_empty());
+    }
+
+    fn repo_diags(config_toml: &str) -> Vec<Diagnostic> {
+        let dir = tempfile::tempdir().unwrap();
+        let config: Config = toml::from_str(config_toml).unwrap();
+        check_config(dir.path(), &config, None)
+            .into_iter()
+            .filter(|d| d.check == "repo-link-invalid")
+            .collect()
+    }
+
+    #[test]
+    fn repo_link_ssh_remote_warns() {
+        let diags = repo_diags("[project]\nrepo = \"git@github.com:org/repo.git\"\n");
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn repo_link_any_web_address_or_unset_is_clean() {
+        assert!(repo_diags("[project]\nrepo = \"https://codeberg.org/org/repo\"\n").is_empty());
+        assert!(repo_diags("").is_empty());
     }
 
     fn last_updated_diags(config_toml: &str, project_root: &Path) -> Vec<Diagnostic> {

@@ -138,6 +138,16 @@ pub fn warn_edit_link_config(message: &str) {
     );
 }
 
+/// Emit a warning that `[project] repo` can't be linked from the site header.
+pub fn warn_repo_link_config(message: &str) {
+    increment();
+    eprintln!("{}: {message}", "warning".yellow().bold());
+    eprintln!(
+        "  {}: The header repository link is left out of this build.",
+        "hint".dimmed()
+    );
+}
+
 /// Emit a warning about `serve --editor` / `DOCANVIL_EDITOR`. Shown once when the
 /// dev server starts, so it isn't counted as a build warning.
 pub fn warn_editor(message: &str) {

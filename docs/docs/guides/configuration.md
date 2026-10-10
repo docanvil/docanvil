@@ -339,7 +339,7 @@ Paths can be written three ways:
 
 - **A page slug**, like `help/faq`: the same thing you'd write in a [[writing/wiki-links|wiki-link]]. A trailing `.html` or `/` is fine. On translated or versioned sites the redirect is written for every language and version where the target page exists, so `"old-faq" = "help/faq"` gives you `/en/old-faq.html`, `/fr/old-faq.html` and so on.
 - **A site path** starting with `/`, like `/old-blog.html`, or `/blog/` for `/blog/index.html`. It's used exactly as written, once.
-- **Another site**: a target containing `://`, like `https://blog.example.com`. Only on the right-hand side.
+- **Another site**: a full `https://` (or `http://`) address, like `https://blog.example.com`. Only on the right-hand side. Other schemes and scheme-less `//host/…` targets are rejected.
 
 Each old URL becomes a small page that sends readers straight on, keeping any `#section` from the link. It also tells search engines where the page went, so its ranking moves to the new URL. It works on any static host, with nothing to set up on the server, and redirect pages never show up in the sidebar, search or `sitemap.xml`.
 

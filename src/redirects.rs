@@ -33,13 +33,28 @@ fn parse_spec(raw: &str, target: bool) -> std::result::Result<Spec, String> {
     if s.is_empty() {
         return Err("a redirect path is empty".to_string());
     }
+    if target && s.starts_with("//") {
+        return Err(format!(
+            "\"{raw}\" has no scheme. For another site, write it out in full, like \"https:{s}\""
+        ));
+    }
     if s.contains("://") {
-        return if target {
-            Ok(Spec::External(s))
-        } else {
-            Err(format!(
+        if !target {
+            return Err(format!(
                 "\"{raw}\" is a URL, but an old path must be a page on this site"
-            ))
+            ));
+        }
+        // Only web links: anything else (javascript:, data:, …) ends up in the
+        // stub's meta refresh and location.replace().
+        let lower = s.to_ascii_lowercase();
+        let rest = ["http://", "https://"]
+            .iter()
+            .find_map(|scheme| lower.strip_prefix(scheme));
+        return match rest {
+            Some(host) if !host.is_empty() => Ok(Spec::External(s)),
+            _ => Err(format!(
+                "\"{raw}\" isn't a web address. Another site must start with https:// (or http://)"
+            )),
         };
     }
     let bytes = s.as_bytes();
@@ -719,6 +734,24 @@ mod tests {
             Ok(Spec::External("https://blog.example.com".into()))
         );
         assert!(parse_spec("https://blog.example.com", false).is_err());
+        assert_eq!(
+            parse_spec("HTTP://example.com/x", true),
+            Ok(Spec::External("HTTP://example.com/x".into()))
+        );
+    }
+
+    #[test]
+    fn only_http_and_https_targets_are_external() {
+        for raw in [
+            "javascript://%0aalert(1)",
+            "data://text/html,hi",
+            "ftp://files.example.com",
+            "https://",
+            "//cdn.example.com/x",
+        ] {
+            let err = parse_spec(raw, true).expect_err(raw);
+            assert!(err.contains("https://"), "{raw:?}: {err}");
+        }
     }
 
     #[test]
@@ -1070,7 +1103,9 @@ mod tests {
 
     #[test]
     fn invalid_entries_are_reported() {
-        let config = format!("{PLAIN}\n[redirects]\n\"https://x.dev/a\" = \"guide\"\n");
+        let config = format!(
+            "{PLAIN}\n[redirects]\n\"https://x.dev/a\" = \"guide\"\n\"/x.html\" = \"javascript://%0aalert(1)\"\n\"/cdn.html\" = \"//cdn.example.com/x\"\n"
+        );
         let site = Site::new(
             &config,
             &[
@@ -1081,10 +1116,7 @@ mod tests {
         );
         let plan = site.plan();
         assert!(plan.redirects.is_empty());
-        assert_eq!(
-            checks(&plan),
-            vec![CHECK_INVALID, CHECK_INVALID, CHECK_INVALID]
-        );
+        assert_eq!(checks(&plan), vec![CHECK_INVALID; 5]);
     }
 
     #[test]

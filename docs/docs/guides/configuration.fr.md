@@ -339,7 +339,7 @@ Les chemins s'écrivent de trois façons :
 
 - **Un slug de page**, comme `help/faq` : la même chose que dans un [[writing/wiki-links|wiki-link]]. Un `.html` ou un `/` final ne pose pas de problème. Sur un site traduit ou versionné, la redirection est écrite pour chaque langue et chaque version où la page cible existe : `"old-faq" = "help/faq"` donne `/en/old-faq.html`, `/fr/old-faq.html`, et ainsi de suite.
 - **Un chemin du site** commençant par `/`, comme `/old-blog.html`, ou `/blog/` pour `/blog/index.html`. Il est utilisé tel quel, une seule fois.
-- **Un autre site** : une cible contenant `://`, comme `https://blog.example.com`. Uniquement à droite.
+- **Un autre site** : une adresse complète en `https://` (ou `http://`), comme `https://blog.example.com`. Uniquement à droite. Les autres schémas et les cibles sans schéma (`//hôte/…`) sont refusés.
 
 Chaque ancienne URL devient une petite page qui renvoie aussitôt le lecteur vers la nouvelle, en gardant l'éventuelle `#section` du lien. Elle indique aussi aux moteurs de recherche où la page est partie, pour que son référencement passe à la nouvelle URL. Cela fonctionne sur n'importe quel hébergement statique, sans rien configurer côté serveur, et les pages de redirection n'apparaissent jamais dans la barre latérale, la recherche ou `sitemap.xml`.
 

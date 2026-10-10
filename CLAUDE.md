@@ -57,6 +57,7 @@ src/
   nav.rs                       # nav.toml parsing (NavEntry, NavGroupItem, autodiscover)
   search.rs                    # Search index generation (extract sections from HTML)
   seo.rs                       # robots.txt and sitemap.xml generation
+  llms.rs                      # llms.txt / llms-full.txt: Markdown cleaning (wiki-links → URLs, fence meta/heading attrs stripped), nav-grouped sections
   redirects.rs                 # Redirect stubs: plan() from front matter redirect_from + [redirects] (+ unprefixed), stub_html(), write_stubs()
   edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection); Editor: serve's open-in-editor URL schemes
   last_updated.rs              # "Last updated" dates: Date, DateSource trait, NoDates, GitDates (one scoped git log per build)
@@ -99,13 +100,13 @@ src/
     directives.rs              # :::directive{attrs} pre-comrak pass (block + inline)
     popovers.rs                # ^[content] → popover HTML conversion
     headings.rs                # Custom heading ID extraction {#id} and auto-generation
-    frontmatter.rs             # JSON front matter extraction
+    frontmatter.rs             # JSON front matter extraction; strip() drops the block
     markdown.rs                # comrak rendering with GFM extensions; first_h1_text() for page titles
     syntax.rs                  # syntect-based code block highlighting
     code_blocks.rs             # BlockMeta (fence meta encoding); line numbers, hidden-line gaps, captions after syntax.rs
     wikilinks.rs               # [[link]] and [[link|text]] resolution against PageInventory
     attributes.rs              # {.class #id} post-comrak injection into HTML tags
-    images.rs                  # Relative image path rewriting
+    images.rs                  # Relative image path rewriting (rewrite_src() shared with llms.rs)
 
   components/
     mod.rs                     # Component trait, ComponentRegistry (Tera, load, render_markdown, placeholders)
@@ -181,15 +182,16 @@ Markdown source
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
-- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]`, `[redirects]` sections; serde deserialization
+- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]`, `[redirects]`, `[llms]` sections; serde deserialization
 - **Versioning**: Version subdirectories inside `content_dir` (`docs/v2/…`, not file suffixes), version-prefixed output (`/v2/page.html`), per-version nav/search, version switcher, and a banner on older versions; combines with i18n (`/v2/en/page.html`)
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
 - **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
 - **Last updated dates**: Opt-in `[last_updated]`. `source = "git"` runs one `git log --format=%x00%at --name-only -z -- .` per build from the project dir (author dates, never committer; relative pathspecs only, since Windows `\\?\` paths may not match; `-c diff.relative=false -c log.showSignature=false` pins the output format); files outside the project get a memoised `git log -1`. A page's date = front matter `last_updated` (`"YYYY-MM-DD"`, or `false` to hide) else the newest date across its source and `Processed.dependencies`. Rendered as `<time datetime>` (localised by `docanvil.js` via `Intl.DateTimeFormat`), `article:modified_time` and sitemap `<lastmod>`. No repo / shallow clone → one build warning each (fails `--strict`). Renames aren't followed
-- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages. `config.rs` adds `last-updated-no-git`/`last-updated-shallow-clone` (warning); `content.rs` adds `last-updated-invalid` (error)
+- **Doctor**: Diagnostic checks with severity levels (Info, Warning, Error) and auto-fix support; includes translation coverage checks when i18n is enabled. `content.rs` adds `include-unresolved`/`include-invalid`/`include-cycle` (error), `include-inline`, `include-locale-coverage` (warning), `include-unused-fragment` (info); `theme.rs` adds `component-reserved-name` (a `theme/components/` template can't be named `include`); fragments get the same content/readability checks as pages. `config.rs` adds `last-updated-no-git`/`last-updated-shallow-clone` (warning); `content.rs` adds `last-updated-invalid` (error); `config.rs` adds `llms-no-site-url` (info)
 - **Drafts**: Front matter `"draft": true`. `serve` (and `build --drafts`) render drafts with a banner + `noindex`; `build` and `export pdf` move them into `PageInventory.drafts` during the pre-pass (`build::exclude_drafts()`), so nav, search, sitemap, prev/next, the version switcher and missing-translation warnings never see them. Wiki-links to a draft render as plain text; `[build] draft_links = "warn"` also warns (fails `--strict`). `nav.toml` entries for drafts are skipped silently
 - **Includes**: `:::include{file=…}` alone on a line, expanded before components; files/folders starting with `_` in `content_dir` are fragments, never pages; paths relative to the including file, `/` = project root; `file=`/`lines=`/`numbers`/`title` fence attributes are encoded as `docanvil key=value` in the fence info string and travel as `data-meta`; `process()` returns `Processed { html, dependencies }` and the dev server watches dependencies outside its folders
 - **Redirects**: Front matter `redirect_from` (old slugs in the page's version; applies to every translation of the page; a `/literal` entry points at the page's copy in the current version and default language) + `[redirects]` table (`"old" = "new"`: a slug is expanded per version × language where the target exists, `/path` is a literal site path, a `://` value is external) + `unprefixed = true` (`page.html` → current version/default language). Written as HTML stubs (meta refresh + `location.replace` keeping `?query`/`#hash`, canonical, `noindex`), never in the sitemap, search or nav. Precedence front matter > table > unprefixed; chains are flattened; a stub never replaces a page (drafts included), `404.html`, or the root `index.html` on i18n/versioned sites. `redirects::plan()` runs once per build after every version/language is scanned and is shared with doctor: `redirect-target-missing`/`-shadowed`/`-conflict`/`-loop` (warning, fail `--strict`) and `redirect-invalid` (error). The root `index.html` redirects use the same `stub_html()`
+- **llms.txt**: Opt-in `[llms]` (`full = true` also writes `llms-full.txt`). One pair per (version, locale) scope beside its `search-index.json`, plus a root copy of the current version / default locale with an `## Optional` section linking every other scope. Built from `Processed.markdown` (include-expanded source) cleaned by `llms::clean_markdown()`: front matter dropped, wiki-links → `[text](url)` (plain text for missing/draft targets), DocAnvil fence meta and heading `{#id .class}` removed, relative images made absolute; code untouched, components pass through. Sections follow the nav (top-level groups, labelled separators, "Docs", then "Other pages"). URLs use `site_url`, else `base_url`. Never emits diagnostics; skipped in `serve`. Front matter `"llms": false` opts a page out
 
 ### Key Types and Where They Live
 
@@ -218,6 +220,8 @@ Markdown source
 | `PdfConfig` | `config.rs` | PDF export config: `author`, `cover_page`, `custom_css`, `paper_size` (optional, e.g. `"A4"`, `"Letter"`) |
 | `DoctorConfig` | `config.rs` | Doctor / linting config: `max_paragraph_words` (default: 150; set to 0 to disable) |
 | `EditConfig` | `config.rs` | "Edit this page" config: `repo` (set = enabled), `branch` (default `"main"`), `provider: Option<EditProvider>` (GitHub/GitLab/Bitbucket; inferred from host), `root` (auto-detected from nearest `.git`) |
+| `LlmsConfig` | `config.rs` | `[llms]`: `enabled` (default false), `description: Option<String>` (`>` summary line), `full` (default true; also write `llms-full.txt`) |
+| `LlmsPage` / `LlmsScope` / `Section` | `llms.rs` | `LlmsPage { slug, title, url, description, markdown }` (from `page_entry()`); `LlmsScope { dir, label, nav, pages }` — one per (version, locale); `sections_from_nav()` → `Section { title, pages }`, rendered by `generate_index()` / `generate_full()` |
 | `RedirectsConfig` | `config.rs` | `unprefixed: bool` + flattened `paths: BTreeMap<String, String>` (old → new, as written in `[redirects]`) |
 | `LastUpdatedConfig` | `config.rs` | `enabled` (default false), `source: LastUpdatedSource` (`Git` default / `FrontMatter`, TOML `"git"`/`"front-matter"`) |
 | `DateSource` | `last_updated.rs` | Trait: `date_for(&mut self, path) -> Option<Date>`. Impls: `NoDates` (front-matter source), `GitDates` (`collect(project_root) -> Result<Self, String>`, `is_shallow()`). Helpers: `parse_override(&Value) -> Override { Date, Hide, Invalid }`, `page_date(source, page, deps)` |
@@ -228,7 +232,7 @@ Markdown source
 | `Expanded` | `pipeline/includes.rs` | Result of `includes::expand()`: `source` (Markdown with includes spliced in and file code blocks filled), `dependencies: BTreeSet<PathBuf>` (every file read, for the watcher), `problems: Vec<IncludeProblem>` |
 | `IncludeProblem` | `pipeline/includes.rs` | `check` (`CHECK_UNRESOLVED`/`CHECK_INVALID`/`CHECK_CYCLE`), `file: PathBuf`, `line: usize`, `message`, `hint: Option<String>`, `warning: bool` (warning-level in doctor, e.g. a fragment that ends inside a code block). Shown as an inline error box and a `diagnostics::warn_include(project_root, …)` warning; paths shown via `includes::display_path()` |
 | `BlockMeta` | `pipeline/code_blocks.rs` | Fence meta for one code block: `numbers: Option<bool>`, `start: Option<usize>`, `ranges: Vec<(usize, usize)>`, `file: Option<String>`, `title: Option<String>`. `encode()`/`parse()` round-trip it through comrak's fence info string as `docanvil key=value …` (`data-meta`) |
-| `Processed` | `pipeline/mod.rs` | Return of `process()`: `html: String`, `dependencies: BTreeSet<PathBuf>` (files pulled in via `:::include` / `file="…"`, for the dev server's watcher) |
+| `Processed` | `pipeline/mod.rs` | Return of `process()`: `html: String`, `dependencies: BTreeSet<PathBuf>` (files pulled in via `:::include` / `file="…"`, for the dev server's watcher), `markdown: String` (include-expanded source, for `llms-full.txt`) |
 | `PageSet` | `redirects.rs` | One version's pages for `plan()`: `version: Option<&str>`, `inventory`, `front_matters` (keyed like `inventory.pages`; drafts already moved to `inventory.drafts`) |
 | `RedirectPlan` | `redirects.rs` | Return of `plan(config, sets)`: `redirects: Vec<Redirect { from, to: Target, lang }>` (sorted by `from`, an output path) + `problems: Vec<RedirectProblem { check, origin, message }>` |
 | `Target` / `Origin` | `redirects.rs` | `Target`: `Page(output path)`, `Path(site path)`, `External(url)`. `Origin` (variant order = precedence): `FrontMatter(source path)`, `Table(key)`, `Unprefixed` |
@@ -245,7 +249,7 @@ Markdown source
    - Write per-locale search index (`{locale}/search-index.json`)
    - Emit missing translation warnings
 6. **Otherwise:** single-pass rendering (backward compatible)
-7. Copy shared assets (JS, CSS), generate robots.txt + sitemap.xml, 404 page
+7. Copy shared assets (JS, CSS), generate robots.txt + sitemap.xml + llms.txt, 404 page
 8. Redirect stubs: `write_redirects()` runs `redirects::plan()` once over every version's `PageSet` (one call in the versioned path before its early return, one otherwise), warns about problems, and writes the stubs into staging, so `sync_output` removes stale ones
 
 `scan_site(project_root, config)` gives doctor the same view of the site as a production build: one inventory per version, `read_sources()` applied, drafts excluded.

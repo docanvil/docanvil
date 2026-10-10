@@ -1930,3 +1930,184 @@ fn test_redirect_respects_base_url() {
     assert!(stub.contains("url=/docs/guides/install.html"));
     assert!(stub.contains("href=\"https://x.dev/docs/guides/install.html\""));
 }
+
+const LLMS_CONFIG: &str = r#"
+[project]
+name = "Test Docs"
+
+[build]
+site_url = "https://docs.example.com"
+
+[llms]
+enabled = true
+description = "Docs for testing."
+"#;
+
+#[test]
+fn test_llms_off_by_default() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    build_project(dir.path()).unwrap();
+    assert!(!output_exists(dir.path(), "llms.txt"));
+    assert!(!output_exists(dir.path(), "llms-full.txt"));
+}
+
+#[test]
+fn test_llms_plain_site() {
+    let dir = create_project(
+        LLMS_CONFIG,
+        &[
+            (
+                "index.md",
+                "# Home\n\nWelcome. See [[guide/setup|the setup guide]].",
+            ),
+            (
+                "guide/setup.md",
+                "---\n{\"description\": \"Get going\"}\n---\n# Setup {#setup}\n\n```toml\n[[nav]]\n```\n",
+            ),
+            ("draft.md", "---\n{\"draft\": true}\n---\n# Unfinished"),
+            ("secret.md", "---\n{\"llms\": false}\n---\n# Hidden"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+
+    let index = read_output(dir.path(), "llms.txt");
+    assert!(
+        index.starts_with("# Test Docs\n\n> Docs for testing.\n"),
+        "{index}"
+    );
+    assert!(
+        index.contains("- [Home](https://docs.example.com/index.html)\n"),
+        "{index}"
+    );
+    assert!(
+        index.contains("- [Setup](https://docs.example.com/guide/setup.html): Get going\n"),
+        "{index}"
+    );
+    assert!(
+        !index.contains("Unfinished") && !index.contains("Hidden"),
+        "{index}"
+    );
+    assert!(!index.contains("## Optional"), "{index}");
+
+    let full = read_output(dir.path(), "llms-full.txt");
+    assert!(
+        full.contains("# Home\nSource: https://docs.example.com/index.html\n"),
+        "{full}"
+    );
+    assert!(
+        full.contains("[the setup guide](https://docs.example.com/guide/setup.html)"),
+        "{full}"
+    );
+    assert!(full.contains("# Setup\nSource: "), "{full}");
+    assert!(full.contains("```toml\n[[nav]]\n```"), "{full}");
+    assert!(!full.contains("\"description\""), "{full}");
+    assert!(
+        !full.contains("Unfinished") && !full.contains("Hidden"),
+        "{full}"
+    );
+}
+
+#[test]
+fn test_llms_index_only_and_relative_urls() {
+    let dir = create_project(
+        "[project]\nname = \"Test Docs\"\n\n[build]\nbase_url = \"/docs/\"\n\n[llms]\nenabled = true\nfull = false\n",
+        &[("index.md", "# Home")],
+    );
+    build_project(dir.path()).unwrap();
+    let index = read_output(dir.path(), "llms.txt");
+    assert!(index.contains("- [Home](/docs/index.html)\n"), "{index}");
+    assert!(!output_exists(dir.path(), "llms-full.txt"));
+}
+
+#[test]
+fn test_llms_i18n_site() {
+    let config = format!(
+        "{LLMS_CONFIG}\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n\n[locale.display_names]\nen = \"English\"\nfr = \"Français\"\n"
+    );
+    let dir = create_project(
+        &config,
+        &[("index.en.md", "# Home"), ("index.fr.md", "# Accueil")],
+    );
+    build_project(dir.path()).unwrap();
+
+    let en = read_output(dir.path(), "en/llms.txt");
+    assert!(
+        en.contains("- [Home](https://docs.example.com/en/index.html)"),
+        "{en}"
+    );
+    assert!(!en.contains("## Optional"), "{en}");
+    let fr = read_output(dir.path(), "fr/llms.txt");
+    assert!(
+        fr.contains("- [Accueil](https://docs.example.com/fr/index.html)"),
+        "{fr}"
+    );
+    assert!(output_exists(dir.path(), "fr/llms-full.txt"));
+
+    let root = read_output(dir.path(), "llms.txt");
+    assert!(
+        root.contains("- [Home](https://docs.example.com/en/index.html)"),
+        "{root}"
+    );
+    assert!(
+        root.contains("## Optional\n\n- [Français](https://docs.example.com/fr/llms.txt)\n"),
+        "{root}"
+    );
+    assert!(!root.contains("en/llms.txt"), "{root}");
+    assert!(read_output(dir.path(), "llms-full.txt").contains("# Home\nSource: "));
+}
+
+#[test]
+fn test_llms_versioned_site() {
+    let config = format!("{VERSION_CONFIG}\n[llms]\nenabled = true\n");
+    let dir = create_project(
+        &config,
+        &[("v1/index.md", "# Home v1"), ("v2/index.md", "# Home v2")],
+    );
+    build_project(dir.path()).unwrap();
+
+    assert!(read_output(dir.path(), "v1/llms.txt").contains("- [Home v1](/v1/index.html)"));
+    let root = read_output(dir.path(), "llms.txt");
+    assert!(root.contains("- [Home v2](/v2/index.html)"), "{root}");
+    assert!(root.contains("- [v1.0](/v1/llms.txt)"), "{root}");
+    assert!(!root.contains("v2/llms.txt"), "{root}");
+}
+
+#[test]
+fn test_llms_versioned_i18n_site() {
+    let config = format!("{VERSION_I18N_CONFIG}\n[llms]\nenabled = true\n");
+    let dir = create_project(
+        &config,
+        &[
+            ("v1/index.en.md", "# Home v1 EN"),
+            ("v1/index.fr.md", "# Accueil v1 FR"),
+            ("v2/index.en.md", "# Home v2 EN"),
+            ("v2/index.fr.md", "# Accueil v2 FR"),
+        ],
+    );
+    build_project(dir.path()).unwrap();
+
+    assert!(
+        read_output(dir.path(), "v1/fr/llms.txt").contains("[Accueil v1 FR](/v1/fr/index.html)")
+    );
+    let root = read_output(dir.path(), "llms.txt");
+    assert!(root.contains("- [Home v2 EN](/v2/en/index.html)"), "{root}");
+    assert!(root.contains("- [v1 · English](/v1/en/llms.txt)"), "{root}");
+    assert!(
+        root.contains("- [v1 · Français](/v1/fr/llms.txt)"),
+        "{root}"
+    );
+    assert!(
+        root.contains("- [v2 · Français](/v2/fr/llms.txt)"),
+        "{root}"
+    );
+    assert!(!root.contains("/v2/en/llms.txt"), "{root}");
+}
+
+#[test]
+fn test_llms_not_written_by_serve() {
+    let dir = create_project(LLMS_CONFIG, &[("index.md", "# Home")]);
+    let dev_out = tempfile::tempdir().unwrap();
+    docanvil::cli::build::run_with_options(dir.path(), dev_out.path(), true, None).unwrap();
+    assert!(dev_out.path().join("index.html").exists());
+    assert!(!dev_out.path().join("llms.txt").exists());
+}

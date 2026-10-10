@@ -6,6 +6,7 @@ pub mod doctor;
 pub mod edit;
 pub mod error;
 pub mod last_updated;
+pub mod llms;
 pub mod nav;
 pub mod pipeline;
 pub mod project;

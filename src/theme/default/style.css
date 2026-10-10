@@ -1170,7 +1170,7 @@ body {
 .content .buttons a {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 1rem;
+  padding: 0.3rem 1rem;
   font-weight: 600;
   color: var(--color-text);
   text-decoration: none;

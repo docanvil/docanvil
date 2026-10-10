@@ -267,6 +267,8 @@ branch = "main"
 
 Links always point at the file the page was built from, so translated pages (`page.fr.md`) and older versions (`docs/v1/page.md`) link to their own source. To hide the link on a single page, set `"edit_link": false` in its [[writing/front-matter|front matter]]. Edit links don't appear on the 404 page or in PDF exports.
 
+While you're running `docanvil serve`, the link becomes **Open in editor** and opens the page's source in your local editor instead, with or without an `[edit]` section. See [[reference/cli|`docanvil serve`]] to choose your editor.
+
 :::note{title="Self-hosted Git"}
 GitHub Enterprise and self-hosted GitLab work by setting `provider`. Bitbucket Server and Data Center aren't supported yet, since they don't offer a direct edit link. `docanvil doctor` warns if your `[edit]` settings can't produce working links.
 :::

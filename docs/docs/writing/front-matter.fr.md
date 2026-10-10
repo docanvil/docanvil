@@ -39,7 +39,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `description` | Chaîne | Affichée en sous-titre sous le titre de la page, et génère les balises `<meta name="description">` et `<meta property="og:description">` pour les moteurs de recherche et les aperçus de liens |
 | `author` | Chaîne | Génère la balise `<meta name="author">` |
 | `date` | Chaîne | Génère la balise `<meta property="article:published_time">` pour les moteurs de recherche et le partage social |
-| `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
+| `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » (et « Open in editor » sous `docanvil serve`) sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
 | `last_updated` | Chaîne ou Booléen | La date de dernière modification de la page, au format `"YYYY-MM-DD"`. Remplace la date tirée de l'historique Git. Définissez à `false` pour masquer la date sur cette page (voir [[guides/configuration|Configuration → `[last_updated]`]]) |
 | `draft` | Booléen | Définissez à `true` pour garder la page hors des compilations de production pendant que vous y travaillez (voir [Pages brouillon](#pages-brouillon)) |
 | `redirect_from` | Liste de chaînes | Anciens chemins qui doivent renvoyer les lecteurs vers cette page, pour que les liens existants continuent de fonctionner (voir [Redirections](#redirections)) |

@@ -39,7 +39,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `description` | String | Shown as a subtitle under the page title, and renders as `<meta name="description">` and `<meta property="og:description">` for search engines and link previews |
 | `author` | String | Renders as `<meta name="author">` |
 | `date` | String | Renders as `<meta property="article:published_time">` for search engines and social sharing |
-| `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
+| `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link (and "Open in editor" under `docanvil serve`) on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
 | `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see [[guides/configuration|Configuration → `[last_updated]`]]) |
 | `draft` | Boolean | Set to `true` to keep the page out of production builds while you work on it (see [Draft Pages](#draft-pages)) |
 | `redirect_from` | List of strings | Old paths that should send readers to this page, so links to them keep working (see [Redirects](#redirects)) |

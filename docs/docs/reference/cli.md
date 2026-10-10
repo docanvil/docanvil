@@ -322,7 +322,7 @@ Run `docanvil doctor` again after `--fix` to verify all issues are resolved. Som
 Start a development server with live reload.
 
 ```bash
-docanvil serve [--host <address>] [--port <port>] [--path <dir>]
+docanvil serve [--host <address>] [--port <port>] [--path <dir>] [--editor <name>]
 ```
 
 | Option | Default | Description |
@@ -330,6 +330,7 @@ docanvil serve [--host <address>] [--port <port>] [--path <dir>]
 | `--host` | `127.0.0.1` | Address to bind the server to |
 | `--port` | `3000` | Port number |
 | `--path` | `.` | Path to the project root |
+| `--editor` | `vscode` | Editor for the "Open in editor" link: `vscode`, `cursor`, `zed`, `idea`, `none`, or a URL template containing `{path}`. Also read from `DOCANVIL_EDITOR` |
 
 The server:
 
@@ -341,6 +342,39 @@ The server:
 - The browser reloads automatically — no manual refresh needed
 - Missing pages show your site's `404.html`, just like most static hosts in production
 - Prints a one-line notice when a newer DocAnvil release is out (see [`docanvil update`](#docanvil-update))
+
+### Open in your editor
+
+While `docanvil serve` is running, every page gets an **Open in editor** link at the bottom that opens its Markdown source straight in your editor, so you can go from spotting a typo to fixing it in one click. It's there even if you haven't set up [[guides/configuration|`[edit]` links]], and when you have, it takes their place until you run `docanvil build`.
+
+DocAnvil picks your editor from, in order:
+
+1. `--editor <name>`
+2. The `DOCANVIL_EDITOR` environment variable
+3. `$VISUAL` or `$EDITOR`, when they point at VS Code (`code`), Cursor, Zed or IntelliJ IDEA (`idea`)
+4. VS Code
+
+| Name | Opens |
+|------|-------|
+| `vscode` | VS Code |
+| `cursor` | Cursor |
+| `zed` | Zed |
+| `idea` | IntelliJ IDEA and other JetBrains IDEs that handle `idea://` links |
+| `none` | Turns the link off (pages show their `[edit]` link instead, if you have one) |
+
+For any other editor, give a URL template with `{path}` where the file's absolute path goes:
+
+```bash
+docanvil serve --editor "subl://open?url=file://{path}"
+```
+
+:::note{title="Set it once"}
+Your editor is a personal choice, so it lives in your environment rather than `docanvil.toml`. Add `export DOCANVIL_EDITOR=cursor` (or your editor) to your shell profile and every project picks it up.
+:::
+
+To hide the link on a single page, set `"edit_link": false` in its [[writing/front-matter|front matter]].
+
+### Examples
 
 :::code-group
 ```bash
@@ -361,6 +395,11 @@ docanvil serve --verbose
 ```bash
 # Serve a project from another directory
 docanvil serve --path ../my-docs
+```
+
+```bash
+# Open pages in Zed
+docanvil serve --editor zed
 ```
 :::
 

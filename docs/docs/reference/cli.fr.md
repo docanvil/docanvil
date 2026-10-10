@@ -323,7 +323,7 @@ Relancez `docanvil doctor` après `--fix` pour vérifier que tous les problèmes
 Démarre un serveur de développement avec rechargement en direct.
 
 ```bash
-docanvil serve [--host <adresse>] [--port <port>] [--path <rép>]
+docanvil serve [--host <adresse>] [--port <port>] [--path <rép>] [--editor <nom>]
 ```
 
 | Option | Défaut | Description |
@@ -331,6 +331,7 @@ docanvil serve [--host <adresse>] [--port <port>] [--path <rép>]
 | `--host` | `127.0.0.1` | Adresse à laquelle lier le serveur |
 | `--port` | `3000` | Numéro de port |
 | `--path` | `.` | Chemin vers la racine du projet |
+| `--editor` | `vscode` | Éditeur du lien « Open in editor » : `vscode`, `cursor`, `zed`, `idea`, `none`, ou un modèle d'URL contenant `{path}`. Également lu depuis `DOCANVIL_EDITOR` |
 
 Le serveur :
 
@@ -342,6 +343,39 @@ Le serveur :
 - Le navigateur recharge automatiquement — pas besoin de rafraîchissement manuel
 - Les pages manquantes affichent le `404.html` de votre site, comme la plupart des hébergeurs statiques en production
 - Affiche une ligne d'information quand une nouvelle version de DocAnvil est disponible (voir [`docanvil update`](#docanvil-update))
+
+### Ouvrir dans votre éditeur
+
+Pendant que `docanvil serve` tourne, chaque page affiche en bas un lien **Open in editor** qui ouvre sa source Markdown directement dans votre éditeur : vous repérez une coquille, vous la corrigez en un clic. Le lien est là même si vous n'avez pas configuré les [[guides/configuration|liens `[edit]`]], et si vous l'avez fait, il les remplace jusqu'à votre prochain `docanvil build`.
+
+DocAnvil choisit votre éditeur dans cet ordre :
+
+1. `--editor <nom>`
+2. La variable d'environnement `DOCANVIL_EDITOR`
+3. `$VISUAL` ou `$EDITOR`, quand elles désignent VS Code (`code`), Cursor, Zed ou IntelliJ IDEA (`idea`)
+4. VS Code
+
+| Nom | Ouvre |
+|------|-------|
+| `vscode` | VS Code |
+| `cursor` | Cursor |
+| `zed` | Zed |
+| `idea` | IntelliJ IDEA et les autres IDE JetBrains qui gèrent les liens `idea://` |
+| `none` | Désactive le lien (les pages affichent alors leur lien `[edit]`, s'il existe) |
+
+Pour tout autre éditeur, donnez un modèle d'URL avec `{path}` à l'endroit où va le chemin absolu du fichier :
+
+```bash
+docanvil serve --editor "subl://open?url=file://{path}"
+```
+
+:::note{title="Réglez-le une fois"}
+Le choix de l'éditeur est personnel : il se règle dans votre environnement plutôt que dans `docanvil.toml`. Ajoutez `export DOCANVIL_EDITOR=cursor` (ou votre éditeur) à votre profil shell et tous vos projets l'utiliseront.
+:::
+
+Pour masquer le lien sur une seule page, définissez `"edit_link": false` dans son [[writing/front-matter|front matter]].
+
+### Exemples
 
 :::code-group
 ```bash
@@ -362,6 +396,11 @@ docanvil serve --verbose
 ```bash
 # Servir un projet depuis un autre répertoire
 docanvil serve --path ../mes-docs
+```
+
+```bash
+# Ouvrir les pages dans Zed
+docanvil serve --editor zed
 ```
 :::
 

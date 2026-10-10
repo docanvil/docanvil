@@ -235,7 +235,8 @@ Pour un contrôle complet sur la structure HTML, surchargez le template Tera par
 | `mermaid_enabled` | Booléen | Si le rendu des diagrammes Mermaid est activé |
 | `mermaid_version` | Chaîne | Version majeure de Mermaid.js à charger depuis le CDN |
 | `color_mode` | Chaîne | Mode de couleur : `"light"`, `"dark"`, ou `"both"` |
-| `edit_url` | Chaîne | URL « Edit this page » de la page courante, quand `[edit]` est configuré |
+| `edit_url` | Chaîne | URL « Edit this page » de la page courante, quand `[edit]` est configuré. Sous `docanvil serve`, elle ouvre la source dans votre éditeur local |
+| `edit_local` | Booléen | Indique si `edit_url` ouvre un éditeur local (`docanvil serve`) plutôt que votre hébergeur Git. Le layout par défaut s'en sert pour afficher « Open in editor » et ne pas ajouter `target="_blank"` |
 | `last_updated` | Chaîne | Date de dernière modification de la page, au format `YYYY-MM-DD`, quand `[last_updated]` est activé. Absente quand la page n'a pas de date |
 | `breadcrumbs` | Tableau | Fil d'Ariane depuis la section de navigation jusqu'à la page — chaque élément a un `title` et une `url` (absente pour la page courante et pour les sections sans page). Vide pour les pages de premier niveau |
 

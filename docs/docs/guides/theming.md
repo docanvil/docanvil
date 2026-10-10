@@ -234,7 +234,8 @@ For complete control over the HTML structure, override the default Tera template
 | `mermaid_enabled` | Boolean | Whether Mermaid diagram rendering is enabled |
 | `mermaid_version` | String | Mermaid.js major version to load from CDN |
 | `color_mode` | String | Color mode: `"light"`, `"dark"`, or `"both"` |
-| `edit_url` | String | "Edit this page" URL for the current page, when `[edit]` is configured |
+| `edit_url` | String | "Edit this page" URL for the current page, when `[edit]` is configured. Under `docanvil serve` it opens the source in your local editor instead |
+| `edit_local` | Boolean | Whether `edit_url` opens a local editor (`docanvil serve`) rather than your Git host. The default layout uses it to switch the label to "Open in editor" and to skip `target="_blank"` |
 | `last_updated` | String | When the page last changed, as `YYYY-MM-DD`, when `[last_updated]` is enabled. Unset when the page has no date |
 | `breadcrumbs` | Array | Trail from the page's nav section down to the page — each item has `title` and `url` (unset for the current page and for sections without a page). Empty for top-level pages |
 

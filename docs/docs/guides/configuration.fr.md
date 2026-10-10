@@ -267,6 +267,8 @@ branch = "main"
 
 Les liens pointent toujours vers le fichier à partir duquel la page a été générée : les pages traduites (`page.fr.md`) et les anciennes versions (`docs/v1/page.md`) renvoient vers leur propre source. Pour masquer le lien sur une seule page, définissez `"edit_link": false` dans son [[writing/front-matter|front matter]]. Les liens de modification n'apparaissent ni sur la page 404 ni dans les exports PDF.
 
+Pendant que `docanvil serve` tourne, le lien devient **Open in editor** et ouvre la source de la page dans votre éditeur local, avec ou sans section `[edit]`. Voir [[reference/cli|`docanvil serve`]] pour choisir votre éditeur.
+
 :::note{title="Git auto-hébergé"}
 GitHub Enterprise et GitLab auto-hébergé fonctionnent en définissant `provider`. Bitbucket Server et Data Center ne sont pas encore pris en charge, car ils ne proposent pas de lien de modification direct. `docanvil doctor` vous avertit si vos paramètres `[edit]` ne peuvent pas produire de liens valides.
 :::

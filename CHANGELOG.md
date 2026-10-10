@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- "Last updated" dates (`source = "git"`) no longer go backwards after a rebase or cherry-pick: a page now always shows the newest author date of the commits that touched it, instead of the date of whichever commit Git lists first (#84)
+
 ## [1.2.0] - 2026-10-10
 
 ### Added

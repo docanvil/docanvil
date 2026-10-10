@@ -79,6 +79,9 @@ heading_adjacent_separator = true
 [edit]
 repo = "https://github.com/org/repo"
 branch = "main"
+
+[last_updated]
+enabled = true
 ```
 :::
 ::::
@@ -263,6 +266,49 @@ Links always point at the file the page was built from, so translated pages (`pa
 :::note{title="Self-hosted Git"}
 GitHub Enterprise and self-hosted GitLab work by setting `provider`. Bitbucket Server and Data Center aren't supported yet, since they don't offer a direct edit link. `docanvil doctor` warns if your `[edit]` settings can't produce working links.
 :::
+
+### `[last_updated]` Section
+
+Shows readers when each page last changed, so they can tell at a glance that the docs are being looked after. The date comes from your Git history, and appears under the page next to "Edit this page".
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `enabled` | `false` | Show a "Last updated" date on every page |
+| `source` | `"git"` | Where dates come from: `"git"` uses your commit history, `"front-matter"` only uses dates you set yourself and never runs Git |
+
+```toml
+[last_updated]
+enabled = true
+```
+
+With `source = "git"`, a page's date is the most recent commit that changed it, or that changed anything it pulls in with `:::include` or `file="…"`. Update a shared install-steps fragment and every page that includes it moves forward too. DocAnvil uses the commit's author date, so rebasing or squash-merging a pull request doesn't make every page look edited on merge day.
+
+To set a page's date by hand, use `last_updated` in its [[writing/front-matter|front matter]]:
+
+```markdown
+---
+{
+  "last_updated": "2026-10-09"
+}
+---
+```
+
+Set it to `false` to hide the date on that page.
+
+Dates are shown in the page's language ("9 October 2026", "9 octobre 2026"), and also go into the page's `article:modified_time` meta tag and the `<lastmod>` entries in `sitemap.xml`, which helps search engines spot fresh content. Translated pages and older versions each get the date of their own source file.
+
+:::warning{title="Fetch full history in CI"}
+Most CI systems clone only the latest commit by default. With that shallow history every page would show the same date, so DocAnvil warns about it and `--strict` builds fail. Fetch the full history instead: `fetch-depth: 0` on GitHub's `actions/checkout`, or `clone: depth: full` on Bitbucket Pipelines. See [[deployment/github-pages|GitHub Pages]] and [[deployment/bitbucket-pipelines|Bitbucket Pipelines]].
+:::
+
+A few things to know:
+
+- **Renamed or moved files** show the date of the commit that moved them.
+- **Uncommitted changes** don't count: a page shows its last committed date until you commit.
+- **Files inside a Git submodule** don't contribute a date.
+- **No Git repository?** DocAnvil warns and falls back to front matter dates. Set `source = "front-matter"` if that's what you want, and the warning goes away.
+
+`docanvil doctor` warns about shallow clones and missing repositories, and flags any front matter `last_updated` that isn't a valid date.
 
 ## nav.toml
 

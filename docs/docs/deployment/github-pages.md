@@ -117,6 +117,16 @@ on:
       - ".github/workflows/docs.yml"
 ```
 
+## Last Updated Dates
+
+`actions/checkout` fetches only the latest commit by default. If you've turned on [[guides/configuration|`[last_updated]`]], that would give every page the same date, so DocAnvil warns and `--strict` fails the build. Fetch the full history instead:
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+```
+
 ## Custom Domains
 
 Set the domain under **Settings → Pages → Custom domain**. Because the workflow deploys an artifact rather than a branch, you don't need a `CNAME` file in your output. Then update `docanvil.toml` so links are built for the root of your domain:

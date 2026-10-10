@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history, so [last_updated] dates are right (a shallow clone fails --strict)
+          fetch-depth: 0
 
       - name: Install docanvil from latest release
         run: curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | DOCANVIL_INSTALL_DIR=/usr/local/bin sh

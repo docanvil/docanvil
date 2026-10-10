@@ -21,6 +21,9 @@ color_mode = "both"
 repo = "https://github.com/docanvil/docanvil"
 branch = "master"
 
+[last_updated]
+enabled = true
+
 [locale]
 default = "en"
 enabled = ["en", "fr"]

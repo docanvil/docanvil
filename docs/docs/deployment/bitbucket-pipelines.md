@@ -91,6 +91,15 @@ The example above assumes your DocAnvil project lives in a `docs/` subdirectory 
 - aws s3 sync my-docs/dist/ s3://$S3_BUCKET --delete
 ```
 
+## Last Updated Dates
+
+Bitbucket Pipelines clones only the most recent commits by default. If you've turned on [[guides/configuration|`[last_updated]`]], that would give older pages the wrong date, so DocAnvil warns and `--strict` fails the build. Clone the full history instead, at the top of `bitbucket-pipelines.yml`:
+
+```yaml
+clone:
+  depth: full
+```
+
 ## S3 Bucket Setup
 
 For public static website hosting, enable **Static website hosting** in the S3 console (Bucket → Properties → Static website hosting). Set `index.html` as the index document and `404.html` as the error document — DocAnvil generates both.

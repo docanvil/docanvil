@@ -3,7 +3,7 @@
   "description": "Quick start guide for getting up and running with DocAnvil"
 }
 ---
-# Installation
+# Getting Started
 
 Get DocAnvil running and create your first documentation site.
 

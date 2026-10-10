@@ -1,3 +1,9 @@
+---
+{
+  "description": "Des sites de documentation multilingues, avec navigation, recherche et SEO par langue intégrés."
+}
+---
+
 # Localisation
 
 DocAnvil prend en charge les sites de documentation multilingues nativement. Chaque locale obtient son propre préfixe d'URL, sa navigation, son index de recherche, et un sélecteur de langue dans l'en-tête — le tout à partir d'un seul répertoire de contenu.

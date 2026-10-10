@@ -1,3 +1,9 @@
+---
+{
+  "description": "Set up your project with docanvil.toml and shape the sidebar with nav.toml."
+}
+---
+
 # Configuration
 
 DocAnvil uses two configuration files at the root of your project: `docanvil.toml` for project settings and `nav.toml` for navigation structure.

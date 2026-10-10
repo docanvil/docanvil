@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Toutes les variables CSS du thème par défaut, avec leur valeur par défaut et leur rôle.",
   "title": "Variables CSS",
   "slug": "css-variables"
 }

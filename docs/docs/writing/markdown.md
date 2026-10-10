@@ -1,3 +1,9 @@
+---
+{
+  "description": "Everything DocAnvil's Markdown supports, from GFM tables and task lists to footnotes and highlighting."
+}
+---
+
 # Markdown
 
 DocAnvil renders Markdown using comrak with GitHub Flavored Markdown (GFM) extensions enabled. Everything you'd expect from standard Markdown works, plus tables, task lists, strikethrough, footnotes, and front matter.

@@ -1,3 +1,9 @@
+---
+{
+  "description": "Publish docs for several releases side by side, with a version switcher and per-version navigation and search."
+}
+---
+
 # Versioning
 
 DocAnvil supports multi-version documentation sites out of the box. Each version gets its own URL prefix, navigation, and search index — and a version switcher in the header lets readers jump between versions. An automatic banner reminds them when they're reading an older version.

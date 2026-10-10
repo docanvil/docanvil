@@ -1,3 +1,9 @@
+---
+{
+  "description": "Where DocAnvil is today and what's coming in upcoming releases."
+}
+---
+
 # Roadmap
 
 DocAnvil follows [Semantic Versioning](https://semver.org) and is stable at 1.x, so upgrades within 1.x won't break your site. Here's where things stand and where they're headed.

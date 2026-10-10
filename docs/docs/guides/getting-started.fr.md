@@ -1,11 +1,11 @@
 ---
 {
-  "title": "Installation",
+  "title": "Premiers pas",
   "slug": "getting-started",
   "description": "Guide de démarrage rapide pour installer DocAnvil et créer votre première documentation"
 }
 ---
-# Installation
+# Premiers pas
 
 Installez DocAnvil et créez votre premier site de documentation.
 

@@ -1,18 +1,19 @@
 ---
 {
+  "description": "Passez d'une version de DocAnvil à l'autre, ou migrez un site de documentation existant depuis un autre outil.",
   "title": "Guide de migration",
   "slug": "migration"
 }
 ---
 # Guide de migration
 
-DocAnvil est en version pré-1.0, ce qui signifie que des changements incompatibles peuvent survenir entre les versions mineures. Cette page documentera les étapes de migration au fur et à mesure.
+DocAnvil suit le [versionnement sémantique](https://semver.org/lang/fr/) et est stable en 1.x : passer d'une version 1.x à une autre ne demande jamais de modifier votre projet. Cette page couvre tout ce qui pourrait un jour l'exiger.
 
 ## Migration entre les versions
 
-Rien à migrer pour l'instant ! DocAnvil n'a encore introduit aucun changement incompatible nécessitant une intervention manuelle.
+Rien à migrer pour l'instant ! Chaque version 1.x fonctionne avec votre configuration, votre contenu et vos surcharges de thème existants.
 
-Lorsque des changements incompatibles arriveront, vous trouverez ici des instructions de migration étape par étape — couvrant les changements de configuration, les options renommées, et tout ce qui pourrait affecter votre projet.
+Si une future version majeure nécessite des changements, vous trouverez ici des instructions de migration étape par étape — couvrant les changements de configuration, les options renommées, et tout ce qui pourrait affecter votre projet.
 
 ## Migrer depuis un autre outil
 

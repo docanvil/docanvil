@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Personnalisez couleurs, polices et mise en page avec les variables CSS, vos propres feuilles de style et la surcharge des templates.",
   "title": "Thèmes",
   "slug": "theming"
 }

@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Ce que contient un projet DocAnvil, des fichiers de configuration jusqu'au site généré.",
   "title": "Structure du projet",
   "slug": "project-structure"
 }
@@ -218,4 +219,4 @@ Les fichiers sont triés par chemin lors de la découverte, garantissant un ordr
 - [[guides/configuration|Configuration]] — options `docanvil.toml` et `nav.toml`
 - [[guides/versioning|Versionnement]] — organisation des répertoires multi-versions et sortie de compilation
 - [[guides/theming|Thèmes]] — variables CSS, feuilles de style personnalisées, et surcharges de templates
-- [[guides/getting-started|Installation]] — créer votre premier projet
+- [[guides/getting-started|Premiers pas]] — créer votre premier projet

@@ -1,5 +1,6 @@
 ---
 {
+  "description": "Notes, avertissements, onglets, groupes de code, diagrammes et vos propres composants, le tout avec des directives :::.",
   "title": "Composants",
   "slug": "components"
 }

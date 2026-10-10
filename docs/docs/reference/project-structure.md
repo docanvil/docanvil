@@ -1,3 +1,9 @@
+---
+{
+  "description": "What lives where in a DocAnvil project, from config files to the build output."
+}
+---
+
 # Project Structure
 
 A DocAnvil project has a simple directory layout. Here's the complete structure:
@@ -212,4 +218,4 @@ Files are sorted by path during discovery, ensuring deterministic navigation ord
 - [[guides/configuration|Configuration]] — `docanvil.toml` and `nav.toml` options
 - [[guides/versioning|Versioning]] — multi-version directory layout and build output
 - [[guides/theming|Theming]] — CSS variables, custom CSS, and template overrides
-- [[guides/getting-started|Installation]] — creating your first project
+- [[guides/getting-started|Getting Started]] — creating your first project

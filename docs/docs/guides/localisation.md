@@ -1,3 +1,9 @@
+---
+{
+  "description": "Multi-language documentation sites, with per-locale navigation, search and SEO built in."
+}
+---
+
 # Localisation
 
 DocAnvil supports multi-language documentation sites out of the box. Each locale gets its own URL prefix, navigation, search index, and a language switcher in the header — all from a single content directory.

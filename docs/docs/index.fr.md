@@ -1,3 +1,9 @@
+---
+{
+  "description": "Transformez du Markdown en sites de documentation rapides et consultables, avec un seul binaire Rust."
+}
+---
+
 # DocAnvil
 
 Un générateur de documentation statique qui transforme Markdown en de superbes sites HTML.

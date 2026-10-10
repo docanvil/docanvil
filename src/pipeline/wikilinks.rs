@@ -9,9 +9,10 @@ use crate::project::PageInventory;
 /// When `locale` is provided, links resolve within that locale only.
 ///
 /// Code is left untouched: `<pre>…</pre>` blocks (highlighted blocks have no `<code>`
-/// wrapper; unhighlighted ones are `<pre><code>…</code></pre>`) and inline `<code>…</code>`
-/// spans are copied through verbatim, so `[[…]]` inside code (e.g. TOML's `[[nav]]`) is
-/// never rewritten.
+/// wrapper; unhighlighted ones are `<pre><code>…</code></pre>`) are copied through
+/// verbatim, and a link can't start or end inside inline `<code>…</code>`, so `[[…]]`
+/// inside code (e.g. TOML's `[[nav]]`) is never rewritten. Inline code can still sit
+/// in a link's display text (``[[page|the `x` page]]``).
 pub fn resolve(
     html: &str,
     inventory: &PageInventory,
@@ -23,8 +24,8 @@ pub fn resolve(
     let mut remaining = html;
 
     while !remaining.is_empty() {
-        match next_code_span(remaining) {
-            Some((before, code, after)) => {
+        match next_pre_block(remaining) {
+            Some((before, pre, after)) => {
                 result.push_str(&resolve_segment(
                     before,
                     inventory,
@@ -32,7 +33,7 @@ pub fn resolve(
                     base_url,
                     locale,
                 ));
-                result.push_str(code);
+                result.push_str(pre);
                 remaining = after;
             }
             None => {
@@ -51,32 +52,61 @@ pub fn resolve(
     result
 }
 
-/// Find the next `<pre>…</pre>` or inline `<code>…</code>` span in `html`.
-/// Returns `(before, span, after)` where `span` includes the tags themselves.
-/// A `<pre>` without a matching `</pre>` (or `<code>` without `</code>`) is treated
-/// as plain text from that point on, since there's nothing safe to skip past.
-fn next_code_span(html: &str) -> Option<(&str, &str, &str)> {
-    let pre_pos = html.find("<pre");
-    let code_pos = html.find("<code");
-
-    let start = match (pre_pos, code_pos) {
-        (Some(p), Some(c)) => p.min(c),
-        (Some(p), None) => p,
-        (None, Some(c)) => c,
-        (None, None) => return None,
-    };
-
-    let is_pre = pre_pos == Some(start);
-    let close_tag = if is_pre { "</pre>" } else { "</code>" };
-
-    let search_from = &html[start..];
-    let close_rel = search_from.find(close_tag)?;
-    let end = start + close_rel + close_tag.len();
-
+/// Find the next `<pre>…</pre>` block in `html`.
+/// Returns `(before, block, after)` where `block` includes the tags themselves.
+/// A `<pre>` without a matching `</pre>` is treated as plain text from that point
+/// on, since there's nothing safe to skip past.
+fn next_pre_block(html: &str) -> Option<(&str, &str, &str)> {
+    let start = html.find("<pre")?;
+    let end = start + html[start..].find("</pre>")? + "</pre>".len();
     Some((&html[..start], &html[start..end], &html[end..]))
 }
 
-/// Resolve `[[…]]` wiki-links within a segment known to contain no code spans.
+/// Byte ranges of the inline `<code>…</code>` spans in `html` (an unclosed
+/// `<code>` runs to the end).
+fn inline_code_ranges(html: &str) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    let mut from = 0;
+    while let Some(rel) = html[from..].find("<code") {
+        let start = from + rel;
+        let end = html[start..]
+            .find("</code>")
+            .map_or(html.len(), |close| start + close + "</code>".len());
+        ranges.push((start, end));
+        from = end;
+    }
+    ranges
+}
+
+/// Byte ranges of the `[[…]]` wiki-links in `text`, brackets included. `code`
+/// holds the byte ranges of inline code spans: a link can't start or end inside
+/// one (so `` `[[nav]]` `` stays code), but one can sit in a link's display text.
+pub(crate) fn find_links(text: &str, code: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let mut masked = text.as_bytes().to_vec();
+    for &(start, end) in code {
+        masked[start..end].fill(b' ');
+    }
+    let find = |from: usize, pattern: &[u8]| {
+        masked[from..]
+            .windows(pattern.len())
+            .position(|w| w == pattern)
+            .map(|pos| from + pos)
+    };
+
+    let mut links = Vec::new();
+    let mut pos = 0;
+    while let Some(open) = find(pos, b"[[") {
+        // No closing ]]: the rest stays as written.
+        let Some(close) = find(open + 2, b"]]") else {
+            break;
+        };
+        links.push((open, close + 2));
+        pos = close + 2;
+    }
+    links
+}
+
+/// Resolve `[[…]]` wiki-links within a segment known to contain no `<pre>` blocks.
 fn resolve_segment(
     html: &str,
     inventory: &PageInventory,
@@ -85,57 +115,48 @@ fn resolve_segment(
     locale: Option<&str>,
 ) -> String {
     let mut result = String::with_capacity(html.len());
-    let mut remaining = html;
+    let mut last = 0;
 
-    while let Some(start) = remaining.find("[[") {
-        result.push_str(&remaining[..start]);
-        let after_open = &remaining[start + 2..];
-
-        if let Some(end) = after_open.find("]]") {
-            let inner = &after_open[..end];
-            let (target, display) = if let Some(pipe_pos) = inner.find('|') {
-                (&inner[..pipe_pos], &inner[pipe_pos + 1..])
-            } else {
-                (inner, inner)
-            };
-
-            let target = target.trim();
-            let display = display.trim();
-
-            let resolved = match locale {
-                Some(l) => inventory.resolve_link_in_locale(target, l),
-                None => inventory.resolve_link(target),
-            };
-            if let Some(page) = resolved {
-                let href = format!("{}{}", base_url, page.output_path.display());
-                result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
-            } else if inventory.resolve_draft(target, locale).is_some() {
-                // The page exists but this build leaves it out: keep the words, drop the link.
-                if inventory.draft_links == DraftLinks::Warn {
-                    diagnostics::warn_draft_link(source_file, target);
-                }
-                result.push_str(display);
-            } else {
-                diagnostics::warn_broken_link(source_file, target);
-                result.push_str(&format!(
-                    "<span class=\"broken-link popover-trigger\" tabindex=\"0\">\
-                     {display}\
-                     <span class=\"popover-content popover-error\" role=\"tooltip\">\
-                     <strong>Page not found</strong><br />
-                     The linked page doesn't exist: <code>{target}</code></span>\
-                     </span>"
-                ));
-            }
-
-            remaining = &after_open[end + 2..];
+    for (start, end) in find_links(html, &inline_code_ranges(html)) {
+        result.push_str(&html[last..start]);
+        let inner = &html[start + 2..end - 2];
+        let (target, display) = if let Some(pipe_pos) = inner.find('|') {
+            (&inner[..pipe_pos], &inner[pipe_pos + 1..])
         } else {
-            // No closing ]], output as-is
-            result.push_str("[[");
-            remaining = after_open;
+            (inner, inner)
+        };
+
+        let target = target.trim();
+        let display = display.trim();
+
+        let resolved = match locale {
+            Some(l) => inventory.resolve_link_in_locale(target, l),
+            None => inventory.resolve_link(target),
+        };
+        if let Some(page) = resolved {
+            let href = format!("{}{}", base_url, page.output_path.display());
+            result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
+        } else if inventory.resolve_draft(target, locale).is_some() {
+            // The page exists but this build leaves it out: keep the words, drop the link.
+            if inventory.draft_links == DraftLinks::Warn {
+                diagnostics::warn_draft_link(source_file, target);
+            }
+            result.push_str(display);
+        } else {
+            diagnostics::warn_broken_link(source_file, target);
+            result.push_str(&format!(
+                "<span class=\"broken-link popover-trigger\" tabindex=\"0\">\
+                 {display}\
+                 <span class=\"popover-content popover-error\" role=\"tooltip\">\
+                 <strong>Page not found</strong><br />
+                 The linked page doesn't exist: <code>{target}</code></span>\
+                 </span>"
+            ));
         }
+        last = end;
     }
 
-    result.push_str(remaining);
+    result.push_str(&html[last..]);
     result
 }
 
@@ -169,6 +190,42 @@ mod tests {
         let html = "<p>See [[setup|the setup guide]] for details.</p>";
         let result = resolve(html, &inv, Path::new("test.md"), "/", None);
         assert!(result.contains("<a href=\"/setup.html\">the setup guide</a>"));
+    }
+
+    #[test]
+    fn display_text_can_contain_inline_code() {
+        let (_dir, inv) = test_inventory();
+        let html = "<p>See [[setup|the <code>setup</code> page]] and [[setup|plain]].</p>";
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
+        assert_eq!(
+            result,
+            "<p>See <a href=\"/setup.html\">the <code>setup</code> page</a> and <a href=\"/setup.html\">plain</a>.</p>"
+        );
+    }
+
+    #[test]
+    fn closing_brackets_inside_code_in_display_text_dont_end_the_link() {
+        let (_dir, inv) = test_inventory();
+        let html = "<p>[[setup|<code>a]]b</code> c]]</p>";
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
+        assert_eq!(
+            result,
+            "<p><a href=\"/setup.html\"><code>a]]b</code> c</a></p>"
+        );
+    }
+
+    #[test]
+    fn broken_link_with_code_in_display_text_warns() {
+        let (_dir, inv) = test_inventory();
+        diagnostics::reset_warnings();
+        let html = "<p>[[missing|the <code>missing</code> page]]</p>";
+        let result = resolve(html, &inv, Path::new("test.md"), "/", None);
+        assert!(
+            result.contains("class=\"broken-link popover-trigger\""),
+            "{result}"
+        );
+        assert!(result.contains("the <code>missing</code> page"), "{result}");
+        assert_eq!(diagnostics::warning_count(), 1);
     }
 
     #[test]

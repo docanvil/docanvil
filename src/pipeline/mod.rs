@@ -202,6 +202,27 @@ mod tests {
     }
 
     #[test]
+    fn wiki_links_with_inline_code_resolve_and_warn() {
+        reset_warnings();
+        let (dir, inv) = site(&[
+            (
+                "docs/index.md",
+                "See [[list|the `list` page]].\n\nAlso [[missing|the `missing` page]].\n",
+            ),
+            ("docs/list.md", "# List\n"),
+        ]);
+        let out = run(dir.path(), &inv, false);
+        assert!(
+            out.html
+                .contains("<a href=\"/list.html\">the <code>list</code> page</a>"),
+            "{}",
+            out.html
+        );
+        assert!(!out.html.contains("[["), "{}", out.html);
+        assert_eq!(warning_count(), 1);
+    }
+
+    #[test]
     fn mid_line_include_stays_literal_text() {
         let (dir, inv) = site(&[
             ("docs/index.md", "See :::include{file=\"_x.md\"} here.\n"),

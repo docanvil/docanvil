@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Wiki-links with inline code in their text (``[[list|the `list` command]]``) now render as links, with the code kept. They used to be left on the page as literal `[[…]]` text, with no warning even under `--strict`, and `llms-full.txt` had the same problem (#85)
+
 ## [1.2.0] - 2026-10-10
 
 ### Added

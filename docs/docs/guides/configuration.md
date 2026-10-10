@@ -82,6 +82,9 @@ branch = "main"
 
 [last_updated]
 enabled = true
+
+[redirects]
+"old-faq" = "help/faq"
 ```
 :::
 ::::
@@ -310,6 +313,45 @@ A few things to know:
 - **No Git repository?** DocAnvil warns and falls back to front matter dates. Set `source = "front-matter"` if that's what you want, and the warning goes away.
 
 `docanvil doctor` warns about shallow clones and missing repositories, and flags any front matter `last_updated` that isn't a valid date.
+
+### `[redirects]` Section
+
+Keeps old URLs working when pages are renamed, moved or deleted, so bookmarks, search results and links from other sites still land somewhere useful. Each entry maps an old path to where it goes now:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `"old/path"` | — | As many entries as you need: the old path on the left, the new one on the right |
+| `unprefixed` | `false` | Redirect each `page.html` to the current version and default language (see below) |
+
+```toml
+[redirects]
+"old-faq" = "help/faq"
+"getting-started/install" = "guides/install"
+"/blog/" = "https://blog.example.com"
+```
+
+Paths can be written three ways:
+
+- **A page slug**, like `help/faq`: the same thing you'd write in a [[writing/wiki-links|wiki-link]]. A trailing `.html` or `/` is fine. On translated or versioned sites the redirect is written for every language and version where the target page exists, so `"old-faq" = "help/faq"` gives you `/en/old-faq.html`, `/fr/old-faq.html` and so on.
+- **A site path** starting with `/`, like `/old-blog.html`, or `/blog/` for `/blog/index.html`. It's used exactly as written, once.
+- **Another site**: a target containing `://`, like `https://blog.example.com`. Only on the right-hand side.
+
+Each old URL becomes a small page that sends readers straight on, keeping any `#section` from the link. It also tells search engines where the page went, so its ranking moves to the new URL. It works on any static host, with nothing to set up on the server, and redirect pages never show up in the sidebar, search or `sitemap.xml`.
+
+For a page you've renamed or moved, it's usually simpler to list the old path in the page's own [[writing/front-matter|front matter]] with `redirect_from`. It travels with the page and covers every translation. The `[redirects]` table suits pages you've deleted, or moving lots of pages at once. If both send the same old path to different places, the front matter wins.
+
+**Turning on languages or versions** moves every page: `/guides/install.html` becomes `/en/guides/install.html` or `/v2/guides/install.html`. Set `unprefixed = true` and DocAnvil leaves a redirect at each old address, pointing at the current version in the default language:
+
+```toml
+[redirects]
+unprefixed = true
+```
+
+:::note
+`unprefixed` shares the table with your paths, so a page whose slug is literally `unprefixed` needs the site-path form: `"/unprefixed.html" = "…"`.
+:::
+
+A redirect to a page that doesn't exist, one whose old path is still a real page (the page always wins), two redirects sending the same path to different places, and redirects that go round in a loop each print a build warning, so `docanvil build --strict` fails. `docanvil doctor` checks every redirect up front and points at the line in `docanvil.toml` or the page's front matter. A redirect to a [[writing/front-matter|draft page]] is skipped quietly until the page is published.
 
 ## nav.toml
 

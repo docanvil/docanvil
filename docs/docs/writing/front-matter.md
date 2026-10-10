@@ -42,6 +42,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `edit_link` | Boolean | Set to `false` to hide the "Edit this page" link on this page (see [[guides/configuration|Configuration → `[edit]`]]) |
 | `last_updated` | String or Boolean | The date the page last changed, as `"YYYY-MM-DD"`. Overrides the date from Git history. Set to `false` to hide the date on this page (see [[guides/configuration|Configuration → `[last_updated]`]]) |
 | `draft` | Boolean | Set to `true` to keep the page out of production builds while you work on it (see [Draft Pages](#draft-pages)) |
+| `redirect_from` | List of strings | Old paths that should send readers to this page, so links to them keep working (see [Redirects](#redirects)) |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 
@@ -110,6 +111,8 @@ The `slug` value is normalized to a URL-safe format automatically — spaces bec
 
 When a slug changes (via `title` or `slug`), wiki-links using the old filename-based slug still resolve correctly. For example, if `01-setup.md` gets the title "Setup Guide", both `01-setup` and `setup-guide` will link to the same page.
 
+That covers links inside your docs. The old URL itself is gone, though, so if the page was already published, add the old slug to [`redirect_from`](#redirects) to keep bookmarks and links from other sites working.
+
 ## Draft Pages
 
 Mark a page as a draft to keep working on it in the open — commit it, review it, preview it — without publishing it yet:
@@ -148,6 +151,32 @@ If you'd rather catch links to unpublished pages, set `draft_links = "warn"` und
 
 :::note
 Drafts are about publishing, not privacy. The Markdown is still in your repository, so don't use `draft` for anything that must stay secret.
+:::
+
+## Redirects
+
+When you rename or move a page, its old URL stops working: bookmarks, search results and links from other sites end up on the 404 page. List the old paths in the page's front matter and DocAnvil leaves a redirect behind at each one:
+
+```markdown
+---
+{
+  "redirect_from": ["setup", "getting-started/install"]
+}
+---
+
+# Installation
+```
+
+Each entry is an old slug: the page's old path from the content folder, without `.md`, just like a wiki-link. It isn't relative to the page's own folder, so if `setup.md` moved to `guides/install.md`, the entry is `"setup"`. A single string works too: `"redirect_from": "setup"`.
+
+- **Translated pages:** put `redirect_from` on one translation (usually the default language) and every language gets its own redirect. `/en/setup.html` goes to the English page and `/fr/setup.html` to the French one.
+- **Versioned sites:** the redirect stays in the page's own version. `docs/v2/guides/install.md` with `"redirect_from": ["setup"]` redirects `/v2/setup.html`.
+- **Site paths:** an entry starting with `/`, like `"/old/install.html"`, is used exactly as written and points at the page in the current version and default language.
+
+Readers land on the page straight away, at the same `#section` if the old link had one, and search engines are told the page has moved. For redirects that don't belong to a single page (deleted pages, bulk moves, links to another site) and for keeping URLs working when you turn on languages or versions, see [[guides/configuration|Configuration → `[redirects]`]].
+
+:::note
+A redirect never replaces a real page. If a path in `redirect_from` is still a page, the page stays and the build warns you.
 :::
 
 ## SEO Meta Tags

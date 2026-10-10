@@ -85,6 +85,9 @@ enabled = true
 
 [redirects]
 "old-faq" = "help/faq"
+
+[llms]
+enabled = true
 ```
 :::
 ::::
@@ -354,6 +357,48 @@ unprefixed = true
 :::
 
 Une redirection vers une page qui n'existe pas, une redirection dont l'ancien chemin est encore une vraie page (la page l'emporte toujours), deux redirections qui envoient le même chemin à des endroits différents, et des redirections qui tournent en boucle affichent chacune un avertissement à la compilation : `docanvil build --strict` échoue donc. `docanvil doctor` vérifie toutes les redirections à l'avance et indique la ligne concernée dans `docanvil.toml` ou dans le front matter de la page. Une redirection vers une [[writing/front-matter|page brouillon]] est ignorée sans avertissement jusqu'à la publication de la page.
+
+### Section `[llms]`
+
+Écrit des fichiers [llms.txt](https://llmstxt.org) : une carte de votre documentation en Markdown simple, que les outils et assistants d'IA peuvent lire au lieu d'analyser votre HTML. Pratique quand on interroge un assistant sur votre projet, ou qu'on confie votre documentation à un agent de code.
+
+| Clé | Défaut | Description |
+|-----|---------|-------------|
+| `enabled` | `false` | Écrit `llms.txt` (et `llms-full.txt`) avec `docanvil build` |
+| `description` | — | Un résumé du projet en une ligne, affiché sous son nom |
+| `full` | `true` | Écrit aussi `llms-full.txt`, avec le Markdown de toutes les pages dans un seul fichier. Définissez à `false` pour n'avoir que l'index |
+
+```toml
+[llms]
+enabled = true
+description = "DocAnvil transforme le Markdown en sites de documentation rapides et faciles à parcourir."
+```
+
+`llms.txt` commence par le nom du projet et sa `description`, puis liste chaque page sous forme de lien, regroupées comme dans votre barre latérale. La `description` du front matter de chaque page s'affiche à côté de son lien : cela vaut la peine de les écrire.
+
+```markdown
+# Ma documentation
+
+> DocAnvil transforme le Markdown en sites de documentation rapides et faciles à parcourir.
+
+## Guides
+
+- [Installation](https://docs.example.com/guides/install.html): Installer DocAnvil sur macOS, Linux ou Windows
+- [Configuration](https://docs.example.com/guides/configuration.html)
+```
+
+`llms-full.txt` contient le Markdown de toutes les pages, dans le même ordre, chacune précédée de son titre et d'un lien `Source:`. C'est votre Markdown tel que vous l'avez écrit, mis au propre pour que d'autres outils puissent le lire :
+
+- les fragments `:::include` et les blocs de code `file="…"` sont remplis
+- les [[writing/wiki-links|wiki-links]] deviennent des liens Markdown classiques avec des URL complètes
+- les ajouts propres à DocAnvil, comme `{#id-perso}` sur les titres ou `numbers` sur les blocs de code, sont retirés
+- les blocs de code restent exactement tels qu'écrits, et les [[writing/components|composants]] apparaissent avec leur syntaxe `:::`
+
+Définissez `site_url` sous `[build]` pour que les liens soient des URL complètes que les outils d'IA peuvent suivre. Sans elle, ils sont relatifs, et `docanvil doctor` vous le rappelle.
+
+**Les sites traduits et versionnés** ont un `llms.txt` et un `llms-full.txt` dans chaque dossier de langue et de version (`/fr/llms.txt`, `/v2/en/llms.txt`). Les outils d'IA cherchent `/llms.txt` à la racine du site : celui-là couvre la version actuelle dans la langue par défaut, et se termine par des liens vers tous les autres.
+
+Les [[writing/front-matter|pages brouillon]] sont exclues, et vous pouvez exclure n'importe quelle autre page avec `"llms": false` dans son front matter. `docanvil serve` n'écrit pas ces fichiers.
 
 ## nav.toml
 

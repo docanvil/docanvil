@@ -29,7 +29,7 @@ site_url = "https://mon-utilisateur.github.io/mon-depot/"
 ```
 
 - **`base_url`** est le préfixe de chemin de chaque lien et ressource. Sans lui, le CSS, le JS et les liens de navigation pointent vers la racine du domaine et le site s'affiche sans style.
-- **`site_url`** est l'adresse publique complète. DocAnvil l'utilise pour `sitemap.xml`, les URL canoniques et les autres balises SEO.
+- **`site_url`** est l'adresse publique complète. DocAnvil l'utilise pour `sitemap.xml`, `llms.txt`, les URL canoniques et les autres balises SEO.
 
 Si vous publiez un **site utilisateur ou d'organisation** (un dépôt nommé `<utilisateur>.github.io`) ou utilisez un domaine personnalisé, le site est servi depuis la racine : gardez `base_url = "/"` et définissez `site_url` sur cette adresse.
 

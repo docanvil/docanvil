@@ -44,6 +44,7 @@ All fields are optional. You can include any combination of them or omit front m
 | `draft` | Boolean | Set to `true` to keep the page out of production builds while you work on it (see [Draft Pages](#draft-pages)) |
 | `redirect_from` | List of strings | Old paths that should send readers to this page, so links to them keep working (see [Redirects](#redirects)) |
 | `llms` | Boolean | Set to `false` to leave this page out of `llms.txt` and `llms-full.txt` (see `[llms]` in [[guides/configuration\|Configuration]]) |
+| `toc` | Boolean | Set to `false` to hide the on-page table of contents, e.g. on a [[writing/components|landing page]] |
 
 Unknown fields are silently ignored, so you can add your own custom metadata without causing errors.
 

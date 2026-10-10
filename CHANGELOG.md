@@ -7,6 +7,8 @@ All notable changes to DocAnvil will be documented in this file.
 ### Added
 
 - Repository link in the header: set `repo` under `[project]` (e.g. `repo = "https://github.com/org/repo"`) and every page's header links to it, with the GitHub, GitLab or Bitbucket logo, or a generic Git icon for other hosts. `docanvil doctor` warns if it isn't a web address
+- Landing page components: `::::hero{eyebrow="…" title="…"}` for a big page header, `:::buttons` to turn a row of links into call-to-action buttons (the first is the primary one; wiki-links keep working), and `::::features` with `:::feature{icon="⚡" title="…"}` tiles in a responsive grid. They follow your theme colours in light and dark mode, and `docanvil component eject` lets you restyle them like any other built-in
+- `"toc": false` in a page's front matter hides the on-page table of contents, for pages like a landing page that don't need one
 
 ### Fixed
 

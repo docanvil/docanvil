@@ -227,9 +227,11 @@
     {% endblock %}
   </main>
 
+  {% if toc %}
   <aside class="toc">
     <nav class="toc-nav" aria-label="Table of contents"></nav>
   </aside>
+  {% endif %}
 
   {% if search_enabled %}
   <div class="search-overlay" aria-modal="true" role="dialog" aria-label="Search documentation">

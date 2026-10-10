@@ -1,56 +1,62 @@
 ---
 {
-  "description": "Transformez du Markdown en sites de documentation rapides et consultables, avec un seul binaire Rust."
+  "description": "Transformez du Markdown en sites de documentation rapides et consultables, avec un seul binaire Rust.",
+  "toc": false
 }
 ---
 
-# DocAnvil
+::::hero{eyebrow="Documentation propulsée par Markdown" title="De belles docs. Vite construites."}
+Transformez du Markdown en sites de documentation rapides, consultables et soignés. Un seul binaire, sans outillage compliqué.
 
-Un générateur de documentation statique qui transforme Markdown en de superbes sites HTML.
+:::buttons
+[[guides/getting-started|Commencer →]] [Voir sur GitHub ↗](https://github.com/docanvil/docanvil)
+:::
+::::
 
-## Quick Start
+## Démarrage rapide
 
 ```bash
-# Install
-cargo install --path .
-
-# Create a new docs project
+curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
 docanvil new my-docs
-
-# Start the dev server with live reload
-cd my-docs
-docanvil serve
+cd my-docs && docanvil serve
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser and start writing.
+Ouvrez [http://localhost:3000](http://localhost:3000) et commencez à écrire — chaque enregistrement apparaît aussitôt dans votre navigateur. Sous Windows, ou vous préférez Cargo ? Consultez [[guides/getting-started|Premiers pas]].
 
-## Features
+## Ce que vous obtenez
 
-- **Markdown with GFM** — tables, task lists, strikethrough, footnotes, and front matter via comrak
-- **Wiki-links** — connect pages with double-bracket links
-- **Components** — notes, warnings, tabs, code groups, and mermaid diagrams using `:::directive` blocks
-- **Full-text search** — client-side search powered by MiniSearch.js with a build-time JSON index
-- **Mermaid diagrams** — flowcharts, sequence diagrams, and more via `:::mermaid` blocks
-- **Theming** — CSS variables, custom stylesheets, and full template overrides with Tera
-- **Localisation** — multi-language docs with per-locale URLs, navigation, search, and a language switcher
-- **Live reload** — edit a file and your browser refreshes automatically
-- **Static output** — build to plain HTML and deploy anywhere
-
-## Explore the Docs
-
-| Section | What You'll Learn |
-|---------|-------------------|
-| [[guides/getting-started\|Installation]] | Install DocAnvil and create your first project |
-| [[guides/configuration\|Configuration]] | Customize `docanvil.toml` and `nav.toml` |
-| [[guides/theming\|Theming]] | CSS variables, custom CSS, and template overrides |
-| [[guides/localisation\|Localisation]] | Multi-language docs with locale suffixes and language switcher |
-| [[writing/markdown\|Markdown]] | All supported Markdown and GFM features |
-| [[writing/wiki-links\|Links & Popovers]] | Wiki-link syntax and inline popovers |
-| [[writing/components\|Components]] | Notes, warnings, tabs, and code groups |
-| [[reference/cli\|CLI Commands]] | Every command, flag, and option |
-| [[reference/project-structure\|Project Structure]] | Directory layout and page discovery |
-| [[reference/css-variables\|CSS Variables]] | Complete variable reference with defaults |
-
-:::note{title="Getting started?"}
-Run `docanvil serve` in your project directory and open your browser — every change you save will appear instantly.
+::::features
+:::feature{icon="⚡" title="Builds statiques rapides"}
+Du HTML simple à déployer n'importe où, avec rechargement à chaud pendant l'écriture.
 :::
+:::feature{icon="🔍" title="Recherche plein texte"}
+Un index de recherche côté client, généré pour chaque page sans configuration.
+:::
+:::feature{icon="🧩" title="Composants"}
+Notes, onglets, groupes de code, diagrammes — ou [[writing/components|vos propres templates]].
+:::
+:::feature{icon="🎨" title="Thèmes personnalisés"}
+Variables CSS, un [[guides/theming|générateur de thèmes]] et la surcharge complète des templates.
+:::
+:::feature{icon="🌍" title="Localisation"}
+[[guides/localisation|Une documentation multilingue]] avec navigation et recherche par langue.
+:::
+:::feature{icon="🗂️" title="Versions"}
+Gardez [[guides/versioning|la documentation de chaque version]] côte à côte, avec un sélecteur de version.
+:::
+::::
+
+## Explorer la documentation
+
+| Section | Ce que vous apprendrez |
+|---------|------------------------|
+| [[guides/getting-started\|Installation]] | Installer DocAnvil et créer votre premier projet |
+| [[guides/configuration\|Configuration]] | Personnaliser `docanvil.toml` et `nav.toml` |
+| [[guides/theming\|Thèmes]] | Variables CSS, styles personnalisés et surcharge des templates |
+| [[guides/localisation\|Localisation]] | Documentation multilingue avec suffixes de langue et sélecteur de langue |
+| [[writing/markdown\|Markdown]] | Toutes les fonctionnalités Markdown et GFM prises en charge |
+| [[writing/wiki-links\|Liens et popovers]] | Syntaxe des wiki-links et popovers en ligne |
+| [[writing/components\|Composants]] | Notes, onglets, groupes de code, pages d'accueil et vos propres templates |
+| [[reference/cli\|Commandes CLI]] | Chaque commande, option et paramètre |
+| [[reference/project-structure\|Structure du projet]] | Organisation des dossiers et découverte des pages |
+| [[reference/css-variables\|Variables CSS]] | Référence complète des variables et de leurs valeurs par défaut |

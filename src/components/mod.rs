@@ -638,7 +638,11 @@ mod tests {
         assert_eq!(
             crate::components::templates::builtin_names(),
             vec![
+                "buttons",
                 "code-group",
+                "feature",
+                "features",
+                "hero",
                 "lozenge",
                 "mermaid",
                 "note",
@@ -730,6 +734,55 @@ mod tests {
             render("lozenge", &[], ""),
             "<span class=\"lozenge default\"></span>"
         );
+    }
+
+    #[test]
+    fn characterize_hero() {
+        assert_eq!(
+            render(
+                "hero",
+                &[("eyebrow", "New"), ("title", "Docs & more")],
+                "Lead text."
+            ),
+            "<section class=\"hero\">\n<p class=\"hero-eyebrow\">New</p>\n<h1 class=\"hero-title\">Docs &amp; more</h1>\n<div class=\"hero-body\">\n<p>Lead text.</p>\n</div>\n</section>"
+        );
+        assert_eq!(
+            render("hero", &[], "Lead text."),
+            "<section class=\"hero\">\n<div class=\"hero-body\">\n<p>Lead text.</p>\n</div>\n</section>"
+        );
+    }
+
+    #[test]
+    fn characterize_buttons() {
+        assert_eq!(
+            render(
+                "buttons",
+                &[],
+                "[Start](start.html) [More](https://example.com)"
+            ),
+            "<div class=\"buttons\">\n<p><a href=\"start.html\">Start</a> <a href=\"https://example.com\">More</a></p>\n</div>"
+        );
+    }
+
+    #[test]
+    fn characterize_feature_tiles() {
+        assert_eq!(
+            render(
+                "feature",
+                &[("icon", "⚡"), ("title", "Fast")],
+                "Deploy anywhere."
+            ),
+            "<div class=\"feature\">\n<span class=\"feature-icon\" aria-hidden=\"true\">⚡</span>\n<p class=\"feature-title\">Fast</p>\n<p>Deploy anywhere.</p>\n</div>"
+        );
+        assert_eq!(
+            render("feature", &[], "Plain."),
+            "<div class=\"feature\">\n<p>Plain.</p>\n</div>"
+        );
+        let html = render_page(
+            "::::features\n:::feature{title=\"A\"}\nOne\n:::\n:::feature{title=\"B\"}\nTwo\n:::\n::::\n",
+        );
+        assert!(html.starts_with("<div class=\"features\">"), "{html}");
+        assert_eq!(html.matches("<div class=\"feature\">").count(), 2, "{html}");
     }
 
     #[test]

@@ -50,11 +50,15 @@ pub fn page_breadcrumbs(trail: Option<&Vec<Crumb>>, base_url: &str) -> Vec<Bread
 
 /// Show the front matter `description` as a subtitle under the page's leading `<h1>`.
 ///
-/// Pages that don't open with an `<h1>` get the subtitle at the top instead.
+/// Pages that don't open with an `<h1>` get the subtitle at the top instead, except
+/// pages that open with a `:::hero`, which already is the page's header.
 pub fn with_page_description(html: String, description: Option<&str>) -> String {
     let Some(description) = description.map(str::trim).filter(|d| !d.is_empty()) else {
         return html;
     };
+    if html.trim_start().starts_with("<section class=\"hero\"") {
+        return html;
+    }
     let subtitle = format!(
         "<p class=\"page-description\">{}</p>\n",
         html_escape(description)
@@ -243,6 +247,7 @@ impl TemplateRenderer {
         context.insert("breadcrumbs", &ctx.breadcrumbs);
         context.insert("last_updated", &ctx.last_updated);
         context.insert("draft", &ctx.draft);
+        context.insert("toc", &ctx.toc);
 
         self.tera
             .render("layout.html", &context)
@@ -302,6 +307,8 @@ pub struct PageContext {
     pub last_updated: Option<String>,
     /// The page is marked `"draft": true` (only rendered by `serve` and `build --drafts`).
     pub draft: bool,
+    /// Show the on-page table of contents (front matter `"toc": false` hides it).
+    pub toc: bool,
 }
 
 #[cfg(test)]
@@ -447,5 +454,12 @@ mod tests {
         let html = "<h1>T</h1>".to_string();
         assert_eq!(with_page_description(html.clone(), None), html);
         assert_eq!(with_page_description(html.clone(), Some("  ")), html);
+    }
+
+    #[test]
+    fn leading_hero_keeps_description_out_of_the_page() {
+        let html =
+            "<section class=\"hero\">\n<h1 class=\"hero-title\">T</h1>\n</section>".to_string();
+        assert_eq!(with_page_description(html.clone(), Some("Desc")), html);
     }
 }

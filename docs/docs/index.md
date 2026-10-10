@@ -1,44 +1,54 @@
 ---
 {
-  "description": "Turn Markdown into fast, searchable documentation sites with a single Rust binary."
+  "description": "Turn Markdown into fast, searchable documentation sites with a single Rust binary.",
+  "toc": false
 }
 ---
 
-# DocAnvil
+::::hero{eyebrow="Markdown-powered documentation" title="Beautiful docs. Built fast."}
+Turn Markdown into fast, searchable, beautifully styled documentation sites. One binary, no complicated tooling.
 
-A static documentation generator that turns Markdown into beautiful HTML sites.
+:::buttons
+[[guides/getting-started|Get started →]] [View on GitHub ↗](https://github.com/docanvil/docanvil)
+:::
+::::
 
-## Quick Start
+## Quick start
 
 ```bash
-# Install
-cargo install --path .
-
-# Create a new docs project
+curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
 docanvil new my-docs
-
-# Start the dev server with live reload
-cd my-docs
-docanvil serve
+cd my-docs && docanvil serve
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser and start writing.
+Open [http://localhost:3000](http://localhost:3000) and start writing — every save shows up in your browser instantly. On Windows, or prefer Cargo? See [[guides/getting-started|Getting Started]].
 
-## Features
+## What you get
 
-- **Markdown with GFM** — tables, task lists, strikethrough, footnotes, and front matter via comrak
-- **Wiki-links** — connect pages with double-bracket links
-- **Components** — notes, warnings, tabs, code groups, and mermaid diagrams using `:::directive` blocks
-- **Full-text search** — client-side search powered by MiniSearch.js with a build-time JSON index
-- **Mermaid diagrams** — flowcharts, sequence diagrams, and more via `:::mermaid` blocks
-- **Theming** — CSS variables, custom stylesheets, and full template overrides with Tera
-- **Localisation** — multi-language docs with per-locale URLs, navigation, search, and a language switcher
-- **Live reload** — edit a file and your browser refreshes automatically
-- **Static output** — build to plain HTML and deploy anywhere
+::::features
+:::feature{icon="⚡" title="Fast static builds"}
+Plain HTML output you can deploy anywhere, with live reload while you write.
+:::
+:::feature{icon="🔍" title="Full-text search"}
+A client-side search index, built for every page with no setup.
+:::
+:::feature{icon="🧩" title="Components"}
+Notes, tabs, code groups, diagrams — or [[writing/components|your own templates]].
+:::
+:::feature{icon="🎨" title="Custom themes"}
+CSS variables, a [[guides/theming|theme generator]] and full template overrides.
+:::
+:::feature{icon="🌍" title="Localisation"}
+[[guides/localisation|Multi-language docs]] with per-locale navigation and search.
+:::
+:::feature{icon="🗂️" title="Versioning"}
+Keep [[guides/versioning|docs for every release]] side by side, with a version switcher.
+:::
+::::
 
-## Explore the Docs
+## Explore the docs
 
-| Section | What You'll Learn |
+| Section | What you'll learn |
 |---------|-------------------|
 | [[guides/getting-started\|Installation]] | Install DocAnvil and create your first project |
 | [[guides/configuration\|Configuration]] | Customize `docanvil.toml` and `nav.toml` |
@@ -46,11 +56,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser and start wr
 | [[guides/localisation\|Localisation]] | Multi-language docs with locale suffixes and language switcher |
 | [[writing/markdown\|Markdown]] | All supported Markdown and GFM features |
 | [[writing/wiki-links\|Links & Popovers]] | Wiki-link syntax and inline popovers |
-| [[writing/components\|Components]] | Notes, warnings, tabs, and code groups |
+| [[writing/components\|Components]] | Notes, tabs, code groups, landing pages and your own templates |
 | [[reference/cli\|CLI Commands]] | Every command, flag, and option |
 | [[reference/project-structure\|Project Structure]] | Directory layout and page discovery |
 | [[reference/css-variables\|CSS Variables]] | Complete variable reference with defaults |
-
-:::note{title="Getting started?"}
-Run `docanvil serve` in your project directory and open your browser — every change you save will appear instantly.
-:::

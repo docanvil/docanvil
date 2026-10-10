@@ -358,6 +358,60 @@ This is an important note.
     );
 }
 
+#[test]
+fn test_toc_front_matter_hides_table_of_contents() {
+    let home = "---\n{\"toc\": false}\n---\n# Home\n\n## Section\n\nBody.";
+    let guide = "# Guide\n\n## Section\n\nBody.";
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", home), ("guide.md", guide)]);
+    build_project(dir.path()).expect("build should succeed");
+
+    assert!(
+        !read_output(dir.path(), "index.html").contains("class=\"toc-nav\""),
+        "\"toc\": false should drop the table of contents"
+    );
+    assert!(
+        read_output(dir.path(), "guide.html").contains("class=\"toc-nav\""),
+        "pages keep the table of contents by default"
+    );
+}
+
+#[test]
+fn test_landing_components_render_with_resolved_links() {
+    let page = r#"# Home
+
+::::hero{eyebrow="Markdown docs" title="Beautiful docs."}
+Turn Markdown into sites.
+
+:::buttons
+[[guide|Get started]] [GitHub](https://github.com/docanvil/docanvil)
+:::
+::::
+
+::::features
+:::feature{icon="⚡" title="Fast builds"}
+Deploy anywhere.
+:::
+::::
+"#;
+    let dir = create_project(
+        DEFAULT_CONFIG,
+        &[("index.md", page), ("guide.md", "# Guide\n\nBody.")],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("<section class=\"hero\">"), "{html}");
+    assert!(html.contains("Markdown docs"));
+    assert!(html.contains("Beautiful docs."));
+    assert!(html.contains("<div class=\"buttons\">"));
+    assert!(
+        html.contains("<a href=\"/guide.html\">Get started</a>"),
+        "wiki-links inside buttons should resolve"
+    );
+    assert!(html.contains("<div class=\"features\">"));
+    assert!(html.contains("Fast builds") && html.contains("Deploy anywhere."));
+}
+
 // ── i18n integration tests ──
 
 const I18N_CONFIG: &str = r#"

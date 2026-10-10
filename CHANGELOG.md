@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-10
+
 ### Added
 
 - Repository link in the header: set `repo` under `[project]` (e.g. `repo = "https://github.com/org/repo"`) and every page's header links to it, with the GitHub, GitLab or Bitbucket logo, or a generic Git icon for other hosts. `docanvil doctor` warns if it isn't a web address

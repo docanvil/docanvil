@@ -11,6 +11,7 @@ use crate::pipeline::code_blocks::META_MARKER;
 use crate::pipeline::directives::{FenceState, inline_code_ranges};
 use crate::pipeline::frontmatter::{self, FrontMatter};
 use crate::pipeline::images;
+use crate::pipeline::wikilinks;
 use crate::project::{self, NavNode, PageInfo, PageInventory};
 
 /// DocAnvil's `docanvil key=value …` meta after a fence's language.
@@ -19,7 +20,6 @@ static FENCE_META_RE: LazyLock<Regex> =
 /// An ATX heading ending in a `{#id .class}` attribute block.
 static HEADING_ATTRS_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^( {0,3}#{1,6}\s.*?)\s*\{\s*[#.][^{}]*\}\s*$").unwrap());
-static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[(.*?)\]\]").unwrap());
 static IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"!\[([^\]]*)\]\(([^)\s]+)(\s+"[^"]*")?\)"#).unwrap());
 
@@ -98,7 +98,8 @@ pub fn clean_markdown(
     out
 }
 
-/// Clean one line outside code blocks, skipping its inline code spans.
+/// Clean one line outside code blocks: resolve its wiki-links (whose display
+/// text may hold inline code) and rewrite images outside inline code spans.
 fn clean_line(
     line: &str,
     inventory: &PageInventory,
@@ -109,52 +110,60 @@ fn clean_line(
     let line = HEADING_ATTRS_RE.replace(line, "$1");
     let mut out = String::with_capacity(line.len());
     let mut last = 0;
-    for (start, end) in inline_code_ranges(&line) {
-        out.push_str(&clean_text(
-            &line[last..start],
+    for (start, end) in wikilinks::find_links(&line, &inline_code_ranges(&line)) {
+        out.push_str(&clean_text(&line[last..start], base, project_root));
+        out.push_str(&link_markdown(
+            &line[start + 2..end - 2],
             inventory,
             locale,
             base,
-            project_root,
         ));
-        out.push_str(&line[start..end]);
         last = end;
     }
-    out.push_str(&clean_text(
-        &line[last..],
-        inventory,
-        locale,
-        base,
-        project_root,
-    ));
+    out.push_str(&clean_text(&line[last..], base, project_root));
     out
 }
 
-/// Resolve wiki-links and rewrite relative images in text with no code in it.
-fn clean_text(
-    text: &str,
+/// A wiki-link's inner text as `[display](url)`, or just its display text when
+/// the target is missing or a draft.
+fn link_markdown(
+    inner: &str,
     inventory: &PageInventory,
     locale: Option<&str>,
     base: &str,
-    project_root: &Path,
 ) -> String {
-    let text = WIKILINK_RE.replace_all(text, |caps: &Captures| {
-        let inner = &caps[1];
-        let (target, display) = match inner.split_once('|') {
-            Some((target, display)) => (target.trim(), display.trim()),
-            None => (inner.trim(), inner.trim()),
-        };
-        let resolved = match locale {
-            Some(l) => inventory.resolve_link_in_locale(target, l),
-            None => inventory.resolve_link(target),
-        };
-        match resolved {
-            Some(page) => format!("[{display}]({})", page_url(base, page)),
-            None => display.to_string(),
-        }
-    });
+    let (target, display) = match inner.split_once('|') {
+        Some((target, display)) => (target.trim(), display.trim()),
+        None => (inner.trim(), inner.trim()),
+    };
+    let resolved = match locale {
+        Some(l) => inventory.resolve_link_in_locale(target, l),
+        None => inventory.resolve_link(target),
+    };
+    match resolved {
+        Some(page) => format!("[{display}]({})", page_url(base, page)),
+        None => display.to_string(),
+    }
+}
+
+/// Rewrite relative images in text with no wiki-links in it, skipping its
+/// inline code spans.
+fn clean_text(text: &str, base: &str, project_root: &Path) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut last = 0;
+    for (start, end) in inline_code_ranges(text) {
+        out.push_str(&rewrite_images(&text[last..start], base, project_root));
+        out.push_str(&text[start..end]);
+        last = end;
+    }
+    out.push_str(&rewrite_images(&text[last..], base, project_root));
+    out
+}
+
+/// Rewrite relative images in text with no code in it.
+fn rewrite_images(text: &str, base: &str, project_root: &Path) -> String {
     IMAGE_RE
-        .replace_all(&text, |caps: &Captures| {
+        .replace_all(text, |caps: &Captures| {
             match images::rewrite_src(&caps[2], base, project_root) {
                 Some(src) => format!(
                     "![{}]({src}{})",
@@ -389,6 +398,19 @@ mod tests {
                 dir.path()
             ),
             "See [guide/setup](https://x.dev/guide/setup.html), [setup](https://x.dev/guide/setup.html) and gone.\n"
+        );
+    }
+
+    #[test]
+    fn wiki_links_with_inline_code_in_their_text() {
+        let (dir, inv) = site(&["index.md", "guide/setup.md"], None);
+        assert_eq!(
+            clean(
+                "See [[guide/setup|the `setup` page]], [[missing|the `gone` page]] and `[[nav]]`.\n",
+                &inv,
+                dir.path()
+            ),
+            "See [the `setup` page](https://x.dev/guide/setup.html), the `gone` page and `[[nav]]`.\n"
         );
     }
 

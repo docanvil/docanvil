@@ -1776,6 +1776,65 @@ fn test_version_switcher_skips_drafts() {
     assert!(v1.contains("&#x2F;v2&#x2F;index.html"));
 }
 
+const LOCALE_SECTION: &str = "\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n";
+
+#[test]
+fn test_version_switcher_checks_the_current_locale() {
+    let dir = create_project(
+        &format!("{VERSION_CONFIG}{SITE_URL}{LOCALE_SECTION}"),
+        &[
+            ("v1/index.en.md", "# Home"),
+            ("v1/index.fr.md", "# Accueil"),
+            ("v1/guide.en.md", "# Guide"),
+            ("v1/guide.fr.md", "# Guide FR"),
+            ("v1/faq.en.md", "# FAQ"),
+            ("v1/faq.fr.md", "# FAQ FR"),
+            ("v2/index.en.md", "# Home"),
+            ("v2/index.fr.md", "# Accueil"),
+            // v2/guide has no French translation
+            ("v2/guide.en.md", "# Guide"),
+            // v2/faq's French translation is a draft
+            ("v2/faq.en.md", "# FAQ"),
+            ("v2/faq.fr.md", DRAFT_PAGE),
+        ],
+    );
+    build_project(dir.path()).expect("build should succeed");
+
+    for page in ["guide", "faq"] {
+        assert!(!output_exists(dir.path(), &format!("v2/fr/{page}.html")));
+        // French readers get v2's French home page, not a 404 (Tera escapes `/`)
+        let fr = read_output(dir.path(), &format!("v1/fr/{page}.html"));
+        assert!(!fr.contains(&format!("&#x2F;v2&#x2F;fr&#x2F;{page}.html")));
+        assert!(fr.contains("&#x2F;v2&#x2F;fr&#x2F;index.html"));
+        // English readers still get the matching v2 page
+        let en = read_output(dir.path(), &format!("v1/en/{page}.html"));
+        assert!(en.contains(&format!("&#x2F;v2&#x2F;en&#x2F;{page}.html")));
+    }
+}
+
+#[test]
+fn test_version_switcher_uses_front_matter_slugs() {
+    let dir = create_project(
+        &format!("{VERSION_CONFIG}{SITE_URL}"),
+        &[
+            ("v1/index.md", "# Home"),
+            (
+                "v1/setup.md",
+                "---\n{\"slug\": \"install\"}\n---\n# Install",
+            ),
+            ("v2/index.md", "# Home"),
+            ("v2/install.md", "# Install"),
+        ],
+    );
+    build_project_strict(dir.path()).expect("strict build should succeed");
+
+    // v1's page is published as install.html, so it should link to v2's install page
+    let v2 = read_output(dir.path(), "v2/install.html");
+    assert!(v2.contains("&#x2F;v1&#x2F;install.html"));
+    let v1 = read_output(dir.path(), "v1/install.html");
+    assert!(v1.contains("&#x2F;v2&#x2F;install.html"));
+}
+
 // ── Redirects ──
 
 const MOVED_PAGE: &str = "---\n{\"redirect_from\": [\"setup\"]}\n---\n# Install";

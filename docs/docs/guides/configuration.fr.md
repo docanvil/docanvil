@@ -110,7 +110,7 @@ Le champ `name` sous `[project]` est obligatoire. DocAnvil ne pourra pas démarr
 | `output_dir` | `"dist"` | Répertoire où le site statique est généré |
 | `base_url` | `"/"` | Préfixe de chemin URL pour les déploiements dans des sous-répertoires (ex. `"/mon-projet/"`) |
 | `site_url` | `None` | URL complète du site (ex. `"https://exemple.com/"`) pour les URLs canoniques, les balises hreflang, et le sitemap |
-| `draft_links` | `"text"` | Rendu des wiki-links vers des [[writing/front-matter|pages brouillon]] dans les compilations qui les excluent. `"text"` affiche le texte du lien sans rien signaler ; `"warn"` affiche aussi un avertissement, donc `--strict` échoue |
+| `draft_links` | `"text"` | Rendu des wiki-links vers des [[writing/front-matter\|pages brouillon]] dans les compilations qui les excluent. `"text"` affiche le texte du lien sans rien signaler ; `"warn"` affiche aussi un avertissement, donc `--strict` échoue |
 
 :::note{title="Recommandé pour l'i18n"}
 Définir `site_url` est fortement recommandé lors de l'utilisation de la localisation. Cela permet les URLs hreflang absolues, les balises `<link>` canoniques, et les balises meta `og:url` — toutes importantes pour le SEO multilingue.
@@ -270,7 +270,7 @@ branch = "main"
 
 Les liens pointent toujours vers le fichier à partir duquel la page a été générée : les pages traduites (`page.fr.md`) et les anciennes versions (`docs/v1/page.md`) renvoient vers leur propre source. Pour masquer le lien sur une seule page, définissez `"edit_link": false` dans son [[writing/front-matter|front matter]]. Les liens de modification n'apparaissent ni sur la page 404 ni dans les exports PDF.
 
-Pendant que `docanvil serve` tourne, le lien devient **Open in editor** et ouvre la source de la page dans votre éditeur local, avec ou sans section `[edit]`. Voir [[reference/cli|`docanvil serve`]] pour choisir votre éditeur.
+Pendant que `docanvil serve` tourne, le lien devient **Open in editor** et ouvre la source de la page dans votre éditeur local, avec ou sans section `[edit]`. Voir `docanvil serve` dans [[reference/cli|Commandes CLI]] pour choisir votre éditeur.
 
 :::note{title="Git auto-hébergé"}
 GitHub Enterprise et GitLab auto-hébergé fonctionnent en définissant `provider`. Bitbucket Server et Data Center ne sont pas encore pris en charge, car ils ne proposent pas de lien de modification direct. `docanvil doctor` vous avertit si vos paramètres `[edit]` ne peuvent pas produire de liens valides.

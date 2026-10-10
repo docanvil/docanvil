@@ -120,7 +120,7 @@ on:
 
 ## Dates de dernière mise à jour
 
-Par défaut, `actions/checkout` ne récupère que le dernier commit. Si vous avez activé [[guides/configuration|`[last_updated]`]], toutes les pages afficheraient alors la même date : DocAnvil émet un avertissement et `--strict` fait échouer le build. Récupérez plutôt tout l'historique :
+Par défaut, `actions/checkout` ne récupère que le dernier commit. Si vous avez activé `[last_updated]` dans votre [[guides/configuration|configuration]], toutes les pages afficheraient alors la même date : DocAnvil émet un avertissement et `--strict` fait échouer le build. Récupérez plutôt tout l'historique :
 
 ```yaml
       - uses: actions/checkout@v4

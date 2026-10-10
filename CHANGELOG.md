@@ -4,6 +4,21 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-11
+
+### Added
+
+- New built-in layout components: link cards (`cards` / `link-card`), numbered tutorials (`steps` / `step`), native collapsible `details`, captioned `figure` frames with optional browser chrome, and responsive `columns` / `column` layouts. All work without additional JavaScript (#97)
+- `tip`, `success`, and `danger` callouts, with Lucide icons and theme-aware accent colours (#97)
+- Bundled Lucide icons for feature tiles (`icon="lucide:zap"`) and component or layout templates (`{{ icon(name="rocket") | safe }}`). Only selected SVGs are rendered into page HTML; existing emoji icons remain supported (#97)
+- Bundled Devicon logos for 26 common code-block languages and formats, with language aliases, colour accents, and a generic fallback (#97)
+
+### Changed
+
+- Code blocks now have a compact header with the language icon and optional title on the left, and the language name and an always-visible Copy button on the right. Copy feedback reports success or failure without including header text in copied code (#97)
+- Feature tile icons now sit beside their headings; tiles without icons reserve no empty icon space (#97)
+- Refreshed the English and French docs with navigation cards, numbered setup and migration steps, collapsible optional examples, and side-by-side theming snippets. The Getting Started page has a simpler introduction and manual-download section (#97)
+
 ## [1.2.1] - 2026-10-10
 
 ### Added

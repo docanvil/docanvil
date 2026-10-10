@@ -167,14 +167,18 @@ impl GitDates {
                 "-c",
                 "log.showSignature=false",
                 "log",
-                "-1",
                 "--format=%at",
                 "--",
                 &name,
             ],
         )
         .ok()?;
-        out.trim().parse::<i64>().ok().map(Date::from_unix)
+        // Every commit, not `-1`: the first one listed (newest commit date) may not
+        // have the newest author date after a rebase or cherry-pick
+        out.lines()
+            .filter_map(|line| line.trim().parse::<i64>().ok())
+            .max()
+            .map(Date::from_unix)
     }
 }
 
@@ -210,7 +214,12 @@ fn parse_log(output: &str, repo_root: &Path) -> HashMap<PathBuf, Date> {
         } else if let Some(date) = current {
             let mut path = repo_root.to_path_buf();
             path.extend(token.split('/'));
-            dates.entry(path).or_insert(date);
+            // Not just the first date seen: git log orders by commit date, and a
+            // rebased or cherry-picked commit keeps an older author date
+            dates
+                .entry(path)
+                .and_modify(|d: &mut Date| *d = (*d).max(date))
+                .or_insert(date);
         }
     }
     dates
@@ -363,7 +372,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_log_newest_first_wins() {
+    fn parse_log_reads_dates_per_path() {
         let out = "\x001770334200\0\ndocs/c.md\0\x001767348000\0\ndocs/a b.md\0docs/c.md\0";
         let map = parse_log(out, Path::new("/repo"));
         assert_eq!(map[Path::new("/repo/docs/c.md")].to_string(), "2026-02-05");
@@ -372,6 +381,15 @@ mod tests {
             "2026-01-02"
         );
         assert_eq!(map.len(), 2);
+    }
+
+    #[test]
+    fn parse_log_keeps_newest_date_when_an_older_one_comes_first() {
+        // git log orders by commit date; a rebased commit can be listed first
+        // with an older author date than a commit further down
+        let out = "\x001791504000\0\ndocs/c.md\0\x001791590400\0\ndocs/c.md\0";
+        let map = parse_log(out, Path::new("/repo"));
+        assert_eq!(map[Path::new("/repo/docs/c.md")].to_string(), "2026-10-10");
     }
 
     #[test]
@@ -399,6 +417,11 @@ mod tests {
     }
 
     fn git(dir: &Path, args: &[&str], author_date: &str) {
+        // A committer date far from the author date proves we read the author date
+        git_at(dir, args, author_date, "2030-06-15T12:00:00Z");
+    }
+
+    fn git_at(dir: &Path, args: &[&str], author_date: &str, committer_date: &str) {
         let status = std::process::Command::new("git")
             .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
             .args([
@@ -410,8 +433,7 @@ mod tests {
             .args(args)
             .current_dir(dir)
             .env("GIT_AUTHOR_DATE", author_date)
-            // A committer date far from the author date proves we read the author date
-            .env("GIT_COMMITTER_DATE", "2030-06-15T12:00:00Z")
+            .env("GIT_COMMITTER_DATE", committer_date)
             .status()
             .unwrap();
         assert!(status.success(), "git {args:?} failed");
@@ -459,6 +481,47 @@ mod tests {
         // Untracked
         std::fs::write(project.join("docs/new.md"), "# New").unwrap();
         assert_eq!(dates.date_for(&project.join("docs/new.md")), None);
+    }
+
+    #[test]
+    fn collect_keeps_newest_author_date_after_a_rebase() {
+        if !git_available() {
+            return;
+        }
+        let repo = tempfile::tempdir().unwrap();
+        let project = repo.path().join("site");
+        std::fs::create_dir_all(project.join("docs")).unwrap();
+        let commit = |text: &str, author: &str, committer: &str| {
+            std::fs::write(project.join("docs/index.md"), text).unwrap();
+            std::fs::write(repo.path().join("README.md"), text).unwrap();
+            git_at(repo.path(), &["add", "-A"], author, committer);
+            git_at(
+                repo.path(),
+                &["commit", "-q", "-m", text],
+                author,
+                committer,
+            );
+        };
+        git(repo.path(), &["init", "-q"], "2026-10-01T12:00:00Z");
+        commit("one", "2026-10-01T12:00:00Z", "2026-10-01T12:00:00Z");
+        commit("newer", "2026-10-10T12:00:00Z", "2026-10-10T12:00:00Z");
+        // Rebased: authored before "newer", committed after it, so git log lists it first
+        commit("rebased", "2026-10-09T12:00:00Z", "2026-10-11T12:00:00Z");
+
+        let mut dates = GitDates::collect(&project).unwrap();
+        assert_eq!(
+            dates
+                .date_for(&project.join("docs/index.md"))
+                .map(|d| d.to_string()),
+            Some("2026-10-10".to_string())
+        );
+        // Outside the project dir: the lazy fallback must agree
+        assert_eq!(
+            dates
+                .date_for(&repo.path().join("README.md"))
+                .map(|d| d.to_string()),
+            Some("2026-10-10".to_string())
+        );
     }
 
     #[test]

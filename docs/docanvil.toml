@@ -3,6 +3,7 @@ name = "DocAnvil"
 content_dir = "docs"
 logo = "assets/logo.png"
 favicon = "assets/logo.png"
+repo = "https://github.com/docanvil/docanvil"
 
 [build]
 output_dir = "dist"

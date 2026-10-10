@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Repository link in the header: set `repo` under `[project]` (e.g. `repo = "https://github.com/org/repo"`) and every page's header links to it, with the GitHub, GitLab or Bitbucket logo, or a generic Git icon for other hosts. `docanvil doctor` warns if it isn't a web address
+
 ### Fixed
 
 - Wiki-links with inline code in their text (``[[list|the `list` command]]``) now render as links, with the code kept. They used to be left on the page as literal `[[…]]` text, with no warning even under `--strict`, and `llms-full.txt` had the same problem (#85)

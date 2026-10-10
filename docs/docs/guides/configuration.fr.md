@@ -102,6 +102,7 @@ Le champ `name` sous `[project]` est obligatoire. DocAnvil ne pourra pas démarr
 |-----|---------|-------------|
 | `name` | *(obligatoire)* | Nom du projet affiché dans la barre latérale et les titres de pages |
 | `content_dir` | `"docs"` | Répertoire contenant vos fichiers Markdown |
+| `repo` | `None` | L'adresse web de votre dépôt, par ex. `"https://github.com/org/repo"`. Ajoute un lien vers celui-ci dans l'en-tête, avec le logo GitHub, GitLab ou Bitbucket (ou une icône Git générique pour les autres hébergeurs) |
 
 ### Section `[build]`
 

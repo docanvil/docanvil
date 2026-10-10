@@ -952,6 +952,41 @@ fn test_edit_link_uses_version_source_file() {
 }
 
 #[test]
+fn test_repo_link_in_header() {
+    let config = "[project]\nname = \"Test Docs\"\nrepo = \"https://github.com/org/repo/\"\n";
+    let dir = create_project(config, &[("index.md", "# Home")]);
+    build_project(dir.path()).unwrap();
+
+    for page in ["index.html", "404.html"] {
+        let html = read_page(dir.path(), page);
+        assert!(
+            html.contains(
+                r#"<a class="repo-link" href="https://github.com/org/repo" target="_blank""#
+            ),
+            "{page}"
+        );
+        assert!(html.contains("View source on GitHub"), "{page}");
+    }
+}
+
+#[test]
+fn test_repo_link_off_by_default() {
+    let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Home")]);
+    build_project(dir.path()).unwrap();
+    // `.repo-link` is always in the inlined CSS, so look for the element itself.
+    assert!(!read_output(dir.path(), "index.html").contains(r#"class="repo-link""#));
+}
+
+#[test]
+fn test_repo_link_invalid_fails_strict() {
+    let config = "[project]\nname = \"Test Docs\"\nrepo = \"git@github.com:org/repo.git\"\n\n[build]\nsite_url = \"https://docs.example.com\"\n";
+    let dir = create_project(config, &[("index.md", "# Home")]);
+    assert!(build_project_strict(dir.path()).is_err());
+    build_project(dir.path()).unwrap();
+    assert!(!read_output(dir.path(), "index.html").contains(r#"class="repo-link""#));
+}
+
+#[test]
 fn test_edit_link_unknown_host_fails_strict() {
     let config = |repo: &str| {
         format!(

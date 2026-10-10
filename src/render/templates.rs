@@ -5,6 +5,7 @@ use tera::ast::Node;
 use tera::{Context, Tera};
 
 use crate::config::ColorMode;
+use crate::edit::RepoLink;
 use crate::error::{Error, Result};
 use crate::project::Crumb;
 use crate::theme::Theme;
@@ -213,6 +214,7 @@ impl TemplateRenderer {
         context.insert("custom_css", &ctx.custom_css);
         context.insert("base_url", &ctx.base_url);
         context.insert("logo_path", &ctx.logo_path);
+        context.insert("repo", &ctx.repo);
         context.insert("favicon_path", &ctx.favicon_path);
         context.insert("live_reload", &ctx.live_reload);
         context.insert("mermaid_enabled", &ctx.mermaid_enabled);
@@ -260,6 +262,8 @@ pub struct PageContext {
     pub custom_css: Option<String>,
     pub base_url: String,
     pub logo_path: Option<String>,
+    /// Repository link in the header (`[project] repo`).
+    pub repo: Option<RepoLink>,
     pub favicon_path: Option<String>,
     pub live_reload: bool,
     pub mermaid_enabled: bool,

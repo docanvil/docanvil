@@ -102,6 +102,7 @@ The `name` field under `[project]` is required. DocAnvil will fail to load witho
 |-----|---------|-------------|
 | `name` | *(required)* | Project name displayed in the sidebar and page titles |
 | `content_dir` | `"docs"` | Directory containing your Markdown files |
+| `repo` | `None` | Your repository's web address, e.g. `"https://github.com/org/repo"`. Adds a link to it in the header, with the GitHub, GitLab or Bitbucket logo (or a generic Git icon for other hosts) |
 
 ### `[build]` Section
 

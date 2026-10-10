@@ -451,7 +451,8 @@ body {
 }
 
 /* Theme toggle */
-.theme-toggle {
+.theme-toggle,
+.repo-link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -466,7 +467,8 @@ body {
   transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
 }
 
-.theme-toggle:hover {
+.theme-toggle:hover,
+.repo-link:hover {
   color: var(--color-primary);
   border-color: var(--color-primary-light);
   background: var(--color-bg);

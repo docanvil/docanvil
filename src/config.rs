@@ -256,6 +256,8 @@ pub struct ProjectConfig {
     pub content_dir: PathBuf,
     pub logo: Option<String>,
     pub favicon: Option<String>,
+    /// Repository web URL linked from the site header (e.g. "https://github.com/org/repo").
+    pub repo: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -353,6 +355,7 @@ impl Default for ProjectConfig {
             content_dir: PathBuf::from("docs"),
             logo: None,
             favicon: None,
+            repo: None,
         }
     }
 }

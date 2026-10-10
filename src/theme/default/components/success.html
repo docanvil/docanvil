@@ -1,0 +1,10 @@
+{# success — builtin component
+   Usage: :::success{title="Optional title"} Markdown :::
+   Variables:
+     attrs.title optional heading
+     body rendered Markdown HTML (print with | safe)
+     name "success"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<div class="admonition success">
+<p class="admonition-title"><span aria-hidden="true">{{ icon(name="circle-check") | safe }}</span> {{ attrs.title | default(value="Success") }}</p>
+{{ body | safe }}</div>

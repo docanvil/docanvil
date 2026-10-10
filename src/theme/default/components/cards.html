@@ -1,0 +1,9 @@
+{# cards — builtin component
+   Usage: ::::cards then :::link-card children
+   Variables:
+     attrs.columns optional "3" (default: two columns)
+     body rendered Markdown HTML (print with | safe)
+     name "cards"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<div class="cards{% if attrs.columns | default(value="2") == "3" %} cards-three{% endif %}">
+{{ body | safe }}</div>

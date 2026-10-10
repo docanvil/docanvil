@@ -79,6 +79,7 @@ A few things worth noting:
 
 ## Adjusting for Your Project Layout
 
+:::details{title="Adjust project paths"}
 The example above assumes your DocAnvil project lives in a `docs/` subdirectory of your repo. Adjust the `--path` and sync source path to match your setup:
 
 ```yaml
@@ -90,6 +91,7 @@ The example above assumes your DocAnvil project lives in a `docs/` subdirectory 
 - docanvil build --strict --clean --path ./my-docs
 - aws s3 sync my-docs/dist/ s3://$S3_BUCKET --delete
 ```
+:::
 
 ## Last Updated Dates
 

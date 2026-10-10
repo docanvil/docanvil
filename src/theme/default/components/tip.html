@@ -1,0 +1,10 @@
+{# tip — builtin component
+   Usage: :::tip{title="Optional title"} Markdown :::
+   Variables:
+     attrs.title optional heading
+     body rendered Markdown HTML (print with | safe)
+     name "tip"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<div class="admonition tip">
+<p class="admonition-title"><span aria-hidden="true">{{ icon(name="lightbulb") | safe }}</span> {{ attrs.title | default(value="Tip") }}</p>
+{{ body | safe }}</div>

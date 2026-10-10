@@ -232,29 +232,29 @@ Les boutons fonctionnent partout, pas seulement dans un hero.
 
 ### Tuiles de fonctionnalités
 
-`::::features` dispose des tuiles `:::feature` dans une grille qui s'adapte à la largeur de l'écran. Chaque tuile accepte une `icon` (un emoji convient très bien) et un `title` facultatifs, et son corps est du Markdown, qui peut donc contenir des liens :
+`::::features` dispose des tuiles `:::feature` dans une grille qui s'adapte à la largeur de l'écran. Chaque tuile accepte une `icon` (un nom Lucide comme `lucide:zap`, ou un emoji) et un `title` facultatifs, et son corps est du Markdown, qui peut donc contenir des liens :
 
 ::::features
-:::feature{icon="⚡" title="Builds statiques rapides"}
+:::feature{icon="lucide:zap" title="Builds statiques rapides"}
 Du HTML simple à déployer n'importe où.
 :::
-:::feature{icon="🔍" title="Recherche plein texte"}
+:::feature{icon="lucide:search" title="Recherche plein texte"}
 Prête à l'emploi.
 :::
-:::feature{icon="🎨" title="Thèmes personnalisés"}
+:::feature{icon="lucide:palette" title="Thèmes personnalisés"}
 Voir [[guides/theming|Thèmes]].
 :::
 ::::
 
 ````markdown
 ::::features
-:::feature{icon="⚡" title="Builds statiques rapides"}
+:::feature{icon="lucide:zap" title="Builds statiques rapides"}
 Du HTML simple à déployer n'importe où.
 :::
-:::feature{icon="🔍" title="Recherche plein texte"}
+:::feature{icon="lucide:search" title="Recherche plein texte"}
 Prête à l'emploi.
 :::
-:::feature{icon="🎨" title="Thèmes personnalisés"}
+:::feature{icon="lucide:palette" title="Thèmes personnalisés"}
 Voir [[guides/theming|Thèmes]].
 :::
 ::::
@@ -263,6 +263,113 @@ Voir [[guides/theming|Thèmes]].
 :::note{title="Masquer la table des matières"}
 Une page d'accueil a rarement besoin de la table des matières de la page. Désactivez-la pour une seule page avec `"toc": false` dans son [[writing/front-matter|front matter]].
 :::
+
+## Autres composants de mise en page
+
+Ces composants permettent de guider les lecteurs dans les tutoriels, de mettre en valeur les pages associées et d’organiser le contenu complémentaire. Ils fonctionnent avec Markdown, sans JavaScript supplémentaire.
+
+### Cartes de liens
+
+`::::cards` regroupe des `:::link-card` avec `title`, `href` et une `icon`
+facultative. Le corps Markdown sert de description. `href` est une URL de sortie
+relative à la page, avec `.html`. Les liens dans le corps restent cliquables.
+La grille a deux colonnes par défaut ; `columns="3"` en sélectionne trois.
+Sur mobile, les cartes s’empilent.
+
+```markdown
+::::cards
+:::link-card{title="Getting started" href="../guides/getting-started.html" icon="lucide:rocket"}
+Install DocAnvil and create your first project.
+:::
+:::link-card{title="Theming" href="../guides/theming.html" icon="lucide:palette"}
+Make your documentation your own.
+:::
+::::
+```
+
+### Étapes
+
+`::::steps` contient des `:::step{title="…"}` numérotées automatiquement.
+Le corps peut contenir du Markdown, du code et d’autres composants.
+
+````markdown
+::::steps
+:::step{title="Install"}
+```bash
+cargo install docanvil
+```
+:::
+:::step{title="Create a project"}
+```bash
+docanvil new my-docs
+```
+:::
+:::step{title="Preview"}
+```bash
+cd my-docs && docanvil serve
+```
+:::
+::::
+````
+
+### Sections dépliables
+
+`:::details{title="Configuration avancée"}` crée une section native, fermée par
+défaut. `open="true"` l’ouvre initialement. Aucun JavaScript n’est nécessaire.
+
+```markdown
+:::details{title="Configuration avancée"}
+Des informations complémentaires.
+:::
+```
+
+### Figures
+
+`:::figure` encadre une image avec les attributs `src`, `alt`, `caption` et
+`browser="true"` pour une barre de navigateur décorative. Sans `src`, son corps
+peut contenir une image Markdown ou un autre composant. Sans `caption`, aucun
+espace n’est réservé. Les chemins d’images suivent les règles des images Markdown.
+
+```markdown
+:::figure{src="assets/screenshot.png" alt="Project settings screen" caption="Configure your project" browser="true"}
+:::
+```
+
+### Colonnes
+
+`::::columns` contient des `:::column`, avec deux colonnes égales par défaut ou
+`columns="3"` pour trois. Elles s’empilent sur mobile. Utilisez des clôtures plus
+longues pour les directives extérieures lorsque vous imbriquez des composants.
+
+```markdown
+::::columns
+:::column
+### Write
+Use Markdown for your content and directives for richer layouts.
+:::
+:::column
+### Publish
+Build a static site and deploy it to your preferred host.
+:::
+::::
+```
+
+### Autres encadrés
+
+`:::tip`, `:::success` et `:::danger` reprennent la présentation de `note` et
+`warning`, avec leur propre couleur et icône. L’attribut `title` est facultatif.
+
+```markdown
+:::tip{title="Astuce"}
+Une suggestion utile.
+:::
+:::success
+Votre site est prêt.
+:::
+:::danger{title="Attention"}
+Vérifiez vos sauvegardes avant de supprimer du contenu.
+:::
+```
 
 ## Composants personnalisés {#custom-components}
 
@@ -302,6 +409,16 @@ Chaque template de composant a accès à :
 | `inline` | booléen | `true` quand utilisé en ligne (voir ci-dessous) |
 
 Les composants intégrés qui ont besoin de données structurées passent des variables supplémentaires — `tabs` (une liste de `{title, body}`) pour le composant tabs, et `blocks` (une liste de `{lang, code}`) pour code-group. Vous les verrez si vous éjectez l'un ou l'autre.
+
+### Icônes
+
+Les [icônes Lucide](https://lucide.dev/icons/) sont disponibles par nom :
+`icon="lucide:zap"` ou `icon="zap"`. Les emojis restent pris en charge.
+Un nom inconnu avec le préfixe `lucide:` provoque un avertissement et un message d’erreur visible dans le composant.
+Les templates de composants et de mise en page peuvent utiliser
+`{{ icon(name="lucide:rocket") | safe }}`. Les SVG sont intégrés au HTML lors du
+build, héritent de la couleur du texte et utilisent la classe `.docanvil-icon`.
+Seules les icônes utilisées sont envoyées au navigateur ; aucun CDN n'est requis.
 
 ### Échappement
 

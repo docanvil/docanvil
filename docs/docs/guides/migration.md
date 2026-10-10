@@ -18,10 +18,20 @@ If a future major version needs changes, you'll find step-by-step migration inst
 
 If you're moving an existing documentation site to DocAnvil, the process is straightforward:
 
-1. Run `docanvil new my-docs` to scaffold a fresh project
-2. Copy your Markdown files into the `docs/` directory
-3. Set up your navigation in `nav.toml` (or let auto-discovery handle it)
-4. Adjust any tool-specific syntax (front matter format, component directives, etc.)
+::::steps
+:::step{title="Create a project"}
+Run `docanvil new my-docs` to scaffold a fresh project
+:::
+:::step{title="Copy your content"}
+Copy your Markdown files into the `docs/` directory
+:::
+:::step{title="Set up navigation"}
+Set up your navigation in `nav.toml` (or let auto-discovery handle it)
+:::
+:::step{title="Adapt the syntax"}
+Adjust any tool-specific syntax (front matter format, component directives, etc.)
+:::
+::::
 
 DocAnvil uses JSON front matter (not YAML), so you may need to convert front matter blocks. See [[writing/front-matter|Front Matter]] for the format.
 

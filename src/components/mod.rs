@@ -111,6 +111,7 @@ impl ComponentRegistry {
     pub fn with_builtins() -> Self {
         let mut tera = Tera::default();
         tera.set_escape_fn(escape_template_value);
+        tera.register_function("icon", crate::icons::template_icon);
         let mut registry = Self {
             providers: HashMap::new(),
             tera,
@@ -639,15 +640,26 @@ mod tests {
             crate::components::templates::builtin_names(),
             vec![
                 "buttons",
+                "cards",
                 "code-group",
+                "column",
+                "columns",
+                "danger",
+                "details",
                 "feature",
                 "features",
+                "figure",
                 "hero",
+                "link-card",
                 "lozenge",
                 "mermaid",
                 "note",
+                "step",
+                "steps",
+                "success",
                 "tabs",
-                "warning"
+                "tip",
+                "warning",
             ]
         );
     }
@@ -772,7 +784,7 @@ mod tests {
                 &[("icon", "⚡"), ("title", "Fast")],
                 "Deploy anywhere."
             ),
-            "<div class=\"feature\">\n<span class=\"feature-icon\" aria-hidden=\"true\">⚡</span>\n<p class=\"feature-title\">Fast</p>\n<p>Deploy anywhere.</p>\n</div>"
+            "<div class=\"feature\">\n<div class=\"feature-header\">\n<span class=\"feature-icon\" aria-hidden=\"true\">⚡</span>\n<p class=\"feature-title\">Fast</p>\n</div>\n<p>Deploy anywhere.</p>\n</div>"
         );
         assert_eq!(
             render("feature", &[], "Plain."),
@@ -783,6 +795,115 @@ mod tests {
         );
         assert!(html.starts_with("<div class=\"features\">"), "{html}");
         assert_eq!(html.matches("<div class=\"feature\">").count(), 2, "{html}");
+    }
+
+    #[test]
+    fn lucide_icons_render_in_features_and_custom_templates() {
+        let html = render(
+            "feature",
+            &[("icon", "lucide:zap"), ("title", "Fast")],
+            "Body.",
+        );
+        assert!(html.contains("<svg aria-hidden=\"true\" focusable=\"false\""));
+        assert!(html.contains("class=\"docanvil-icon lucide lucide-zap\""));
+        assert!(!html.contains("&lt;svg"));
+
+        let mut registry = ComponentRegistry::with_builtins();
+        registry
+            .add_template("badge", "{{ icon(name=attrs.icon) | safe }}")
+            .unwrap();
+        let html = registry.render_markdown(
+            ":::badge{icon=\"lucide:rocket\"}\nLaunch\n:::\n",
+            Path::new("test.md"),
+        );
+        assert!(html.contains("lucide-rocket"));
+        assert!(!html.contains("&lt;svg"));
+        assert!(
+            registry
+                .render_markdown(
+                    ":::badge{icon=\"lucide:typo-icon\"}\nLaunch\n:::\n",
+                    Path::new("test.md")
+                )
+                .contains("Unknown Lucide icon: typo-icon")
+        );
+    }
+
+    #[test]
+    fn new_layout_components_preserve_nested_markdown() {
+        let html = render_page(
+            r#"::::steps
+:::step{title="Install"}
+```bash
+cargo install docanvil
+```
+:::
+:::step{title="Configure"}
+**Choose** a project name.
+:::
+::::
+
+:::::columns{columns="3"}
+::::column
+:::details{title="Advanced" open="true"}
+Extra **settings**.
+:::
+::::
+::::column
+Second column.
+::::
+:::::
+"#,
+        );
+        assert!(
+            html.contains("<ol class=\"steps\" role=\"list\">"),
+            "{html}"
+        );
+        assert_eq!(html.matches("<li class=\"step\">").count(), 2);
+        assert!(html.contains("<code class=\"language-bash\">"));
+        assert!(html.contains("<strong>Choose</strong>"));
+        assert!(html.contains("class=\"columns columns-three\""));
+        assert!(html.contains("<details class=\"details\" open>"));
+        assert!(html.contains("<strong>settings</strong>"));
+        assert!(!html.contains(":::"));
+        assert!(!html.contains("directive-error"));
+    }
+
+    #[test]
+    fn new_cards_figures_and_callouts_render_optional_attributes() {
+        let html = render_page(
+            r#"::::cards
+:::link-card{title="Start & learn" href="start.html" icon="lucide:rocket"}
+Read the [reference](reference.html).
+:::
+::::
+
+:::figure{src="screen.png" alt="Settings & preferences" caption="Project settings" browser="true"}
+:::
+
+:::tip
+A useful **tip**.
+:::
+:::success
+All done.
+:::
+:::danger{title="Careful"}
+This deletes files.
+:::
+"#,
+        );
+        assert!(html.contains("href=\"start.html\">Start &amp; learn</a>"));
+        assert!(html.contains("href=\"reference.html\">reference</a>"));
+        assert!(html.contains("lucide-rocket"));
+        assert!(html.contains("class=\"doc-figure figure-browser\""));
+        assert!(html.contains("alt=\"Settings &amp; preferences\""));
+        assert!(html.contains("<figcaption>Project settings</figcaption>"));
+        for variant in ["tip", "success", "danger"] {
+            assert!(html.contains(&format!("class=\"admonition {variant}\"")));
+        }
+        assert!(!render("details", &[], "Body.").contains(" open"));
+        assert!(!render("figure", &[], "Body.").contains("<figcaption>"));
+        assert!(!render("link-card", &[("title", "Plain")], "Body.").contains("link-card-icon"));
+        assert!(!html.contains("directive-error"));
     }
 
     #[test]

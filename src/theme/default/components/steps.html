@@ -1,0 +1,9 @@
+{# steps — builtin component
+   Usage: ::::steps then :::step children
+   Variables:
+     body rendered step children
+     body rendered Markdown HTML (print with | safe)
+     name "steps"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<ol class="steps" role="list">
+{{ body | safe }}</ol>

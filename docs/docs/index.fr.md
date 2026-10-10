@@ -26,37 +26,45 @@ Ouvrez [http://localhost:3000](http://localhost:3000) et commencez à écrire �
 ## Ce que vous obtenez
 
 ::::features
-:::feature{icon="⚡" title="Builds statiques rapides"}
+:::feature{icon="lucide:zap" title="Builds statiques rapides"}
 Du HTML simple à déployer n'importe où, avec rechargement à chaud pendant l'écriture.
 :::
-:::feature{icon="🔍" title="Recherche plein texte"}
+:::feature{icon="lucide:search" title="Recherche plein texte"}
 Un index de recherche côté client, généré pour chaque page sans configuration.
 :::
-:::feature{icon="🧩" title="Composants"}
+:::feature{icon="lucide:blocks" title="Composants"}
 Notes, onglets, groupes de code, diagrammes — ou [[writing/components|vos propres templates]].
 :::
-:::feature{icon="🎨" title="Thèmes personnalisés"}
+:::feature{icon="lucide:palette" title="Thèmes personnalisés"}
 Variables CSS, un [[guides/theming|générateur de thèmes]] et la surcharge complète des templates.
 :::
-:::feature{icon="🌍" title="Localisation"}
+:::feature{icon="lucide:globe" title="Localisation"}
 [[guides/localisation|Une documentation multilingue]] avec navigation et recherche par langue.
 :::
-:::feature{icon="🗂️" title="Versions"}
+:::feature{icon="lucide:layers" title="Versions"}
 Gardez [[guides/versioning|la documentation de chaque version]] côte à côte, avec un sélecteur de version.
 :::
 ::::
 
 ## Explorer la documentation
 
-| Section | Ce que vous apprendrez |
-|---------|------------------------|
-| [[guides/getting-started\|Installation]] | Installer DocAnvil et créer votre premier projet |
-| [[guides/configuration\|Configuration]] | Personnaliser `docanvil.toml` et `nav.toml` |
-| [[guides/theming\|Thèmes]] | Variables CSS, styles personnalisés et surcharge des templates |
-| [[guides/localisation\|Localisation]] | Documentation multilingue avec suffixes de langue et sélecteur de langue |
-| [[writing/markdown\|Markdown]] | Toutes les fonctionnalités Markdown et GFM prises en charge |
-| [[writing/wiki-links\|Liens et popovers]] | Syntaxe des wiki-links et popovers en ligne |
-| [[writing/components\|Composants]] | Notes, onglets, groupes de code, pages d'accueil et vos propres templates |
-| [[reference/cli\|Commandes CLI]] | Chaque commande, option et paramètre |
-| [[reference/project-structure\|Structure du projet]] | Organisation des dossiers et découverte des pages |
-| [[reference/css-variables\|Variables CSS]] | Référence complète des variables et de leurs valeurs par défaut |
+::::cards
+:::link-card{title="Premiers pas" href="guides/getting-started.html" icon="lucide:rocket"}
+Installez DocAnvil et créez votre premier site.
+:::
+:::link-card{title="Configuration" href="guides/configuration.html" icon="lucide:settings"}
+Configurez votre projet, la navigation et les options de build.
+:::
+:::link-card{title="Thèmes" href="guides/theming.html" icon="lucide:palette"}
+Personnalisez les couleurs et les templates. Consultez la [[reference/css-variables|référence des variables CSS]].
+:::
+:::link-card{title="Localisation" href="guides/localisation.html" icon="lucide:globe"}
+Publiez dans plusieurs langues avec navigation et recherche par locale.
+:::
+:::link-card{title="Écrire du contenu" href="writing/components.html" icon="lucide:blocks"}
+Ajoutez des composants à votre [[writing/markdown|Markdown]] et reliez vos pages avec les [[writing/wiki-links|wiki-links et popovers]].
+:::
+:::link-card{title="Référence CLI" href="reference/cli-commands.html" icon="lucide:terminal"}
+Retrouvez chaque commande et option, ainsi que la [[reference/project-structure|structure du projet]].
+:::
+::::

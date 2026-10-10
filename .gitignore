@@ -1,3 +1,4 @@
 target/
 docs/dist/
 .DS_Store
+.claude/

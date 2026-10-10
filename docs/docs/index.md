@@ -15,7 +15,7 @@ Turn Markdown into fast, searchable, beautifully styled documentation sites. One
 
 ## Quick start
 
-```bash
+```bash title="Quickstart"
 curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | sh
 docanvil new my-docs
 cd my-docs && docanvil serve
@@ -26,37 +26,45 @@ Open [http://localhost:3000](http://localhost:3000) and start writing — every 
 ## What you get
 
 ::::features
-:::feature{icon="⚡" title="Fast static builds"}
+:::feature{icon="lucide:zap" title="Fast static builds"}
 Plain HTML output you can deploy anywhere, with live reload while you write.
 :::
-:::feature{icon="🔍" title="Full-text search"}
+:::feature{icon="lucide:search" title="Full-text search"}
 A client-side search index, built for every page with no setup.
 :::
-:::feature{icon="🧩" title="Components"}
+:::feature{icon="lucide:blocks" title="Components"}
 Notes, tabs, code groups, diagrams — or [[writing/components|your own templates]].
 :::
-:::feature{icon="🎨" title="Custom themes"}
+:::feature{icon="lucide:palette" title="Custom themes"}
 CSS variables, a [[guides/theming|theme generator]] and full template overrides.
 :::
-:::feature{icon="🌍" title="Localisation"}
+:::feature{icon="lucide:globe" title="Localisation"}
 [[guides/localisation|Multi-language docs]] with per-locale navigation and search.
 :::
-:::feature{icon="🗂️" title="Versioning"}
+:::feature{icon="lucide:layers" title="Versioning"}
 Keep [[guides/versioning|docs for every release]] side by side, with a version switcher.
 :::
 ::::
 
 ## Explore the docs
 
-| Section | What you'll learn |
-|---------|-------------------|
-| [[guides/getting-started\|Installation]] | Install DocAnvil and create your first project |
-| [[guides/configuration\|Configuration]] | Customize `docanvil.toml` and `nav.toml` |
-| [[guides/theming\|Theming]] | CSS variables, custom CSS, and template overrides |
-| [[guides/localisation\|Localisation]] | Multi-language docs with locale suffixes and language switcher |
-| [[writing/markdown\|Markdown]] | All supported Markdown and GFM features |
-| [[writing/wiki-links\|Links & Popovers]] | Wiki-link syntax and inline popovers |
-| [[writing/components\|Components]] | Notes, tabs, code groups, landing pages and your own templates |
-| [[reference/cli\|CLI Commands]] | Every command, flag, and option |
-| [[reference/project-structure\|Project Structure]] | Directory layout and page discovery |
-| [[reference/css-variables\|CSS Variables]] | Complete variable reference with defaults |
+::::cards
+:::link-card{title="Getting started" href="guides/getting-started.html" icon="lucide:rocket"}
+Install DocAnvil and build your first documentation site.
+:::
+:::link-card{title="Configuration" href="guides/configuration.html" icon="lucide:settings"}
+Set up your project, navigation, and build options.
+:::
+:::link-card{title="Theming" href="guides/theming.html" icon="lucide:palette"}
+Customise colours and templates, with a complete [[reference/css-variables|CSS variable reference]].
+:::
+:::link-card{title="Localisation" href="guides/localisation.html" icon="lucide:globe"}
+Publish in multiple languages with navigation and search for each locale.
+:::
+:::link-card{title="Writing content" href="writing/components.html" icon="lucide:blocks"}
+Add components to your [[writing/markdown|Markdown]] and connect pages with [[writing/wiki-links|wiki-links and popovers]].
+:::
+:::link-card{title="CLI reference" href="reference/cli-commands.html" icon="lucide:terminal"}
+Find every command and option, plus the [[reference/project-structure|project directory layout]].
+:::
+::::

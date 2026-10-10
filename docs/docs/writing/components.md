@@ -231,29 +231,29 @@ Buttons work anywhere, not just inside a hero.
 
 ### Feature Tiles
 
-`::::features` lays out `:::feature` tiles in a grid that adapts to the screen width. Each tile takes an optional `icon` (an emoji works well) and `title`, and its body is Markdown, so it can link onwards:
+`::::features` lays out `:::feature` tiles in a grid that adapts to the screen width. Each tile takes an optional `icon` (a Lucide name such as `lucide:zap`, or an emoji) and `title`, and its body is Markdown, so it can link onwards:
 
 ::::features
-:::feature{icon="⚡" title="Fast static builds"}
+:::feature{icon="lucide:zap" title="Fast static builds"}
 Plain HTML you can deploy anywhere.
 :::
-:::feature{icon="🔍" title="Full-text search"}
+:::feature{icon="lucide:search" title="Full-text search"}
 Ready out of the box.
 :::
-:::feature{icon="🎨" title="Custom themes"}
+:::feature{icon="lucide:palette" title="Custom themes"}
 See [[guides/theming|Theming]].
 :::
 ::::
 
 ````markdown
 ::::features
-:::feature{icon="⚡" title="Fast static builds"}
+:::feature{icon="lucide:zap" title="Fast static builds"}
 Plain HTML you can deploy anywhere.
 :::
-:::feature{icon="🔍" title="Full-text search"}
+:::feature{icon="lucide:search" title="Full-text search"}
 Ready out of the box.
 :::
-:::feature{icon="🎨" title="Custom themes"}
+:::feature{icon="lucide:palette" title="Custom themes"}
 See [[guides/theming|Theming]].
 :::
 ::::
@@ -262,6 +262,173 @@ See [[guides/theming|Theming]].
 :::note{title="Hiding the table of contents"}
 A landing page rarely needs the on-page table of contents. Turn it off for one page with `"toc": false` in its [[writing/front-matter|front matter]].
 :::
+
+## More Layout Components
+
+Use these components to guide readers through tutorials, highlight related pages, and arrange supporting content. They work with Markdown and need no additional JavaScript.
+
+### Link Cards
+
+Use `::::cards` to group clickable `:::link-card` tiles. Each card takes `title`,
+`href`, and an optional `icon`. Its Markdown body is the description. Body links
+remain independently clickable. Use ordinary output URLs for `href`, relative
+to the current page (including `.html`); wiki-links remain available in the body.
+
+::::cards
+:::link-card{title="Getting started" href="../guides/getting-started.html" icon="lucide:rocket"}
+Install DocAnvil and create your first project.
+:::
+:::link-card{title="Theming" href="../guides/theming.html" icon="lucide:palette"}
+Make your documentation your own.
+:::
+::::
+
+````markdown
+::::cards
+:::link-card{title="Getting started" href="../guides/getting-started.html" icon="lucide:rocket"}
+Install DocAnvil and create your first project.
+:::
+:::link-card{title="Theming" href="../guides/theming.html" icon="lucide:palette"}
+Make your documentation your own.
+:::
+::::
+````
+
+Cards default to two columns. `columns="3"` selects three; both stack on mobile.
+A standalone `:::link-card` works without a grid.
+
+### Steps
+
+Use `::::steps` with one `:::step{title="…"}` per stage of a tutorial. Step bodies
+support Markdown, code blocks, and nested components. Numbering is automatic.
+
+::::steps
+:::step{title="Install"}
+```bash
+cargo install docanvil
+```
+:::
+:::step{title="Create a project"}
+```bash
+docanvil new my-docs
+```
+:::
+:::step{title="Preview"}
+```bash
+cd my-docs && docanvil serve
+```
+:::
+::::
+
+````markdown
+::::steps
+:::step{title="Install"}
+```bash
+cargo install docanvil
+```
+:::
+:::step{title="Create a project"}
+```bash
+docanvil new my-docs
+```
+:::
+:::step{title="Preview"}
+```bash
+cd my-docs && docanvil serve
+```
+:::
+::::
+````
+
+### Details
+
+Native expandable sections keep supplementary information close by. Set
+`open="true"` to start expanded; the default is closed. They work without JavaScript.
+
+:::details{title="Do I need JavaScript for these components?"}
+No. Cards, steps, figures, columns, and details use HTML and CSS.
+:::
+
+```markdown
+:::details{title="Do I need JavaScript for these components?"}
+No. Cards, steps, figures, columns, and details use HTML and CSS.
+:::
+```
+
+### Figures
+
+Frame an image with optional `caption` text. `browser="true"` adds a decorative
+browser bar. `alt` supplies the image's accessible description. Image paths use
+the same resolution rules as Markdown images.
+
+```markdown
+:::figure{src="assets/screenshot.png" alt="Project settings screen" caption="Configure your project" browser="true"}
+:::
+```
+
+Omit `src` to wrap Markdown images or another component in the figure body.
+Without `caption`, no caption space is reserved.
+
+### Columns
+
+Use `::::columns` with `:::column` children for side-by-side explanations, code,
+or screenshots. The default is two equal columns; `columns="3"` selects three.
+All columns stack on mobile. Use longer outer fences when nesting directives.
+
+::::columns
+:::column
+### Write
+Use Markdown for your content and directives for richer layouts.
+:::
+:::column
+### Publish
+Build a static site and deploy it to your preferred host.
+:::
+::::
+
+```markdown
+::::columns
+:::column
+### Write
+Use Markdown for your content and directives for richer layouts.
+:::
+:::column
+### Publish
+Build a static site and deploy it to your preferred host.
+:::
+::::
+```
+
+### More Callouts
+
+`:::tip`, `:::success`, and `:::danger` share the note/warning layout and accept an
+optional `title`. Each has its own accent and Lucide icon.
+
+:::tip{title="A useful shortcut"}
+Keep frequently used commands in a titled code block.
+:::
+
+:::success
+Your site is ready to publish.
+:::
+
+:::danger{title="Check before deleting"}
+Make sure you have a backup before deleting your content.
+:::
+
+```markdown
+:::tip{title="A useful shortcut"}
+Keep frequently used commands in a titled code block.
+:::
+
+:::success
+Your site is ready to publish.
+:::
+
+:::danger{title="Check before deleting"}
+Make sure you have a backup before deleting your content.
+:::
+```
 
 ## Custom Components {#custom-components}
 
@@ -301,6 +468,28 @@ Every component template has access to:
 | `inline` | bool | `true` when used inline (see below) |
 
 Built-in components that need structured data pass extra variables — `tabs` (a list of `{title, body}`) for the tabs component, and `blocks` (a list of `{lang, code}`) for code-group. You'll see these if you eject either one.
+
+### Icons
+
+All bundled [Lucide icons](https://lucide.dev/icons/) are available by kebab-case
+name. Feature tiles accept `icon="lucide:zap"` (or `icon="zap"`); emoji values
+such as `icon="⚡"` still work. An unknown name with the explicit `lucide:` prefix
+produces a component rendering warning and a visible error box so typos are easy to spot.
+
+Custom component and layout templates can render icons with:
+
+```html
+{{ icon(name="lucide:rocket") | safe }}
+```
+
+Icons render as decorative inline SVGs at build time, inherit the surrounding
+text colour, and use the `.docanvil-icon` class (default size: `1em`). Supply an
+accessible label on the containing button or link when the icon is its only
+content. Feature icons use the tile's existing `1.5rem` size.
+
+The full library is bundled in DocAnvil, but only selected icons appear in page
+HTML. No browser icon library, font, or CDN is needed. The ISC and Feather MIT
+licence notices ship at `js/icons/lucide/LICENSE.txt`.
 
 ### Escaping
 
@@ -397,6 +586,12 @@ This lets you create custom styled blocks using your own CSS.
 | Hero | `::::hero` | `eyebrow`, `title` | *(none)* |
 | Buttons | `:::buttons` | *(none)* | First link is the primary button |
 | Feature tiles | `::::features` + `:::feature` | `icon`, `title` (on feature) | *(none)* |
+| Link cards | `::::cards` + `:::link-card` | `title`, `href`, `icon`, `columns` (on grid) | Two columns |
+| Steps | `::::steps` + `:::step` | `title` (on step) | Automatic numbering |
+| Details | `:::details` | `title`, `open` | Closed |
+| Figure | `:::figure` | `src`, `alt`, `caption`, `browser` | Plain frame |
+| Columns | `::::columns` + `:::column` | `columns` (on container) | Two columns |
+| Callouts | `:::tip`, `:::success`, `:::danger` | `title` | Type name |
 
 :::note
 Components are processed before Markdown rendering. This means you can use bold, italic, links, code, and other Markdown formatting inside any component.

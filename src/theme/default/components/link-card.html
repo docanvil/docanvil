@@ -1,0 +1,15 @@
+{# link-card — builtin component
+   Usage: :::link-card{title="Getting started" href="getting-started.html" icon="lucide:rocket"}
+   Variables:
+     attrs.title, attrs.href, attrs.icon optional Lucide icon
+     body rendered Markdown HTML (print with | safe)
+     name "link-card"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<div class="link-card">
+<div class="link-card-heading">
+{% if attrs.icon %}<span class="link-card-icon" aria-hidden="true">{{ icon(name=attrs.icon) | safe }}</span>
+{% endif %}<a class="link-card-link" href="{{ attrs.href | default(value="#") }}">{{ attrs.title | default(value="Learn more") }}</a>
+<span class="link-card-arrow" aria-hidden="true">{{ icon(name="arrow-up-right") | safe }}</span>
+</div>
+<div class="link-card-body">{{ body | safe }}</div>
+</div>

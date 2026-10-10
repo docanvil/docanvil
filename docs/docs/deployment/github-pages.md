@@ -95,6 +95,7 @@ A few things worth noting:
 
 ## Adjusting for Your Project Layout
 
+:::details{title="Adjust paths and workflow triggers"}
 The workflow above assumes `docanvil.toml` is at the root of your repository. If your docs live in a subdirectory, point the build at it and upload that folder's output:
 
 ```yaml
@@ -116,6 +117,7 @@ on:
       - "docs/**"
       - ".github/workflows/docs.yml"
 ```
+:::
 
 ## Last Updated Dates
 

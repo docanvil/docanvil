@@ -1,0 +1,11 @@
+{# details — builtin component
+   Usage: :::details{title="Advanced configuration" open="true"}
+   Variables:
+     attrs.title summary (default: Details), attrs.open "true" to expand
+     body rendered Markdown HTML (print with | safe)
+     name "details"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<details class="details"{% if attrs.open | default(value="false") == "true" %} open{% endif %}>
+<summary>{{ attrs.title | default(value="Details") }}</summary>
+<div class="details-body">{{ body | safe }}</div>
+</details>

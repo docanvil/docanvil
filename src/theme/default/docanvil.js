@@ -29,27 +29,127 @@ document.querySelectorAll('.content h1[id], .content h2[id], .content h3[id], .c
   heading.appendChild(link);
 });
 
-// Copy button on code blocks
+// Bundled Devicon v2.17.0 assets (MIT); see icons/devicon/LICENSE.txt.
+// Original SVGs retain their colours; monochrome logos use the mapped accent.
+const codeLanguageIcons = {
+  bash:       { label: 'Bash', svg: 'bash-light.svg', color: '#a8b9cc', aliases: ['sh', 'shell', 'zsh', 'console', 'shellsession', 'shell-session'] },
+  rust:       { label: 'Rust', svg: 'rust.svg',       color: '#dea584', monochrome: true, aliases: ['rs'] },
+  javascript: { label: 'JavaScript', svg: 'javascript.svg', color: '#f7df1e', aliases: ['js', 'jsx', 'node', 'nodejs'] },
+  typescript: { label: 'TypeScript', svg: 'typescript.svg', color: '#3178c6', aliases: ['ts', 'tsx'] },
+  python:     { label: 'Python', svg: 'python.svg',     color: '#3776ab', aliases: ['py', 'python3'] },
+  ruby:       { label: 'Ruby', svg: 'ruby.svg',       color: '#cc342d', aliases: ['rb'] },
+  go:         { label: 'Go', svg: 'go.svg',         color: '#00add8', aliases: ['golang'] },
+  java:       { label: 'Java', svg: 'java.svg',       color: '#e76f00' },
+  c:          { label: 'C', svg: 'c.svg',          color: '#a8b9cc', aliases: ['h'] },
+  cpp:        { label: 'C++', svg: 'cplusplus.svg',  color: '#00599c', aliases: ['c++', 'cplusplus', 'cxx', 'cc', 'hpp'] },
+  csharp:     { label: 'C#', svg: 'csharp.svg',     color: '#68217a', aliases: ['cs', 'c#'] },
+  php:        { label: 'PHP', svg: 'php.svg',        color: '#777bb4' },
+  swift:      { label: 'Swift', svg: 'swift.svg',      color: '#f05138' },
+  kotlin:     { label: 'Kotlin', svg: 'kotlin.svg',     color: '#7f52ff', aliases: ['kt', 'kts'] },
+  dart:       { label: 'Dart', svg: 'dart.svg',       color: '#0175c2' },
+  scala:      { label: 'Scala', svg: 'scala.svg',      color: '#dc322f' },
+  r:          { label: 'R', svg: 'r.svg',          color: '#276dc3' },
+  elixir:     { label: 'Elixir', svg: 'elixir.svg',     color: '#9b6bb3', aliases: ['ex', 'exs'] },
+  lua:        { label: 'Lua', svg: 'lua.svg',        color: '#7c83db', monochrome: true },
+  html:       { label: 'HTML', svg: 'html5.svg',      color: '#e34f26', aliases: ['html5'] },
+  css:        { label: 'CSS', svg: 'css3.svg',       color: '#1572b6', aliases: ['css3'] },
+  sass:       { label: 'Sass', svg: 'sass.svg',       color: '#cc6699', aliases: ['scss'] },
+  json:       { label: 'JSON', svg: 'json.svg',       color: '#a8b9cc', monochrome: true, aliases: ['jsonc', 'json5'] },
+  yaml:       { label: 'YAML', svg: 'yaml.svg',       color: '#cb171e', aliases: ['yml'] },
+  markdown:   { label: 'Markdown', svg: 'markdown.svg',   color: '#8bb9de', monochrome: true, aliases: ['md'] },
+  powershell: { label: 'PowerShell', svg: 'powershell.svg', color: '#5391fe', aliases: ['ps1', 'pwsh'] }
+};
+const codeLanguageLookup = new Map();
+Object.entries(codeLanguageIcons).forEach(([language, entry]) => {
+  [language, ...(entry.aliases || [])].forEach(alias => codeLanguageLookup.set(alias, entry));
+});
+// Resolve from the script URL so versioned/localised pages and base paths work.
+const codeLanguageIconBase = new URL('icons/devicon/', document.currentScript.src);
+
+// Copy controls live outside <pre>, keeping labels out of copied code.
 document.querySelectorAll('.content pre:not(.mermaid)').forEach(pre => {
+  let figure = pre.parentElement;
+  if (!figure.matches('figure.code-block')) {
+    figure = document.createElement('figure');
+    figure.className = 'code-block';
+    pre.before(figure);
+    figure.appendChild(pre);
+  }
+  let header = figure.querySelector('.code-block-header, figcaption');
+  if (!header) {
+    header = document.createElement('div');
+    figure.prepend(header);
+  }
+  header.classList.add('code-block-header');
+  const language = (pre.dataset.language ||
+    (pre.querySelector('code')?.className.match(/(?:^|\s)language-([^\s]+)/) || [])[1] || '').toLowerCase();
+  const entry = codeLanguageLookup.get(language);
+  const icon = document.createElement('span');
+  icon.className = 'code-language-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  if (entry) {
+    const url = new URL(entry.svg, codeLanguageIconBase).href;
+    icon.style.setProperty('--code-language-color', entry.color);
+    if (entry.monochrome) {
+      icon.classList.add('code-language-monochrome');
+      icon.style.setProperty('--code-language-mask', `url("${url}")`);
+    } else {
+      const image = document.createElement('img');
+      image.src = url;
+      image.alt = '';
+      image.width = 16;
+      image.height = 16;
+      icon.appendChild(image);
+    }
+  } else {
+    icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6m8-12 6 6-6 6m-3-15-2 18"/></svg>';
+  }
+  const title = header.querySelector('.code-block-title');
+  if (title) {
+    title.prepend(icon);
+  } else {
+    header.prepend(icon);
+  }
+  const controls = document.createElement('div');
+  controls.className = 'code-block-controls';
+  const languageName = document.createElement('span');
+  languageName.className = 'code-block-language';
+  languageName.textContent = entry?.label || language || 'Text';
+  controls.appendChild(languageName);
+  header.appendChild(controls);
+
+  if (pre.style.backgroundColor) {
+    figure.classList.add('code-block-highlighted');
+    figure.style.setProperty('--code-block-bg', pre.style.backgroundColor);
+  }
+
+  const copyIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const checkIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
   const btn = document.createElement('button');
+  btn.type = 'button';
   btn.className = 'copy-btn';
   btn.setAttribute('aria-label', 'Copy code');
-  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-  pre.appendChild(btn);
+  btn.innerHTML = copyIcon + '<span aria-live="polite">Copy</span>';
+  controls.appendChild(btn);
+  let resetTimer;
 
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     const code = pre.querySelector('code');
-    // Line numbers and "lines hidden" rows are CSS ::before content, so
-    // textContent is exactly the code.
+    // Numbers and hidden-line labels use CSS pseudo-elements.
     const text = (code || pre).textContent;
-    navigator.clipboard.writeText(text).then(() => {
+    clearTimeout(resetTimer);
+    try {
+      await navigator.clipboard.writeText(text);
       btn.classList.add('copied');
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      setTimeout(() => {
-        btn.classList.remove('copied');
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-      }, 2000);
-    });
+      btn.innerHTML = checkIcon + '<span aria-live="polite">Copied!</span>';
+    } catch (error) {
+      btn.classList.remove('copied');
+      btn.innerHTML = copyIcon + '<span aria-live="polite">Copy failed</span>';
+    }
+    resetTimer = setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = copyIcon + '<span aria-live="polite">Copy</span>';
+    }, 2000);
   });
 });
 

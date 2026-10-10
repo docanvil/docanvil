@@ -18,3 +18,5 @@ pub mod server;
 pub mod theme;
 pub mod update;
 pub mod util;
+
+pub mod icons;

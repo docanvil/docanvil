@@ -1,0 +1,10 @@
+{# step — builtin component
+   Usage: :::step{title="Install"} Markdown and code :::
+   Variables:
+     attrs.title optional step heading
+     body rendered Markdown HTML (print with | safe)
+     name "step"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<li class="step">
+{% if attrs.title %}<h3 class="step-title">{{ attrs.title }}</h3>
+{% endif %}{{ body | safe }}</li>

@@ -96,6 +96,7 @@ Quelques points à noter :
 
 ## Adapter à la structure de votre projet
 
+:::details{title="Adapter les chemins et les déclencheurs"}
 Le workflow ci-dessus suppose que `docanvil.toml` se trouve à la racine du dépôt. Si votre documentation est dans un sous-dossier, indiquez-le à la compilation et publiez la sortie de ce dossier :
 
 ```yaml
@@ -117,6 +118,7 @@ on:
       - "docs/**"
       - ".github/workflows/docs.yml"
 ```
+:::
 
 ## Dates de dernière mise à jour
 

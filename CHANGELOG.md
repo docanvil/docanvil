@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- `[redirects]` targets on another site must now start with `https://` or `http://`. Before, anything containing `://` was accepted (`javascript://…` included) and written into the redirect page, while a scheme-less `//cdn.example.com/x` quietly became a local page. Both are now reported as `redirect-invalid`, with a hint to write the full `https://` address (#75)
 - Wiki-links with inline code in their text (``[[list|the `list` command]]``) now render as links, with the code kept. They used to be left on the page as literal `[[…]]` text, with no warning even under `--strict`, and `llms-full.txt` had the same problem (#85)
 - "Last updated" dates (`source = "git"`) no longer go backwards after a rebase or cherry-pick: a page now always shows the newest author date of the commits that touched it, instead of the date of whichever commit Git lists first (#84)
 - The version switcher no longer links to a page that doesn't exist in your language. On a translated, versioned site, if another version has the page in English but not in French (or the French one is a draft), French readers now land on that version's French home page instead of a 404. It also follows pages whose `slug` is set in front matter (#72)

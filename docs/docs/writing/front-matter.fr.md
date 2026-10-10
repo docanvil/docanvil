@@ -41,6 +41,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `date` | Chaîne | Génère la balise `<meta property="article:published_time">` pour les moteurs de recherche et le partage social |
 | `edit_link` | Booléen | Définissez à `false` pour masquer le lien « Edit this page » sur cette page (voir [[guides/configuration|Configuration → `[edit]`]]) |
 | `last_updated` | Chaîne ou Booléen | La date de dernière modification de la page, au format `"YYYY-MM-DD"`. Remplace la date tirée de l'historique Git. Définissez à `false` pour masquer la date sur cette page (voir [[guides/configuration|Configuration → `[last_updated]`]]) |
+| `draft` | Booléen | Définissez à `true` pour garder la page hors des compilations de production pendant que vous y travaillez (voir [Pages brouillon](#pages-brouillon)) |
 
 Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos propres métadonnées personnalisées sans déclencher d'erreurs.
 
@@ -108,6 +109,46 @@ La valeur `slug` est automatiquement normalisée en format compatible avec les U
 ### Liens rétrocompatibles
 
 Lorsqu'un slug change (via `title` ou `slug`), les wiki-links utilisant l'ancien slug basé sur le nom de fichier continuent de fonctionner. Par exemple, si `01-setup.md` reçoit le titre "Guide d'installation", `01-setup` et `guide-dinstallation` pointent tous deux vers la même page.
+
+## Pages brouillon
+
+Marquez une page comme brouillon pour continuer à y travailler ouvertement — la committer, la relire, la prévisualiser — sans la publier tout de suite :
+
+```markdown
+---
+{
+  "draft": true
+}
+---
+
+# Nouveau guide de déploiement
+
+En cours de rédaction...
+```
+
+- **`docanvil serve`** affiche les brouillons comme n'importe quelle page, avec un bandeau **Draft** en haut pour ne pas l'oublier.
+- **`docanvil build`** exclut complètement les brouillons : pas de fichier HTML, et aucune entrée dans la barre latérale, la recherche, le sitemap ou les liens précédent/suivant. La sortie de la compilation indique combien ont été ignorés.
+- **`docanvil export pdf`** les exclut également.
+
+Quand la page est prête, supprimez `"draft": true` (ou mettez-le à `false`) et elle sera publiée à la prochaine compilation.
+
+### Liens et navigation vers les brouillons
+
+Pas besoin de faire le ménage autour d'un brouillon avant de compiler :
+
+- Une entrée de `nav.toml` qui pointe vers un brouillon est ignorée. Un groupe dont toutes les pages sont des brouillons disparaît jusqu'à ce que l'une d'elles soit publiée.
+- Un wiki-link d'une page publiée vers un brouillon affiche son texte sans lien, pour que les lecteurs ne tombent jamais sur une page manquante.
+- Une traduction en brouillon (par exemple `guide.fr.md`) n'est pas signalée comme traduction manquante.
+
+Si vous préférez repérer les liens vers des pages non publiées, définissez `draft_links = "warn"` dans [[guides/configuration|`[build]`]]. Ces liens affichent alors un avertissement, et `docanvil build --strict` échoue.
+
+### Prévisualiser les brouillons
+
+`docanvil build --drafts` inclut les brouillons dans une compilation statique, pratique pour les déploiements de prévisualisation d'une pull request. Les brouillons gardent leur bandeau et reçoivent une balise `noindex`, pour que les moteurs de recherche les ignorent même si la prévisualisation est publique.
+
+:::note
+Les brouillons concernent la publication, pas la confidentialité. Le Markdown reste dans votre dépôt, donc n'utilisez pas `draft` pour ce qui doit rester secret.
+:::
 
 ## Balises meta SEO
 

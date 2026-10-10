@@ -1,0 +1,10 @@
+{# danger — builtin component
+   Usage: :::danger{title="Optional title"} Markdown :::
+   Variables:
+     attrs.title optional heading
+     body rendered Markdown HTML (print with | safe)
+     name "danger"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<div class="admonition danger">
+<p class="admonition-title"><span aria-hidden="true">{{ icon(name="triangle-alert") | safe }}</span> {{ attrs.title | default(value="Danger") }}</p>
+{{ body | safe }}</div>

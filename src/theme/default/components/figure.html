@@ -1,0 +1,14 @@
+{# figure — builtin component
+   Usage: :::figure{src="screenshot.png" alt="Settings screen" caption="Project settings" browser="true"}
+   Variables:
+     attrs.src optional image; attrs.alt, attrs.caption, attrs.browser optional frame
+     body rendered Markdown HTML (print with | safe)
+     name "figure"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<figure class="doc-figure{% if attrs.browser | default(value="false") == "true" %} figure-browser{% endif %}">
+{% if attrs.browser | default(value="false") == "true" %}<div class="figure-browser-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+{% endif %}<div class="figure-body">
+{% if attrs.src %}<img src="{{ attrs.src }}" alt="{{ attrs.alt | default(value="") }}" loading="lazy">
+{% endif %}{{ body | safe }}</div>
+{% if attrs.caption %}<figcaption>{{ attrs.caption }}</figcaption>
+{% endif %}</figure>

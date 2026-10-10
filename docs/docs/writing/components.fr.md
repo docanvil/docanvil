@@ -264,6 +264,111 @@ Voir [[guides/theming|Thèmes]].
 Une page d'accueil a rarement besoin de la table des matières de la page. Désactivez-la pour une seule page avec `"toc": false` dans son [[writing/front-matter|front matter]].
 :::
 
+## Autres composants de mise en page
+
+### Cartes de liens
+
+`::::cards` regroupe des `:::link-card` avec `title`, `href` et une `icon`
+facultative. Le corps Markdown sert de description. `href` est une URL de sortie
+relative à la page, avec `.html`. Les liens dans le corps restent cliquables.
+La grille a deux colonnes par défaut ; `columns="3"` en sélectionne trois.
+Sur mobile, les cartes s’empilent.
+
+```markdown
+::::cards
+:::link-card{title="Getting started" href="../guides/getting-started.html" icon="lucide:rocket"}
+Install DocAnvil and create your first project.
+:::
+:::link-card{title="Theming" href="../guides/theming.html" icon="lucide:palette"}
+Make your documentation your own.
+:::
+::::
+```
+
+### Étapes
+
+`::::steps` contient des `:::step{title="…"}` numérotées automatiquement.
+Le corps peut contenir du Markdown, du code et d’autres composants.
+
+````markdown
+::::steps
+:::step{title="Install"}
+```bash
+cargo install docanvil
+```
+:::
+:::step{title="Create a project"}
+```bash
+docanvil new my-docs
+```
+:::
+:::step{title="Preview"}
+```bash
+cd my-docs && docanvil serve
+```
+:::
+::::
+````
+
+### Sections dépliables
+
+`:::details{title="Configuration avancée"}` crée une section native, fermée par
+défaut. `open="true"` l’ouvre initialement. Aucun JavaScript n’est nécessaire.
+
+```markdown
+:::details{title="Configuration avancée"}
+Des informations complémentaires.
+:::
+```
+
+### Figures
+
+`:::figure` encadre une image avec les attributs `src`, `alt`, `caption` et
+`browser="true"` pour une barre de navigateur décorative. Sans `src`, son corps
+peut contenir une image Markdown ou un autre composant. Sans `caption`, aucun
+espace n’est réservé. Les chemins d’images suivent les règles des images Markdown.
+
+```markdown
+:::figure{src="assets/screenshot.png" alt="Project settings screen" caption="Configure your project" browser="true"}
+:::
+```
+
+### Colonnes
+
+`::::columns` contient des `:::column`, avec deux colonnes égales par défaut ou
+`columns="3"` pour trois. Elles s’empilent sur mobile. Utilisez des clôtures plus
+longues pour les directives extérieures lorsque vous imbriquez des composants.
+
+```markdown
+::::columns
+:::column
+### Write
+Use Markdown for your content and directives for richer layouts.
+:::
+:::column
+### Publish
+Build a static site and deploy it to your preferred host.
+:::
+::::
+```
+
+### Autres encadrés
+
+`:::tip`, `:::success` et `:::danger` reprennent la présentation de `note` et
+`warning`, avec leur propre couleur et icône. L’attribut `title` est facultatif.
+
+```markdown
+:::tip{title="Astuce"}
+Une suggestion utile.
+:::
+:::success
+Votre site est prêt.
+:::
+:::danger{title="Attention"}
+Vérifiez vos sauvegardes avant de supprimer du contenu.
+:::
+```
+
 ## Composants personnalisés {#custom-components}
 
 Les composants intégrés couvrent les cas courants, mais parfois vous voulez les vôtres. Déposez un template Tera dans `theme/components/<nom>.html` et utilisez-le avec `:::nom{...}` — la même syntaxe de directive que pour n'importe quel composant intégré.

@@ -431,12 +431,31 @@
     /* ──────────────────────────────────────────────────────────
        Callout components
        ────────────────────────────────────────────────────────── */
-    .note, .warning {
+    .note, .warning, .tip, .success, .danger {
       padding: 0.7em 1em;
       margin: 1em 0;
       border-radius: 0 4px 4px 0;
       border-left: 3pt solid;
     }
+
+    .tip, .success { border-color: #168060; background: #f0faf5; }
+    .danger { border-color: #c53030; background: #fff5f5; }
+    .docanvil-icon { width: 1em; height: 1em; vertical-align: -0.125em; }
+    .cards, .columns { margin: 1em 0; }
+    .link-card, .details { border: 1pt solid var(--pdf-rule); padding: 0.8em; margin: 0.8em 0; }
+    .link-card-heading, .feature-header { display: flex; align-items: center; gap: 0.5em; }
+    .link-card-arrow { margin-left: auto; }
+    .feature-icon { display: inline-flex; }
+    .link-card-link, summary { font-weight: bold; }
+    .steps { padding-left: 1.5em; }
+    .step { margin: 0.8em 0; }
+    .step-title { margin-top: 0; }
+    .doc-figure { margin: 1em 0; }
+    .doc-figure img { max-width: 100%; height: auto; }
+    .doc-figure figcaption { text-align: center; font-size: 0.85em; color: var(--pdf-ink-muted); }
+    .figure-browser-bar { display: none; }
+    .details::details-content { content-visibility: visible; }
+    .details-body { display: block !important; }
 
     .note {
       border-color: var(--pdf-note-border);

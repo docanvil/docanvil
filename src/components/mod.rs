@@ -640,15 +640,26 @@ mod tests {
             crate::components::templates::builtin_names(),
             vec![
                 "buttons",
+                "cards",
                 "code-group",
+                "column",
+                "columns",
+                "danger",
+                "details",
                 "feature",
                 "features",
+                "figure",
                 "hero",
+                "link-card",
                 "lozenge",
                 "mermaid",
                 "note",
+                "step",
+                "steps",
+                "success",
                 "tabs",
-                "warning"
+                "tip",
+                "warning",
             ]
         );
     }
@@ -815,6 +826,84 @@ mod tests {
                 )
                 .contains("Unknown Lucide icon: typo-icon")
         );
+    }
+
+    #[test]
+    fn new_layout_components_preserve_nested_markdown() {
+        let html = render_page(
+            r#"::::steps
+:::step{title="Install"}
+```bash
+cargo install docanvil
+```
+:::
+:::step{title="Configure"}
+**Choose** a project name.
+:::
+::::
+
+:::::columns{columns="3"}
+::::column
+:::details{title="Advanced" open="true"}
+Extra **settings**.
+:::
+::::
+::::column
+Second column.
+::::
+:::::
+"#,
+        );
+        assert!(
+            html.contains("<ol class=\"steps\" role=\"list\">"),
+            "{html}"
+        );
+        assert_eq!(html.matches("<li class=\"step\">").count(), 2);
+        assert!(html.contains("<code class=\"language-bash\">"));
+        assert!(html.contains("<strong>Choose</strong>"));
+        assert!(html.contains("class=\"columns columns-three\""));
+        assert!(html.contains("<details class=\"details\" open>"));
+        assert!(html.contains("<strong>settings</strong>"));
+        assert!(!html.contains(":::"));
+        assert!(!html.contains("directive-error"));
+    }
+
+    #[test]
+    fn new_cards_figures_and_callouts_render_optional_attributes() {
+        let html = render_page(
+            r#"::::cards
+:::link-card{title="Start & learn" href="start.html" icon="lucide:rocket"}
+Read the [reference](reference.html).
+:::
+::::
+
+:::figure{src="screen.png" alt="Settings & preferences" caption="Project settings" browser="true"}
+:::
+
+:::tip
+A useful **tip**.
+:::
+:::success
+All done.
+:::
+:::danger{title="Careful"}
+This deletes files.
+:::
+"#,
+        );
+        assert!(html.contains("href=\"start.html\">Start &amp; learn</a>"));
+        assert!(html.contains("href=\"reference.html\">reference</a>"));
+        assert!(html.contains("lucide-rocket"));
+        assert!(html.contains("class=\"doc-figure figure-browser\""));
+        assert!(html.contains("alt=\"Settings &amp; preferences\""));
+        assert!(html.contains("<figcaption>Project settings</figcaption>"));
+        for variant in ["tip", "success", "danger"] {
+            assert!(html.contains(&format!("class=\"admonition {variant}\"")));
+        }
+        assert!(!render("details", &[], "Body.").contains(" open"));
+        assert!(!render("figure", &[], "Body.").contains("<figcaption>"));
+        assert!(!render("link-card", &[("title", "Plain")], "Body.").contains("link-card-icon"));
+        assert!(!html.contains("directive-error"));
     }
 
     #[test]

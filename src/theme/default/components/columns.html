@@ -1,0 +1,9 @@
+{# columns — builtin component
+   Usage: ::::columns then :::column children
+   Variables:
+     attrs.columns optional "3" (default: two columns)
+     body rendered Markdown HTML (print with | safe)
+     name "columns"
+   Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
+<div class="columns{% if attrs.columns | default(value="2") == "3" %} columns-three{% endif %}">
+{{ body | safe }}</div>

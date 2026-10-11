@@ -3,35 +3,32 @@ page = "index"
 label = "Home"
 
 [[nav]]
-separator = "Guides"
-
-[[nav]]
+label = "Guides"
 autodiscover = "guides"
+open = true
 
 [[nav]]
 separator = true
 
 [[nav]]
-separator = "Writing Content"
-
-[[nav]]
+label = "Writing Content"
 autodiscover = "writing"
+open = true
 
 [[nav]]
-separator = "Reference"
-
-[[nav]]
+label = "Reference"
 autodiscover = "reference"
+open = true
 
 [[nav]]
 separator = true
 
 [[nav]]
-separator = "Deployment"
-
-[[nav]]
+label = "Deployment"
 autodiscover = "deployment"
+open = true
 
 [[nav]]
 label = "Development"
 autodiscover = "development"
+open = true

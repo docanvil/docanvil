@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Set `open = true` on manual or labelled autodiscover groups in `nav.toml` to expand them by default, including nested groups (#99).
+
 ## [1.2.2] - 2026-10-11
 
 ### Added

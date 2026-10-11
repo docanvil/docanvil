@@ -229,6 +229,7 @@ pub fn sections_from_nav<'a>(nav: &[NavNode], pages: &'a [LlmsPage]) -> Vec<Sect
                 label,
                 slug,
                 children,
+                ..
             } => {
                 let slugs = slug.iter().cloned().chain(
                     project::flatten_nav_pages(children)
@@ -552,11 +553,13 @@ mod tests {
         let nav = vec![
             nav_page("index"),
             NavNode::Group {
+                open: false,
                 label: "Guide".into(),
                 slug: Some("guide".into()),
                 children: vec![
                     nav_page("guide/a"),
                     NavNode::Group {
+                        open: false,
                         label: "Deep".into(),
                         slug: None,
                         children: vec![nav_page("guide/deep/b")],
@@ -603,6 +606,7 @@ mod tests {
         let nav = vec![
             nav_page("a"),
             NavNode::Group {
+                open: false,
                 label: "Empty".into(),
                 slug: None,
                 children: vec![nav_page("excluded")],

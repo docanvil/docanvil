@@ -471,6 +471,9 @@ group = [
 # [[nav]]
 # autodiscover = "guides"
 #
+# Add open = true to any group to expand it by default.
+# Groups containing the current page always expand automatically.
+#
 # Wrap autodiscovered pages in a collapsible group:
 # [[nav]]
 # label = "API Reference"

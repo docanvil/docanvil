@@ -25,6 +25,30 @@ Le bloc se remplit avec le contenu du fichier et reçoit une légende avec son c
 
 :::include{file="../_shared/paths.md"}
 
+## Afficher un fichier distant
+
+Utilisez `url` à la place de `file` pour une URL HTTPS publique vers le fichier brut :
+
+````markdown
+```rust url="https://raw.githubusercontent.com/docanvil/docanvil/1703691ee41cddae60408c170bfeae1e696f3249/src/pipeline/markdown.rs" lines="27-31" title="src/pipeline/markdown.rs"
+```
+````
+
+Voici le résultat, tiré du code source de DocAnvil sur GitHub : la fonction qui transforme le Markdown en HTML. L’URL pointe vers un commit précis, pour que les lignes sélectionnées restent stables.
+
+```rust url="https://raw.githubusercontent.com/docanvil/docanvil/1703691ee41cddae60408c170bfeae1e696f3249/src/pipeline/markdown.rs" lines="27-31" title="src/pipeline/markdown.rs"
+```
+
+Les URL de fichiers bruts de GitHub, GitLab, Bitbucket et d'autres hébergeurs fonctionnent. Copiez le lien vers le **fichier brut**, plutôt que vers la page du dépôt qui l'affiche. Les réponses HTML sont refusées. Les dépôts privés nécessitant une authentification ne sont pas pris en charge.
+
+`lines`, `numbers`, la suppression de l'indentation commune et `title` fonctionnent comme pour les fichiers locaux. Sans langage explicite, DocAnvil utilise l'extension du chemin de l'URL. La légende par défaut est l'URL ; `title` permet de la remplacer ou de la masquer.
+
+Choisissez `file` ou `url` et laissez le bloc vide. L'URL doit utiliser HTTPS, sans identifiants ni fragment tel que `#L10` : utilisez `lines` pour sélectionner les lignes. `:::include` reste réservé aux fichiers Markdown locaux.
+
+Chaque URL distincte est téléchargée une seule fois par compilation, exécution de doctor ou export PDF. Aucun cache persistant n'est utilisé : chaque nouvelle exécution récupère le contenu actuel. Les requêtes sont limitées à 15 secondes, 2 Mio et cinq redirections. Les changements distants sont récupérés à la prochaine compilation ; ils ne déclenchent pas la surveillance des fichiers du serveur de développement.
+
+Pour des compilations reproductibles, utilisez une URL liée à un commit plutôt qu'à une branche. Les échecs de téléchargement, les fichiers non UTF-8 et les plages invalides utilisent les mêmes diagnostics et vérifications strictes que les inclusions locales.
+
 ## Afficher certaines lignes
 
 Ajoutez `lines` pour n'afficher qu'une partie du fichier. Voici le `docanvil.toml` de ce site, réduit à deux sections :

@@ -24,6 +24,30 @@ The block fills with the file's contents and gets a caption with its path. The l
 
 :::include{file="../_shared/paths.md"}
 
+## Showing a remote file
+
+Use `url` instead of `file` for a public raw HTTPS file URL:
+
+````markdown
+```rust url="https://raw.githubusercontent.com/docanvil/docanvil/1703691ee41cddae60408c170bfeae1e696f3249/src/pipeline/markdown.rs" lines="27-31" title="src/pipeline/markdown.rs"
+```
+````
+
+Here is that block rendered from DocAnvil’s own GitHub source: the function that turns Markdown into HTML. The URL is pinned to a commit, so the selected lines stay stable.
+
+```rust url="https://raw.githubusercontent.com/docanvil/docanvil/1703691ee41cddae60408c170bfeae1e696f3249/src/pipeline/markdown.rs" lines="27-31" title="src/pipeline/markdown.rs"
+```
+
+Raw file URLs from GitHub, GitLab, Bitbucket and other hosts work. Copy the link to the **raw file**, rather than the repository page that displays it. URLs returning HTML are rejected. Private repositories requiring authentication are not supported.
+
+`lines`, `numbers`, indentation removal and `title` work just as they do for local files. Without an explicit language, DocAnvil uses the URL path's file extension. The default caption is the URL; use `title` to replace or hide it.
+
+Choose either `file` or `url` and leave the block empty. Remote URLs must use HTTPS and must not contain credentials or a fragment such as `#L10`; use `lines` to select lines instead. `:::include` continues to accept local Markdown files only.
+
+Each distinct URL is fetched once per build, doctor run or PDF export. There is no persistent cache, so a new run fetches fresh content. Requests have a 15-second timeout, a 2 MiB response limit and at most five redirects. Remote changes are picked up on the next rebuild; they do not trigger the development server's file watcher.
+
+Pin URLs to a commit rather than a moving branch when you need reproducible builds. Download failures, invalid UTF-8 and invalid line ranges use the same error boxes, warnings and strict-build checks as local includes.
+
 ## Showing some lines
 
 Add `lines` to show only part of the file. Here's this site's own `docanvil.toml`, trimmed to two sections:

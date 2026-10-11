@@ -30,6 +30,7 @@ The everyday features people expect from a docs tool, so new projects have every
 - ✅ `llms.txt` output, an AI-friendly index of your docs
 - ✅ Template components: define your own components as Tera templates in your theme, no Rust needed
 - ✅ Breadcrumbs, front matter descriptions as page subtitles, and page titles from the first heading
+- ✅ Remote code blocks from a raw HTTPS URL (`url="…"`)
 
 Fully backward compatible, and every feature is opt-in.
 
@@ -38,7 +39,6 @@ Still to come in 1.2, now that the first version of includes is in people's hand
 - Include one section of a page (such as your README's Installation section) instead of the whole file
 - Named code regions (`#region` / `#endregion`), so examples don't break when line numbers shift
 - Line highlighting and diff-style markers in code blocks
-- Remote includes from a URL
 
 ## 1.3.x — Extensibility
 

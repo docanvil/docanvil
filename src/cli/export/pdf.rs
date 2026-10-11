@@ -665,6 +665,7 @@ fn run_single_locale(
 
 /// Run the `export pdf` command.
 pub fn run(project_root: &Path, out: &Path, locale_arg: Option<&str>, quiet: bool) -> Result<()> {
+    let _remote_scope = crate::pipeline::includes::remote::Scope::new();
     let config = Config::load(project_root)?;
 
     if locale_arg == Some("all") {

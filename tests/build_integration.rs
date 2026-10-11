@@ -2259,3 +2259,25 @@ fn test_llms_not_written_by_serve() {
     assert!(dev_out.path().join("index.html").exists());
     assert!(!dev_out.path().join("llms.txt").exists());
 }
+
+#[test]
+fn test_remote_include_validation_reaches_build_and_doctor() {
+    let dir = create_project(
+        "[project]\nname = \"Test Docs\"\n[build]\nsite_url = \"https://example.com/\"\n",
+        &[(
+            "index.md",
+            "# Home\n\n```rust url=\"http://example.com/code.rs\"\n```\n",
+        )],
+    );
+    build_project(dir.path()).unwrap();
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("include-error"));
+    assert!(html.contains("absolute HTTPS URL"));
+    assert!(build_project_strict(dir.path()).is_err());
+    let (diagnostics, _) = docanvil::doctor::run_checks(dir.path(), true);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.check == "include-invalid" && d.message.contains("HTTPS"))
+    );
+}

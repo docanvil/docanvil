@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-11
+
 ### Fixed
 
 - Code blocks with unsupported or unspecified languages now use the configured syntax theme’s background and text colour when highlighting is enabled (#104).

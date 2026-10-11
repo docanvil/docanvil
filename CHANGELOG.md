@@ -4,7 +4,13 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Code blocks with unsupported or unspecified languages now use the configured syntax theme’s background and text colour when highlighting is enabled (#104).
+
 ### Added
+
+- TOML syntax highlighting for fenced code blocks and included configuration files.
 
 - Remote code blocks: give an empty fenced block `url="https://…"` to show a public raw source file from GitHub, GitLab, Bitbucket or another HTTPS host. Supports the same line ranges, numbering, language detection and captions as local `file` blocks. Requests are bounded and reused within each build, with no persistent cache; failures appear in include diagnostics, `docanvil doctor` and strict builds (#101).
 - Set `open = true` on manual or labelled autodiscover groups in `nav.toml` to expand them by default, including nested groups (#99).

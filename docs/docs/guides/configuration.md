@@ -148,6 +148,10 @@ See [[reference/css-variables|CSS Variables]] for the complete list of available
 
 A single block can still opt in or out with `numbers` or `numbers="false"`. See [[writing/code-blocks-from-files|Code Blocks from Files]] for line numbers, captions and showing code straight from source files.
 
+TOML configuration examples are highlighted with `toml` fences, including blocks loaded from `.toml` files.
+
+Code blocks with an unsupported language, or no language, use the selected syntax theme’s background and text colour without token highlighting.
+
 ### `[search]` Section
 
 | Key | Default | Description |

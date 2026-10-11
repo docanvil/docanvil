@@ -445,12 +445,15 @@ Groups create collapsible sections in the sidebar. Each group has a `label` and 
 
 <pre><code class="language-toml">&#91;[nav]]
 label = "Reference"
+open = true
 group = [
   { page = "reference/cli", label = "CLI Commands" },
   { page = "reference/project-structure" },
   { page = "reference/css-variables", label = "CSS Variables" },
 ]
 </code></pre>
+
+Set `open = true` on a group to expand it by default. Omit it or use `open = false` to keep it collapsed unless it contains the current page. This also works on nested groups and labelled autodiscover groups; each group has its own setting.
 
 ### Linked Group Headers
 
@@ -494,6 +497,7 @@ You can also use autodiscover with a collapsible group:
 <pre><code class="language-toml">&#91;[nav]]
 label = "Reference"
 autodiscover = "reference"
+open = true
 </code></pre>
 
 ### Auto-Discovery Fallback

@@ -53,6 +53,7 @@ pub enum NavNode {
         label: String,
         slug: Option<String>,
         children: Vec<NavNode>,
+        open: bool,
     },
     Separator {
         label: Option<String>,
@@ -483,6 +484,7 @@ fn insert_nav_node(nodes: &mut Vec<NavNode>, parts: &[&str], info: &PageInfo) {
             let mut children = Vec::new();
             insert_nav_node(&mut children, &parts[1..], info);
             nodes.push(NavNode::Group {
+                open: false,
                 label: dir_label,
                 slug: None,
                 children,
@@ -554,6 +556,7 @@ fn collect_breadcrumbs(
                 label,
                 slug,
                 children,
+                ..
             } => {
                 let mut trail = section.clone();
                 trail.push(Crumb {
@@ -595,6 +598,7 @@ fn collect_nav_pages(nodes: &[NavNode], out: &mut Vec<(String, String)>) {
                 label,
                 slug,
                 children,
+                ..
             } => {
                 if let Some(s) = slug {
                     out.push((s.clone(), label.clone()));
@@ -666,8 +670,9 @@ fn render_nav_node(
             label,
             slug,
             children,
+            open,
         } => {
-            let is_open = section_contains_active(node, current_slug);
+            let is_open = *open || section_contains_active(node, current_slug);
             let label = html_escape(label);
             let open_class = if is_open { " open" } else { "" };
             let aria = if is_open { "true" } else { "false" };
@@ -892,6 +897,7 @@ mod tests {
     fn render_nav_linked_group_keeps_link_outside_button() {
         let tree = vec![
             NavNode::Group {
+                open: false,
                 label: "Advanced".into(),
                 slug: Some("advanced/index".into()),
                 children: vec![NavNode::Page {
@@ -900,6 +906,7 @@ mod tests {
                 }],
             },
             NavNode::Group {
+                open: false,
                 label: "API".into(),
                 slug: None,
                 children: vec![],
@@ -933,6 +940,7 @@ mod tests {
                 label: Some("<Advanced>".into()),
             },
             NavNode::Group {
+                open: false,
                 label: "Vec<T> basics".into(),
                 slug: Some("vec".into()),
                 children: vec![NavNode::Page {
@@ -997,9 +1005,11 @@ mod tests {
     #[test]
     fn breadcrumb_map_nested_groups() {
         let nodes = vec![NavNode::Group {
+            open: false,
             label: "Guides".into(),
             slug: None,
             children: vec![NavNode::Group {
+                open: false,
                 label: "Advanced".into(),
                 slug: None,
                 children: vec![NavNode::Page {
@@ -1018,6 +1028,7 @@ mod tests {
     #[test]
     fn breadcrumb_map_group_with_header_page() {
         let nodes = vec![NavNode::Group {
+            open: false,
             label: "Guides".into(),
             slug: Some("guides/index".into()),
             children: vec![NavNode::Page {

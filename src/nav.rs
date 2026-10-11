@@ -18,6 +18,8 @@ pub struct NavEntry {
     pub separator: Option<SeparatorValue>,
     pub group: Option<Vec<NavGroupItem>>,
     pub autodiscover: Option<String>,
+    #[serde(default)]
+    pub open: bool,
 }
 
 #[derive(Deserialize, Debug)]
@@ -34,6 +36,8 @@ pub struct NavGroupItem {
     pub separator: Option<SeparatorValue>,
     pub group: Option<Vec<NavGroupItem>>,
     pub autodiscover: Option<String>,
+    #[serde(default)]
+    pub open: bool,
 }
 
 /// Shared accessors for the identical fields on `NavEntry` and `NavGroupItem`.
@@ -43,6 +47,7 @@ trait NavItem {
     fn separator(&self) -> Option<&SeparatorValue>;
     fn group(&self) -> Option<&[NavGroupItem]>;
     fn autodiscover(&self) -> Option<&str>;
+    fn open(&self) -> bool;
 }
 
 impl NavItem for NavEntry {
@@ -61,6 +66,9 @@ impl NavItem for NavEntry {
     fn autodiscover(&self) -> Option<&str> {
         self.autodiscover.as_deref()
     }
+    fn open(&self) -> bool {
+        self.open
+    }
 }
 
 impl NavItem for NavGroupItem {
@@ -78,6 +86,9 @@ impl NavItem for NavGroupItem {
     }
     fn autodiscover(&self) -> Option<&str> {
         self.autodiscover.as_deref()
+    }
+    fn open(&self) -> bool {
+        self.open
     }
 }
 
@@ -254,6 +265,7 @@ fn item_to_nodes(
                     .filter(|slug| !is_draft(slug, inventory, locale))
                     .map(String::from),
                 children: discovered,
+                open: item.open(),
             }];
         }
         return discovered;
@@ -278,6 +290,7 @@ fn item_to_nodes(
             label,
             slug,
             children,
+            open: item.open(),
         }];
     }
 
@@ -392,6 +405,47 @@ group = [
     }
 
     #[test]
+    fn configured_groups_render_default_open_and_active_states() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("reference/nested")).unwrap();
+        std::fs::write(dir.path().join("reference/cli.md"), "# CLI").unwrap();
+        std::fs::write(dir.path().join("reference/nested/api.md"), "# API").unwrap();
+        let inventory = PageInventory::scan(dir.path(), None, None, None).unwrap();
+        let config: NavFile = toml::from_str(
+            r#"
+[[nav]]
+label = "Manual"
+open = true
+group = [
+  { label = "Nested", open = true, group = [{ page = "reference/cli" }] },
+  { label = "Closed", open = false, group = [{ page = "reference/nested/api" }] },
+]
+[[nav]]
+label = "Discovered"
+page = "reference/cli"
+autodiscover = "reference"
+open = true
+[[nav]]
+label = "Default"
+group = [{ page = "reference/cli" }]
+"#,
+        )
+        .unwrap();
+        let tree = nav_tree_from_config(&config.nav, &inventory);
+        let html = crate::project::render_nav(&tree, "outside", "/");
+        // Manual, nested manual, and linked autodiscover groups start open.
+        assert_eq!(html.matches("class=\"nav-group open\"").count(), 3);
+        assert_eq!(html.matches("aria-expanded=\"true\"").count(), 3);
+        // Explicit false, omitted setting, and discovered subdirectory stay closed.
+        assert_eq!(html.matches("class=\"nav-group\"").count(), 3);
+        assert_eq!(html.matches("aria-expanded=\"false\"").count(), 3);
+        let active_html = crate::project::render_nav(&tree, "reference/nested/api", "/");
+        assert_eq!(active_html.matches("class=\"nav-group open\"").count(), 5);
+        let active_html = crate::project::render_nav(&tree, "reference/cli", "/");
+        assert_eq!(active_html.matches("class=\"nav-group open\"").count(), 4);
+    }
+
+    #[test]
     fn load_nav_missing_file() {
         let dir = tempfile::tempdir().unwrap();
         let result = load_nav(dir.path()).unwrap();
@@ -484,6 +538,7 @@ group = [{ page = "index" }]
                 separator: None,
                 group: None,
                 autodiscover: None,
+                open: false,
             },
             NavEntry {
                 page: None,
@@ -491,6 +546,7 @@ group = [{ page = "index" }]
                 separator: Some(SeparatorValue::Labeled("Section".to_string())),
                 group: None,
                 autodiscover: None,
+                open: false,
             },
             NavEntry {
                 page: Some("index".to_string()),
@@ -498,6 +554,7 @@ group = [{ page = "index" }]
                 separator: None,
                 group: None,
                 autodiscover: None,
+                open: false,
             },
         ];
 

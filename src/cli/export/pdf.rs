@@ -269,6 +269,7 @@ fn render_toc_nodes(nodes: &[NavNode], html: &mut String, depth: usize) {
                 label,
                 slug,
                 children,
+                ..
             } => {
                 if let Some(s) = slug {
                     html.push_str(&format!(
@@ -833,6 +834,7 @@ mod tests {
     #[test]
     fn render_toc_with_group() {
         let nodes = vec![NavNode::Group {
+            open: false,
             label: "Guides".into(),
             slug: None,
             children: vec![NavNode::Page {

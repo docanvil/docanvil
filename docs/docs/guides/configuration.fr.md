@@ -452,6 +452,8 @@ group = [
 ]
 </code></pre>
 
+Ajoutez `open = true` à un groupe pour le déplier par défaut. Sans cette option, ou avec `open = false`, il reste replié sauf s’il contient la page courante. Cette option fonctionne aussi pour les groupes imbriqués et les groupes autodiscover avec un libellé ; chaque groupe a son propre réglage.
+
 ### En-têtes de groupe cliquables
 
 Ajoutez un champ `page` pour rendre l'en-tête du groupe lui-même un lien cliquable :
@@ -494,6 +496,7 @@ Vous pouvez aussi utiliser la découverte automatique avec un groupe réductible
 <pre><code class="language-toml">&#91;[nav]]
 label = "Référence"
 autodiscover = "reference"
+open = true
 </code></pre>
 
 ### Découverte automatique par défaut

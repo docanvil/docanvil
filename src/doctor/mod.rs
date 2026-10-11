@@ -104,6 +104,7 @@ impl Summary {
 ///
 /// When `silent` is `true`, no progress output is written to stderr (for machine-readable modes).
 pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summary) {
+    let _remote_scope = crate::pipeline::includes::remote::Scope::new();
     let mut all = Vec::new();
 
     // Check if config file exists

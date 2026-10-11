@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- Remote code blocks: give an empty fenced block `url="https://…"` to show a public raw source file from GitHub, GitLab, Bitbucket or another HTTPS host. Supports the same line ranges, numbering, language detection and captions as local `file` blocks. Requests are bounded and reused within each build, with no persistent cache; failures appear in include diagnostics, `docanvil doctor` and strict builds (#101).
 - Set `open = true` on manual or labelled autodiscover groups in `nav.toml` to expand them by default, including nested groups (#99).
 
 ## [1.2.2] - 2026-10-11

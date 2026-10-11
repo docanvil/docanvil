@@ -7,6 +7,8 @@ use std::sync::LazyLock;
 use regex::Regex;
 use syntect::parsing::SyntaxSet;
 
+pub mod remote;
+
 use crate::pipeline::code_blocks::BlockMeta;
 use crate::pipeline::directives::{ATTR_RE, FenceState, inline_code_ranges};
 use crate::render::templates::include_cycle_message;
@@ -365,11 +367,19 @@ impl Expander<'_> {
             },
         }
 
-        let Some(written) = &info.file else {
+        if info.file.is_some() && info.url.is_some() {
+            return Err(Invalid::new(
+                CHECK_INVALID,
+                "a code block can't use both file=\"…\" and url=\"…\"".to_string(),
+                Some("Choose a local file or a remote URL."),
+            ));
+        }
+        let Some(written) = info.file.as_ref().or(info.url.as_ref()) else {
             if info.lines.is_some() {
                 return Err(Invalid::new(
                     CHECK_INVALID,
-                    "lines=\"…\" picks lines from a file, so it needs file=\"…\" too".to_string(),
+                    "lines=\"…\" picks lines from a file, so it needs file=\"…\" or url=\"…\" too"
+                        .to_string(),
                     Some(
                         "Add file=\"path/to/source\", or remove lines to keep the code you wrote.",
                     ),
@@ -381,14 +391,15 @@ impl Expander<'_> {
                 content: None,
             });
         };
+        let attribute = if info.url.is_some() { "url" } else { "file" };
         if !body_blank {
             return Err(Invalid::new(
                 CHECK_INVALID,
                 format!(
-                    "this code block has file=\"{written}\" and code of its own — use one or the other"
+                    "this code block has {attribute}=\"{written}\" and code of its own — use one or the other"
                 ),
                 Some(
-                    "Leave the block empty to show the file, or remove file=\"…\" to keep the code you wrote.",
+                    "Leave the block empty to show the source, or remove file/url to keep the code you wrote.",
                 ),
             ));
         }
@@ -400,18 +411,32 @@ impl Expander<'_> {
             ));
         }
 
-        let path = resolve_path(written, file, self.project_root)
-            .map_err(|m| Invalid::new(CHECK_INVALID, m, None))?;
-        if !path.is_file() {
-            return Err(Invalid::new(
-                CHECK_UNRESOLVED,
-                format!("can't find {written}"),
-                Some(PATH_HINT),
-            ));
-        }
-        let text =
-            read_utf8(&path, written).map_err(|m| Invalid::new(CHECK_UNRESOLVED, m, None))?;
-        self.expanded.dependencies.insert(canonical(&path));
+        let (text, path) = if info.url.is_some() {
+            let uri =
+                remote::validate_url(written).map_err(|m| Invalid::new(CHECK_INVALID, m, None))?;
+            let text = remote::fetch(written).map_err(|m| {
+                Invalid::new(
+                    CHECK_UNRESOLVED,
+                    m,
+                    Some("Use a public raw file URL; pin it to a commit for reproducible builds."),
+                )
+            })?;
+            (text, PathBuf::from(uri.path()))
+        } else {
+            let path = resolve_path(written, file, self.project_root)
+                .map_err(|m| Invalid::new(CHECK_INVALID, m, None))?;
+            if !path.is_file() {
+                return Err(Invalid::new(
+                    CHECK_UNRESOLVED,
+                    format!("can't find {written}"),
+                    Some(PATH_HINT),
+                ));
+            }
+            let text =
+                read_utf8(&path, written).map_err(|m| Invalid::new(CHECK_UNRESOLVED, m, None))?;
+            self.expanded.dependencies.insert(canonical(&path));
+            (text, path)
+        };
 
         let all: Vec<&str> = text.lines().collect();
         let ranges = match &info.lines {
@@ -484,6 +509,7 @@ impl<'l> FenceOpen<'l> {
 struct FenceInfo {
     lang: Option<String>,
     file: Option<String>,
+    url: Option<String>,
     lines: Option<String>,
     /// `Some(None)` for a bare `numbers`, `Some(Some(v))` for `numbers="v"`.
     numbers: Option<Option<String>>,
@@ -505,6 +531,7 @@ impl FenceInfo {
             let value = caps[2].to_string();
             match &caps[1] {
                 "file" => parsed.file = Some(value),
+                "url" => parsed.url = Some(value),
                 "lines" => parsed.lines = Some(value),
                 "numbers" => parsed.numbers = Some(Some(value)),
                 "title" => parsed.title = Some(value),
@@ -524,6 +551,7 @@ impl FenceInfo {
 
     fn has_attrs(&self) -> bool {
         self.file.is_some()
+            || self.url.is_some()
             || self.lines.is_some()
             || self.numbers.is_some()
             || self.title.is_some()

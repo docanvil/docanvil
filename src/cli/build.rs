@@ -551,6 +551,7 @@ fn build_site(
     mode: BuildMode<'_>,
     dependencies: &mut BTreeSet<PathBuf>,
 ) -> Result<Built> {
+    let _remote_scope = crate::pipeline::includes::remote::Scope::new();
     let BuildMode {
         live_reload,
         drafts: include_drafts,

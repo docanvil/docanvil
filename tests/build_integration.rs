@@ -2281,3 +2281,37 @@ fn test_remote_include_validation_reaches_build_and_doctor() {
             .any(|d| d.check == "include-invalid" && d.message.contains("HTTPS"))
     );
 }
+
+#[test]
+fn test_toml_file_block_is_highlighted_with_line_ranges() {
+    let dir = create_project(
+        STRICT_CONFIG,
+        &[(
+            "index.md",
+            "# Config\n\n```toml file=\"/sample.toml\" lines=\"1-2,4-4\"\n```\n",
+        )],
+    );
+    write_file(
+        dir.path(),
+        "sample.toml",
+        "[project]\nname = \"Docs\"\n# omitted\nenabled = true\n",
+    );
+    build_project_strict(dir.path()).expect("TOML sample should build in strict mode");
+    let html = read_output(dir.path(), "index.html");
+    let start = html.find("<figure class=\"code-block\">").unwrap();
+    let end = start + html[start..].find("</figure>").unwrap();
+    let block = &html[start..end];
+    assert!(block.contains("data-language=\"toml\""));
+    assert!(block.contains("data-line=\"4\""));
+    assert!(block.contains("data-hidden=\"1\""));
+    assert!(
+        block.contains("color:#a3be8c;"),
+        "strings receive token highlighting"
+    );
+    let pre_start = block.find("<pre").unwrap();
+    let pre_end = block.find("</pre>").unwrap();
+    assert_eq!(
+        strip_tags(&block[pre_start..pre_end]).trim_start_matches('\n'),
+        "[project]\nname = &quot;Docs&quot;\nenabled = true\n"
+    );
+}

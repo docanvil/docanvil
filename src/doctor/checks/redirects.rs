@@ -95,6 +95,27 @@ mod tests {
     }
 
     #[test]
+    fn ambiguous_target_is_a_warning_at_its_config_line() {
+        let (dir, diags) = doctor(
+            "[project]\nname = \"T\"\n\n[redirects]\nold = \"setup\"\n",
+            &[
+                ("docs/guides/setup.md", "# Guide"),
+                ("docs/reference/setup.md", "# Reference"),
+            ],
+        );
+        assert_eq!(diags.len(), 1);
+        let d = &diags[0];
+        assert_eq!(d.check, redirects::CHECK_TARGET_AMBIGUOUS);
+        assert!(matches!(d.severity, Severity::Warning));
+        assert_eq!(
+            d.file.as_deref(),
+            Some(dir.path().join("docanvil.toml").as_path())
+        );
+        assert_eq!(d.line, Some(5));
+        assert!(d.message.contains("guides/setup, reference/setup"));
+    }
+
+    #[test]
     fn clean_redirects_have_no_diagnostics() {
         let (_dir, diags) = doctor(
             "[project]\nname = \"T\"\n\n[redirects]\n\"old\" = \"guide\"\n",

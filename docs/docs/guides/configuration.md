@@ -340,6 +340,8 @@ Keeps old URLs working when pages are renamed, moved or deleted, so bookmarks, s
 "/blog/" = "https://blog.example.com"
 ```
 
+Redirect targets match an exact page slug or an old filename alias first. A bare basename such as `setup` is also accepted when it identifies one page in the selected version and language. If both `guides/setup` and `reference/setup` match, the redirect is skipped with a `redirect-target-ambiguous` warning from build and doctor; `--strict` fails. Use the full slug to choose the destination.
+
 Paths can be written three ways:
 
 - **A page slug**, like `help/faq`: the same thing you'd write in a [[writing/wiki-links|wiki-link]]. A trailing `.html` or `/` is fine. On translated or versioned sites the redirect is written for every language and version where the target page exists, so `"old-faq" = "help/faq"` gives you `/en/old-faq.html`, `/fr/old-faq.html` and so on.

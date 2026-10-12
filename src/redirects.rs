@@ -136,6 +136,7 @@ pub fn stub_html(href: &str, canonical: &str, lang: Option<&str>) -> String {
 }
 
 pub const CHECK_TARGET_MISSING: &str = "redirect-target-missing";
+pub const CHECK_TARGET_AMBIGUOUS: &str = "redirect-target-ambiguous";
 pub const CHECK_SHADOWED: &str = "redirect-shadowed";
 pub const CHECK_CONFLICT: &str = "redirect-conflict";
 pub const CHECK_LOOP: &str = "redirect-loop";
@@ -207,6 +208,7 @@ struct Candidate {
 
 enum Found<'a> {
     Page(&'a PageInfo),
+    Ambiguous(Vec<String>),
     Draft,
     Missing,
 }
@@ -272,14 +274,34 @@ fn current_set<'s, 'a>(config: &Config, sets: &'s [PageSet<'a>]) -> Option<&'s P
 }
 
 fn find<'a>(inventory: &'a PageInventory, slug: &str, locale: Option<&str>) -> Found<'a> {
-    let page = match locale {
-        Some(l) => inventory.resolve_link_in_locale(slug, l),
-        None => inventory.resolve_link(slug),
-    };
-    match page {
-        Some(page) => Found::Page(page),
-        None if inventory.resolve_draft(slug, locale).is_some() => Found::Draft,
-        None => Found::Missing,
+    let key = locale.map_or_else(|| slug.to_string(), |l| format!("{l}:{slug}"));
+    if let Some(page) = inventory.pages.get(&key).or_else(|| {
+        inventory
+            .slug_aliases
+            .get(&key)
+            .and_then(|alias| inventory.pages.get(alias))
+    }) {
+        return Found::Page(page);
+    }
+    // Preserve unique basename shorthand, but never pick a permanent destination
+    // based on HashMap iteration order.
+    let mut matches = inventory.pages.values().filter(|page| {
+        (locale.is_none() || page.locale.as_deref() == locale)
+            && page.slug.rsplit('/').next() == Some(slug)
+    });
+    if let Some(page) = matches.next() {
+        let mut slugs = vec![page.slug.clone()];
+        slugs.extend(matches.map(|page| page.slug.clone()));
+        if slugs.len() == 1 {
+            return Found::Page(page);
+        }
+        slugs.sort();
+        return Found::Ambiguous(slugs);
+    }
+    if inventory.resolve_draft(slug, locale).is_some() {
+        Found::Draft
+    } else {
+        Found::Missing
     }
 }
 
@@ -441,6 +463,21 @@ fn table_candidates(
                 Spec::External(url) => (Target::External(url.clone()), lang, false),
                 Spec::Literal(path) => (Target::Path(path.clone()), lang, false),
                 Spec::Slug(slug) => match find(set.inventory, slug, lang) {
+                    Found::Ambiguous(slugs) => {
+                        let scope = prefix(set.version, lang);
+                        let scope = scope.trim_end_matches('/');
+                        let context = if scope.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" in {scope}")
+                        };
+                        problems.push(RedirectProblem {
+                            check: CHECK_TARGET_AMBIGUOUS,
+                            origin: origin.clone(),
+                            message: format!("Redirect target \"{slug}\" is ambiguous{context}: {}. Use the full page slug.", slugs.join(", ")),
+                        });
+                        continue;
+                    }
                     Found::Page(page) => (
                         Target::Page(output_path(page)),
                         page.locale.as_deref(),
@@ -876,6 +913,84 @@ mod tests {
 
     fn checks(plan: &RedirectPlan) -> Vec<&'static str> {
         plan.problems.iter().map(|p| p.check).collect()
+    }
+
+    #[test]
+    fn ambiguous_basename_targets_are_skipped_with_sorted_choices() {
+        let site = Site::new(
+            &format!("{PLAIN}\n[redirects]\nold = \"setup\"\n"),
+            &[
+                ("reference/setup.md", "# Reference"),
+                ("guides/setup.md", "# Guide"),
+            ],
+        );
+        let plan = site.plan();
+        assert!(plan.redirects.is_empty());
+        assert_eq!(checks(&plan), vec![CHECK_TARGET_AMBIGUOUS]);
+        assert!(
+            plan.problems[0]
+                .message
+                .contains("guides/setup, reference/setup")
+        );
+        assert!(plan.problems[0].message.contains("Use the full page slug"));
+    }
+
+    #[test]
+    fn exact_alias_and_unique_basename_targets_still_resolve() {
+        let site = Site::new(
+            &format!(
+                "{PLAIN}\n[redirects]\nexact = \"setup\"\nalias = \"old-name\"\nunique = \"install\"\nfull = \"guides/setup\"\n"
+            ),
+            &[
+                ("setup.md", "# Root"),
+                ("guides/setup.md", "# Guide"),
+                ("reference/setup.md", "# Reference"),
+                (
+                    "old-name.md",
+                    "---\n{\"slug\": \"renamed\"}\n---\n# Renamed",
+                ),
+                ("guides/old-name.md", "# Other old name"),
+                ("guides/install.md", "# Install"),
+            ],
+        );
+        let plan = site.plan();
+        assert!(plan.problems.is_empty(), "{:?}", plan.problems);
+        assert_eq!(
+            pairs(&plan),
+            vec![
+                ("alias.html", page("renamed.html")),
+                ("exact.html", page("setup.html")),
+                ("full.html", page("guides/setup.html")),
+                ("unique.html", page("guides/install.html"))
+            ]
+        );
+    }
+
+    #[test]
+    fn basename_ambiguity_is_scoped_to_version_and_locale() {
+        let site = Site::new(
+            &format!(
+                "{I18N}\n[version]\ncurrent = \"v2\"\nenabled = [\"v1\", \"v2\"]\n\n[redirects]\nold = \"setup\"\n"
+            ),
+            &[
+                ("v1/guides/setup.md", "# Guide"),
+                ("v1/guides/setup.fr.md", "# Guide"),
+                ("v2/guides/setup.md", "# Guide"),
+                ("v2/reference/setup.md", "# Reference"),
+                ("v2/guides/setup.fr.md", "# Guide"),
+            ],
+        );
+        let plan = site.plan();
+        assert_eq!(checks(&plan), vec![CHECK_TARGET_AMBIGUOUS]);
+        assert!(plan.problems[0].message.contains("in v2/en"));
+        assert_eq!(
+            pairs(&plan),
+            vec![
+                ("v1/en/old.html", page("v1/en/guides/setup.html")),
+                ("v1/fr/old.html", page("v1/fr/guides/setup.html")),
+                ("v2/fr/old.html", page("v2/fr/guides/setup.html"))
+            ]
+        );
     }
 
     #[test]

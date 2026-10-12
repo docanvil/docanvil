@@ -336,6 +336,8 @@ Garde les anciennes URL fonctionnelles quand des pages sont renommées, déplac�
 "/blog/" = "https://blog.example.com"
 ```
 
+Les cibles de redirection correspondent d'abord à un slug exact ou à un alias de l'ancien nom de fichier. Un nom court comme `setup` est aussi accepté s'il désigne une seule page dans la version et la langue choisies. Si `guides/setup` et `reference/setup` correspondent tous les deux, la redirection est ignorée avec un avertissement `redirect-target-ambiguous` dans build et doctor ; `--strict` échoue. Utilisez le slug complet pour choisir la destination.
+
 Les chemins s'écrivent de trois façons :
 
 - **Un slug de page**, comme `help/faq` : la même chose que dans un [[writing/wiki-links|wiki-link]]. Un `.html` ou un `/` final ne pose pas de problème. Sur un site traduit ou versionné, la redirection est écrite pour chaque langue et chaque version où la page cible existe : `"old-faq" = "help/faq"` donne `/en/old-faq.html`, `/fr/old-faq.html`, et ainsi de suite.

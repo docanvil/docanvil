@@ -39,6 +39,24 @@ fr = "Français"
 "#;
 
 #[test]
+fn test_ambiguous_redirect_target_is_skipped_and_fails_strict() {
+    let dir = create_project(
+        "[project]\nname = \"T\"\n\n[build]\nsite_url = \"https://example.com\"\n\n[redirects]\nold = \"setup\"\n",
+        &[
+            ("guides/setup.md", "# Guide"),
+            ("reference/setup.md", "# Reference"),
+        ],
+    );
+    build_project(dir.path()).expect("normal build should warn and continue");
+    assert!(!output_exists(dir.path(), "old.html"));
+    assert!(output_exists(dir.path(), "guides/setup.html"));
+    assert!(matches!(
+        build_project_strict(dir.path()),
+        Err(docanvil::error::Error::StrictWarnings(1))
+    ));
+}
+
+#[test]
 fn test_basic_build() {
     let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Welcome\n\nHello world.")]);
     build_project(dir.path()).expect("build should succeed");

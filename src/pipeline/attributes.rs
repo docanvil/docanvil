@@ -44,11 +44,13 @@ pub fn inject_attributes(html: &str) -> String {
                 // Build attribute string
                 let attrs = build_attr_string(&inner);
 
-                // Insert attributes into opening tag
+                let opening_tag = merge_attributes(&result[open_pos..open_tag_end], &attrs);
+
+                // Update the opening tag, preserving the element's content.
                 let new_result = format!(
                     "{}{}>{}\n",
-                    &result[..open_tag_end],
-                    attrs,
+                    &result[..open_pos],
+                    opening_tag,
                     result[open_tag_end + 1..start].trim_end(),
                 );
                 result = format!("{}{}", new_result, &result[end..]);
@@ -56,6 +58,84 @@ pub fn inject_attributes(html: &str) -> String {
         }
     }
 
+    result
+}
+
+/// Merge class tokens and replace IDs without mistaking attribute-like text
+/// inside quoted values (or `data-class`) for actual class/id attributes.
+fn merge_attributes(opening_tag: &str, added: &str) -> String {
+    static ATTRIBUTE_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r#"(\s+)([a-zA-Z_:][a-zA-Z0-9_:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?"#,
+        )
+        .unwrap()
+    });
+    let value = |caps: &regex::Captures<'_>| {
+        (3..=5)
+            .find_map(|i| caps.get(i))
+            .map_or("", |m| m.as_str())
+            .to_string()
+    };
+    let mut classes = Vec::new();
+    let mut id = None;
+    let mut other = String::new();
+    let mut has_new_class = false;
+    for caps in ATTRIBUTE_RE.captures_iter(added) {
+        if caps[2].eq_ignore_ascii_case("class") {
+            has_new_class = true;
+        } else if caps[2].eq_ignore_ascii_case("id") {
+            id = Some(value(&caps));
+        } else {
+            other.push_str(&caps[0]);
+        }
+    }
+    if has_new_class {
+        for attrs in [opening_tag, added] {
+            for caps in ATTRIBUTE_RE.captures_iter(attrs) {
+                if caps[2].eq_ignore_ascii_case("class") {
+                    for class in value(&caps).split_ascii_whitespace() {
+                        if !classes.iter().any(|existing| existing == class) {
+                            classes.push(class.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut class_written = false;
+    let mut id_written = false;
+    // Keep existing entities intact while safely converting single-quoted values.
+    let merged_classes = classes.join(" ").replace('"', "&quot;");
+    let mut result = ATTRIBUTE_RE
+        .replace_all(opening_tag, |caps: &regex::Captures| {
+            if caps[2].eq_ignore_ascii_case("class") && has_new_class {
+                if class_written {
+                    return String::new();
+                }
+                class_written = true;
+                return format!("{}class=\"{merged_classes}\"", &caps[1]);
+            }
+            if caps[2].eq_ignore_ascii_case("id")
+                && let Some(id) = &id
+            {
+                if id_written {
+                    return String::new();
+                }
+                id_written = true;
+                return format!("{}id=\"{id}\"", &caps[1]);
+            }
+            caps[0].to_string()
+        })
+        .into_owned();
+    if let Some(id) = id
+        && !id_written
+    {
+        result.push_str(&format!(" id=\"{id}\""));
+    }
+    if has_new_class && !class_written {
+        result.push_str(&format!(" class=\"{merged_classes}\""));
+    }
+    result.push_str(&other);
     result
 }
 
@@ -113,5 +193,46 @@ mod tests {
         let html = "<p>Normal paragraph</p>\n";
         let result = inject_attributes(html);
         assert_eq!(result, html);
+    }
+
+    #[test]
+    fn merges_classes_and_replaces_id_on_component_outer_tag() {
+        let html = "<div class=\"card rounded\" id=\"old\" data-kind=\"card\"><p>Body.</p></div>\n<p>{.extra .card #new}</p>\n";
+        let result = inject_attributes(html);
+        assert!(
+            result.contains("<div class=\"card rounded extra\" id=\"new\" data-kind=\"card\">"),
+            "{result}"
+        );
+        assert_eq!(result.matches(" class=").count(), 1);
+        assert_eq!(result.matches(" id=").count(), 1);
+    }
+
+    #[test]
+    fn recognizes_single_quoted_unquoted_and_case_insensitive_attributes() {
+        for tag in ["<div CLASS='card' ID='old'>", "<div class=card id=old>"] {
+            let result = inject_attributes(&format!("{tag}Body.</div>\n<p>{{.extra #new}}</p>\n"));
+            assert!(result.contains("class=\"card extra\""), "{result}");
+            assert!(result.contains("id=\"new\""), "{result}");
+            assert!(!result.contains("old"));
+        }
+    }
+
+    #[test]
+    fn preserves_class_entities_and_quotes_when_merging() {
+        let result =
+            inject_attributes("<div class='say\"hi a&amp;b'>Body.</div>\n<p>{.extra}</p>\n");
+        assert!(
+            result.contains("class=\"say&quot;hi a&amp;b extra\""),
+            "{result}"
+        );
+    }
+
+    #[test]
+    fn preserves_other_attributes_and_untouched_class_or_id() {
+        let tag = "<div data-class=\"unrelated\" title=\"class='fake' id='fake'\" class=\"card\" id=\"old\">";
+        let result = inject_attributes(&format!("{tag}Body.</div>\n<p>{{.extra}}</p>\n"));
+        assert!(result.contains("data-class=\"unrelated\" title=\"class='fake' id='fake'\" class=\"card extra\" id=\"old\""), "{result}");
+        let result = inject_attributes(&format!("{tag}Body.</div>\n<p>{{#new}}</p>\n"));
+        assert!(result.contains("class=\"card\" id=\"new\""), "{result}");
     }
 }

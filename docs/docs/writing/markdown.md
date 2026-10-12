@@ -170,6 +170,8 @@ Three or more hyphens, asterisks, or underscores create a horizontal rule:
 
 DocAnvil supports a post-processing pass for inline attributes. Place `{.class #id}` on the line immediately after an element to inject HTML attributes:
 
+Classes are added to any classes already on the element, with repeated tokens included once. A supplied ID replaces the existing ID. This also applies to the outer element of a template component.
+
 ```markdown
 ## My Section
 {#custom-id .highlighted}

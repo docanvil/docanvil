@@ -1152,6 +1152,30 @@ fn test_edit_link_unknown_host_fails_strict() {
 }
 
 #[test]
+fn test_template_component_inline_attributes_merge_class_and_replace_id() {
+    let dir = create_project(
+        "[project]\nname = \"T\"\n[build]\nsite_url = \"https://example.com\"\n",
+        &[(
+            "index.md",
+            "# Home\n\n:::card\nCard body.\n:::\n\n{.extra #custom-card}\n",
+        )],
+    );
+    let comps = dir.path().join("theme/components");
+    fs::create_dir_all(&comps).unwrap();
+    fs::write(
+        comps.join("card.html"),
+        "<div class=\"card\" id=\"default-card\" data-kind=\"card\">{{ body | safe }}</div>",
+    )
+    .unwrap();
+    build_project_strict(dir.path()).expect("component attributes should build strictly");
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("<div class=\"card extra\" id=\"custom-card\" data-kind=\"card\">"));
+    assert!(html.contains("Card body."));
+    assert!(!html.contains("id=\"default-card\""));
+    assert!(!html.contains("{.extra"));
+}
+
+#[test]
 fn test_template_components_custom_and_override() {
     let dir = create_project(
         DEFAULT_CONFIG,

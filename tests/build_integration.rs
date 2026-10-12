@@ -428,6 +428,74 @@ fr = "Français"
 "#;
 
 #[test]
+fn test_i18n_index_front_matter_title_preserves_home_url() {
+    for (config, prefix) in [(I18N_CONFIG, ""), (VERSION_I18N_CONFIG, "v2/")] {
+        for default_index in ["index.md", "index.en.md"] {
+            let dir = create_project(
+                &format!("{config}\n[build]\nsite_url = \"https://example.com\"\n"),
+                &[
+                    (
+                        &format!("{prefix}{default_index}"),
+                        "---\n{\"title\": \"Home Page\"}\n---\nHello home.",
+                    ),
+                    (
+                        &format!("{prefix}index.fr.md"),
+                        "---\n{\"title\": \"Accueil\"}\n---\nBonjour accueil.",
+                    ),
+                    (
+                        &format!("{prefix}guides/index.md"),
+                        "---\n{\"title\": \"Guide Home\"}\n---\nNested home.",
+                    ),
+                    (
+                        &format!("{prefix}guides/index.fr.md"),
+                        "---\n{\"title\": \"Accueil guides\"}\n---\nGuides français.",
+                    ),
+                ],
+            );
+            if !prefix.is_empty() {
+                fs::create_dir_all(dir.path().join("docs/v1/guides")).unwrap();
+                for name in [
+                    default_index,
+                    "index.fr.md",
+                    "guides/index.md",
+                    "guides/index.fr.md",
+                ] {
+                    fs::copy(
+                        dir.path().join(format!("docs/{prefix}{name}")),
+                        dir.path().join(format!("docs/v1/{name}")),
+                    )
+                    .unwrap();
+                }
+            }
+            fs::write(
+                dir.path().join("nav.toml"),
+                "[[nav]]\npage = \"index\"\n\n[[nav]]\npage = \"guides/index\"\n",
+            )
+            .unwrap();
+            build_project_strict(dir.path())
+                .expect("titled i18n index pages should build strictly");
+            for (locale, title, body) in [
+                ("en", "Home Page", "Hello home."),
+                ("fr", "Accueil", "Bonjour accueil."),
+            ] {
+                let html = read_output(dir.path(), &format!("{prefix}{locale}/index.html"));
+                assert!(
+                    html.contains(&format!("<title>{title}")),
+                    "localized browser title should be preserved"
+                );
+                assert!(
+                    html.contains(body),
+                    "localized home content should be preserved"
+                );
+            }
+            let nested = read_output(dir.path(), &format!("{prefix}en/guides/index.html"));
+            assert!(nested.contains("<title>Guide Home"));
+            assert!(nested.contains("Nested home."));
+        }
+    }
+}
+
+#[test]
 fn test_i18n_build_output_structure() {
     let dir = create_project(
         I18N_CONFIG,

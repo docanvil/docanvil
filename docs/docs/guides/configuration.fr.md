@@ -346,6 +346,8 @@ Les chemins s'écrivent de trois façons :
 
 Chaque ancienne URL devient une petite page qui renvoie aussitôt le lecteur vers la nouvelle, en gardant l'éventuelle `#section` du lien. Elle indique aussi aux moteurs de recherche où la page est partie, pour que son référencement passe à la nouvelle URL. Cela fonctionne sur n'importe quel hébergement statique, sans rien configurer côté serveur, et les pages de redirection n'apparaissent jamais dans la barre latérale, la recherche ou `sitemap.xml`.
 
+Si le chemin de sortie d'une redirection est déjà occupé par un fichier de `static/`, ce fichier est conservé et la redirection est ignorée. Build et doctor signalent `redirect-shadowed`, et `--strict` échoue. Les chemins sont relatifs à la racine de sortie : `static/v2/fr/old.html` masque uniquement la redirection de cette version et de cette langue.
+
 Pour une page que vous avez renommée ou déplacée, le plus simple est souvent d'indiquer l'ancien chemin dans son propre [[writing/front-matter|front matter]] avec `redirect_from`. Il suit la page et couvre toutes ses traductions. La table `[redirects]` convient aux pages supprimées, ou pour déplacer beaucoup de pages d'un coup. Si les deux envoient le même ancien chemin à des endroits différents, le front matter l'emporte.
 
 **Activer les langues ou les versions** déplace toutes les pages : `/guides/install.html` devient `/en/guides/install.html` ou `/v2/guides/install.html`. Avec `unprefixed = true`, DocAnvil laisse une redirection à chaque ancienne adresse, vers la version actuelle dans la langue par défaut :

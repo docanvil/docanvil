@@ -484,7 +484,7 @@ fn write_redirects(
     output_dir: &Path,
     base_url: &str,
 ) -> Result<()> {
-    let plan = redirects::plan(config, sets);
+    let plan = redirects::plan_for_project(project_root, config, sets)?;
     for problem in &plan.problems {
         diagnostics::warn_redirect(project_root, problem);
     }

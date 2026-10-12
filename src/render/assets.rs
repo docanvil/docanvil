@@ -2,6 +2,32 @@ use std::path::Path;
 
 use crate::error::Result;
 
+/// Paths copied from `static/`, relative to the output root. Follow directories
+/// the same way as the asset copier, including directory symlinks.
+pub fn static_output_paths(project_root: &Path) -> Result<std::collections::HashSet<String>> {
+    fn collect(
+        dir: &Path,
+        root: &Path,
+        paths: &mut std::collections::HashSet<String>,
+    ) -> Result<()> {
+        for entry in std::fs::read_dir(dir)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                collect(&path, root, paths)?;
+            } else if let Ok(relative) = path.strip_prefix(root) {
+                paths.insert(relative.to_string_lossy().replace('\\', "/"));
+            }
+        }
+        Ok(())
+    }
+    let root = project_root.join("static");
+    let mut paths = std::collections::HashSet::new();
+    if root.exists() {
+        collect(&root, &root, &mut paths)?;
+    }
+    Ok(paths)
+}
+
 /// Copy static assets (custom CSS, images, etc.) from the project to the output directory.
 pub fn copy_assets(project_root: &Path, output_dir: &Path, custom_css: Option<&str>) -> Result<()> {
     // Copy custom CSS if specified

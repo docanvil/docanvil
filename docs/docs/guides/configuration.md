@@ -350,6 +350,8 @@ Paths can be written three ways:
 
 Each old URL becomes a small page that sends readers straight on, keeping any `#section` from the link. It also tells search engines where the page went, so its ranking moves to the new URL. It works on any static host, with nothing to set up on the server, and redirect pages never show up in the sidebar, search or `sitemap.xml`.
 
+If a redirect's output path is already occupied by a file in `static/`, that file wins and the redirect is skipped. Build and doctor report `redirect-shadowed`, and `--strict` fails. Paths are relative to the output root: `static/v2/fr/old.html` shadows that specific version/language redirect.
+
 For a page you've renamed or moved, it's usually simpler to list the old path in the page's own [[writing/front-matter|front matter]] with `redirect_from`. It travels with the page and covers every translation. The `[redirects]` table suits pages you've deleted, or moving lots of pages at once. If both send the same old path to different places, the front matter wins.
 
 **Turning on languages or versions** moves every page: `/guides/install.html` becomes `/en/guides/install.html` or `/v2/guides/install.html`. Set `unprefixed = true` and DocAnvil leaves a redirect at each old address, pointing at the current version in the default language:

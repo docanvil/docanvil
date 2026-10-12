@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Redirects that collide with files published from `static/` are now skipped and reported as `redirect-shadowed` by build and doctor; strict builds fail instead of silently allowing a static file to overwrite the redirect (#76).
 - Inline attribute blocks now merge classes with an element's existing classes and replace its existing ID instead of emitting duplicate attributes (#54).
 - Ambiguous basename redirect targets are now skipped with a warning listing full page slugs, instead of selecting a destination that could change between builds (#77).
 - PDF export now requires a project configuration at the selected root, preventing exports from silently combining language files when run from a parent directory (#107).

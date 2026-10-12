@@ -45,8 +45,20 @@ docanvil export pdf --out guide.pdf
 | `--out` | Yes | — | Output path for the PDF file |
 | `--path` | No | `.` | Path to the project root |
 | `--locale` | No | project default | Locale to export. Pass `all` to generate one PDF per enabled locale. |
+| `--doc-version` | No | current version | Documentation version to export on versioned projects. |
 
 Parent directories for the output path are created automatically.
+
+Export requires `docanvil.toml` in the selected project root. If your documentation project lives in a subdirectory, pass `--path docs` (or its actual location); export fails instead of scanning that directory with default settings.
+
+In an interactive terminal, export asks for the version and language when multiple choices exist and the corresponding option is omitted. Explicit selections skip those prompts. With redirected input or `--quiet`, export uses the configured current version and default language without prompting. Invalid selections produce an error.
+
+```bash
+docanvil export pdf --out guide.pdf --doc-version v2 --locale en
+docanvil export pdf --out guide.pdf --doc-version v2 --locale all
+```
+
+Only the selected version is scanned, using its version/locale navigation. Each page appears once, even if navigation references it more than once. `--locale all` exports separate files for the same selected version.
 
 :::code-group
 ```bash
@@ -155,7 +167,9 @@ For fine-grained control over the PDF's appearance, provide a CSS file:
 custom_css = "theme/pdf.css"
 ```
 
-The file is injected after the default PDF styles, so any rule you write overrides the defaults. Some useful targets:
+The PDF inherits the site's content and component styles, `[theme].variables`, and the complete `[theme].custom_css` stylesheet, including typography and branding. Print layout removes sidebar spacing, expands tabs and code groups, and uses a light theme. Local images and CSS resources resolve from the project rather than the temporary print file.
+
+`[pdf].custom_css` is injected last, after the project styles and print adjustments, so you can override them for the PDF. Some useful targets:
 
 ```css
 /* Swap the typeface */

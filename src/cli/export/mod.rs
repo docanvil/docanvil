@@ -24,15 +24,23 @@ pub enum ExportFormat {
         /// Path to the project root
         #[arg(long, default_value = ".")]
         path: PathBuf,
-        /// Locale to export (for i18n projects; defaults to the configured default locale)
+        /// Locale to export, or all; prompts interactively, otherwise uses the project default
         #[arg(long)]
         locale: Option<String>,
+        /// Documentation version; prompts interactively, otherwise uses the current version
+        #[arg(long = "doc-version")]
+        version: Option<String>,
     },
 }
 
 /// Dispatch to the appropriate export format handler.
 pub fn dispatch(args: &ExportArgs, quiet: bool) -> Result<()> {
     match &args.format {
-        ExportFormat::Pdf { out, path, locale } => pdf::run(path, out, locale.as_deref(), quiet),
+        ExportFormat::Pdf {
+            out,
+            path,
+            locale,
+            version,
+        } => pdf::run_with_version(path, out, locale.as_deref(), version.as_deref(), quiet),
     }
 }

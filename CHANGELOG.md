@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Ambiguous basename redirect targets are now skipped with a warning listing full page slugs, instead of selecting a destination that could change between builds (#77).
+
 ## [1.2.3] - 2026-10-11
 
 ### Fixed

@@ -170,6 +170,8 @@ Trois tirets ou plus, astérisques, ou underscores créent une règle horizontal
 
 DocAnvil prend en charge un passage de post-traitement pour les attributs inline. Placez `{.classe #id}` sur la ligne immédiatement après un élément pour injecter des attributs HTML :
 
+Les classes sont ajoutées aux classes existantes de l'élément, sans répéter les mêmes noms. Un ID fourni remplace l'ID existant. Cela s'applique aussi à l'élément extérieur d'un composant de template.
+
 ```markdown
 ## Ma section
 {#id-personnalise .mis-en-evidence}

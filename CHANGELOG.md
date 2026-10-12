@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Inline attribute blocks now merge classes with an element's existing classes and replace its existing ID instead of emitting duplicate attributes (#54).
 - Ambiguous basename redirect targets are now skipped with a warning listing full page slugs, instead of selecting a destination that could change between builds (#77).
 - PDF export now requires a project configuration at the selected root, preventing exports from silently combining language files when run from a parent directory (#107).
 - PDF exports now select one documentation version and locale, respect version-specific navigation, omit repeated chapters, scope heading anchors, and inherit project typography and component styling. Interactive exports ask for omitted selections; scripts can use `--doc-version` and `--locale`, including separate PDFs with `--locale all` (#107).

@@ -46,8 +46,20 @@ docanvil export pdf --out guide.pdf
 | `--out` | Oui | — | Chemin de sortie pour le fichier PDF |
 | `--path` | Non | `.` | Chemin vers la racine du projet |
 | `--locale` | Non | défaut du projet | Locale à exporter. Passez `all` pour générer un PDF par locale activée. |
+| `--doc-version` | Non | version actuelle | Version de la documentation à exporter sur un projet versionné. |
 
 Les répertoires parents du chemin de sortie sont créés automatiquement.
+
+L'export exige `docanvil.toml` dans la racine du projet sélectionné. Si votre projet documentaire se trouve dans un sous-répertoire, passez `--path docs` (ou son emplacement réel) ; l'export échoue au lieu de parcourir ce répertoire avec les paramètres par défaut.
+
+Dans un terminal interactif, l'export demande la version et la langue lorsque plusieurs choix existent et que l'option correspondante est omise. Les sélections explicites évitent ces questions. Avec une entrée redirigée ou `--quiet`, l'export utilise la version actuelle et la langue par défaut sans poser de question. Une sélection invalide produit une erreur.
+
+```bash
+docanvil export pdf --out guide.pdf --doc-version v2 --locale en
+docanvil export pdf --out guide.pdf --doc-version v2 --locale all
+```
+
+Seule la version sélectionnée est parcourue, avec sa navigation par version et locale. Chaque page apparaît une seule fois, même si la navigation la référence plusieurs fois. `--locale all` produit des fichiers séparés pour cette même version.
 
 :::code-group
 ```bash
@@ -156,7 +168,9 @@ Pour un contrôle précis de l'apparence du PDF, fournissez un fichier CSS :
 custom_css = "theme/pdf.css"
 ```
 
-Le fichier est injecté après les styles PDF par défaut, donc toute règle que vous écrivez remplace les valeurs par défaut. Quelques cibles utiles :
+Le PDF reprend les styles du contenu et des composants du site, `[theme].variables` et la feuille complète `[theme].custom_css`, y compris la typographie et l'identité visuelle. La mise en page d'impression supprime l'espace de la barre latérale, développe les onglets et groupes de code et utilise un thème clair. Les images et ressources CSS locales sont résolues depuis le projet plutôt que depuis le fichier temporaire.
+
+`[pdf].custom_css` est injecté en dernier, après les styles du projet et les adaptations d'impression, pour les remplacer dans le PDF. Quelques cibles utiles :
 
 ```css
 /* Changer la police */

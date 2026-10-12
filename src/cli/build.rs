@@ -166,7 +166,9 @@ pub(crate) fn read_sources(
 
         // Determine slug override: explicit slug field takes priority, then title-derived.
         // Skip title-derived slugs for "index" pages (well-known convention).
-        let current_basename = slug.rsplit('/').next().unwrap_or(slug);
+        // Inventory keys include locale prefixes (e.g. "en:index"); page slugs do not.
+        let page_slug = &inventory.pages[slug].slug;
+        let current_basename = page_slug.rsplit('/').next().unwrap_or(page_slug);
         let new_slug = if let Some(ref s) = fm.slug {
             Some(slug::slugify(s))
         } else if let Some(ref title) = fm.title

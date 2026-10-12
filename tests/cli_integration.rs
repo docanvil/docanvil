@@ -10,6 +10,50 @@ fn docanvil_cmd() -> Command {
 }
 
 #[test]
+fn test_cli_pdf_requires_project_config_in_selected_root() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("docs/docs")).unwrap();
+    std::fs::write(
+        dir.path().join("docs/docanvil.toml"),
+        "[project]\nname = \"T\"\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n",
+    )
+    .unwrap();
+    for name in ["index.md", "index.fr.md"] {
+        std::fs::write(dir.path().join("docs/docs").join(name), "# Home").unwrap();
+    }
+    docanvil_cmd()
+        .current_dir(dir.path())
+        .args(["export", "pdf", "--out", "guide.pdf"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("No docanvil.toml found"))
+        .stderr(predicate::str::contains("--path <project-root>"));
+    assert!(!dir.path().join("guide.pdf").exists());
+}
+
+#[test]
+fn test_cli_pdf_rejects_invalid_export_selections_before_launching_chrome() {
+    let dir = create_project(
+        "[project]\nname = \"T\"\n[version]\ncurrent = \"v1\"\nenabled = [\"v1\"]\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n",
+        &[("v1/index.md", "# Home"), ("v1/index.fr.md", "# Accueil")],
+    );
+    for (option, value) in [("--doc-version", "v9"), ("--locale", "de")] {
+        docanvil_cmd()
+            .args(["export", "pdf", "--out"])
+            .arg(dir.path().join("guide.pdf"))
+            .arg("--path")
+            .arg(dir.path())
+            .args([option, value, "--quiet"])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains(format!(
+                "Invalid {option} '{value}'"
+            )));
+        assert!(!dir.path().join("guide.pdf").exists());
+    }
+}
+
+#[test]
 fn test_cli_build_success() {
     let dir = create_project(DEFAULT_CONFIG, &[("index.md", "# Hello\n\nWorld.")]);
 

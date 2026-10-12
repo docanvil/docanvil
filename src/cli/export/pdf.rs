@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
@@ -7,14 +8,12 @@ use regex::Regex;
 use serde::Serialize;
 use tera::{Context, Tera};
 
-use crate::cli::build::exclude_drafts;
+use crate::cli::build::{exclude_drafts, read_sources};
 use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::nav;
 use crate::pipeline;
-use crate::pipeline::frontmatter::{self, FrontMatter};
-use crate::pipeline::markdown;
 use crate::pipeline::syntax::SyntaxHighlighter;
 use crate::project::{NavNode, PageInfo, PageInventory, flatten_nav_pages};
 
@@ -45,6 +44,8 @@ struct PdfContext {
     /// fail to resolve.  All common raster and SVG formats are supported.
     cover_logo_data_uri: Option<String>,
     custom_css: Option<String>,
+    site_css: String,
+    theme_custom_css: Option<String>,
     mermaid_enabled: bool,
     mermaid_version: String,
     lang: String,
@@ -332,13 +333,89 @@ fn rewrite_links_for_pdf(html: &str, inventory: &PageInventory, locale: Option<&
         if result.contains(&src) {
             result = result.replace(&src, &dest);
         }
+        let src_fragment = format!("href=\"/{}#", page.output_path.display());
+        result = result.replace(&src_fragment, &format!("href=\"#{}--", page.slug));
     }
     result
 }
 
-/// Wrap an IO error with the file path that caused it.
-fn io_context(path: &Path) -> impl FnOnce(std::io::Error) -> Error + '_ {
-    move |e| Error::General(format!("{}: {e}", path.display()))
+/// Headings from different chapters often share IDs (e.g. "installation").
+fn scope_heading_anchors(html: &str, slug: &str) -> String {
+    let re = Regex::new(r#"(<h[1-6]\b[^>]*\bid=")([^"]+)(")"#).expect("valid regex");
+    let mut result = html.to_string();
+    for caps in re.captures_iter(html) {
+        result = result.replace(
+            &format!("href=\"#{}\"", &caps[2]),
+            &format!("href=\"#{slug}--{}\"", &caps[2]),
+        );
+    }
+    re.replace_all(&result, |caps: &regex::Captures| {
+        format!("{}{slug}--{}{}", &caps[1], &caps[2], &caps[3])
+    })
+    .into_owned()
+}
+
+fn local_file_url(path: &Path) -> Option<String> {
+    let path = path
+        .canonicalize()
+        .ok()?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let encoded: String = path
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b"/-._~:".contains(&b) {
+                (b as char).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect();
+    Some(format!(
+        "file://{}{encoded}",
+        if encoded.starts_with('/') { "" } else { "/" }
+    ))
+}
+
+/// Inline CSS lives in a temporary HTML file; resolve its local resources at source.
+fn resolve_css_resources(css: &str, css_path: &Path, project_root: &Path) -> String {
+    let re = Regex::new(r#"url\(\s*([^)]*?)\s*\)"#).expect("valid regex");
+    re.replace_all(css, |caps: &regex::Captures| {
+        let raw = caps[1].trim().trim_matches(['\'', '"']);
+        if raw.starts_with('#') || raw.starts_with("//") || raw.contains(':') {
+            return caps[0].to_string();
+        }
+        let path = if raw.starts_with('/') {
+            project_root.join(raw.trim_start_matches('/'))
+        } else {
+            css_path.parent().unwrap_or(project_root).join(raw)
+        };
+        local_file_url(&path).map_or_else(|| caps[0].to_string(), |url| format!("url(\"{url}\")"))
+    })
+    .into_owned()
+}
+
+fn resolve_pdf_images(html: &str, project_root: &Path) -> String {
+    let re = Regex::new(r#"(<img\b[^>]*\bsrc=")([^"]+)(")"#).expect("valid regex");
+    re.replace_all(html, |caps: &regex::Captures| {
+        let src = &caps[2];
+        if src.contains(':') || src.starts_with("//") {
+            return caps[0].to_string();
+        }
+        let path = project_root.join(src.trim_start_matches('/'));
+        let url = local_file_url(&path).or_else(|| {
+            local_file_url(
+                &project_root
+                    .join("static")
+                    .join(src.trim_start_matches('/')),
+            )
+        });
+        url.map_or_else(
+            || caps[0].to_string(),
+            |url| format!("{}{url}{}", &caps[1], &caps[3]),
+        )
+    })
+    .into_owned()
 }
 
 /// Insert `locale` before the file extension of `base`.
@@ -358,15 +435,16 @@ fn locale_output_path(base: &Path, locale: &str) -> PathBuf {
     }
 }
 
-/// Run the PDF export for a single concrete locale (or no locale when i18n is off).
-fn run_single_locale(
+/// Prepare one export's scoped content and styles without launching Chrome.
+fn prepare_pdf(
     project_root: &Path,
-    out: &Path,
     locale_arg: Option<&str>,
+    version: Option<&str>,
     config: &Config,
     quiet: bool,
-) -> Result<()> {
+) -> Result<(PdfContext, Option<String>)> {
     let content_dir = project_root.join(&config.project.content_dir);
+    let content_dir = version.map_or(content_dir.clone(), |v| content_dir.join(v));
     if !content_dir.exists() {
         return Err(Error::ContentDirNotFound(content_dir));
     }
@@ -379,8 +457,12 @@ fn run_single_locale(
     if !quiet {
         eprintln!("Scanning pages…");
     }
-    let mut inventory =
-        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None)?;
+    let mut inventory = PageInventory::scan(
+        &content_dir,
+        enabled_locales,
+        config.default_locale(),
+        version,
+    )?;
 
     // Determine the locale to export (None when i18n is disabled).
     let export_locale: Option<&str> = if config.is_i18n_enabled() {
@@ -389,82 +471,17 @@ fn run_single_locale(
         None
     };
 
-    // ── Pre-pass: read sources and extract front matter ──────────────────────
-    let page_keys: Vec<String> = if let Some(locale) = export_locale {
-        inventory.ordered_for_locale(locale)
-    } else {
-        inventory.ordered.clone()
-    };
-
-    let mut sources: HashMap<String, String> = HashMap::new();
-    let mut front_matters: HashMap<String, FrontMatter> = HashMap::new();
-    let mut slug_updates: Vec<(String, String)> = Vec::new();
-
-    for key in &page_keys {
-        // Extract owned values before any mutable borrow of inventory.
-        let (source_path, slug) = {
-            let page = &inventory.pages[key];
-            (page.source_path.clone(), page.slug.clone())
-        };
-
-        let source = std::fs::read_to_string(&source_path).map_err(io_context(&source_path))?;
-        let fm = frontmatter::extract(&source);
-
-        // Title: front matter, then the first `# H1`, then the filename (from scan).
-
-        // Only front matter titles change the slug, so editing a heading never moves a URL.
-
-        if let Some(title) = fm
-            .title
-            .clone()
-            .or_else(|| markdown::first_h1_text(&source))
-            && let Some(p) = inventory.pages.get_mut(key)
-        {
-            p.title = title;
-        }
-
-        let current_basename = slug.rsplit('/').next().unwrap_or(&slug).to_string();
-        let new_slug = if let Some(ref s) = fm.slug {
-            Some(slug::slugify(s))
-        } else if let Some(ref title) = fm.title
-            && current_basename != "index"
-        {
-            Some(slug::slugify(title))
-        } else {
-            None
-        };
-
-        if let Some(new_slug) = new_slug
-            && new_slug != current_basename
-        {
-            slug_updates.push((key.clone(), new_slug));
-        }
-
-        sources.insert(key.clone(), source);
-        front_matters.insert(key.clone(), fm);
-    }
-
-    // Apply slug updates after the loop to avoid mutating while iterating.
-    for (old_key, new_slug) in slug_updates {
-        if let Some(source) = sources.remove(&old_key) {
-            let fm = front_matters.remove(&old_key).unwrap_or_default();
-            inventory.update_slug(&old_key, new_slug);
-            let full_new_key = inventory
-                .slug_aliases
-                .get(&old_key)
-                .cloned()
-                .unwrap_or(old_key);
-            sources.insert(full_new_key.clone(), source);
-            front_matters.insert(full_new_key, fm);
-        }
-    }
+    let (sources, front_matters) = read_sources(&mut inventory)?;
 
     // Drafts never go into the PDF.
     exclude_drafts(&mut inventory, &front_matters, config, false);
 
     // ── Build nav tree (after slug updates) ───────────────────────────────────
     let nav_tree = if let Some(locale) = export_locale {
-        let nav_config = nav::load_nav_for_locale(project_root, locale)?;
+        let nav_config = match version {
+            Some(v) => nav::load_nav_for_version_and_locale(project_root, v, locale)?,
+            None => nav::load_nav_for_locale(project_root, locale)?,
+        };
         match nav_config {
             Some(entries) => {
                 nav::validate_for_locale(&entries, &inventory, locale);
@@ -473,7 +490,10 @@ fn run_single_locale(
             None => inventory.nav_tree_for_locale(locale),
         }
     } else {
-        let nav_config = nav::load_nav(project_root)?;
+        let nav_config = match version {
+            Some(v) => nav::load_nav_for_version(project_root, v)?,
+            None => nav::load_nav(project_root)?,
+        };
         match nav_config {
             Some(entries) => {
                 nav::validate(&entries, &inventory);
@@ -483,6 +503,8 @@ fn run_single_locale(
         }
     };
 
+    let mut nav_tree = nav_tree;
+    deduplicate_nav(&mut nav_tree, &mut HashSet::new());
     let flat_pages = flatten_nav_pages(&nav_tree);
 
     // ── Render each page through the pipeline ────────────────────────────────
@@ -525,7 +547,9 @@ fn run_single_locale(
             export_locale,
         )?
         .html;
+        let html_body = scope_heading_anchors(&html_body, slug);
         let html_body = rewrite_links_for_pdf(&html_body, &inventory, export_locale);
+        let html_body = resolve_pdf_images(&html_body, project_root);
 
         chapters.push(ChapterData {
             slug: slug.clone(),
@@ -538,7 +562,7 @@ fn run_single_locale(
     let custom_css: Option<String> = if let Some(ref css_path) = config.pdf.custom_css {
         let css_file = project_root.join(css_path);
         match std::fs::read_to_string(&css_file) {
-            Ok(content) => Some(content),
+            Ok(content) => Some(resolve_css_resources(&content, &css_file, project_root)),
             Err(e) => {
                 if !quiet {
                     eprintln!(
@@ -570,12 +594,19 @@ fn run_single_locale(
     // [theme].custom_css :root overrides.  This mirrors the layering order that
     // the web renderer uses so the PDF automatically reflects any colour changes
     // the user has made, with no extra PDF-specific configuration required.
-    let mut merged_theme_vars = config.theme.variables.clone();
+    let mut merged_theme_vars: HashMap<String, String> = config
+        .theme
+        .variables
+        .iter()
+        .map(|(key, value)| (format!("--{}", key.trim_start_matches('-')), value.clone()))
+        .collect();
+    let mut theme_custom_css = None;
     if let Some(ref css_path) = config.theme.custom_css {
         let css_file = project_root.join(css_path);
         match std::fs::read_to_string(&css_file) {
             Ok(css) => {
                 merged_theme_vars.extend(extract_css_vars_from_file(&css));
+                theme_custom_css = Some(resolve_css_resources(&css, &css_file, project_root));
             }
             Err(e) => {
                 if !quiet {
@@ -588,7 +619,7 @@ fn run_single_locale(
         }
     }
     let theme_css_vars = build_theme_css_vars(&merged_theme_vars);
-    let accent_color = merged_theme_vars.get("--color-primary").map(String::as_str);
+    let accent_color = merged_theme_vars.get("--color-primary").cloned();
 
     // ── Assemble PDF HTML ─────────────────────────────────────────────────────
     let cover_logo_data_uri = config
@@ -606,6 +637,8 @@ fn run_single_locale(
         pdf_author: config.pdf.author.clone(),
         cover_logo_data_uri,
         custom_css,
+        site_css: include_str!("../../theme/default/style.css").to_string(),
+        theme_custom_css,
         mermaid_enabled: config.charts.enabled,
         mermaid_version: config.charts.mermaid_version.clone(),
         lang,
@@ -613,6 +646,18 @@ fn run_single_locale(
         paper_size_css,
         theme_css_vars,
     };
+    Ok((ctx, accent_color))
+}
+
+fn run_single_locale(
+    project_root: &Path,
+    out: &Path,
+    locale: Option<&str>,
+    version: Option<&str>,
+    config: &Config,
+    quiet: bool,
+) -> Result<()> {
+    let (ctx, accent_color) = prepare_pdf(project_root, locale, version, config, quiet)?;
     let html = assemble_pdf_html(&ctx)?;
 
     // Write HTML to a temp file
@@ -646,7 +691,7 @@ fn run_single_locale(
             pdf_author: config.pdf.author.as_deref(),
             wait_mermaid: config.charts.enabled,
             paper_size: config.pdf.paper_size.as_deref(),
-            accent_color,
+            accent_color: accent_color.as_deref(),
             quiet,
         },
     );
@@ -665,28 +710,156 @@ fn run_single_locale(
 
 /// Run the `export pdf` command.
 pub fn run(project_root: &Path, out: &Path, locale_arg: Option<&str>, quiet: bool) -> Result<()> {
-    let _remote_scope = crate::pipeline::includes::remote::Scope::new();
-    let config = Config::load(project_root)?;
+    run_with_version(project_root, out, locale_arg, None, quiet)
+}
 
-    if locale_arg == Some("all") {
-        if !config.is_i18n_enabled() {
-            return Err(Error::General(
-                "--locale all requires i18n to be configured \
-                 (set [locale] default and enabled in docanvil.toml)"
-                    .into(),
-            ));
-        }
+pub fn run_with_version(
+    project_root: &Path,
+    out: &Path,
+    locale_arg: Option<&str>,
+    version_arg: Option<&str>,
+    quiet: bool,
+) -> Result<()> {
+    let _remote_scope = crate::pipeline::includes::remote::Scope::new();
+    if !project_root.join("docanvil.toml").is_file() {
+        return Err(Error::General(format!(
+            "No docanvil.toml found in {}. Run PDF export from the documentation project root or specify --path <project-root>.",
+            project_root.display()
+        )));
+    }
+    let config = Config::load(project_root)?;
+    let interactive = !quiet && std::io::stdin().is_terminal() && std::io::stderr().is_terminal();
+    let (locale, version) = select_export_scope(&config, locale_arg, version_arg, interactive)?;
+    if locale.as_deref() == Some("all") {
         for locale in &config.locale.enabled {
             let locale_out = locale_output_path(out, locale);
-            if !quiet {
-                eprintln!("Exporting PDF for locale '{locale}'…");
-            }
-            run_single_locale(project_root, &locale_out, Some(locale), &config, quiet)?;
+            run_single_locale(
+                project_root,
+                &locale_out,
+                Some(locale),
+                version.as_deref(),
+                &config,
+                quiet,
+            )?;
         }
         return Ok(());
     }
+    run_single_locale(
+        project_root,
+        out,
+        locale.as_deref(),
+        version.as_deref(),
+        &config,
+        quiet,
+    )
+}
 
-    run_single_locale(project_root, out, locale_arg, &config, quiet)
+fn select_export_scope(
+    config: &Config,
+    locale: Option<&str>,
+    version: Option<&str>,
+    interactive: bool,
+) -> Result<(Option<String>, Option<String>)> {
+    fn select(
+        kind: &str,
+        supplied: Option<&str>,
+        enabled: &[String],
+        default: Option<&str>,
+        interactive: bool,
+        allow_all: bool,
+    ) -> Result<Option<String>> {
+        let label = if kind == "doc-version" {
+            "version"
+        } else {
+            "language"
+        };
+        if let Some(value) = supplied {
+            if enabled.is_empty()
+                || (!enabled.iter().any(|v| v == value) && !(allow_all && value == "all"))
+            {
+                return Err(Error::General(format!(
+                    "Invalid --{kind} '{value}'; enabled {label}s: {}",
+                    enabled.join(", ")
+                )));
+            }
+            return Ok(Some(value.to_string()));
+        }
+        if enabled.is_empty() {
+            return Ok(None);
+        }
+        if interactive && enabled.len() > 1 {
+            let index = dialoguer::Select::new()
+                .with_prompt(format!("Documentation {label} to export"))
+                .items(enabled)
+                .default(
+                    enabled
+                        .iter()
+                        .position(|v| Some(v.as_str()) == default)
+                        .unwrap_or(0),
+                )
+                .interact()
+                .map_err(|e| Error::General(format!("prompt failed: {e}")))?;
+            return Ok(Some(enabled[index].clone()));
+        }
+        Ok(default
+            .map(String::from)
+            .or_else(|| enabled.first().cloned()))
+    }
+    // Validate explicit selections before prompting for anything else.
+    if locale.is_some() {
+        select(
+            "locale",
+            locale,
+            &config.locale.enabled,
+            config.default_locale(),
+            false,
+            true,
+        )?;
+    }
+    if version.is_some() {
+        select(
+            "doc-version",
+            version,
+            &config.version.enabled,
+            config.current_version(),
+            false,
+            false,
+        )?;
+    }
+    let version = select(
+        "doc-version",
+        version,
+        &config.version.enabled,
+        config.current_version(),
+        interactive,
+        false,
+    )?;
+    let locale = select(
+        "locale",
+        locale,
+        &config.locale.enabled,
+        config.default_locale(),
+        interactive,
+        true,
+    )?;
+    Ok((locale, version))
+}
+
+/// Keep the first navigation occurrence of each page, preserving chapter order.
+fn deduplicate_nav(nodes: &mut Vec<NavNode>, seen: &mut HashSet<String>) {
+    nodes.retain_mut(|node| match node {
+        NavNode::Page { slug, .. } => seen.insert(slug.clone()),
+        NavNode::Separator { .. } => true,
+        NavNode::Group { slug, children, .. } => {
+            if let Some(s) = slug.as_ref()
+                && !seen.insert(s.clone())
+            {
+                *slug = None;
+            }
+            deduplicate_nav(children, seen);
+            slug.is_some() || !children.is_empty()
+        }
+    });
 }
 
 /// Retrieve a page by its inventory key, used in tests.
@@ -707,6 +880,164 @@ fn lookup_page<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn export_fixture() -> (tempfile::TempDir, Config) {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("docanvil.toml"),
+            r#"
+[project]
+name = "Scoped Docs"
+[version]
+current = "v2"
+enabled = ["v1", "v2"]
+[locale]
+default = "en"
+enabled = ["en", "fr"]
+[theme]
+custom_css = "theme/brand.css"
+[theme.variables]
+font-body = "Georgia, serif"
+[pdf]
+custom_css = "theme/print.css"
+"#,
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.path().join("theme")).unwrap();
+        std::fs::write(dir.path().join("theme/brand.css"), ":root { --color-primary: #123456; } .content h2 { color: #abcdef; } .note { border-width: 3px; }").unwrap();
+        std::fs::write(
+            dir.path().join("theme/print.css"),
+            ".pdf-chapter { font-size: 10pt; }",
+        )
+        .unwrap();
+        for version in ["v1", "v2"] {
+            std::fs::create_dir_all(dir.path().join(format!("docs/{version}"))).unwrap();
+            for locale in ["en", "fr"] {
+                let suffix = if locale == "en" {
+                    String::new()
+                } else {
+                    format!(".{locale}")
+                };
+                for (slug, content) in [
+                    (
+                        "index",
+                        format!(
+                            "---\n{{\"title\": \"{version} {locale} Home\"}}\n---\n# Home\n\nTOKEN-{version}-{locale}\n\n[[guide]]\n\n## Shared\n\n[Local](#shared)\n\n[Other](/{}/{}/guide.html#shared)",
+                            version, locale
+                        ),
+                    ),
+                    (
+                        "guide",
+                        "# Guide\n\n## Shared\n\n:::note\nStyled note.\n:::\n".to_string(),
+                    ),
+                    (
+                        "draft",
+                        "---\n{\"draft\": true}\n---\n# Draft\nDRAFT-CONTENT".to_string(),
+                    ),
+                ] {
+                    std::fs::write(
+                        dir.path().join(format!("docs/{version}/{slug}{suffix}.md")),
+                        content,
+                    )
+                    .unwrap();
+                }
+                std::fs::write(dir.path().join(format!("nav.{version}.{locale}.toml")), format!("[[nav]]\npage = \"guide\"\nlabel = \"NAV-{version}-{locale}\"\n\n[[nav]]\npage = \"index\"\n\n[[nav]]\npage = \"guide\"\n")).unwrap();
+            }
+        }
+        let config = Config::load(dir.path()).unwrap();
+        (dir, config)
+    }
+
+    #[test]
+    fn exports_only_selected_version_and_locale_once_with_scoped_links_and_styles() {
+        let (dir, config) = export_fixture();
+        for version in ["v1", "v2"] {
+            for locale in ["en", "fr"] {
+                let (ctx, accent) =
+                    prepare_pdf(dir.path(), Some(locale), Some(version), &config, true).unwrap();
+                assert_eq!(
+                    ctx.chapters
+                        .iter()
+                        .map(|c| c.slug.as_str())
+                        .collect::<Vec<_>>(),
+                    ["guide", "index"]
+                );
+                let html = assemble_pdf_html(&ctx).unwrap();
+                assert!(html.contains(&format!("TOKEN-{version}-{locale}")));
+                for other_version in ["v1", "v2"] {
+                    for other_locale in ["en", "fr"] {
+                        if (version, locale) != (other_version, other_locale) {
+                            assert!(
+                                !html.contains(&format!("TOKEN-{other_version}-{other_locale}"))
+                            );
+                        }
+                    }
+                }
+                assert!(!html.contains("DRAFT-CONTENT"));
+                assert_eq!(ctx.toc_html.matches("href=\"#guide\"").count(), 1);
+                assert!(ctx.toc_html.contains(&format!("NAV-{version}-{locale}")));
+                assert!(html.contains("href=\"#guide\""));
+                assert!(html.contains("href=\"#guide--shared\""));
+                assert!(html.contains("href=\"#index--shared\""));
+                assert_eq!(html.matches("id=\"guide--shared\"").count(), 1);
+                assert_eq!(html.matches("id=\"index--shared\"").count(), 1);
+                assert!(html.contains("--font-body: Georgia, serif"));
+                assert!(html.contains(".content h2 { color: #abcdef; }"));
+                assert!(html.contains(".note { border-width: 3px; }"));
+                assert!(
+                    html.find(".content h2 { color: #abcdef; }").unwrap()
+                        < html.find(".pdf-chapter { font-size: 10pt; }").unwrap()
+                );
+                assert_eq!(accent.as_deref(), Some("#123456"));
+            }
+        }
+    }
+
+    #[test]
+    fn export_selections_validate_and_default_without_prompts() {
+        let (_dir, config) = export_fixture();
+        assert_eq!(
+            select_export_scope(&config, None, None, false).unwrap(),
+            (Some("en".into()), Some("v2".into()))
+        );
+        assert_eq!(
+            select_export_scope(&config, Some("all"), Some("v1"), false).unwrap(),
+            (Some("all".into()), Some("v1".into()))
+        );
+        for (locale, version) in [(Some("de"), None), (None, Some("v3"))] {
+            assert!(select_export_scope(&config, locale, version, false).is_err());
+        }
+        let config = Config::default();
+        assert_eq!(
+            select_export_scope(&config, None, None, false).unwrap(),
+            (None, None)
+        );
+        assert!(select_export_scope(&config, Some("all"), None, false).is_err());
+        assert!(select_export_scope(&config, None, Some("v1"), false).is_err());
+    }
+
+    #[test]
+    fn pdf_local_images_and_css_resources_resolve_from_project_not_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("theme")).unwrap();
+        std::fs::create_dir_all(dir.path().join("assets")).unwrap();
+        std::fs::write(dir.path().join("assets/a b.png"), b"image").unwrap();
+        let url = local_file_url(&dir.path().join("assets/a b.png")).unwrap();
+        assert!(url.contains("a%20b.png"));
+        let css = resolve_css_resources(
+            ".hero { background: url('../assets/a b.png'); } .external { background: url(https://example.com/bg.png); }",
+            &dir.path().join("theme/brand.css"),
+            dir.path(),
+        );
+        assert!(css.contains(&url));
+        assert!(css.contains("url(https://example.com/bg.png)"));
+        let html = resolve_pdf_images(
+            "<img src=\"/assets/a b.png\"><img src=\"https://example.com/a.png\">",
+            dir.path(),
+        );
+        assert!(html.contains(&url));
+        assert!(html.contains("src=\"https://example.com/a.png\""));
+    }
 
     // ── extract_css_vars_from_file ────────────────────────────────────────────
 
@@ -888,6 +1219,8 @@ mod tests {
             pdf_author: None,
             cover_logo_data_uri: None,
             custom_css: None,
+            site_css: include_str!("../../theme/default/style.css").to_string(),
+            theme_custom_css: None,
             mermaid_enabled: false,
             mermaid_version: "11".into(),
             lang: "en".into(),

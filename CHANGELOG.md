@@ -6,6 +6,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- PDF export now requires a project configuration at the selected root, preventing exports from silently combining language files when run from a parent directory (#107).
+- PDF exports now select one documentation version and locale, respect version-specific navigation, omit repeated chapters, scope heading anchors, and inherit project typography and component styling. Interactive exports ask for omitted selections; scripts can use `--doc-version` and `--locale`, including separate PDFs with `--locale all` (#107).
 - Front matter titles on index pages now preserve their home-page URLs on localised sites, including versioned sites (#94).
 
 ## [1.2.3] - 2026-10-11

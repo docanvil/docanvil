@@ -1,11 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ lang }}"{% if is_rtl %} dir="rtl"{% endif %}>
+<html lang="{{ lang }}" data-theme="light"{% if is_rtl %} dir="rtl"{% endif %}>
 <head>
   <meta charset="UTF-8">
   <title>{{ project_title }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>{{ site_css | safe }}</style>
   <style>
     /* ── Theme variables (forwarded from docanvil.toml [theme]) ─── */
     :root {
@@ -38,7 +36,7 @@
     }
 
     body {
-      font-family: 'Lora', Georgia, 'Times New Roman', serif;
+      font-family: var(--font-body);
       font-size: 11pt;
       line-height: 1.75;
       color: var(--pdf-ink);
@@ -80,7 +78,7 @@
     }
 
     .cover-eyebrow {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 8pt;
       font-weight: 600;
       font-style: normal;
@@ -91,7 +89,7 @@
     }
 
     .cover-title {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 34pt;
       font-weight: 700;
       line-height: 1.15;
@@ -111,7 +109,7 @@
     }
 
     .cover-author {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 12pt;
       font-weight: 400;
       font-style: italic;
@@ -137,7 +135,7 @@
 
     /* When TOC doubles as the title page (no cover) */
     .toc-project-title {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 22pt;
       font-weight: 700;
       color: var(--pdf-ink);
@@ -149,7 +147,7 @@
     }
 
     .toc-contents-label {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 8pt;
       font-weight: 700;
       letter-spacing: 0.2em;
@@ -161,7 +159,7 @@
 
     /* Only used when show_cover is true */
     .pdf-toc > h1 {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       font-size: 8pt;
       font-weight: 700;
       letter-spacing: 0.2em;
@@ -229,7 +227,7 @@
        Headings
        ────────────────────────────────────────────────────────── */
     h1, h2, h3, h4, h5, h6 {
-      font-family: 'Lora', Georgia, serif;
+      font-family: var(--font-body);
       line-height: 1.25;
       font-weight: 700;
       color: var(--pdf-ink);
@@ -291,7 +289,7 @@
        Inline code
        ────────────────────────────────────────────────────────── */
     code {
-      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-family: var(--font-mono);
       font-size: 0.84em;
       background: var(--pdf-code-bg);
       color: var(--pdf-accent);
@@ -333,7 +331,7 @@
       justify-content: space-between;
       gap: 1em;
       padding: 0.35em 1.1em;
-      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-family: var(--font-mono);
       font-size: 8pt;
       color: var(--pdf-ink-muted);
       border: 1px solid var(--pdf-rule);
@@ -376,7 +374,7 @@
       border: 1px solid var(--pdf-warn-border);
       background: var(--pdf-warn-bg);
       padding: 0.5em 0.8em;
-      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-family: var(--font-mono);
       font-size: 8pt;
     }
 
@@ -475,7 +473,7 @@
        ────────────────────────────────────────────────────────── */
     .lozenge {
       display: inline-block;
-      font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace;
+      font-family: var(--font-mono);
       font-size: 7.5pt;
       font-weight: 500;
       letter-spacing: 0.04em;
@@ -518,6 +516,26 @@
   <script src="https://cdn.jsdelivr.net/npm/mermaid@{{ mermaid_version }}/dist/mermaid.min.js"></script>
   <script>mermaid.initialize({ startOnLoad: true });</script>
   {% endif %}
+  {% if theme_custom_css %}
+  <style>{{ theme_custom_css | safe }}</style>
+  {% endif %}
+  <style>
+    /* Keep site content/component styling while removing web layout constraints. */
+    .pdf-chapter.content { margin: 0; padding: 0; max-width: none; }
+    .pdf-chapter .features { display: block; }
+    .pdf-chapter .feature { break-inside: avoid; margin-bottom: 1rem; }
+    .pdf-chapter .hero { break-inside: avoid; }
+    body { display: block; min-height: auto; }
+    .pdf-chapter [data-tab-panel], .pdf-chapter .tab-content { display: block !important; }
+    .pdf-chapter .tab-bar, .pdf-chapter .tab-headers,
+    .pdf-chapter .copy-btn, .pdf-chapter .heading-anchor { display: none !important; }
+    .pdf-chapter pre, .pdf-chapter pre code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow: visible;
+    }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  </style>
   {% if custom_css %}
   <style>
   {{ custom_css | safe }}
@@ -549,7 +567,7 @@
   </section>
 
   {% for chapter in chapters %}
-  <section class="pdf-chapter" id="{{ chapter.slug }}">
+  <section class="pdf-chapter content" id="{{ chapter.slug }}">
     {{ chapter.content_html | safe }}
   </section>
   {% endfor %}

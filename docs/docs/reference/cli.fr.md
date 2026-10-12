@@ -507,7 +507,7 @@ Exporte votre documentation dans d'autres formats.
 Exporte les docs en un seul PDF en utilisant Chrome ou Chromium.
 
 ```bash
-docanvil export pdf --out <chemin> [--path <rép>] [--locale <code>]
+docanvil export pdf --out <chemin> [--path <rép>] [--locale <code>] [--doc-version <version>]
 ```
 
 | Option | Requis | Défaut | Description |
@@ -515,6 +515,7 @@ docanvil export pdf --out <chemin> [--path <rép>] [--locale <code>]
 | `--out` | Oui | — | Chemin de sortie pour le fichier PDF |
 | `--path` | Non | `.` | Chemin vers la racine du projet |
 | `--locale` | Non | défaut du projet | Locale à exporter. Passez `all` pour générer un PDF par locale activée — ex. `guide.pdf` → `guide.en.pdf`, `guide.fr.pdf`. |
+| `--doc-version` | Non | version actuelle | Version de la documentation à exporter. |
 
 Nécessite Chrome ou Chromium. DocAnvil recherche dans les emplacements d'installation courants sur macOS, Windows et Linux avant de chercher dans le PATH.
 

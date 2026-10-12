@@ -216,12 +216,30 @@ enum Found<'a> {
 /// Work out every stub this build writes, from front matter `redirect_from`,
 /// the `[redirects]` table and `unprefixed`.
 pub fn plan(config: &Config, sets: &[PageSet]) -> RedirectPlan {
+    plan_with_static(config, sets, &HashSet::new())
+}
+
+/// Plan redirects alongside the static files the build will publish.
+pub fn plan_for_project(
+    project_root: &Path,
+    config: &Config,
+    sets: &[PageSet],
+) -> Result<RedirectPlan> {
+    let paths = crate::render::assets::static_output_paths(project_root)?;
+    Ok(plan_with_static(config, sets, &paths))
+}
+
+fn plan_with_static(
+    config: &Config,
+    sets: &[PageSet],
+    static_paths: &HashSet<String>,
+) -> RedirectPlan {
     let mut problems = Vec::new();
     let mut candidates = Vec::new();
     front_matter_candidates(config, sets, &mut candidates, &mut problems);
     let drafted = table_candidates(config, sets, &mut candidates, &mut problems);
     unprefixed_candidates(config, sets, &mut candidates);
-    resolve(config, sets, candidates, &drafted, problems)
+    resolve(config, sets, candidates, &drafted, problems, static_paths)
 }
 
 /// `v2/en/`, `v2/`, `en/` or empty.
@@ -553,6 +571,7 @@ fn resolve(
     candidates: Vec<Candidate>,
     drafted: &HashSet<String>,
     mut problems: Vec<RedirectProblem>,
+    static_paths: &HashSet<String>,
 ) -> RedirectPlan {
     let pages: HashSet<String> = sets
         .iter()
@@ -560,12 +579,13 @@ fn resolve(
         .map(output_path)
         .collect();
     // Paths a stub must never replace: every page (drafts too, so publishing one
-    // doesn't change what its URL does) and the files the build writes itself.
+    // doesn't change what its URL does), static files, and generated site files.
     let mut taken: HashSet<String> = sets
         .iter()
         .flat_map(|set| set.inventory.drafts.values())
         .map(output_path)
         .chain(pages.iter().cloned())
+        .chain(static_paths.iter().cloned())
         .collect();
     taken.insert("404.html".to_string());
     if config.is_i18n_enabled() || config.is_versioning_enabled() {
@@ -575,14 +595,16 @@ fn resolve(
     let mut by_from: BTreeMap<String, Vec<Candidate>> = BTreeMap::new();
     for candidate in candidates {
         if taken.contains(&candidate.from) {
-            if candidate.origin != Origin::Unprefixed {
+            if candidate.origin != Origin::Unprefixed || static_paths.contains(&candidate.from) {
+                let reason = if static_paths.contains(&candidate.from) {
+                    "a static file already occupies that path"
+                } else {
+                    "a page already lives there"
+                };
                 problems.push(RedirectProblem {
                     check: CHECK_SHADOWED,
                     origin: candidate.origin.clone(),
-                    message: format!(
-                        "Redirect from {} is never used: a page already lives there",
-                        candidate.from
-                    ),
+                    message: format!("Redirect from {} is never used: {reason}", candidate.from),
                 });
             }
             continue;
@@ -884,7 +906,7 @@ mod tests {
                     front_matters,
                 })
                 .collect();
-            plan(&self.config, &sets)
+            plan_for_project(self._dir.path(), &self.config, &sets).unwrap()
         }
     }
 
@@ -989,6 +1011,36 @@ mod tests {
                 ("v1/en/old.html", page("v1/en/guides/setup.html")),
                 ("v1/fr/old.html", page("v1/fr/guides/setup.html")),
                 ("v2/fr/old.html", page("v2/fr/guides/setup.html"))
+            ]
+        );
+    }
+
+    #[test]
+    fn static_collisions_use_exact_output_paths_in_versioned_locales() {
+        let site = Site::new(
+            &format!(
+                "{I18N}\n[version]\ncurrent = \"v2\"\nenabled = [\"v1\", \"v2\"]\n\n[redirects]\n\"legacy/old\" = \"guide\"\n"
+            ),
+            &[
+                ("v1/guide.md", "# Guide"),
+                ("v1/guide.fr.md", "# Guide"),
+                ("v2/guide.md", "# Guide"),
+                ("v2/guide.fr.md", "# Guide"),
+            ],
+        );
+        let root = site._dir.path().join("static");
+        fs::create_dir_all(root.join("v2/fr/legacy")).unwrap();
+        fs::write(root.join("v2/fr/legacy/old.html"), "Static page").unwrap();
+        fs::write(root.join("old.html"), "Unrelated page").unwrap();
+        let plan = site.plan();
+        assert_eq!(checks(&plan), [CHECK_SHADOWED]);
+        assert!(plan.problems[0].message.contains("v2/fr/legacy/old.html"));
+        assert_eq!(
+            pairs(&plan),
+            vec![
+                ("v1/en/legacy/old.html", page("v1/en/guide.html")),
+                ("v1/fr/legacy/old.html", page("v1/fr/guide.html")),
+                ("v2/en/legacy/old.html", page("v2/en/guide.html"))
             ]
         );
     }

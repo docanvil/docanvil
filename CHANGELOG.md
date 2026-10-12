@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Redirects that collide with files published from `static/` are now skipped and reported as `redirect-shadowed` by build and doctor; strict builds fail instead of silently allowing a static file to overwrite the redirect (#76).
 - Ambiguous basename redirect targets are now skipped with a warning listing full page slugs, instead of selecting a destination that could change between builds (#77).
 - PDF export now requires a project configuration at the selected root, preventing exports from silently combining language files when run from a parent directory (#107).
 - PDF exports now select one documentation version and locale, respect version-specific navigation, omit repeated chapters, scope heading anchors, and inherit project typography and component styling. Interactive exports ask for omitted selections; scripts can use `--doc-version` and `--locale`, including separate PDFs with `--locale all` (#107).

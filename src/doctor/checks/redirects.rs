@@ -23,8 +23,21 @@ pub fn check_redirects(project_root: &Path, config: &Config) -> Vec<Diagnostic> 
         .collect();
 
     let config_path = project_root.join("docanvil.toml");
-    redirects::plan(config, &sets)
-        .problems
+    let plan = match redirects::plan_for_project(project_root, config, &sets) {
+        Ok(plan) => plan,
+        Err(error) => {
+            return vec![Diagnostic {
+                check: CHECK_INVALID,
+                category: "config",
+                severity: Severity::Error,
+                message: format!("Could not plan redirects: {error}"),
+                file: Some(config_path),
+                line: None,
+                fix: None,
+            }];
+        }
+    };
+    plan.problems
         .into_iter()
         .map(|problem| {
             let (category, file, line) = match &problem.origin {
@@ -113,6 +126,38 @@ mod tests {
         );
         assert_eq!(d.line, Some(5));
         assert!(d.message.contains("guides/setup, reference/setup"));
+    }
+
+    #[test]
+    fn static_collision_reports_the_redirect_declaration() {
+        for front_matter in [false, true] {
+            let config = if front_matter {
+                "[project]\nname = \"T\"\n"
+            } else {
+                "[project]\nname = \"T\"\n\n[redirects]\nold = \"guide\"\n"
+            };
+            let guide = if front_matter {
+                "---\n{\"redirect_from\": [\"old\"]}\n---\n# Guide"
+            } else {
+                "# Guide"
+            };
+            let (dir, diags) = doctor(
+                config,
+                &[("docs/guide.md", guide), ("static/old.html", "Static page")],
+            );
+            assert_eq!(diags.len(), 1, "{diags:?}");
+            let d = &diags[0];
+            assert_eq!(d.check, redirects::CHECK_SHADOWED);
+            assert!(matches!(d.severity, Severity::Warning));
+            assert!(d.message.contains("static file"));
+            let file = if front_matter {
+                "docs/guide.md"
+            } else {
+                "docanvil.toml"
+            };
+            assert_eq!(d.file.as_deref(), Some(dir.path().join(file).as_path()));
+            assert_eq!(d.line, Some(if front_matter { 2 } else { 5 }));
+        }
     }
 
     #[test]

@@ -2072,6 +2072,31 @@ fn test_redirects_i18n() {
 }
 
 #[test]
+fn test_static_file_shadowing_redirect_warns_and_fails_strict() {
+    for front_matter in [false, true] {
+        let config = if front_matter {
+            SITE_CONFIG.to_string()
+        } else {
+            format!("{SITE_CONFIG}\n[redirects]\n\"old\" = \"guide\"\n")
+        };
+        let guide = if front_matter {
+            "---\n{\"redirect_from\": [\"old\"]}\n---\n# Guide"
+        } else {
+            "# Guide"
+        };
+        let dir = create_project(&config, &[("index.md", "# Home"), ("guide.md", guide)]);
+        fs::create_dir_all(dir.path().join("static")).unwrap();
+        fs::write(dir.path().join("static/old.html"), "STATIC-CONTENT").unwrap();
+        build_project(dir.path()).expect("normal build should preserve the static file");
+        assert_eq!(read_output(dir.path(), "old.html"), "STATIC-CONTENT");
+        assert!(matches!(
+            build_project_strict(dir.path()),
+            Err(docanvil::error::Error::StrictWarnings(1))
+        ));
+    }
+}
+
+#[test]
 fn test_redirects_versioned_unprefixed() {
     let config = format!(
         "{SITE_CONFIG}\n[version]\nenabled = [\"v1\", \"v2\"]\n\n[redirects]\nunprefixed = true\n"

@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Front matter titles on index pages now preserve their home-page URLs on localised sites, including versioned sites (#94).
+
 ## [1.2.3] - 2026-10-11
 
 ### Fixed

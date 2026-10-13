@@ -53,7 +53,7 @@ Liens Markdown standard : `[texte](url)`
 
 Images : `![texte alternatif](url-image)`
 
-Pour lier des pages de documentation, utilisez plutôt les [[writing/wiki-links|wiki-links]] — ils se résolvent automatiquement et avertissent des références cassées.
+Pour lier des pages de documentation, utilisez plutôt les [[writing/links-popovers|wiki-links]] — ils se résolvent automatiquement et avertissent des références cassées.
 
 ## Listes
 
@@ -192,7 +192,7 @@ Plusieurs classes peuvent être combinées : `{.premiere .deuxieme #mon-id}`
 ## Pages associées
 
 - [[writing/front-matter|Front Matter]] — métadonnées de pages, titres, et balises meta SEO
-- [[writing/wiki-links|Wiki-links]] — liens à doubles crochets et popovers inline
+- [[writing/links-popovers|Wiki-links]] — liens à doubles crochets et popovers inline
 - [[writing/components|Composants]] — notes, avertissements, onglets, et groupes de code
 
 :::note{title="Propulsé par comrak"}

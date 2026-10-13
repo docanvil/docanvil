@@ -186,7 +186,7 @@ Le titre du hero est le `<h1>` de la page : n'ajoutez donc pas votre propre `# T
 
 ### Boutons
 
-`:::buttons` transforme chaque lien de son corps en bouton. Le premier est l'appel à l'action principal, les suivants sont secondaires. Utilisez des [[writing/wiki-links|wiki-links]] pour vos propres pages : les boutons suivent alors la langue et la version du lecteur, et les liens cassés sont toujours signalés :
+`:::buttons` transforme chaque lien de son corps en bouton. Le premier est l'appel à l'action principal, les suivants sont secondaires. Utilisez des [[writing/links-popovers|wiki-links]] pour vos propres pages : les boutons suivent alors la langue et la version du lecteur, et les liens cassés sont toujours signalés :
 
 :::buttons
 [[guides/getting-started|Commencer →]] [[writing/components|Composants]]
@@ -493,4 +493,4 @@ Les composants sont traités avant le rendu Markdown. Cela signifie que vous pou
 ## Pages associées
 
 - [[writing/markdown|Markdown]] — mise en forme du texte, tableaux, et autres fonctionnalités Markdown
-- [[writing/wiki-links|Wiki-links]] — liens à doubles crochets et popovers inline
+- [[writing/links-popovers|Wiki-links]] — liens à doubles crochets et popovers inline

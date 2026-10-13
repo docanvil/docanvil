@@ -185,7 +185,7 @@ The hero's title is the page's `<h1>`, so leave out a `# Heading` of your own. T
 
 ### Buttons
 
-`:::buttons` turns every link in its body into a button. The first one is the primary call to action; the rest are secondary. Use [[writing/wiki-links|wiki-links]] for your own pages, so the buttons follow the reader's language and version and broken links are still reported:
+`:::buttons` turns every link in its body into a button. The first one is the primary call to action; the rest are secondary. Use [[writing/links-popovers|wiki-links]] for your own pages, so the buttons follow the reader's language and version and broken links are still reported:
 
 :::buttons
 [[guides/getting-started|Get started →]] [[writing/components|Components]]
@@ -570,4 +570,4 @@ Components are processed before Markdown rendering. This means you can use bold,
 ## Related Pages
 
 - [[writing/markdown|Markdown]] — text formatting, tables, and other Markdown features
-- [[writing/wiki-links|Wiki-links]] — double-bracket links and inline popovers
+- [[writing/links-popovers|Wiki-links]] — double-bracket links and inline popovers

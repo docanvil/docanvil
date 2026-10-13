@@ -340,7 +340,7 @@ Les cibles de redirection correspondent d'abord à un slug exact ou à un alias 
 
 Les chemins s'écrivent de trois façons :
 
-- **Un slug de page**, comme `help/faq` : la même chose que dans un [[writing/wiki-links|wiki-link]]. Un `.html` ou un `/` final ne pose pas de problème. Sur un site traduit ou versionné, la redirection est écrite pour chaque langue et chaque version où la page cible existe : `"old-faq" = "help/faq"` donne `/en/old-faq.html`, `/fr/old-faq.html`, et ainsi de suite.
+- **Un slug de page**, comme `help/faq` : la même chose que dans un [[writing/links-popovers|wiki-link]]. Un `.html` ou un `/` final ne pose pas de problème. Sur un site traduit ou versionné, la redirection est écrite pour chaque langue et chaque version où la page cible existe : `"old-faq" = "help/faq"` donne `/en/old-faq.html`, `/fr/old-faq.html`, et ainsi de suite.
 - **Un chemin du site** commençant par `/`, comme `/old-blog.html`, ou `/blog/` pour `/blog/index.html`. Il est utilisé tel quel, une seule fois.
 - **Un autre site** : une adresse complète en `https://` (ou `http://`), comme `https://blog.example.com`. Uniquement à droite. Les autres schémas et les cibles sans schéma (`//hôte/…`) sont refusés.
 
@@ -395,7 +395,7 @@ description = "DocAnvil transforme le Markdown en sites de documentation rapides
 `llms-full.txt` contient le Markdown de toutes les pages, dans le même ordre, chacune précédée de son titre et d'un lien `Source:`. C'est votre Markdown tel que vous l'avez écrit, mis au propre pour que d'autres outils puissent le lire :
 
 - les [[writing/includes|fragments]] `:::include` et les [[writing/components/code-blocks|blocs de code]] `file="…"` sont remplis
-- les [[writing/wiki-links|wiki-links]] deviennent des liens Markdown classiques avec des URL complètes
+- les [[writing/links-popovers|wiki-links]] deviennent des liens Markdown classiques avec des URL complètes
 - les ajouts propres à DocAnvil, comme `{#id-perso}` sur les titres ou `numbers` sur les blocs de code, sont retirés
 - les blocs de code restent exactement tels qu'écrits, et les [[writing/components|composants]] apparaissent avec leur syntaxe `:::`
 
@@ -466,7 +466,7 @@ Ajoutez un champ `page` pour rendre l'en-tête du groupe lui-même un lien cliqu
 label = "Écrire du contenu"
 page = "writing/markdown"
 group = [
-  { page = "writing/wiki-links", label = "Liens &amp; Popovers" },
+  { page = "writing/links-popovers", label = "Liens &amp; Popovers" },
   { page = "writing/components" },
 ]
 </code></pre>

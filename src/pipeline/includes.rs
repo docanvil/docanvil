@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 use syntect::parsing::SyntaxSet;
 
+mod regions;
 pub mod remote;
 
 use crate::pipeline::code_blocks::BlockMeta;
@@ -375,13 +376,13 @@ impl Expander<'_> {
             ));
         }
         let Some(written) = info.file.as_ref().or(info.url.as_ref()) else {
-            if info.lines.is_some() {
+            if info.lines.is_some() || info.region.is_some() {
                 return Err(Invalid::new(
                     CHECK_INVALID,
-                    "lines=\"…\" picks lines from a file, so it needs file=\"…\" or url=\"…\" too"
+                    "lines or region selects source content, so it needs file=\"…\" or url=\"…\" too"
                         .to_string(),
                     Some(
-                        "Add file=\"path/to/source\", or remove lines to keep the code you wrote.",
+                        "Add file=\"path/to/source\", or remove the source selector to keep the code you wrote.",
                     ),
                 ));
             }
@@ -403,10 +404,17 @@ impl Expander<'_> {
                 ),
             ));
         }
-        if info.lines.is_some() && meta.start.is_some() {
+        if info.region.is_some() && info.lines.is_some() {
             return Err(Invalid::new(
                 CHECK_INVALID,
-                "numbers=\"N\" can't be combined with lines=\"…\" — the block already shows the file's real line numbers".to_string(),
+                "region and lines cannot be combined — choose one source selector".to_string(),
+                None,
+            ));
+        }
+        if (info.lines.is_some() || info.region.is_some()) && meta.start.is_some() {
+            return Err(Invalid::new(
+                CHECK_INVALID,
+                "numbers=\"N\" can't be combined with lines or region — the block already shows the file's real line numbers".to_string(),
                 Some("Drop the number and write just numbers, or leave numbers out."),
             ));
         }
@@ -439,10 +447,15 @@ impl Expander<'_> {
         };
 
         let all: Vec<&str> = text.lines().collect();
-        let ranges = match &info.lines {
-            Some(spec) => parse_line_ranges(spec, all.len())
-                .map_err(|m| Invalid::new(CHECK_INVALID, format!("{m} ({written})"), None))?,
-            None => Vec::new(),
+        let ranges = if let Some(name) = &info.region {
+            regions::select(&all, name)
+                .map_err(|m| Invalid::new(CHECK_INVALID, format!("{m} ({written})"), None))?
+        } else {
+            match &info.lines {
+                Some(spec) => parse_line_ranges(spec, all.len())
+                    .map_err(|m| Invalid::new(CHECK_INVALID, format!("{m} ({written})"), None))?,
+                None => Vec::new(),
+            }
         };
         let selected = if ranges.is_empty() {
             all
@@ -511,6 +524,7 @@ struct FenceInfo {
     file: Option<String>,
     url: Option<String>,
     lines: Option<String>,
+    region: Option<String>,
     /// `Some(None)` for a bare `numbers`, `Some(Some(v))` for `numbers="v"`.
     numbers: Option<Option<String>>,
     title: Option<String>,
@@ -533,6 +547,7 @@ impl FenceInfo {
                 "file" => parsed.file = Some(value),
                 "url" => parsed.url = Some(value),
                 "lines" => parsed.lines = Some(value),
+                "region" => parsed.region = Some(value),
                 "numbers" => parsed.numbers = Some(Some(value)),
                 "title" => parsed.title = Some(value),
                 _ => {}
@@ -553,6 +568,7 @@ impl FenceInfo {
         self.file.is_some()
             || self.url.is_some()
             || self.lines.is_some()
+            || self.region.is_some()
             || self.numbers.is_some()
             || self.title.is_some()
     }
@@ -1420,6 +1436,48 @@ mod tests {
             run(&dir, "docs/page.md", None).source,
             "```rust docanvil ranges=2-3,7-7 file=src.rs\none\ntwo\nthree\n```\n"
         );
+    }
+
+    #[test]
+    fn region_block_selects_dedents_and_tracks_source() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "```rust file=\"src.rs\" region=\"example\"\n```\n",
+            ),
+            (
+                "docs/src.rs",
+                "before\n// {== region=\"example\" ==}\n    one\n    two\n// {== endregion=\"example\" ==}\nafter\n",
+            ),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert!(out.problems.is_empty(), "{:?}", out.problems);
+        assert_eq!(
+            out.source,
+            "```rust docanvil ranges=3-4 file=src.rs\none\ntwo\n```\n"
+        );
+        assert!(out.dependencies.contains(&canon(&dir, "docs/src.rs")));
+        assert!(
+            std::fs::read_to_string(dir.path().join("docs/src.rs"))
+                .unwrap()
+                .contains("{== region=")
+        );
+    }
+
+    #[test]
+    fn region_attributes_report_invalid_combinations() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "```rust region=\"x\"\n```\n```rust file=\"src.rs\" region=\"x\" lines=\"1\"\n```\n```rust file=\"src.rs\" region=\"x\" numbers=\"10\"\n```\n```rust file=\"src.rs\" region=\"missing\"\n```\n",
+            ),
+            ("docs/src.rs", "source\n"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert_eq!(out.problems.len(), 4);
+        for problem in out.problems {
+            assert_eq!(problem.check, CHECK_INVALID);
+        }
     }
 
     #[test]

@@ -47,6 +47,7 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 - 🕒 **Last updated dates** from Git history or front matter, on the page and in `sitemap.xml`
 - 🤖 **`llms.txt`** and `llms-full.txt`, an AI-friendly index and full-text copy of your docs
 - 🧭 **Page headers**: breadcrumbs, front matter descriptions as subtitles, and page titles from the first heading
+- **Named code regions**: select stable source examples with `{== region="name" ==}` / `{== endregion="name" ==}` markers in comments
 
 ---
 
@@ -55,7 +56,6 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 Follow-ups to includes and code blocks from files, now that the first version is in people's hands:
 
 - **Include a section of a page**: pull in one heading's section of a Markdown file (say, the Installation section of your README) instead of the whole file
-- **Named code regions**: mark a region in a source file with `#region` / `#endregion` comments and include it by name, so examples don't break when line numbers shift
 - **Line highlighting**: draw attention to specific lines in a code block, plus diff-style added/removed markers
 - **Remote includes**: include content or code from a URL
 

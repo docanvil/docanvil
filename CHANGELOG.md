@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Named code regions: select local or remote source snippets with `region="name"` and paired `{== region="name" ==}` / `{== endregion="name" ==}` comment markers. Nested marker lines are omitted while original source line numbers are preserved; invalid regions use existing include diagnostics and strict-build checks.
+
 ### Fixed
 
 - Redirects that collide with files published from `static/` are now skipped and reported as `redirect-shadowed` by build and doctor; strict builds fail instead of silently allowing a static file to overwrite the redirect (#76).

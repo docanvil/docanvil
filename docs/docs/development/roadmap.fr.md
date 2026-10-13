@@ -37,11 +37,9 @@ Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour
 - ✅ Blocs de code distants depuis une URL HTTPS brute (`url="…"`)
 - ✅ Régions de code nommées (`{== region="name" ==}` / `{== endregion="name" ==}`), pour que les exemples ne cassent pas quand les numéros de ligne changent
 
+- ✅ Inclusion d’une section Markdown avec `section="heading-id"`
+
 Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
-
-Encore à venir dans la 1.2, maintenant que la première version des inclusions est entre les mains des utilisateurs :
-
-- Inclure une seule section d'une page (par exemple la section Installation de votre README) plutôt que le fichier entier
 
 ## 1.3.x — Extensibilité
 

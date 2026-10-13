@@ -2486,3 +2486,42 @@ fn test_toml_file_block_is_highlighted_with_line_ranges() {
         "[project]\nname = &quot;Docs&quot;\nenabled = true\n"
     );
 }
+
+#[test]
+fn test_section_includes_render_and_validate_in_build_and_doctor() {
+    let dir = create_project(
+        STRICT_CONFIG,
+        &[
+            (
+                "index.md",
+                "# Home\n\n:::include{file=\"_source.md\" section=\"install\"}\n",
+            ),
+            (
+                "_source.md",
+                "# Source\n\n## Installation {#install}\n\nShared steps.\n\n### Details\n\nMore steps.\n\n## Other\n\nExcluded text.\n",
+            ),
+        ],
+    );
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("id=\"install\""));
+    assert!(html.contains("Shared steps."));
+    assert!(html.contains("More steps."));
+    assert!(!html.contains("Excluded text."));
+
+    write_file(
+        dir.path(),
+        "docs/index.md",
+        "# Home\n\n:::include{file=\"_source.md\" section=\"missing\"}\n",
+    );
+    assert!(matches!(
+        build_project_strict(dir.path()),
+        Err(docanvil::error::Error::StrictWarnings(_))
+    ));
+    let (diagnostics, _) = docanvil::doctor::run_checks(dir.path(), true);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.check == "include-invalid" && d.message.contains("missing"))
+    );
+}

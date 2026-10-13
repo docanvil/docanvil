@@ -55,7 +55,7 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 
 Follow-ups to includes and code blocks from files, now that the first version is in people's hands:
 
-- **Include a section of a page**: pull in one heading's section of a Markdown file (say, the Installation section of your README) instead of the whole file
+- ✅ **Include a section of a page**: use `section="heading-id"` to pull in a heading and its subsections from a Markdown file, such as your README’s Installation section
 - **Line highlighting**: draw attention to specific lines in a code block, plus diff-style added/removed markers
 - **Remote includes**: include content or code from a URL
 

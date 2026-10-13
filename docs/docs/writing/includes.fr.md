@@ -45,6 +45,18 @@ Quelques règles de plus :
 - **Tout fichier `.md` convient** : un fragment, une autre page, ou un README hors du dossier de contenu (`file="../README.md"`).
 - `:::include` doit être seul sur sa ligne. Écrit au milieu d'une phrase, il s'affiche tel quel, et `docanvil doctor` le signale.
 
+## Inclure une section
+
+Incluez un titre et sa section depuis un fichier Markdown :
+
+```markdown
+:::include{file="../README.md" section="installation"}
+```
+
+`section` correspond à l'identifiant d'ancre du titre (un `#` initial est accepté). Le titre et ses sous-sections sont inclus jusqu'au prochain titre de niveau égal ou supérieur. Les titres soulignés sont également reconnus ; ceux dans les blocs de code, listes et citations ne délimitent pas de section.
+
+Utilisez l'identifiant généré ou un identifiant stable comme `## Installation {#installation}`. Les titres répétés prennent les suffixes `-1`, `-2`, etc. Seules les inclusions de la section choisie sont développées, avec des chemins relatifs au fichier source et les numéros de ligne d'origine. La sélection de traduction reste identique ; utilisez le même identifiant personnalisé dans chaque langue. Une section absente ou vide produit une erreur d'inclusion.
+
 ## Traductions et versions
 
 Quand la localisation est activée, DocAnvil cherche d'abord un fragment traduit. Une page française qui inclut `_shared/install.md` reçoit `_shared/install.fr.md` s'il existe, et le fichier non traduit sinon : traduisez les fragments qui en ont besoin et partagez les autres.

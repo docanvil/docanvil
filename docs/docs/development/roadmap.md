@@ -36,11 +36,9 @@ The everyday features people expect from a docs tool, so new projects have every
 - ✅ Remote code blocks from a raw HTTPS URL (`url="…"`)
 - ✅ Named code regions (`{== region="name" ==}` / `{== endregion="name" ==}`), so examples don't break when line numbers shift
 
+- ✅ Include a Markdown heading and its section with `section="heading-id"`
+
 Fully backward compatible, and every feature is opt-in.
-
-Still to come in 1.2, now that the first version of includes is in people's hands:
-
-- Include one section of a page (such as your README's Installation section) instead of the whole file
 
 ## 1.3.x — Extensibility
 

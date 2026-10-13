@@ -155,19 +155,20 @@ impl Expander<'_> {
                 file,
                 line,
                 "lines=\"…\" only works on code blocks, not on :::include".to_string(),
-                Some(
-                    "To include part of a page, move that part into its own fragment file and include that.",
-                ),
+                Some("Use section=\"heading-id\" to include a heading and its section."),
             );
             self.report(p, indent, out);
             return;
         }
-        if let Some(key) = attrs.keys().find(|k| k.as_str() != "file") {
+        if let Some(key) = attrs
+            .keys()
+            .find(|k| !matches!(k.as_str(), "file" | "section"))
+        {
             let p = problem(
                 CHECK_INVALID,
                 file,
                 line,
-                format!(":::include only takes file=\"…\", not {key}=\"…\""),
+                format!(":::include only takes file=\"…\" and section=\"…\", not {key}=\"…\""),
                 None,
             );
             self.report(p, indent, out);
@@ -242,9 +243,20 @@ impl Expander<'_> {
 
         let lines: Vec<&str> = text.lines().collect();
         let first = front_matter_end(&lines);
+        let (first, end) = match attrs.get("section") {
+            Some(section) => match section_extent(&lines, first, section) {
+                Ok(extent) => extent,
+                Err(message) => {
+                    self.report(problem(CHECK_INVALID, file, line, message,
+                        Some("Use the heading's anchor ID, or add a stable {#custom-id} to the heading.")), indent, out);
+                    return;
+                }
+            },
+            None => (first, lines.len()),
+        };
         let start = out.len();
         self.stack.push(found.clone());
-        self.expand_lines(&lines, first, &found, indent, out);
+        self.expand_lines(&lines[..end], first, &found, indent, out);
         self.stack.pop();
 
         // A fence left open would run on through the rest of the page.
@@ -911,6 +923,62 @@ pub fn select_lines<'a>(lines: &[&'a str], ranges: &[(usize, usize)]) -> Vec<&'a
         .collect()
 }
 
+/// Select a top-level Markdown heading and all content before the next peer or ancestor.
+/// Parse Markdown rather than matching lines so code, lists and quotes cannot become boundaries.
+fn section_extent(lines: &[&str], first: usize, section: &str) -> Result<(usize, usize), String> {
+    use crate::pipeline::{headings, markdown};
+    use comrak::nodes::NodeValue;
+    use comrak::{Arena, parse_document};
+
+    static CUSTOM_ID: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\s+\{#([\w-]+)\}[ \t]*$").unwrap());
+    static ID: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"id="([^"]+)""#).unwrap());
+    let wanted = section.trim().strip_prefix('#').unwrap_or(section.trim());
+    if wanted.is_empty() {
+        return Err("section must contain a heading anchor ID".to_string());
+    }
+    let source = lines[first..].join("\n");
+    let arena = Arena::new();
+    let root = parse_document(&arena, &source, &markdown::comrak_options());
+    let mut seen = BTreeMap::<String, usize>::new();
+    let mut selected = None;
+    for node in root.children() {
+        let data = node.data.borrow();
+        let NodeValue::Heading(heading) = &data.value else {
+            continue;
+        };
+        let start = first + data.sourcepos.start.line - 1;
+        if let Some((begin, level)) = selected {
+            if heading.level <= level {
+                return Ok((begin, start));
+            }
+            continue;
+        }
+        let end = first + data.sourcepos.end.line;
+        let raw = lines[start..end].join("\n");
+        let id = if let Some(caps) = CUSTOM_ID.captures(raw.trim_end()) {
+            caps[1].to_string()
+        } else {
+            let html = headings::inject_heading_ids(&markdown::render(&raw));
+            let base = ID.captures(&html).ok_or_else(|| "cannot determine the anchor ID of a multiline heading; use an explicit {#custom-id}".to_string())?[1].to_string();
+            let count = seen.entry(base.clone()).or_default();
+            let id = if *count == 0 {
+                base
+            } else {
+                format!("{base}-{count}")
+            };
+            *count += 1;
+            id
+        };
+        if id == wanted {
+            selected = Some((start, heading.level));
+        }
+    }
+    selected
+        .map(|(start, _)| (start, lines.len()))
+        .ok_or_else(|| format!("can't find section \"{section}\" in the included file"))
+}
+
 /// Remove the leading whitespace shared by every non-blank line, keeping
 /// relative indentation. Tabs and spaces are compared literally (a tab never
 /// matches spaces). Whitespace-only lines become empty.
@@ -1079,6 +1147,67 @@ mod tests {
 
     fn canon(dir: &tempfile::TempDir, rel: &str) -> PathBuf {
         dir.path().join(rel).canonicalize().unwrap()
+    }
+
+    #[test]
+    fn section_boundaries_follow_markdown_headings() {
+        let source = "# Page\n\n## The `install` **guide**\nText\n\n```md\n## Fake\n```\n\n### Child\nNested\n\n> ## Quoted\n\n- ## Listed\n\n## Next\nExcluded";
+        let lines: Vec<_> = source.lines().collect();
+        let (start, end) = section_extent(&lines, 0, "the-install-guide").unwrap();
+        assert_eq!(start, 2);
+        assert_eq!(lines[end], "## Next");
+        assert!(lines[start..end].contains(&"Nested"));
+    }
+
+    #[test]
+    fn sections_support_setext_custom_ids_duplicates_and_eof() {
+        let source =
+            "Title\n=====\n\n## Same\nFirst\n\n## Same\nSecond\n\n## Custom {#stable}\nLast";
+        let lines: Vec<_> = source.lines().collect();
+        assert_eq!(section_extent(&lines, 0, "title"), Ok((0, lines.len())));
+        assert_eq!(section_extent(&lines, 0, "same-1"), Ok((6, 9)));
+        assert_eq!(section_extent(&lines, 0, "#stable"), Ok((9, lines.len())));
+        assert!(section_extent(&lines, 0, "missing").is_err());
+        assert!(section_extent(&lines, 0, " ").is_err());
+    }
+
+    #[test]
+    fn section_expansion_keeps_locale_dependencies_and_source_lines() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                ":::include{file=\"other.md\" section=\"install\"}",
+            ),
+            ("docs/other.md", "## Install\nEnglish"),
+            (
+                "docs/other.fr.md",
+                "---\n{}\n---\n# Autre\n\n## Installer {#install}\n:::include{file=\"_steps.md\"}\n:::include{file=\"_missing.md\"}\n## Fin\n:::include{file=\"_ignored.md\"}",
+            ),
+            ("docs/_steps.md", "Étapes"),
+        ]);
+        let out = run(&dir, "docs/page.md", Some("fr"));
+        assert!(out.source.contains("Étapes"));
+        assert!(!out.source.contains("## Fin"));
+        assert_eq!(out.dependencies.len(), 2);
+        assert_eq!(out.problems.len(), 1);
+        assert_eq!(out.problems[0].line, 8);
+        assert_eq!(out.problems[0].file, canon(&dir, "docs/other.fr.md"));
+    }
+
+    #[test]
+    fn missing_section_reports_at_include_and_tracks_dependency() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                ":::include{file=\"other.md\" section=\"missing\"}",
+            ),
+            ("docs/other.md", "# Other"),
+        ]);
+        let out = run(&dir, "docs/page.md", None);
+        assert_eq!(out.problems[0].check, CHECK_INVALID);
+        assert_eq!(out.problems[0].line, 1);
+        assert!(out.source.contains("include-error"));
+        assert_eq!(out.dependencies.len(), 1);
     }
 
     #[test]
@@ -1361,13 +1490,7 @@ mod tests {
         let problems = run(&dir, "docs/page.md", None).problems;
         assert_eq!(problems.len(), 3);
         assert!(problems.iter().all(|p| p.check == CHECK_INVALID));
-        assert!(
-            problems[0]
-                .hint
-                .as_deref()
-                .unwrap()
-                .contains("its own fragment file")
-        );
+        assert!(problems[0].hint.as_deref().unwrap().contains("section="));
         assert!(problems[1].message.contains("only takes file"));
         assert!(problems[2].message.contains("needs a file"));
     }

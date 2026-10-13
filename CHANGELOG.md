@@ -6,6 +6,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- Markdown section includes: use `:::include{file="other.md" section="heading-id"}` to reuse a heading and its subsections, with custom anchors, locale fallback, nested includes and existing build/doctor diagnostics.
+
 - Line highlighting: add `highlight="2,5-8"` to code fences to emphasise selected source lines while preserving syntax colours and copied text. Supports the same ranges as `lines`, inline and local/remote blocks, source selections, PDF exports and theme CSS overrides.
 - Language-aware diff code blocks: add `diff` after a source language (for example, `rust diff`) to retain syntax highlighting with green/red line backgrounds and a separate diff badge. Local and remote `.diff` / `.patch` sources infer diff mode; plain `diff` and `patch` fences, captions, line numbers, copying and PDF exports are supported.
 - Theme CSS variables for code-block backgrounds, headers, borders, typography, diff line backgrounds and the diff badge. Highlighted backgrounds can now be overridden without replacing the configured syntax token palette.

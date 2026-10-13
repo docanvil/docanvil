@@ -44,6 +44,20 @@ A few more rules:
 - **Any `.md` file works** — a fragment, another page, or a README outside the content folder (`file="../README.md"`).
 - `:::include` must be alone on its line. Written inside a sentence, it's shown as plain text, and `docanvil doctor` points it out.
 
+## Including a section
+
+Include a heading and its section from any Markdown file:
+
+```markdown
+:::include{file="../README.md" section="installation"}
+```
+
+`section` is the heading's anchor ID (an optional leading `#` is accepted). The selected heading is included, along with its subsections, until the next heading of equal or higher level. Both `## Heading` and underlined Markdown headings work; headings inside code blocks, lists and blockquotes do not define sections.
+
+Use the generated ID, such as `getting-started` for `## Getting Started`, or give the source heading a stable custom ID with `## Installation {#installation}`. Repeated headings use suffixes such as `installation-1`, just like page anchors.
+
+Only the selected section's includes are expanded. Nested paths remain relative to the source file, and diagnostics retain their original line numbers. Locale fallback works as usual; use the same custom ID in each translation. A missing or empty section produces an include error.
+
 ## Translations and versions
 
 When localisation is on, DocAnvil looks for a translated fragment first. A French page including `_shared/install.md` gets `_shared/install.fr.md` if it exists, and the untranslated file otherwise — so translate the fragments that need it and share the rest.

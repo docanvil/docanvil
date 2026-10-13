@@ -170,6 +170,36 @@ line_numbers = true
 
 Numbers are drawn by the theme rather than written into the code, so the copy button copies just the code.
 
+## Highlighting lines
+
+Use `highlight` to draw attention to existing code without marking it as added or removed. Syntax colours remain visible beneath a subtle background and edge marker.
+
+````markdown
+```rust highlight="2-3,5" title="Configure the greeting"
+fn main() {
+    let name = "DocAnvil";
+    let greeting = format!("Hello {name}");
+
+    println!("{greeting}");
+}
+```
+````
+
+```rust highlight="2-3,5" title="Configure the greeting"
+fn main() {
+    let name = "DocAnvil";
+    let greeting = format!("Hello {name}");
+
+    println!("{greeting}");
+}
+```
+
+The syntax matches `lines`: `7`, `5-12`, `5-`, `-12` and comma-separated selections such as `1-3,7,10-12`. Ranges must be ascending, non-overlapping and within the source. Invalid selections produce include diagnostics and fail strict builds.
+
+On inline blocks, selections count from 1 independently of `numbers="N"`. On `file` or `url` blocks, they refer to original source line numbers, including when combined with `lines` or `region`; selected highlight lines outside the displayed snippet stay hidden. Highlighting does not enable line numbers or change copied text. It works in code groups, tabs, PDF exports and with syntax highlighting disabled. In diff blocks, the edge marker adds emphasis while the red/green backgrounds keep their change meaning.
+
+Themes can set `--code-block-highlight-bg` and `--code-block-highlight-border` in their CSS.
+
 ## Captions
 
 `title` adds a caption to any code block, or replaces the default caption of a file block. `title=""` removes it.

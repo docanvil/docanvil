@@ -296,7 +296,7 @@ impl Expander<'_> {
 
         let indent = format!("{prefix}{}", open.indent);
         let body_blank = body.iter().all(|l| l.trim().is_empty());
-        match self.fill(&info, body_blank, file) {
+        match self.fill(&info, body_blank, body.len(), file) {
             Ok(Filled {
                 lang,
                 meta,
@@ -342,7 +342,13 @@ impl Expander<'_> {
     }
 
     /// Validate a fence's attributes and, for `file` blocks, read the lines to show.
-    fn fill(&mut self, info: &FenceInfo, body_blank: bool, file: &Path) -> Result<Filled, Invalid> {
+    fn fill(
+        &mut self,
+        info: &FenceInfo,
+        body_blank: bool,
+        body_count: usize,
+        file: &Path,
+    ) -> Result<Filled, Invalid> {
         let mut meta = BlockMeta {
             title: info.title.clone(),
             diff: info.diff,
@@ -387,6 +393,7 @@ impl Expander<'_> {
                     ),
                 ));
             }
+            meta.highlight = highlight_ranges(info.highlight.as_deref(), body_count)?;
             return Ok(Filled {
                 lang: info.lang.clone().unwrap_or_else(|| "text".to_string()),
                 meta,
@@ -452,6 +459,7 @@ impl Expander<'_> {
             Some("diff" | "patch")
         );
         let all: Vec<&str> = text.lines().collect();
+        meta.highlight = highlight_ranges(info.highlight.as_deref(), all.len())?;
         let ranges = if let Some(name) = &info.region {
             regions::select(&all, name)
                 .map_err(|m| Invalid::new(CHECK_INVALID, format!("{m} ({written})"), None))?
@@ -534,6 +542,7 @@ struct FenceInfo {
     numbers: Option<Option<String>>,
     title: Option<String>,
     diff: bool,
+    highlight: Option<String>,
 }
 
 impl FenceInfo {
@@ -556,6 +565,7 @@ impl FenceInfo {
                 "region" => parsed.region = Some(value),
                 "numbers" => parsed.numbers = Some(Some(value)),
                 "title" => parsed.title = Some(value),
+                "highlight" => parsed.highlight = Some(value),
                 _ => {}
             }
         }
@@ -576,12 +586,24 @@ impl FenceInfo {
 
     fn has_attrs(&self) -> bool {
         self.diff
+            || self.highlight.is_some()
             || self.file.is_some()
             || self.url.is_some()
             || self.lines.is_some()
             || self.region.is_some()
             || self.numbers.is_some()
             || self.title.is_some()
+    }
+}
+
+fn highlight_ranges(spec: Option<&str>, count: usize) -> Result<Vec<(usize, usize)>, Invalid> {
+    match spec {
+        None => Ok(Vec::new()),
+        Some(spec) => parse_line_ranges(spec, count).map_err(|message| Invalid::new(
+            CHECK_INVALID,
+            format!("highlight: {message}"),
+            Some("Use ascending, non-overlapping source line ranges, such as highlight=\"2,5-8\"."),
+        )),
     }
 }
 
@@ -1495,6 +1517,39 @@ mod tests {
         for problem in out.problems {
             assert_eq!(problem.check, CHECK_INVALID);
         }
+    }
+
+    #[test]
+    fn highlight_ranges_validate_inline_and_file_sources() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "```rust highlight=\"1,3-\" numbers=\"10\"\na\nb\nc\n```\n```rust file=\"source.rs\" lines=\"2-3,5\" highlight=\"3,5\"\n```\n```rust highlight=\"4\"\na\n```\n",
+            ),
+            ("docs/source.rs", "one\ntwo\nthree\nfour\nfive\n"),
+        ]);
+        let expanded = run(&dir, "docs/page.md", None);
+        assert_eq!(expanded.problems.len(), 1);
+        assert!(expanded.problems[0].message.contains("highlight:"));
+        let html = crate::pipeline::markdown::render(&expanded.source);
+        let out = crate::pipeline::code_blocks::process(&html, false);
+        assert!(
+            out.contains("class=\"line line-highlight\" data-line=\"10\">a"),
+            "{out}"
+        );
+        assert!(
+            out.contains("class=\"line line-highlight\" data-line=\"12\">c"),
+            "{out}"
+        );
+        assert!(
+            out.contains("class=\"line line-highlight\" data-line=\"3\">three"),
+            "{out}"
+        );
+        assert!(
+            out.contains("class=\"line line-highlight\" data-line=\"5\">five"),
+            "{out}"
+        );
+        assert!(out.contains("class=\"line\" data-line=\"2\">two"), "{out}");
     }
 
     #[test]

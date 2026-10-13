@@ -13,12 +13,15 @@ pub const META_MARKER: &str = "docanvil";
 /// the fence's info string through comrak (`data-meta`) and syntax highlighting.
 ///
 /// Encoded as `docanvil key=value …` with keys in this order, each only when
-/// set: `numbers=on|off`, `start=N`, `ranges=a-b,c-d`, `file=…`, `title=…`.
+/// set: `diff=on`, `numbers=on|off`, `start=N`, `ranges=a-b,c-d`,
+/// `highlight=a-b,c-d`, `file=…`, `title=…`.
 /// `file` and `title` are percent-encoded, so the string never holds spaces,
 /// quotes or backticks.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct BlockMeta {
     pub diff: bool,
+    /// Source line ranges to emphasise without changing their syntax colours.
+    pub highlight: Vec<(usize, usize)>,
     /// `Some(true)` for `numbers` / `numbers="N"`, `Some(false)` for `numbers="false"`.
     pub numbers: Option<bool>,
     /// First line number from `numbers="N"`.
@@ -55,6 +58,14 @@ impl BlockMeta {
                 .collect();
             out.push_str(&format!(" ranges={}", ranges.join(",")));
         }
+        if !self.highlight.is_empty() {
+            let ranges: Vec<String> = self
+                .highlight
+                .iter()
+                .map(|(a, b)| format!("{a}-{b}"))
+                .collect();
+            out.push_str(&format!(" highlight={}", ranges.join(",")));
+        }
         if let Some(file) = &self.file {
             out.push_str(&format!(" file={}", pct_encode(file)));
         }
@@ -81,14 +92,19 @@ impl BlockMeta {
                 "diff" => parsed.diff = value == "on",
                 "numbers" => parsed.numbers = Some(value == "on"),
                 "start" => parsed.start = value.parse().ok(),
-                "ranges" => {
-                    parsed.ranges = value
+                "ranges" | "highlight" => {
+                    let ranges = value
                         .split(',')
                         .filter_map(|r| {
                             let (a, b) = r.split_once('-')?;
                             Some((a.parse().ok()?, b.parse().ok()?))
                         })
                         .collect();
+                    if key == "highlight" {
+                        parsed.highlight = ranges;
+                    } else {
+                        parsed.ranges = ranges;
+                    }
                 }
                 "file" => parsed.file = Some(value),
                 "title" => parsed.title = Some(value),
@@ -175,7 +191,12 @@ fn render_block(
         .unwrap_or(!parsed.ranges.is_empty() || site_default);
     let caption = parsed.caption();
 
-    if !diff && !numbered && parsed.ranges.is_empty() && caption.is_none() {
+    if !diff
+        && !numbered
+        && parsed.ranges.is_empty()
+        && parsed.highlight.is_empty()
+        && caption.is_none()
+    {
         return match meta {
             None => original.to_string(),
             Some(_) => wrap("", body),
@@ -186,7 +207,7 @@ fn render_block(
     let numbers = parsed.line_numbers(lines.len());
     let mut inner = String::new();
     let mut prev: Option<usize> = None;
-    for (line, &n) in lines.iter().zip(&numbers) {
+    for (index, (line, &n)) in lines.iter().zip(&numbers).enumerate() {
         if let Some(p) = prev
             && !parsed.ranges.is_empty()
             && n > p + 1
@@ -198,6 +219,20 @@ fn render_block(
             ));
         }
         let class = if diff { diff_line_class(line) } else { "line" };
+        let source_line = if parsed.ranges.is_empty() {
+            index + 1
+        } else {
+            n
+        };
+        let class = if parsed
+            .highlight
+            .iter()
+            .any(|&(a, b)| (a..=b).contains(&source_line))
+        {
+            format!("{class} line-highlight")
+        } else {
+            class.to_string()
+        };
         inner.push_str(&format!(
             "<span class=\"{class}\" data-line=\"{n}\">{line}</span>\n"
         ));
@@ -388,6 +423,30 @@ mod tests {
             }
         }
         out
+    }
+
+    #[test]
+    fn emphasis_preserves_syntax_and_copy_text_without_numbering() {
+        let input = "<pre><code class=\"language-rust\" data-meta=\"docanvil highlight=2-2\">fn main() {\n    let n = 42;\n}\n</code></pre>";
+        for html in [
+            input.to_string(),
+            input.replace(
+                "highlight=2-2",
+                "highlight=2-2 file=example.rs start=10 title=",
+            ),
+            highlight_code_blocks(input, &SyntaxHighlighter::new("base16-ocean.dark")),
+        ] {
+            let out = process(&html, false);
+            assert_eq!(out.matches("line-highlight").count(), 1, "{out}");
+            assert!(!out.contains("class=\"line-numbers"));
+            assert_eq!(
+                text_content(&out).trim_start_matches('\n'),
+                "fn main() {\n    let n = 42;\n}\n"
+            );
+            if html.contains("<pre style=") {
+                assert!(out.contains("style=\"color:"));
+            }
+        }
     }
 
     #[test]
@@ -601,6 +660,7 @@ mod tests {
     fn meta_round_trips() {
         let meta = BlockMeta {
             diff: false,
+            highlight: vec![(2, 4)],
             numbers: Some(true),
             start: Some(10),
             ranges: vec![(1, 6), (30, 35)],

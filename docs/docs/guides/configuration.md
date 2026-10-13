@@ -169,6 +169,8 @@ Use `[theme].custom_css` to style the surrounding block. The default website the
 | `--code-block-font` | Code font family |
 | `--code-block-font-size` | Code font size |
 | `--code-block-line-height` | Code line height |
+| `--code-block-highlight-bg` | Emphasised line background |
+| `--code-block-highlight-border` | Emphasised line edge marker |
 | `--code-block-diff-addition-bg` | Added line background |
 | `--code-block-diff-removal-bg` | Removed line background |
 | `--code-block-diff-hunk-bg` | Hunk marker background |

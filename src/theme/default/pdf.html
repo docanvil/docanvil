@@ -370,6 +370,14 @@
     pre .line-gap::before { content: "⋯ " attr(data-hidden) " lines hidden"; }
     pre .line-gap[data-hidden="1"]::before { content: "⋯ 1 line hidden"; }
 
+/* Line emphasis preserves source text and syntax token colours. */
+pre .line-highlight {
+  display: inline-block;
+  min-width: 100%;
+  background: var(--code-block-highlight-bg, rgba(227, 179, 65, 0.18));
+  box-shadow: inset 3px 0 var(--code-block-highlight-border, #d9ab3d);
+}
+
 /* Unified diff lines retain their markers when copied. */
 pre.diff-block .line { display: inline-block; min-width: 100%; }
 pre.diff-block .diff-addition { background: rgba(46, 160, 67, 0.16); }

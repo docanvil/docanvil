@@ -31,6 +31,7 @@ Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour
 - ✅ Génération de `llms.txt`, un index de votre documentation adapté aux IA
 - ✅ Composants en templates : définissez vos propres composants sous forme de templates Tera dans votre thème, sans Rust
 - ✅ Fil d'Ariane, descriptions du front matter en sous-titre des pages, et titres de page tirés du premier titre
+- ✅ Mise en évidence de lignes avec `highlight="2,5-8"`, y compris depuis des fichiers locaux ou distants
 - ✅ Blocs de diff avec coloration syntaxique, fonds de ligne rouges et verts et badge diff, depuis des fichiers `.diff` / `.patch` locaux ou distants
 - ✅ Personnalisation des fonds, en-têtes, polices et badges des blocs de code dans les thèmes
 - ✅ Blocs de code distants depuis une URL HTTPS brute (`url="…"`)
@@ -41,7 +42,6 @@ Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
 Encore à venir dans la 1.2, maintenant que la première version des inclusions est entre les mains des utilisateurs :
 
 - Inclure une seule section d'une page (par exemple la section Installation de votre README) plutôt que le fichier entier
-- Mise en évidence de lignes sélectionnées dans les blocs de code
 
 ## 1.3.x — Extensibilité
 

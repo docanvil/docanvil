@@ -1025,6 +1025,14 @@ body {
   margin-left: calc(var(--line-number-width) + 1.75rem + 1px);
 }
 
+/* Line emphasis preserves source text and syntax token colours. */
+.content pre .line-highlight {
+  display: inline-block;
+  min-width: 100%;
+  background: var(--code-block-highlight-bg, rgba(227, 179, 65, 0.18));
+  box-shadow: inset 3px 0 var(--code-block-highlight-border, #d9ab3d);
+}
+
 /* Unified diff lines retain their markers when copied. */
 .content pre.diff-block .line { display: inline-block; min-width: 100%; }
 .content pre.diff-block .diff-addition { background: var(--code-block-diff-addition-bg, rgba(46, 160, 67, 0.16)); }

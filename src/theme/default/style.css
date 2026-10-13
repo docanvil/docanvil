@@ -672,12 +672,18 @@ body {
 .nav-group-header {
   display: flex;
   align-items: center;
+  color: var(--color-text);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-group-header > .nav-group-toggle {
   width: auto;
   flex-shrink: 0;
   padding: 0.4rem 0.35rem;
+  color: inherit;
+  background: transparent;
 }
 
 .nav-group-header > .nav-group-link {
@@ -749,6 +755,28 @@ body {
   color: var(--color-sidebar-active-text);
   font-weight: 500;
   border-left-color: var(--color-primary);
+}
+
+/* Linked group pages highlight the entire row, including the toggle. */
+.sidebar .nav-group-header > .nav-group-link {
+  border-left: none;
+  background: transparent;
+  color: inherit;
+}
+
+.sidebar .nav-group-header:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-primary);
+}
+
+.sidebar .nav-group-header:has(> .nav-group-link.active) {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-active-text);
+  border-left-color: var(--color-primary);
+}
+
+.sidebar .nav-group-link.active {
+  font-weight: 500;
 }
 
 /* ----------------------------------------------------------------
@@ -1023,6 +1051,14 @@ body {
 /* Keep the gutter blank on gap rows: indent the label past it. */
 .content pre.line-numbers .line-gap::before {
   margin-left: calc(var(--line-number-width) + 1.75rem + 1px);
+}
+
+/* Line emphasis preserves source text and syntax token colours. */
+.content pre .line-highlight {
+  display: inline-block;
+  min-width: 100%;
+  background: var(--code-block-highlight-bg, rgba(227, 179, 65, 0.18));
+  box-shadow: inset 3px 0 var(--code-block-highlight-border, #d9ab3d);
 }
 
 /* Unified diff lines retain their markers when copied. */

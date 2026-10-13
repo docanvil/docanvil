@@ -12,8 +12,16 @@ separator = true
 
 [[nav]]
 label = "Rédaction"
-autodiscover = "writing"
 open = true
+group = [
+  { page = "writing/markdown" },
+  { page = "writing/front-matter" },
+  { page = "writing/links-popovers" },
+  { page = "writing/includes" },
+  { page = "writing/components", label = "Composants", open = true, group = [
+    { page = "writing/components/code-blocks" },
+  ] },
+]
 
 [[nav]]
 label = "Référence"

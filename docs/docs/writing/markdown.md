@@ -53,7 +53,7 @@ Standard Markdown links: `[text](url)`
 
 Images: `![alt text](image-url)`
 
-For linking between documentation pages, use [[writing/wiki-links|wiki-links]] instead — they resolve automatically and warn on broken references.
+For linking between documentation pages, use [[writing/links-popovers|wiki-links]] instead — they resolve automatically and warn on broken references.
 
 ## Lists
 
@@ -119,7 +119,7 @@ const greet = (name) => {
 };
 ```
 
-To fill a code block from a source file, number its lines or give it a caption, see [[writing/code-blocks-from-files|Code Blocks from Files]].
+To fill a code block from a source file, number its lines or give it a caption, see [[writing/components/code-blocks|Code Blocks]].
 
 ## Blockquotes
 
@@ -192,7 +192,7 @@ Multiple classes can be combined: `{.first .second #my-id}`
 ## Related Pages
 
 - [[writing/front-matter|Front Matter]] — page metadata, titles, and SEO meta tags
-- [[writing/wiki-links|Wiki-links]] — double-bracket links and inline popovers
+- [[writing/links-popovers|Wiki-links]] — double-bracket links and inline popovers
 - [[writing/components|Components]] — notes, warnings, tabs, and code groups
 
 :::note{title="Powered by comrak"}

@@ -1,15 +1,81 @@
 ---
 {
-  "title": "Code Blocks from Files",
-  "description": "Show real source files, or just the lines that matter, with line numbers and captions"
+  "title": "Code Blocks",
+  "description": "Fenced code, syntax highlighting, code groups, source files, diffs and highlighted lines",
+  "slug": "code-blocks",
+  "redirect_from": [
+    "writing/code-blocks-from-files"
+  ]
 }
 ---
 
-# Code Blocks from Files
+# Code Blocks
 
-Code samples copied into docs drift away from the real code. Point a code block at the source file instead and it's read fresh on every build — when the code changes, the docs change with it.
+Code blocks present examples with syntax highlighting, language labels and a Copy button. Add captions, line numbers, highlighted lines or diff backgrounds, or load code directly from a local or remote source.
+
+## Writing a code block
+
+Use a fenced block with the source language after the opening backticks:
+
+````markdown
+```rust
+fn main() {
+    println!("Hello from DocAnvil!");
+}
+```
+````
+
+```rust
+fn main() {
+    println!("Hello from DocAnvil!");
+}
+```
+
+The language selects syntax highlighting and the header label. Without a language, the block uses plain text with the configured syntax theme's colours. Choose the token palette with `[syntax].theme`; see [[guides/configuration|Configuration]] for palette and theme styling options.
+
+## Code Group
+
+A specialized tab component for comparing code blocks across languages. Each fenced code block becomes a tab, with the language name as the tab label:
+
+:::code-group
+```rust
+fn greet(name: &str) {
+    println!("Hello, {name}!");
+}
+```
+
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+```
+
+```javascript
+function greet(name) {
+  console.log(`Hello, ${name}!`);
+}
+```
+:::
+
+Raw syntax:
+
+````markdown
+:::code-group
+```rust
+fn greet(name: &str) {
+    println!("Hello, {name}!");
+}
+```
+
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+```
+:::
+````
 
 ## Showing a file
+
+Point an empty block at a source file to read it fresh on every build, keeping examples in sync with the code.
 
 Add `file` to an empty fenced code block:
 
@@ -22,7 +88,7 @@ The block fills with the file's contents and gets a caption with its path. The l
 
 ### Where paths point
 
-:::include{file="../_shared/paths.md"}
+:::include{file="../../_shared/paths.md"}
 
 ## Showing a remote file
 
@@ -169,6 +235,36 @@ line_numbers = true
 ```
 
 Numbers are drawn by the theme rather than written into the code, so the copy button copies just the code.
+
+## Highlighting lines
+
+Use `highlight` to draw attention to existing code without marking it as added or removed. Syntax colours remain visible beneath a subtle background and edge marker.
+
+````markdown
+```rust highlight="2-3,5" title="Configure the greeting"
+fn main() {
+    let name = "DocAnvil";
+    let greeting = format!("Hello {name}");
+
+    println!("{greeting}");
+}
+```
+````
+
+```rust highlight="2-3,5" title="Configure the greeting"
+fn main() {
+    let name = "DocAnvil";
+    let greeting = format!("Hello {name}");
+
+    println!("{greeting}");
+}
+```
+
+The syntax matches `lines`: `7`, `5-12`, `5-`, `-12` and comma-separated selections such as `1-3,7,10-12`. Ranges must be ascending, non-overlapping and within the source. Invalid selections produce include diagnostics and fail strict builds.
+
+On inline blocks, selections count from 1 independently of `numbers="N"`. On `file` or `url` blocks, they refer to original source line numbers, including when combined with `lines` or `region`; selected highlight lines outside the displayed snippet stay hidden. Highlighting does not enable line numbers or change copied text. It works in code groups, tabs, PDF exports and with syntax highlighting disabled. In diff blocks, the edge marker adds emphasis while the red/green backgrounds keep their change meaning.
+
+Themes can set `--code-block-highlight-bg` and `--code-block-highlight-border` in their CSS.
 
 ## Captions
 

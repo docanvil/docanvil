@@ -56,5 +56,5 @@ A missing file, a loop or an unknown attribute shows up as an error box where th
 
 ## Related Pages
 
-- [[writing/code-blocks-from-files|Code Blocks from Files]]
+- [[writing/components/code-blocks|Code Blocks]]
 - [[reference/project-structure|Project Structure]]

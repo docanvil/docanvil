@@ -62,7 +62,7 @@ Personnalisez les couleurs et les templates. Consultez la [[reference/css-variab
 Publiez dans plusieurs langues avec navigation et recherche par locale.
 :::
 :::link-card{title="Écrire du contenu" href="writing/components.html" icon="lucide:blocks"}
-Ajoutez des composants à votre [[writing/markdown|Markdown]] et reliez vos pages avec les [[writing/wiki-links|wiki-links et popovers]].
+Ajoutez des composants à votre [[writing/markdown|Markdown]] et reliez vos pages avec les [[writing/links-popovers|wiki-links et popovers]].
 :::
 :::link-card{title="Référence CLI" href="reference/cli-commands.html" icon="lucide:terminal"}
 Retrouvez chaque commande et option, ainsi que la [[reference/project-structure|structure du projet]].

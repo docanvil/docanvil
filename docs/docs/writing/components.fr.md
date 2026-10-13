@@ -126,45 +126,15 @@ Contenu pour l'onglet Python.
 
 Si aucun `title` n'est fourni, les onglets sont étiquetés "Tab 1", "Tab 2", etc.
 
-## Groupe de code
+## Blocs et groupes de code
 
-Un composant d'onglets spécialisé pour comparer des blocs de code entre langages. Chaque bloc de code délimité devient un onglet, avec le nom du langage comme libellé d'onglet :
+Utilisez des blocs de code pour afficher des exemples avec coloration syntaxique :
 
-:::code-group
 ```rust
-fn saluer(nom: &str) {
-    println!("Bonjour, {nom} !");
-}
+println!("Bonjour, DocAnvil !");
 ```
 
-```python
-def saluer(nom):
-    print(f"Bonjour, {nom} !")
-```
-
-```javascript
-function saluer(nom) {
-  console.log(`Bonjour, ${nom} !`);
-}
-```
-:::
-
-Syntaxe brute :
-
-````markdown
-:::code-group
-```rust
-fn saluer(nom: &str) {
-    println!("Bonjour, {nom} !");
-}
-```
-
-```python
-def saluer(nom):
-    print(f"Bonjour, {nom} !")
-```
-:::
-````
+Regroupez plusieurs blocs avec `:::code-group` pour donner un onglet à chaque langage. Consultez [[writing/components/code-blocks|Blocs de code]] pour la syntaxe complète, les groupes de code, les légendes, les numéros de ligne et les sources locales ou distantes.
 
 ## Diagrammes Mermaid
 
@@ -216,7 +186,7 @@ Le titre du hero est le `<h1>` de la page : n'ajoutez donc pas votre propre `# T
 
 ### Boutons
 
-`:::buttons` transforme chaque lien de son corps en bouton. Le premier est l'appel à l'action principal, les suivants sont secondaires. Utilisez des [[writing/wiki-links|wiki-links]] pour vos propres pages : les boutons suivent alors la langue et la version du lecteur, et les liens cassés sont toujours signalés :
+`:::buttons` transforme chaque lien de son corps en bouton. Le premier est l'appel à l'action principal, les suivants sont secondaires. Utilisez des [[writing/links-popovers|wiki-links]] pour vos propres pages : les boutons suivent alors la langue et la version du lecteur, et les liens cassés sont toujours signalés :
 
 :::buttons
 [[guides/getting-started|Commencer →]] [[writing/components|Composants]]
@@ -523,4 +493,4 @@ Les composants sont traités avant le rendu Markdown. Cela signifie que vous pou
 ## Pages associées
 
 - [[writing/markdown|Markdown]] — mise en forme du texte, tableaux, et autres fonctionnalités Markdown
-- [[writing/wiki-links|Wiki-links]] — liens à doubles crochets et popovers inline
+- [[writing/links-popovers|Wiki-links]] — liens à doubles crochets et popovers inline

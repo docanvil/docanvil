@@ -146,7 +146,7 @@ See [[reference/css-variables|CSS Variables]] for the complete list of available
 | `theme` | `"base16-ocean.dark"` | Highlighting theme |
 | `line_numbers` | `false` | Number the lines of every code block |
 
-A single block can still opt in or out with `numbers` or `numbers="false"`. See [[writing/code-blocks-from-files|Code Blocks from Files]] for line numbers, captions and showing code straight from source files.
+A single block can still opt in or out with `numbers` or `numbers="false"`. See [[writing/components/code-blocks|Code Blocks]] for line numbers, captions and showing code straight from source files.
 
 TOML configuration examples are highlighted with `toml` fences, including blocks loaded from `.toml` files.
 
@@ -169,6 +169,8 @@ Use `[theme].custom_css` to style the surrounding block. The default website the
 | `--code-block-font` | Code font family |
 | `--code-block-font-size` | Code font size |
 | `--code-block-line-height` | Code line height |
+| `--code-block-highlight-bg` | Emphasised line background |
+| `--code-block-highlight-border` | Emphasised line edge marker |
 | `--code-block-diff-addition-bg` | Added line background |
 | `--code-block-diff-removal-bg` | Removed line background |
 | `--code-block-diff-hunk-bg` | Hunk marker background |
@@ -381,7 +383,7 @@ Redirect targets match an exact page slug or an old filename alias first. A bare
 
 Paths can be written three ways:
 
-- **A page slug**, like `help/faq`: the same thing you'd write in a [[writing/wiki-links|wiki-link]]. A trailing `.html` or `/` is fine. On translated or versioned sites the redirect is written for every language and version where the target page exists, so `"old-faq" = "help/faq"` gives you `/en/old-faq.html`, `/fr/old-faq.html` and so on.
+- **A page slug**, like `help/faq`: the same thing you'd write in a [[writing/links-popovers|wiki-link]]. A trailing `.html` or `/` is fine. On translated or versioned sites the redirect is written for every language and version where the target page exists, so `"old-faq" = "help/faq"` gives you `/en/old-faq.html`, `/fr/old-faq.html` and so on.
 - **A site path** starting with `/`, like `/old-blog.html`, or `/blog/` for `/blog/index.html`. It's used exactly as written, once.
 - **Another site**: a full `https://` (or `http://`) address, like `https://blog.example.com`. Only on the right-hand side. Other schemes and scheme-less `//host/…` targets are rejected.
 
@@ -435,8 +437,8 @@ description = "DocAnvil turns Markdown into fast, searchable documentation sites
 
 `llms-full.txt` holds the Markdown of every page, in the same order, each starting with its title and a `Source:` link. It's your Markdown as you wrote it, tidied up so other tools can read it:
 
-- `:::include` [[writing/includes|fragments]] and `file="…"` [[writing/code-blocks-from-files|code blocks]] are filled in
-- [[writing/wiki-links|Wiki-links]] become normal Markdown links with full URLs
+- `:::include` [[writing/includes|fragments]] and `file="…"` [[writing/components/code-blocks|code blocks]] are filled in
+- [[writing/links-popovers|Wiki-links]] become normal Markdown links with full URLs
 - DocAnvil-only extras such as `{#custom-id}` on headings and `numbers` on code blocks are removed
 - Code blocks are left exactly as written, and [[writing/components|components]] appear as their `:::` syntax
 
@@ -508,7 +510,7 @@ Add a `page` field to make the group header itself a clickable link:
 label = "Writing Content"
 page = "writing/markdown"
 group = [
-  { page = "writing/wiki-links", label = "Links &amp; Popovers" },
+  { page = "writing/links-popovers", label = "Links &amp; Popovers" },
   { page = "writing/components" },
 ]
 </code></pre>

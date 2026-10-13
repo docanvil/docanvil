@@ -216,6 +216,6 @@ Activer la localisation sur un site déjà en ligne déplace toutes les pages da
 ## Pages associées
 
 - [[guides/configuration|Configuration]] — options de configuration `[locale]`
-- [[writing/wiki-links|Liens & Popovers]] — comment les wiki-links se résolvent dans les locales
+- [[writing/links-popovers|Liens & Popovers]] — comment les wiki-links se résolvent dans les locales
 - [[reference/project-structure|Structure du projet]] — organisation des répertoires i18n
 - [[reference/cli|Commandes CLI]] — mode `--strict` et `docanvil doctor`

@@ -62,7 +62,7 @@ Customise colours and templates, with a complete [[reference/css-variables|CSS v
 Publish in multiple languages with navigation and search for each locale.
 :::
 :::link-card{title="Writing content" href="writing/components.html" icon="lucide:blocks"}
-Add components to your [[writing/markdown|Markdown]] and connect pages with [[writing/wiki-links|wiki-links and popovers]].
+Add components to your [[writing/markdown|Markdown]] and connect pages with [[writing/links-popovers|wiki-links and popovers]].
 :::
 :::link-card{title="CLI reference" href="reference/cli-commands.html" icon="lucide:terminal"}
 Find every command and option, plus the [[reference/project-structure|project directory layout]].

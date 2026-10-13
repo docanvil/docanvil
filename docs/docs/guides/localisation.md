@@ -216,6 +216,6 @@ Turning localisation on for a site that's already live moves every page into a l
 ## Related Pages
 
 - [[guides/configuration|Configuration]] — `[locale]` config options
-- [[writing/wiki-links|Links & Popovers]] — how wiki-links resolve within locales
+- [[writing/links-popovers|Links & Popovers]] — how wiki-links resolve within locales
 - [[reference/project-structure|Project Structure]] — i18n directory layout
 - [[reference/cli|CLI Commands]] — `--strict` mode and `docanvil doctor`

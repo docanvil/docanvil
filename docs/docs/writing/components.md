@@ -125,45 +125,15 @@ Content for the Python tab.
 
 If no `title` is provided, tabs are labeled "Tab 1", "Tab 2", etc.
 
-## Code Group
+## Code Blocks and Groups
 
-A specialized tab component for comparing code blocks across languages. Each fenced code block becomes a tab, with the language name as the tab label:
+Use fenced code blocks to show syntax-highlighted examples:
 
-:::code-group
 ```rust
-fn greet(name: &str) {
-    println!("Hello, {name}!");
-}
+println!("Hello, DocAnvil!");
 ```
 
-```python
-def greet(name):
-    print(f"Hello, {name}!")
-```
-
-```javascript
-function greet(name) {
-  console.log(`Hello, ${name}!`);
-}
-```
-:::
-
-Raw syntax:
-
-````markdown
-:::code-group
-```rust
-fn greet(name: &str) {
-    println!("Hello, {name}!");
-}
-```
-
-```python
-def greet(name):
-    print(f"Hello, {name}!")
-```
-:::
-````
+Wrap several blocks in `:::code-group` to give each language its own tab. See [[writing/components/code-blocks|Code Blocks]] for the full syntax, rendered code groups, captions, line numbers, highlighting, diffs and local or remote sources.
 
 ## Mermaid Diagrams
 
@@ -215,7 +185,7 @@ The hero's title is the page's `<h1>`, so leave out a `# Heading` of your own. T
 
 ### Buttons
 
-`:::buttons` turns every link in its body into a button. The first one is the primary call to action; the rest are secondary. Use [[writing/wiki-links|wiki-links]] for your own pages, so the buttons follow the reader's language and version and broken links are still reported:
+`:::buttons` turns every link in its body into a button. The first one is the primary call to action; the rest are secondary. Use [[writing/links-popovers|wiki-links]] for your own pages, so the buttons follow the reader's language and version and broken links are still reported:
 
 :::buttons
 [[guides/getting-started|Get started →]] [[writing/components|Components]]
@@ -600,4 +570,4 @@ Components are processed before Markdown rendering. This means you can use bold,
 ## Related Pages
 
 - [[writing/markdown|Markdown]] — text formatting, tables, and other Markdown features
-- [[writing/wiki-links|Wiki-links]] — double-bracket links and inline popovers
+- [[writing/links-popovers|Wiki-links]] — double-bracket links and inline popovers

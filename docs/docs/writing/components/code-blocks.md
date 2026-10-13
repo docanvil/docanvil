@@ -1,15 +1,81 @@
 ---
 {
-  "title": "Code Blocks from Files",
-  "description": "Show real source files, or just the lines that matter, with line numbers and captions"
+  "title": "Code Blocks",
+  "description": "Fenced code, syntax highlighting, code groups, source files, diffs and highlighted lines",
+  "slug": "code-blocks",
+  "redirect_from": [
+    "writing/code-blocks-from-files"
+  ]
 }
 ---
 
-# Code Blocks from Files
+# Code Blocks
 
-Code samples copied into docs drift away from the real code. Point a code block at the source file instead and it's read fresh on every build — when the code changes, the docs change with it.
+Code blocks present examples with syntax highlighting, language labels and a Copy button. Add captions, line numbers, highlighted lines or diff backgrounds, or load code directly from a local or remote source.
+
+## Writing a code block
+
+Use a fenced block with the source language after the opening backticks:
+
+````markdown
+```rust
+fn main() {
+    println!("Hello from DocAnvil!");
+}
+```
+````
+
+```rust
+fn main() {
+    println!("Hello from DocAnvil!");
+}
+```
+
+The language selects syntax highlighting and the header label. Without a language, the block uses plain text with the configured syntax theme's colours. Choose the token palette with `[syntax].theme`; see [[guides/configuration|Configuration]] for palette and theme styling options.
+
+## Code Group
+
+A specialized tab component for comparing code blocks across languages. Each fenced code block becomes a tab, with the language name as the tab label:
+
+:::code-group
+```rust
+fn greet(name: &str) {
+    println!("Hello, {name}!");
+}
+```
+
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+```
+
+```javascript
+function greet(name) {
+  console.log(`Hello, ${name}!`);
+}
+```
+:::
+
+Raw syntax:
+
+````markdown
+:::code-group
+```rust
+fn greet(name: &str) {
+    println!("Hello, {name}!");
+}
+```
+
+```python
+def greet(name):
+    print(f"Hello, {name}!")
+```
+:::
+````
 
 ## Showing a file
+
+Point an empty block at a source file to read it fresh on every build, keeping examples in sync with the code.
 
 Add `file` to an empty fenced code block:
 
@@ -22,7 +88,7 @@ The block fills with the file's contents and gets a caption with its path. The l
 
 ### Where paths point
 
-:::include{file="../_shared/paths.md"}
+:::include{file="../../_shared/paths.md"}
 
 ## Showing a remote file
 

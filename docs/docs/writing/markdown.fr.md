@@ -119,7 +119,7 @@ const saluer = (nom) => {
 };
 ```
 
-Pour remplir un bloc de code depuis un fichier source, numéroter ses lignes ou lui ajouter une légende, consultez [[writing/code-blocks-from-files|Blocs de code depuis des fichiers]].
+Pour remplir un bloc de code depuis un fichier source, numéroter ses lignes ou lui ajouter une légende, consultez [[writing/components/code-blocks|Blocs de code]].
 
 ## Citations
 

@@ -1,14 +1,74 @@
 ---
 {
-  "title": "Blocs de code depuis des fichiers",
-  "slug": "code-blocks-from-files",
-  "description": "Affichez de vrais fichiers sources, ou seulement les lignes utiles, avec numéros de ligne et légendes"
+  "title": "Blocs de code",
+  "slug": "code-blocks",
+  "description": "Blocs de code, coloration syntaxique, groupes de code et fichiers sources"
 }
 ---
 
-# Blocs de code depuis des fichiers
+# Blocs de code
 
-Les exemples de code copiés dans la documentation finissent par diverger du vrai code. Pointez plutôt un bloc de code vers le fichier source : il est relu à chaque compilation, et quand le code change, la documentation suit.
+Les blocs de code présentent des exemples avec coloration syntaxique, indication du langage et bouton de copie. Ajoutez des légendes et des numéros de ligne, ou chargez le code depuis un fichier local ou distant.
+
+## Écrire un bloc de code
+
+Utilisez un bloc délimité par des triples accents graves, suivi du langage source :
+
+````markdown
+```rust
+fn main() {
+    println!("Bonjour depuis DocAnvil !");
+}
+```
+````
+
+```rust
+fn main() {
+    println!("Bonjour depuis DocAnvil !");
+}
+```
+
+Le langage détermine la coloration syntaxique et le libellé de l'en-tête. Sans langage, le bloc affiche du texte brut avec les couleurs du thème syntaxique. Choisissez la palette avec `[syntax].theme` ; consultez [[guides/configuration|Configuration]] pour les options de style.
+
+## Groupe de code
+
+Un composant d'onglets spécialisé pour comparer des blocs de code entre langages. Chaque bloc de code délimité devient un onglet, avec le nom du langage comme libellé d'onglet :
+
+:::code-group
+```rust
+fn saluer(nom: &str) {
+    println!("Bonjour, {nom} !");
+}
+```
+
+```python
+def saluer(nom):
+    print(f"Bonjour, {nom} !")
+```
+
+```javascript
+function saluer(nom) {
+  console.log(`Bonjour, ${nom} !`);
+}
+```
+:::
+
+Syntaxe brute :
+
+````markdown
+:::code-group
+```rust
+fn saluer(nom: &str) {
+    println!("Bonjour, {nom} !");
+}
+```
+
+```python
+def saluer(nom):
+    print(f"Bonjour, {nom} !")
+```
+:::
+````
 
 ## Afficher un fichier
 
@@ -23,7 +83,7 @@ Le bloc se remplit avec le contenu du fichier et reçoit une légende avec son c
 
 ### Où pointent les chemins
 
-:::include{file="../_shared/paths.md"}
+:::include{file="../../_shared/paths.md"}
 
 ## Afficher un fichier distant
 

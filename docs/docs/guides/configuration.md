@@ -146,7 +146,7 @@ See [[reference/css-variables|CSS Variables]] for the complete list of available
 | `theme` | `"base16-ocean.dark"` | Highlighting theme |
 | `line_numbers` | `false` | Number the lines of every code block |
 
-A single block can still opt in or out with `numbers` or `numbers="false"`. See [[writing/code-blocks-from-files|Code Blocks from Files]] for line numbers, captions and showing code straight from source files.
+A single block can still opt in or out with `numbers` or `numbers="false"`. See [[writing/components/code-blocks|Code Blocks]] for line numbers, captions and showing code straight from source files.
 
 TOML configuration examples are highlighted with `toml` fences, including blocks loaded from `.toml` files.
 
@@ -437,7 +437,7 @@ description = "DocAnvil turns Markdown into fast, searchable documentation sites
 
 `llms-full.txt` holds the Markdown of every page, in the same order, each starting with its title and a `Source:` link. It's your Markdown as you wrote it, tidied up so other tools can read it:
 
-- `:::include` [[writing/includes|fragments]] and `file="…"` [[writing/code-blocks-from-files|code blocks]] are filled in
+- `:::include` [[writing/includes|fragments]] and `file="…"` [[writing/components/code-blocks|code blocks]] are filled in
 - [[writing/wiki-links|Wiki-links]] become normal Markdown links with full URLs
 - DocAnvil-only extras such as `{#custom-id}` on headings and `numbers` on code blocks are removed
 - Code blocks are left exactly as written, and [[writing/components|components]] appear as their `:::` syntax

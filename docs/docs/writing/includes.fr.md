@@ -57,5 +57,5 @@ Un fichier introuvable, une boucle ou un attribut inconnu s'affiche dans un enca
 
 ## Pages associées
 
-- [[writing/code-blocks-from-files|Blocs de code depuis des fichiers]]
+- [[writing/components/code-blocks|Blocs de code]]
 - [[reference/project-structure|Structure du projet]]

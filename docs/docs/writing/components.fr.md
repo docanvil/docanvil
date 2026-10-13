@@ -126,45 +126,15 @@ Contenu pour l'onglet Python.
 
 Si aucun `title` n'est fourni, les onglets sont étiquetés "Tab 1", "Tab 2", etc.
 
-## Groupe de code
+## Blocs et groupes de code
 
-Un composant d'onglets spécialisé pour comparer des blocs de code entre langages. Chaque bloc de code délimité devient un onglet, avec le nom du langage comme libellé d'onglet :
+Utilisez des blocs de code pour afficher des exemples avec coloration syntaxique :
 
-:::code-group
 ```rust
-fn saluer(nom: &str) {
-    println!("Bonjour, {nom} !");
-}
+println!("Bonjour, DocAnvil !");
 ```
 
-```python
-def saluer(nom):
-    print(f"Bonjour, {nom} !")
-```
-
-```javascript
-function saluer(nom) {
-  console.log(`Bonjour, ${nom} !`);
-}
-```
-:::
-
-Syntaxe brute :
-
-````markdown
-:::code-group
-```rust
-fn saluer(nom: &str) {
-    println!("Bonjour, {nom} !");
-}
-```
-
-```python
-def saluer(nom):
-    print(f"Bonjour, {nom} !")
-```
-:::
-````
+Regroupez plusieurs blocs avec `:::code-group` pour donner un onglet à chaque langage. Consultez [[writing/components/code-blocks|Blocs de code]] pour la syntaxe complète, les groupes de code, les légendes, les numéros de ligne et les sources locales ou distantes.
 
 ## Diagrammes Mermaid
 

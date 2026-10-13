@@ -125,45 +125,15 @@ Content for the Python tab.
 
 If no `title` is provided, tabs are labeled "Tab 1", "Tab 2", etc.
 
-## Code Group
+## Code Blocks and Groups
 
-A specialized tab component for comparing code blocks across languages. Each fenced code block becomes a tab, with the language name as the tab label:
+Use fenced code blocks to show syntax-highlighted examples:
 
-:::code-group
 ```rust
-fn greet(name: &str) {
-    println!("Hello, {name}!");
-}
+println!("Hello, DocAnvil!");
 ```
 
-```python
-def greet(name):
-    print(f"Hello, {name}!")
-```
-
-```javascript
-function greet(name) {
-  console.log(`Hello, ${name}!`);
-}
-```
-:::
-
-Raw syntax:
-
-````markdown
-:::code-group
-```rust
-fn greet(name: &str) {
-    println!("Hello, {name}!");
-}
-```
-
-```python
-def greet(name):
-    print(f"Hello, {name}!")
-```
-:::
-````
+Wrap several blocks in `:::code-group` to give each language its own tab. See [[writing/components/code-blocks|Code Blocks]] for the full syntax, rendered code groups, captions, line numbers, highlighting, diffs and local or remote sources.
 
 ## Mermaid Diagrams
 

@@ -146,7 +146,7 @@ Consultez [[reference/css-variables|Variables CSS]] pour la liste complète des 
 | `theme` | `"base16-ocean.dark"` | Thème de coloration |
 | `line_numbers` | `false` | Numéroter les lignes de tous les blocs de code |
 
-Un bloc peut toujours activer ou désactiver les numéros avec `numbers` ou `numbers="false"`. Consultez [[writing/code-blocks-from-files|Blocs de code depuis des fichiers]] pour les numéros de ligne, les légendes et l'affichage de code directement depuis des fichiers sources.
+Un bloc peut toujours activer ou désactiver les numéros avec `numbers` ou `numbers="false"`. Consultez [[writing/components/code-blocks|Blocs de code]] pour les numéros de ligne, les légendes et l'affichage de code directement depuis des fichiers sources.
 
 ### Section `[search]`
 
@@ -394,7 +394,7 @@ description = "DocAnvil transforme le Markdown en sites de documentation rapides
 
 `llms-full.txt` contient le Markdown de toutes les pages, dans le même ordre, chacune précédée de son titre et d'un lien `Source:`. C'est votre Markdown tel que vous l'avez écrit, mis au propre pour que d'autres outils puissent le lire :
 
-- les [[writing/includes|fragments]] `:::include` et les [[writing/code-blocks-from-files|blocs de code]] `file="…"` sont remplis
+- les [[writing/includes|fragments]] `:::include` et les [[writing/components/code-blocks|blocs de code]] `file="…"` sont remplis
 - les [[writing/wiki-links|wiki-links]] deviennent des liens Markdown classiques avec des URL complètes
 - les ajouts propres à DocAnvil, comme `{#id-perso}` sur les titres ou `numbers` sur les blocs de code, sont retirés
 - les blocs de code restent exactement tels qu'écrits, et les [[writing/components|composants]] apparaissent avec leur syntaxe `:::`

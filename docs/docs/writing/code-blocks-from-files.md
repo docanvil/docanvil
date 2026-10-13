@@ -48,6 +48,56 @@ Each distinct URL is fetched once per build, doctor run or PDF export. There is 
 
 Pin URLs to a commit rather than a moving branch when you need reproducible builds. Download failures, invalid UTF-8 and invalid line ranges use the same error boxes, warnings and strict-build checks as local includes.
 
+## Diff blocks
+
+Add `diff` after the source language (for example, `rust diff`) to keep syntax highlighting while showing additions on a green background and removals on a red background. The header shows the source language with a separate diff badge. File headers and `@@` hunk markers have separate styling; context lines keep their usual appearance. The original `+` and `-` markers remain in copied text.
+
+````markdown
+```rust diff title="Update the greeting"
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,3 @@
+ fn main() {
+-    println!("Hello world");
++    println!("Hello DocAnvil");
+ }
+```
+````
+
+```rust diff title="Update the greeting"
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -1,3 +1,3 @@
+ fn main() {
+-    println!("Hello world");
++    println!("Hello DocAnvil");
+ }
+```
+
+The Rust keywords, macro and strings retain their syntax colours on both changed and context lines. Only the line backgrounds indicate additions and removals.
+
+Store an actual `.diff` or `.patch` file in your project and reference it with `file`, or use `url` for a remote raw file:
+
+````markdown
+```rust file="/examples/greeting.diff"
+```
+
+```rust url="https://raw.githubusercontent.com/your-org/your-repo/main/examples/greeting.diff"
+```
+````
+
+Diff mode is inferred from `.diff` and `.patch` source extensions; specify the code language in the fence because a patch can contain any language. For other source extensions, add `diff` explicitly. Use `text diff` for plain text changes. Existing `diff` and `patch` fences still render plain text diffs. Captions, line selection, line numbers, code groups and tabs work as for other code blocks. Numbers count lines in the diff file, rather than old and new source line numbers. Diff colours also appear in PDF exports and when syntax highlighting is disabled.
+
+Themes can customise the diff badge in their CSS using `--code-block-diff-badge-color`, `--code-block-diff-badge-bg` and `--code-block-diff-badge-border`. For example:
+
+```css
+:root {
+  --code-block-diff-badge-color: #fff4cf;
+  --code-block-diff-badge-bg: #674b16;
+  --code-block-diff-badge-border: #c69a3c;
+}
+```
+
 ## Showing some lines
 
 Add `lines` to show only part of the file. Here's this site's own `docanvil.toml`, trimmed to two sections:

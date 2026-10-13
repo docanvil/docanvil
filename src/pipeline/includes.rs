@@ -345,6 +345,7 @@ impl Expander<'_> {
     fn fill(&mut self, info: &FenceInfo, body_blank: bool, file: &Path) -> Result<Filled, Invalid> {
         let mut meta = BlockMeta {
             title: info.title.clone(),
+            diff: info.diff,
             ..BlockMeta::default()
         };
         match info.numbers.as_ref() {
@@ -446,6 +447,10 @@ impl Expander<'_> {
             (text, path)
         };
 
+        meta.diff |= matches!(
+            path.extension().and_then(|s| s.to_str()),
+            Some("diff" | "patch")
+        );
         let all: Vec<&str> = text.lines().collect();
         let ranges = if let Some(name) = &info.region {
             regions::select(&all, name)
@@ -528,6 +533,7 @@ struct FenceInfo {
     /// `Some(None)` for a bare `numbers`, `Some(Some(v))` for `numbers="v"`.
     numbers: Option<Option<String>>,
     title: Option<String>,
+    diff: bool,
 }
 
 impl FenceInfo {
@@ -561,11 +567,16 @@ impl FenceInfo {
         {
             parsed.numbers = Some(None);
         }
+        parsed.diff = ATTR_RE
+            .replace_all(rest, "")
+            .split_whitespace()
+            .any(|token| token == "diff");
         parsed
     }
 
     fn has_attrs(&self) -> bool {
-        self.file.is_some()
+        self.diff
+            || self.file.is_some()
             || self.url.is_some()
             || self.lines.is_some()
             || self.region.is_some()
@@ -615,6 +626,12 @@ static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_ne
 /// `syntax.rs` looks tokens up with `find_syntax_by_token`, which checks
 /// extensions first, so the same syntax is picked.
 fn language_for(path: &Path) -> String {
+    if matches!(
+        path.extension().and_then(|s| s.to_str()),
+        Some("diff" | "patch")
+    ) {
+        return "diff".to_string();
+    }
     [path.extension(), path.file_name()]
         .into_iter()
         .flatten()
@@ -1481,6 +1498,44 @@ mod tests {
     }
 
     #[test]
+    fn diff_attribute_and_file_inference_keep_the_language() {
+        let dir = project(&[
+            (
+                "docs/page.md",
+                "```rust diff\n-let n = 1;\n+let n = 2;\n```\n```rust file=\"change.patch\"\n```\n",
+            ),
+            ("docs/change.patch", "-let n = 1;\n+let n = 2;\n"),
+        ]);
+        let source = run(&dir, "docs/page.md", None).source;
+        assert!(source.contains("```rust docanvil diff=on\n"), "{source}");
+        assert!(
+            source.contains("```rust docanvil diff=on file=change.patch"),
+            "{source}"
+        );
+    }
+
+    #[test]
+    fn diff_file_is_inferred_and_rendered() {
+        let dir = project(&[
+            ("docs/page.md", "``` file=\"changes.diff\"\n```\n"),
+            (
+                "docs/changes.diff",
+                "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n",
+            ),
+        ]);
+        let source = run(&dir, "docs/page.md", None).source;
+        assert!(
+            source.contains("```diff docanvil diff=on file=changes.diff"),
+            "{source}"
+        );
+        let html = crate::pipeline::markdown::render(&source);
+        let out = crate::pipeline::code_blocks::process(&html, false);
+        assert!(out.contains("diff-addition"), "{out}");
+        assert!(out.contains("diff-removal"), "{out}");
+        assert!(out.contains("changes.diff</span>"), "{out}");
+    }
+
+    #[test]
     fn language_comes_from_extension_unless_given() {
         let dir = project(&[
             (
@@ -1507,6 +1562,8 @@ mod tests {
 
     #[test]
     fn language_for_known_and_unknown_files() {
+        assert_eq!(language_for(Path::new("changes.diff")), "diff");
+        assert_eq!(language_for(Path::new("changes.patch")), "diff");
         assert_eq!(language_for(Path::new("a/b.rs")), "rs");
         assert_eq!(language_for(Path::new("x.unknownzzz")), "text");
         assert_eq!(language_for(Path::new("README")), "text");

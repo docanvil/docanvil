@@ -152,6 +152,43 @@ TOML configuration examples are highlighted with `toml` fences, including blocks
 
 Code blocks with an unsupported language, or no language, use the selected syntax theme’s background and text colour without token highlighting.
 
+#### Styling code blocks in a theme
+
+Choose `[syntax].theme` for the token palette. For example, `InspiredGitHub` supplies a light palette and `base16-ocean.dark` supplies a dark palette. Keep that palette suited to your chosen background so tokens stay readable.
+
+Use `[theme].custom_css` to style the surrounding block. The default website theme exposes these CSS variables; they can be set on `:root`, a light/dark theme selector, or an individual code-block figure:
+
+| Variable | Controls |
+|---|---|
+| `--code-block-bg` | Background of highlighted and plain blocks |
+| `--code-block-header-bg` | Caption and controls background |
+| `--code-block-header-color` | Caption, language and controls text |
+| `--code-block-border` | Border colour |
+| `--code-block-radius` | Corner radius |
+| `--code-block-shadow` | Box shadow |
+| `--code-block-font` | Code font family |
+| `--code-block-font-size` | Code font size |
+| `--code-block-line-height` | Code line height |
+| `--code-block-diff-addition-bg` | Added line background |
+| `--code-block-diff-removal-bg` | Removed line background |
+| `--code-block-diff-hunk-bg` | Hunk marker background |
+
+For example, with a dark syntax palette:
+
+```css
+:root {
+  --code-block-bg: #202430;
+  --code-block-header-bg: #303647;
+  --code-block-header-color: #d8deed;
+  --code-block-border: #47516b;
+  --code-block-radius: 0.75rem;
+  --code-block-shadow: none;
+  --code-block-font-size: 0.9rem;
+}
+```
+
+These surface overrides preserve syntax token colours, including inside language-specific diffs. With highlighting disabled, code uses the site's normal text colour. A custom theme can also override the `.code-block` and `.code-block-header` selectors directly. The highlighted background variable works in PDF output too; PDF layout styles are configured separately through `[pdf].custom_css`.
+
 ### `[search]` Section
 
 | Key | Default | Description |

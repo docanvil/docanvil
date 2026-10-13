@@ -18,6 +18,7 @@ pub const META_MARKER: &str = "docanvil";
 /// quotes or backticks.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct BlockMeta {
+    pub diff: bool,
     /// `Some(true)` for `numbers` / `numbers="N"`, `Some(false)` for `numbers="false"`.
     pub numbers: Option<bool>,
     /// First line number from `numbers="N"`.
@@ -33,6 +34,9 @@ pub struct BlockMeta {
 impl BlockMeta {
     pub fn encode(&self) -> String {
         let mut out = String::from(META_MARKER);
+        if self.diff {
+            out.push_str(" diff=on");
+        }
         if let Some(numbers) = self.numbers {
             out.push_str(if numbers {
                 " numbers=on"
@@ -74,6 +78,7 @@ impl BlockMeta {
             };
             let value = pct_decode(value);
             match key {
+                "diff" => parsed.diff = value == "on",
                 "numbers" => parsed.numbers = Some(value == "on"),
                 "start" => parsed.start = value.parse().ok(),
                 "ranges" => {
@@ -131,6 +136,7 @@ pub fn process(html: &str, line_numbers: bool) -> String {
             caps.get(3).map(|m| m.as_str()),
             &caps[4],
             line_numbers,
+            matches!(caps.get(2).map(|m| m.as_str()), Some("diff" | "patch")),
             |attrs, inner| format!("<pre style=\"{style}\"{language}{attrs}>\n{inner}</pre>"),
         )
     });
@@ -142,6 +148,10 @@ pub fn process(html: &str, line_numbers: bool) -> String {
                 caps.get(2).map(|m| m.as_str()),
                 &caps[3],
                 line_numbers,
+                matches!(
+                    code_attrs,
+                    " class=\"language-diff\"" | " class=\"language-patch\""
+                ),
                 |attrs, inner| format!("<pre{attrs}><code{code_attrs}>{inner}</code></pre>"),
             )
         })
@@ -154,16 +164,18 @@ fn render_block(
     meta: Option<&str>,
     body: &str,
     site_default: bool,
+    diff: bool,
     wrap: impl Fn(&str, &str) -> String,
 ) -> String {
     let parsed = meta.and_then(BlockMeta::parse).unwrap_or_default();
+    let diff = diff || parsed.diff;
     // Block setting → file block with `lines` (real numbers matter) → site default.
     let numbered = parsed
         .numbers
         .unwrap_or(!parsed.ranges.is_empty() || site_default);
     let caption = parsed.caption();
 
-    if !numbered && parsed.ranges.is_empty() && caption.is_none() {
+    if !diff && !numbered && parsed.ranges.is_empty() && caption.is_none() {
         return match meta {
             None => original.to_string(),
             Some(_) => wrap("", body),
@@ -185,8 +197,9 @@ fn render_block(
                 n - p - 1
             ));
         }
+        let class = if diff { diff_line_class(line) } else { "line" };
         inner.push_str(&format!(
-            "<span class=\"line\" data-line=\"{n}\">{line}</span>\n"
+            "<span class=\"{class}\" data-line=\"{n}\">{line}</span>\n"
         ));
         prev = Some(n);
     }
@@ -197,10 +210,43 @@ fn render_block(
     } else {
         String::new()
     };
+    let attrs = if diff {
+        if numbered {
+            attrs.replacen("line-numbers", "line-numbers diff-block", 1)
+        } else {
+            " class=\"diff-block\"".to_string()
+        }
+    } else {
+        attrs
+    };
     let pre = wrap(&attrs, &inner);
     match caption {
         Some(caption) => format!("<figure class=\"code-block\">{caption}{pre}</figure>"),
         None => pre,
+    }
+}
+
+/// Classify unified diff markers without changing the source text.
+fn diff_line_class(mut line: &str) -> &'static str {
+    // Plain-text syntax highlighting wraps the source in colour spans.
+    while line.starts_with("<span ") {
+        let Some(end) = line.find('>') else { break };
+        line = &line[end + 1..];
+    }
+    if line.starts_with("--- ")
+        || line.starts_with("+++ ")
+        || line.starts_with("diff ")
+        || line.starts_with("index ")
+    {
+        "line diff-header"
+    } else if line.starts_with("@@") {
+        "line diff-hunk"
+    } else if line.starts_with('+') {
+        "line diff-addition"
+    } else if line.starts_with('-') {
+        "line diff-removal"
+    } else {
+        "line"
     }
 }
 
@@ -342,6 +388,35 @@ mod tests {
             }
         }
         out
+    }
+
+    #[test]
+    fn diff_lines_preserve_source_and_work_without_syntax_highlighting() {
+        let body = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old &lt;tag&gt;\n+new &amp; value\n context\n";
+        let input = format!(
+            "<pre><code class=\"language-diff\" data-meta=\"docanvil title=Changes numbers=on\">{body}</code></pre>"
+        );
+        for html in [
+            input.clone(),
+            highlight_code_blocks(&input, &SyntaxHighlighter::new("InspiredGitHub")),
+        ] {
+            let out = process(&html, false);
+            assert!(out.contains("class=\"line-numbers diff-block\""), "{out}");
+            assert_eq!(out.matches("class=\"line diff-header\"").count(), 3);
+            assert_eq!(out.matches("class=\"line diff-addition\"").count(), 1);
+            assert_eq!(out.matches("class=\"line diff-removal\"").count(), 1);
+            assert!(out.contains("class=\"line diff-hunk\""));
+            assert_eq!(
+                text_content(&out).replace("Changes\n", "Changes"),
+                format!("Changes{body}")
+            );
+        }
+        let patch = process(
+            "<pre><code class=\"language-patch\">-old\n+new\n</code></pre>",
+            false,
+        );
+        assert!(patch.contains("class=\"diff-block\""));
+        assert!(patch.contains("diff-addition"));
     }
 
     #[test]
@@ -525,6 +600,7 @@ mod tests {
     #[test]
     fn meta_round_trips() {
         let meta = BlockMeta {
+            diff: false,
             numbers: Some(true),
             start: Some(10),
             ranges: vec![(1, 6), (30, 35)],

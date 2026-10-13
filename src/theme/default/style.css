@@ -672,12 +672,18 @@ body {
 .nav-group-header {
   display: flex;
   align-items: center;
+  color: var(--color-text);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-group-header > .nav-group-toggle {
   width: auto;
   flex-shrink: 0;
   padding: 0.4rem 0.35rem;
+  color: inherit;
+  background: transparent;
 }
 
 .nav-group-header > .nav-group-link {
@@ -744,12 +750,33 @@ body {
   color: var(--color-primary);
 }
 
-.sidebar .nav-item.active > a,
-.sidebar .nav-group-link.active {
+.sidebar .nav-item.active > a {
   background: var(--color-sidebar-active-bg);
   color: var(--color-sidebar-active-text);
   font-weight: 500;
   border-left-color: var(--color-primary);
+}
+
+/* Linked group pages highlight the entire row, including the toggle. */
+.sidebar .nav-group-header > .nav-group-link {
+  border-left: none;
+  background: transparent;
+  color: inherit;
+}
+
+.sidebar .nav-group-header:hover {
+  background: var(--color-sidebar-hover);
+  color: var(--color-primary);
+}
+
+.sidebar .nav-group-header:has(> .nav-group-link.active) {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-active-text);
+  border-left-color: var(--color-primary);
+}
+
+.sidebar .nav-group-link.active {
+  font-weight: 500;
 }
 
 /* ----------------------------------------------------------------

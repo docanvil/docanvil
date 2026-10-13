@@ -744,7 +744,8 @@ body {
   color: var(--color-primary);
 }
 
-.sidebar .nav-item.active > a {
+.sidebar .nav-item.active > a,
+.sidebar .nav-group-link.active {
   background: var(--color-sidebar-active-bg);
   color: var(--color-sidebar-active-text);
   font-weight: 500;

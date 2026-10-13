@@ -99,3 +99,15 @@
     --color-focus-ring: rgba(241, 122, 6, 0.4);
   }
 }
+
+/* Linked page groups read like pages, while section headings stay uppercase. */
+.sidebar .nav-group-header > .nav-group-link {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+/* The active colour and background identify the current page. */
+.sidebar .nav-item.active > a {
+  font-weight: 400;
+}

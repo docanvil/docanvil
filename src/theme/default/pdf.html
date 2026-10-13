@@ -370,6 +370,13 @@
     pre .line-gap::before { content: "⋯ " attr(data-hidden) " lines hidden"; }
     pre .line-gap[data-hidden="1"]::before { content: "⋯ 1 line hidden"; }
 
+/* Unified diff lines retain their markers when copied. */
+pre.diff-block .line { display: inline-block; min-width: 100%; }
+pre.diff-block .diff-addition { background: rgba(46, 160, 67, 0.16); }
+pre.diff-block .diff-removal { background: rgba(248, 81, 73, 0.16); }
+pre.diff-block .diff-header { font-weight: bold; }
+pre.diff-block .diff-hunk { background: rgba(56, 139, 253, 0.12); }
+
     .include-error {
       border: 1px solid var(--pdf-warn-border);
       background: var(--pdf-warn-bg);

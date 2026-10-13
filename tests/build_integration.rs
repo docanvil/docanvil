@@ -1452,6 +1452,42 @@ fn test_includes_and_file_blocks() {
 }
 
 #[test]
+fn test_named_regions_render_only_copyable_source_and_fail_strict_on_errors() {
+    let dir = create_project(
+        STRICT_CONFIG,
+        &[(
+            "index.md",
+            "# Home\n\n```rust file=\"/examples/region.rs\" region=\"outer\"\n```\n",
+        )],
+    );
+    let source = "// {== region=\"outer\" ==}\n    let first = 1;\n// {== region=\"inner\" ==}\n    let second = 2;\n// {== endregion=\"inner\" ==}\n// {== endregion=\"outer\" ==}\nlet excluded = 3;\n";
+    write_file(dir.path(), "examples/region.rs", source);
+    build_project_strict(dir.path()).expect("valid regions should build");
+    let html = read_output(dir.path(), "index.html");
+    assert!(!html.contains("{=="));
+    assert!(!html.contains("excluded"));
+    assert!(html.contains("data-line=\"2\""));
+    assert!(html.contains("data-line=\"4\""));
+    let figure = html.find("<figure class=\"code-block\">").unwrap();
+    let pre_start = figure + html[figure..].find("<pre").unwrap();
+    let pre_end = pre_start + html[pre_start..].find("</pre>").unwrap();
+    assert_eq!(
+        strip_tags(&html[pre_start..pre_end]).trim_start_matches('\n'),
+        "let first = 1;\nlet second = 2;\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("examples/region.rs")).unwrap(),
+        source
+    );
+    write_file(
+        dir.path(),
+        "examples/region.rs",
+        "// {== region=\"outer\" ==}\nsource\n",
+    );
+    assert!(build_project_strict(dir.path()).is_err());
+}
+
+#[test]
 fn test_includes_with_locales_and_versions() {
     let page = |title: &str| {
         format!(

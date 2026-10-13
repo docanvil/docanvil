@@ -134,6 +134,26 @@ mod tests {
     }
 
     #[test]
+    fn remote_regions_use_cached_source_and_original_line_numbers() {
+        let _scope = Scope::new();
+        let url = "https://example.com/regions.rs";
+        cached(url, || Ok("before\n// {== region=\"sample\" ==}\n    let x = 1;\n// {== endregion=\"sample\" ==}\nafter\n".into())).unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let out = super::super::expand(
+            &format!("```rust url=\"{url}\" region=\"sample\"\n```\n"),
+            &dir.path().join("page.md"),
+            &super::super::IncludeContext {
+                project_root: dir.path(),
+                locale: None,
+            },
+        );
+        assert!(out.problems.is_empty(), "{:?}", out.problems);
+        assert!(out.source.contains("ranges=3-3"));
+        assert!(out.source.contains("\nlet x = 1;\n"));
+        assert!(!out.source.contains("{=="));
+    }
+
+    #[test]
     fn remote_attribute_errors_keep_authored_code() {
         let dir = tempfile::tempdir().unwrap();
         let out = super::super::expand(

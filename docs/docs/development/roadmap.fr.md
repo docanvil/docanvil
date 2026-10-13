@@ -32,13 +32,13 @@ Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour
 - ✅ Composants en templates : définissez vos propres composants sous forme de templates Tera dans votre thème, sans Rust
 - ✅ Fil d'Ariane, descriptions du front matter en sous-titre des pages, et titres de page tirés du premier titre
 - ✅ Blocs de code distants depuis une URL HTTPS brute (`url="…"`)
+- ✅ Régions de code nommées (`{== region="name" ==}` / `{== endregion="name" ==}`), pour que les exemples ne cassent pas quand les numéros de ligne changent
 
 Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
 
 Encore à venir dans la 1.2, maintenant que la première version des inclusions est entre les mains des utilisateurs :
 
 - Inclure une seule section d'une page (par exemple la section Installation de votre README) plutôt que le fichier entier
-- Régions de code nommées (`#region` / `#endregion`), pour que les exemples ne cassent pas quand les numéros de ligne changent
 - Mise en évidence de lignes et marqueurs de type diff dans les blocs de code
 
 ## 1.3.x — Extensibilité

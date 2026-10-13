@@ -40,7 +40,7 @@ Here is that block rendered from DocAnvil’s own GitHub source: the function th
 
 Raw file URLs from GitHub, GitLab, Bitbucket and other hosts work. Copy the link to the **raw file**, rather than the repository page that displays it. URLs returning HTML are rejected. Private repositories requiring authentication are not supported.
 
-`lines`, `numbers`, indentation removal and `title` work just as they do for local files. Without an explicit language, DocAnvil uses the URL path's file extension. The default caption is the URL; use `title` to replace or hide it.
+`lines`, `region`, `numbers`, indentation removal and `title` work just as they do for local files. Without an explicit language, DocAnvil uses the URL path's file extension. The default caption is the URL; use `title` to replace or hide it.
 
 Choose either `file` or `url` and leave the block empty. Remote URLs must use HTTPS and must not contain credentials or a fragment such as `#L10`; use `lines` to select lines instead. `:::include` continues to accept local Markdown files only.
 
@@ -73,6 +73,33 @@ Lines skipped between ranges are marked with a `⋯ N lines hidden` row, and the
 Ranges must go in ascending order and can't overlap. A range that runs past the end of the file is an error rather than being trimmed quietly — if the source file shrinks, you'll hear about it at build time instead of shipping a sample that no longer matches.
 
 Indentation shared by all the selected lines is removed, so a method pulled from the middle of a class starts at the left edge.
+
+## Showing a named region
+
+Use `region` instead of line ranges to keep a sample stable when lines move:
+
+````markdown
+```rust file="/examples/hello.rs" region="quickstart"
+```
+````
+
+Place paired markers in the source file:
+
+```rust
+// {== region="quickstart" ==}
+fn main() {
+    println!("Hello!");
+}
+// {== endregion="quickstart" ==}
+```
+
+DocAnvil recognises the `{== region="name" ==}` and `{== endregion="name" ==}` wrappers regardless of the surrounding comment syntax. For example, Python can use `# {== region="quickstart" ==}` and HTML can use `<!-- {== region="quickstart" ==} -->`. The source file is never changed.
+
+**Put each marker on a full, single-line comment containing no source code.** DocAnvil removes the entire marker line without checking the language's comment syntax. When using block comment delimiters, open and close the comment on that same line. Markers inside a multiline block comment may leave unmatched delimiters or change whether the copied code is commented out.
+
+Names are case-sensitive and must be nonempty and unique within the file. Regions can nest, but must close in order with matching names. All marker lines inside the selected region are omitted, including nested markers. Source line numbers are preserved, shared indentation is removed, and numbers appear by default; `numbers="false"` hides them.
+
+`region` works with both `file` and `url`. It cannot be combined with `lines` or a custom starting number such as `numbers="10"`. Missing, malformed, duplicate, unmatched or empty regions produce the existing build warnings and error boxes, and fail strict builds. The `{== … ==}` wrapper is reserved for region markers when selecting a region.
 
 ## Line numbers
 

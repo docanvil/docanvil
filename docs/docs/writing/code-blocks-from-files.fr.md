@@ -75,6 +75,33 @@ Les plages doivent être croissantes et ne pas se chevaucher. Une plage qui dép
 
 L'indentation commune à toutes les lignes sélectionnées est retirée : une méthode tirée du milieu d'une classe commence au bord gauche.
 
+## Afficher une région nommée
+
+Utilisez `region` pour sélectionner un exemple même lorsque ses numéros de ligne changent :
+
+````markdown
+```rust file="/examples/hello.rs" region="quickstart"
+```
+````
+
+Délimitez la région dans le fichier source :
+
+```rust
+// {== region="quickstart" ==}
+fn main() {
+    println!("Hello!");
+}
+// {== endregion="quickstart" ==}
+```
+
+DocAnvil reconnaît uniquement les marqueurs, indépendamment de la syntaxe des commentaires : `# {== region="quickstart" ==}` en Python ou `<!-- {== region="quickstart" ==} -->` en HTML, par exemple. Le fichier source reste intact.
+
+**Placez chaque marqueur dans un commentaire complet sur une seule ligne, sans code source.** Toute la ligne est supprimée, sans validation de la syntaxe du commentaire. Avec des délimiteurs de commentaire de bloc, ouvrez et fermez le commentaire sur cette même ligne. Un marqueur placé dans un commentaire sur plusieurs lignes peut laisser des délimiteurs incomplets ou modifier le code commenté dans l'extrait copié.
+
+Les noms sont sensibles à la casse, non vides et uniques dans le fichier. Les régions peuvent être imbriquées, mais doivent se fermer dans l'ordre avec le même nom. Tous les marqueurs de l'extrait sont retirés, y compris ceux des régions imbriquées. Les numéros de ligne du fichier sont conservés et affichés par défaut ; `numbers="false"` les masque. L'indentation commune est retirée.
+
+`region` fonctionne avec `file` et `url`, mais ne peut pas être combiné avec `lines` ou `numbers="10"`. Les régions absentes, mal formées, dupliquées, non fermées ou vides produisent des diagnostics et font échouer les builds stricts. L'enveloppe `{== … ==}` est réservée aux marqueurs lors de la sélection d'une région.
+
 ## Numéros de ligne
 
 Les numéros de ligne fonctionnent sur tous les blocs de code, pas seulement ceux qui viennent d'un fichier :

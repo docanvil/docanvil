@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-10-14
+
 ### Added
 
 - Git-backed documentation versions: map version codes to local release tags or discover tags with wildcard patterns (semantic version ordering, optional prereleases), and publish a working-tree version alongside them, with current-version selection, stable `/latest/` page aliases, per-version content/navigation/assets, historical dates and edit links, and an unreleased banner.

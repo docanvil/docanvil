@@ -12,7 +12,7 @@ DocAnvil is **stable (1.x)** and used in production. Upgrades within 1.x are saf
 
 DocAnvil follows **Semantic Versioning (SemVer)**:
 
-- **Patch releases (1.1.x)** fix bugs and polish existing features
+- **Patch releases (1.x.y)** fix bugs and polish existing features
 - **Minor releases (1.x)** add features without breaking existing sites
 - **A major release (2.0)** only happens if there's a clear need for a breaking change
 
@@ -47,38 +47,47 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 - 🕒 **Last updated dates** from Git history or front matter, on the page and in `sitemap.xml`
 - 🤖 **`llms.txt`** and `llms-full.txt`, an AI-friendly index and full-text copy of your docs
 - 🧭 **Page headers**: breadcrumbs, front matter descriptions as subtitles, and page titles from the first heading
+- **Git-backed versions**: publish release-tag snapshots alongside the working tree, with stable `/latest/` aliases
+- **Layout components and icons**: landing pages, cards, steps, details, figures and columns, with bundled Lucide and code-language icons
+- **Section includes**: reuse a Markdown heading and its subsections with `section="heading-id"`
+- **Code presentation**: highlighted lines, language-aware diffs and theme variables for code surfaces
+- **Remote code blocks**: load raw HTTPS source with `url="…"`; remote Markdown includes remain an unscheduled idea
 - **Named code regions**: select stable source examples with `{== region="name" ==}` / `{== endregion="name" ==}` markers in comments
 
 ---
 
-## ✍️ Later in 1.2
+## 🎯 1.3 — API documentation
 
-Follow-ups to includes and code blocks from files, now that the first version is in people's hands:
+**OpenAPI reference generation is the next priority.** V1.2 made authored documentation much more capable; the next missing workflow is publishing API reference alongside guides without maintaining endpoint documentation by hand.
 
-- ✅ **Include a section of a page**: use `section="heading-id"` to pull in a heading and its subsections from a Markdown file, such as your README’s Installation section
-- **Line highlighting**: draw attention to specific lines in a code block, plus diff-style added/removed markers
-- **Remote includes**: include content or code from a URL
+- **OpenAPI-first static reference** from local JSON or YAML specifications, targeting OpenAPI 3.0 and 3.1 with an explicitly documented support matrix
+- Endpoint pages with parameters, request bodies, responses, authentication, examples and linked schemas
+- Stable operation URLs, tag-based navigation, search and links from Markdown guides
+- Validation of guide-to-reference links and generated operation/schema anchors
+- Integration with themes, Git-backed versions, localisation, PDF and `llms.txt` outputs
+- Actionable specification diagnostics in build and `docanvil doctor`, including strict-mode failures
 
-Fully backward compatible, and every feature is opt-in.
+Start with local specifications and local references. A hosted renderer or browser-only embed would not deliver the same search, export and versioning integration. An interactive request console, remote specifications and additional API formats are follow-ups, not requirements for the first release.
 
----
-
-## 🧩 1.3 — Extensibility
-
-- **Plugin system (v1)**, WASM-based, for what template components can't do
-  - Markdown transformers
-  - Custom components
-- Additional CLI flags, more diagnostics, and template enhancements
-
-Fully backward compatible.
+The [V1.2 review and next-version plan](planning/v1.3-priorities.md) records the gaps, proposed scope, acceptance criteria and decisions still to resolve. Features remain opt-in and backward compatible; this is a direction, not a release commitment.
 
 ---
 
-## 🚀 1.4+ — Ecosystem Growth
+## 🔍 1.4+ — Build reliability and documentation quality
 
-- Plugin hooks and a plugin SDK crate
-- Incremental builds and caching for faster rebuilds on large sites
-- Performance optimisations
+Prioritise these after the first API reference workflow, adjusting order based on usage:
+
+- Reproducible remote code sources: explicit refresh, persistent cache, integrity checks and offline builds
+- Broader internal link and heading-anchor validation, including generated API targets
+- Front-matter schema validation for teams with required metadata
+- Dependency tracking and measured build improvements for larger versioned sites; incremental builds only with correct invalidation
+- API reference refinements informed by real specifications and reader feedback
+
+---
+
+## 🧩 Extensibility — Deferred
+
+Template components, nesting, template overrides and bundled layout components already cover many presentation customisations. Defer a WASM plugin system, hooks and SDK until concrete workflows demonstrate what those tools and first-party OpenAPI support cannot cover. No fixed release is assigned; define lifecycle, compatibility and diagnostics before committing to a plugin API.
 
 ---
 
@@ -86,10 +95,23 @@ Fully backward compatible.
 
 Not scheduled yet, but on our radar:
 
+- **Remote Markdown includes**, with explicit reproducibility and relative-link rules
 - **Glossary / reference index**, generated from front matter or a dedicated glossary file
-- **Front-matter schema validation**, to catch invalid or missing metadata early
-- **API reference generation**, OpenAPI-first
-- **Offline documentation bundles**, as self-contained artifacts
+- **API change reports**, comparing release specifications and highlighting added, removed and changed operations; compatibility judgments need explicit rules
+- **API documentation coverage**, flagging missing descriptions, examples and error responses separately from specification validity
+- **Translation freshness**, detecting when source pages or shared fragments change after a translation was reviewed
+- **Offline documentation bundles**, searchable, self-contained HTML artifacts alongside PDF
+- **Verified code examples**, opt-in commands to compile or test selected samples in CI with explicit execution settings
+- **Documentation lifecycle metadata**, owners, review dates and deprecated-page notices, with optional stale-content checks
+- **URL migration audits**, comparing published versions to flag removed routes and suggest redirects
+- **Search refinements**, aliases, weighting and filters that help readers distinguish guides, API operations and schemas
+- **Build provenance reports**, recording source revisions, specification versions and remote-source checksums for traceable releases
+- **Portable diagrams**, rendering Mermaid at build time for offline HTML and consistent export output
+- **Reusable content variables**, for product names, release numbers and shared values, with explicit version/locale scope and missing-value diagnostics
+- **Scoped lint suppressions**, with reasons and unused-suppression checks, so intentional exceptions do not require disabling a rule project-wide
+- **Page discovery checks**, flagging published pages absent from navigation and offering opt-in related links or backlinks; intentionally unlisted pages remain supported
+- **Selective exports**, producing a PDF or offline bundle from selected chapters or navigation groups
+- **Documentation change summaries**, showing added, changed and removed pages between releases with links to migration guidance
 - **Build presets** for documentation, handbooks and specifications
 - **Contrast checks** alongside the existing accessibility lints
 - **Math support** (KaTeX), opt-in like Mermaid charts

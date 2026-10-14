@@ -78,7 +78,7 @@ Les versions sans correspondance Git utilisent toujours des sous-répertoires : 
 
 Git doit être installé et les références doivent exister localement. La compilation ne récupère jamais de tags automatiquement. Avec GitHub Actions, utilisez `fetch-depth: 0` dans `actions/checkout` pour disposer des tags et de l'historique. Une référence absente fait échouer la compilation sans remplacer la sortie précédente, sauf si vous avez demandé `--clean`.
 
-Les instantanés utilisent `git archive` : les attributs d'export s'appliquent, le contenu des sous-modules est omis et les liens symboliques ne sont pas pris en charge. Les fichiers nécessaires doivent être présents au tag choisi.
+Les instantanés utilisent `git archive` : les attributs d'export s'appliquent, le contenu des sous-modules est omis et les liens symboliques ne sont pas pris en charge. Les préférences de fin de ligne propres à la machine n'affectent pas l'export ; les attributs de fin de ligne commités restent respectés. Les fichiers nécessaires doivent être présents au tag choisi.
 
 Pour migrer un site publié, activez `[redirects] unprefixed = true` afin de conserver les URL simples et celles préfixées par une langue pour les pages de la version courante.
 

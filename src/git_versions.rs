@@ -199,7 +199,18 @@ impl GitSnapshot {
         let archive_file = tempfile::tempfile()?;
         let output = Command::new("git")
             .current_dir(&repository)
-            .args(["archive", "--format=tar", &commit])
+            // Archive uses Git's checkout conversion rules. Ignore local or
+            // global EOL preferences so the same tag renders consistently on
+            // every OS; committed .gitattributes still take precedence.
+            .args([
+                "-c",
+                "core.autocrlf=false",
+                "-c",
+                "core.eol=lf",
+                "archive",
+                "--format=tar",
+                &commit,
+            ])
             .stdout(Stdio::from(archive_file.try_clone()?))
             .output()?;
         if !output.status.success() {
@@ -351,6 +362,37 @@ mod tests {
         let repo = repository();
         let snapshot = GitSnapshot::extract(&repo.path().join("site"), "refs/tags/v1.0.1").unwrap();
         assert_eq!(snapshot.commit(), git(repo.path(), &["rev-parse", "HEAD"]));
+    }
+
+    #[test]
+    fn snapshot_ignores_checkout_line_ending_preferences() {
+        let repo = repository();
+        git(repo.path(), &["config", "core.autocrlf", "true"]);
+        git(repo.path(), &["config", "core.eol", "crlf"]);
+        let snapshot = GitSnapshot::extract(&repo.path().join("site"), "v1.0.0").unwrap();
+        assert_eq!(
+            fs::read(snapshot.project_root().join("docs/index.md")).unwrap(),
+            b"# Released\n"
+        );
+        assert_eq!(git(repo.path(), &["config", "core.autocrlf"]), "true");
+        assert_eq!(git(repo.path(), &["config", "core.eol"]), "crlf");
+    }
+
+    #[test]
+    fn snapshot_respects_committed_line_ending_attributes() {
+        let repo = repository();
+        fs::write(
+            repo.path().join(".gitattributes"),
+            "site/docs/index.md text eol=crlf\n",
+        )
+        .unwrap();
+        git(repo.path(), &["add", ".gitattributes"]);
+        git(repo.path(), &["commit", "-m", "Specify line endings"]);
+        let snapshot = GitSnapshot::extract(&repo.path().join("site"), "HEAD").unwrap();
+        assert_eq!(
+            fs::read(snapshot.project_root().join("docs/index.md")).unwrap(),
+            b"# Released\r\n"
+        );
     }
 
     #[test]

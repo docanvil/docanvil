@@ -78,7 +78,7 @@ Unmapped versions continue to use subdirectories, so Git and directory sources c
 
 Git must be installed and refs must exist locally. Builds never fetch automatically. In GitHub Actions, use `fetch-depth: 0` on `actions/checkout` for release tags and history. Missing refs fail the build without replacing the previous output, unless you explicitly requested `--clean`.
 
-Snapshots use `git archive`: export attributes apply, submodule contents are omitted, and symlinks are currently unsupported. Required historical files must be included in the tagged repository.
+Snapshots use `git archive`: export attributes apply, submodule contents are omitted, and symlinks are currently unsupported. Machine-level line-ending preferences do not affect exports; committed line-ending attributes still apply. Required historical files must be included in the tagged repository.
 
 When migrating a published site, enable `[redirects] unprefixed = true` to preserve both plain page URLs and existing locale-prefixed URLs for pages in the current version.
 

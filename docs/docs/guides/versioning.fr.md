@@ -43,13 +43,38 @@ master = "Master (non publié)"
 
 `refs` associe les codes de version des URL aux références Git locales. `working_tree` nomme la version compilée depuis votre copie de travail, modifications non commitées comprises. Ce nom est une étiquette : vous pouvez choisir `main` ou `development`. DocAnvil ne change pas de branche.
 
+### Découvrir les tags de version
+
+Pour publier toutes les versions correspondant à votre convention de tags, utilisez `tag_patterns` :
+
+```toml
+[version]
+current = "v1.2.3"
+enabled = ["master"]
+
+[version.git]
+tag_patterns = ["v1.*"]
+working_tree = "master"
+# include_prereleases = true
+```
+
+DocAnvil découvre les tags locaux correspondants et les ajoute à `enabled`, en utilisant le nom de chaque tag comme code de version dans les URL. `*` correspond à une suite quelconque de caractères et `?` à un seul caractère ; le motif doit correspondre au nom entier du tag. `v1.*` sélectionne les versions v1, tandis que `v1.2.*` sélectionne uniquement les versions v1.2.
+
+Les tags de version sémantique, avec ou sans préfixe `v`, sont triés de la plus ancienne à la plus récente : `v1.9.0` précède `v1.10.0`. Les autres noms sont triés alphabétiquement après les versions sémantiques. Les versions découvertes précèdent celles activées explicitement, comme `master`. Les motifs qui se chevauchent et les tags activés explicitement ne créent pas de doublons ; une correspondance `refs` explicite est prioritaire pour un même code.
+
+Les préversions comme `v1.3.0-beta.1` sont exclues de la découverte par défaut. Activez `include_prereleases = true` pour les inclure. Ce filtre concerne les tags de version sémantique ; une préversion associée explicitement reste disponible indépendamment de ce paramètre.
+
+Les tags historiques peuvent contenir des traductions absentes ou des liens cassés signalés par les vérifications strictes actuelles. Utilisez un motif plus précis si ces instantanés font échouer la compilation stricte ; les tags conservent la documentation telle qu’elle a été publiée.
+
+Chaque motif doit trouver au moins un tag local admissible, et `current` doit nommer une version activée ou découverte. Ce choix reste explicite : découvrir un nouveau tag ne change ni la version recommandée ni les liens `/latest/`. La compilation ne récupère pas les tags manquants. Chaque tag ajoute un arbre de documentation complet ; précisez le motif si le site devient trop volumineux.
+
 Chaque tag fournit son répertoire de contenu, sa navigation, ses inclusions, ses composants personnalisés et ses ressources de contenu. La configuration de travail contrôle le thème commun, les langues, la publication et la version courante. Les configurations historiques n'ont pas besoin de nouveaux paramètres. Les images relatives sont publiées sous le préfixe de leur version ; les URL absolues restent inchangées.
 
 Avec les sources Git, définissez explicitement `current`. La racine redirige vers cette version et `/latest/` fournit des liens stables vers ses pages. `/latest/guides/setup.html` redirige vers `/v1.2.3/guides/setup.html`, tandis que `/master/guides/setup.html` montre les changements non publiés. Avec la localisation, utilisez `/latest/fr/guides/setup.html`. `/latest/` ouvre l'accueil dans la langue par défaut. Modifier `current` déplace ces alias vers une autre version activée.
 
 Master affiche une bannière de documentation non publiée. Les pages des tags utilisent leur commit pour les liens de modification et les dates. Les liens vers l'éditeur local sont réservés à la copie de travail. L'export PDF utilise aussi les sources et la navigation de la version choisie.
 
-Les versions sans correspondance Git utilisent toujours des sous-répertoires : les deux approches peuvent coexister. Les codes doivent être des segments d'URL uniques composés de lettres, chiffres, points, tirets ou traits de soulignement. Les noms des ressources générées sont réservés, ainsi que `latest` pour les sites Git.
+Les versions sans correspondance Git utilisent toujours des sous-répertoires : les deux approches peuvent coexister. Les codes doivent être des segments d'URL uniques composés de lettres, chiffres, points, tirets, traits de soulignement ou signes plus. Les noms des ressources générées sont réservés, ainsi que `latest` pour les sites Git.
 
 Git doit être installé et les références doivent exister localement. La compilation ne récupère jamais de tags automatiquement. Avec GitHub Actions, utilisez `fetch-depth: 0` dans `actions/checkout` pour disposer des tags et de l'historique. Une référence absente fait échouer la compilation sans remplacer la sortie précédente, sauf si vous avez demandé `--clean`.
 

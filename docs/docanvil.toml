@@ -40,10 +40,11 @@ fr = "Français"
 
 [version]
 current = "v1.2.3"
-enabled = ["v1.2.3", "master"]
+enabled = ["master"]
 
 [version.git]
-refs = { "v1.2.3" = "refs/tags/v1.2.3" }
+# Earlier release docs have incomplete translations; keep strict builds on v1.2.
+tag_patterns = ["v1.2.*"]
 working_tree = "master"
 
 [version.display_names]

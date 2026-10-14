@@ -71,11 +71,15 @@ pub struct GitVersionConfig {
     pub refs: HashMap<String, String>,
     /// Version built from the working checkout, including uncommitted edits.
     pub working_tree: Option<String>,
+    /// Local tag-name patterns; '*' matches any sequence and '?' one character.
+    pub tag_patterns: Vec<String>,
+    /// Include semantic-version prerelease tags discovered by patterns.
+    pub include_prereleases: bool,
 }
 
 impl GitVersionConfig {
     pub fn is_enabled(&self) -> bool {
-        !self.refs.is_empty() || self.working_tree.is_some()
+        !self.refs.is_empty() || self.working_tree.is_some() || !self.tag_patterns.is_empty()
     }
 }
 
@@ -512,7 +516,7 @@ impl Config {
                 || version.starts_with('.')
                 || !version
                     .bytes()
-                    .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_' || c == b'.')
+                    .all(|c| c.is_ascii_alphanumeric() || b"-_.+".contains(&c))
                 || matches!(
                     version.as_str(),
                     "." | ".." | "assets" | "js" | "theme" | "static"
@@ -605,6 +609,17 @@ impl Config {
     /// Load config from a `docanvil.toml` file in the given directory.
     /// Returns default config if the file doesn't exist.
     pub fn load(project_root: &Path) -> Result<Self> {
+        let mut config = Self::load_unresolved(project_root)?;
+        let config_path = project_root.join("docanvil.toml");
+        config.validate_locale(&config_path)?;
+        crate::git_versions::discover_tags(project_root, &mut config)?;
+        config.validate_version(&config_path)?;
+        Ok(config)
+    }
+
+    /// Historical publishing settings are irrelevant to a snapshot's content
+    /// path. Parse them without trying to discover tags inside an archive.
+    pub(crate) fn load_unresolved(project_root: &Path) -> Result<Self> {
         let config_path = project_root.join("docanvil.toml");
         if !config_path.exists() {
             return Ok(Self::default());
@@ -614,8 +629,6 @@ impl Config {
             path: config_path.clone(),
             source: e,
         })?;
-        config.validate_locale(&config_path)?;
-        config.validate_version(&config_path)?;
         Ok(config)
     }
 }

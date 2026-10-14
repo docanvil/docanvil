@@ -6,7 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
-- Git-backed documentation versions: map version codes to local release tags and publish a working-tree version alongside them, with current-version selection, stable `/latest/` page aliases, per-version content/navigation/assets, historical dates and edit links, and an unreleased banner.
+- Git-backed documentation versions: map version codes to local release tags or discover tags with wildcard patterns (semantic version ordering, optional prereleases), and publish a working-tree version alongside them, with current-version selection, stable `/latest/` page aliases, per-version content/navigation/assets, historical dates and edit links, and an unreleased banner.
 - Markdown section includes: use `:::include{file="other.md" section="heading-id"}` to reuse a heading and its subsections, with custom anchors, locale fallback, nested includes and existing build/doctor diagnostics.
 
 - Line highlighting: add `highlight="2,5-8"` to code fences to emphasise selected source lines while preserving syntax colours and copied text. Supports the same ranges as `lines`, inline and local/remote blocks, source selections, PDF exports and theme CSS overrides.

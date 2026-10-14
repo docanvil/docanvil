@@ -75,7 +75,7 @@ pub fn check_version(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
         // the combined site's locale and diagnostics settings.
         if resolved.snapshot.is_some() {
             let result = (|| -> crate::error::Result<Vec<Diagnostic>> {
-                let mut source_config = Config::load(project_root)?;
+                let mut source_config = Config::load_unresolved(project_root)?;
                 source_config.project.content_dir = resolved
                     .content_dir
                     .strip_prefix(&resolved.project_root)

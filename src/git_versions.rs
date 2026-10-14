@@ -10,6 +10,107 @@ use std::process::{Command, Stdio};
 use crate::config::Config;
 use crate::error::{Error, Result};
 
+/// Expand local tag patterns once when loading the working configuration.
+/// Downstream build, serve, doctor and PDF code sees ordinary enabled versions
+/// and explicit ref mappings, keeping source resolution identical in every mode.
+pub(crate) fn discover_tags(root: &Path, config: &mut Config) -> Result<()> {
+    let git = &mut config.version.git;
+    if git.tag_patterns.is_empty() {
+        return Ok(());
+    }
+    for pattern in &git.tag_patterns {
+        if pattern.is_empty()
+            || !pattern
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || b".-_+*?".contains(&c))
+        {
+            return Err(Error::General(format!(
+                "Invalid version.git.tag_patterns entry '{pattern}': use tag names with '*' and '?' wildcards"
+            )));
+        }
+    }
+    let mut explicit = std::collections::HashSet::new();
+    for version in &config.version.enabled {
+        if !explicit.insert(version.to_ascii_lowercase()) {
+            return Err(Error::General(format!(
+                "Duplicate enabled version '{version}'"
+            )));
+        }
+    }
+    let listed = git_text(root, &["for-each-ref", "--format=%(refname:strip=2)", "refs/tags"])
+        .map_err(|e| Error::General(format!("Cannot discover documentation tags: {e}. Ensure Git is installed and release tags exist locally; builds do not fetch tags.")))?;
+    let tags: Vec<_> = listed.lines().collect();
+    let mut discovered = std::collections::HashSet::new();
+    for pattern in &git.tag_patterns {
+        let matches: Vec<_> = tags
+            .iter()
+            .copied()
+            .filter(|tag| {
+                matches_tag(pattern, tag)
+                    && (git.include_prereleases
+                        || tag_version(tag).is_none_or(|version| version.pre.is_empty()))
+            })
+            .collect();
+        if matches.is_empty() {
+            return Err(Error::General(format!(
+                "Git tag pattern '{pattern}' matched no eligible local tags. Fetch release tags, adjust the pattern, or set include_prereleases = true if only prereleases match."
+            )));
+        }
+        discovered.extend(matches);
+    }
+    let mut discovered: Vec<_> = discovered.into_iter().collect();
+    discovered.sort_by(|a, b| match (tag_version(a), tag_version(b)) {
+        (Some(a_version), Some(b_version)) => a_version.cmp(&b_version).then_with(|| a.cmp(b)),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.cmp(b),
+    });
+    let mut enabled: Vec<String> = discovered.iter().map(|tag| (*tag).to_owned()).collect();
+    for tag in discovered {
+        git.refs
+            .entry(tag.to_owned())
+            .or_insert_with(|| format!("refs/tags/{tag}"));
+    }
+    for version in &config.version.enabled {
+        if !enabled.contains(version) {
+            enabled.push(version.clone());
+        }
+    }
+    config.version.enabled = enabled;
+    Ok(())
+}
+
+fn tag_version(tag: &str) -> Option<semver::Version> {
+    semver::Version::parse(tag.strip_prefix('v').unwrap_or(tag)).ok()
+}
+
+/// Simple wildcard matching with constant memory. Tag names and patterns are
+/// ASCII URL segments; '*' and '?' are the only pattern operators.
+fn matches_tag(pattern: &str, tag: &str) -> bool {
+    let (pattern, tag) = (pattern.as_bytes(), tag.as_bytes());
+    let (mut p, mut t, mut star, mut retry) = (0, 0, None, 0);
+    while t < tag.len() {
+        if p < pattern.len() && (pattern[p] == b'?' || pattern[p] == tag[t]) {
+            p += 1;
+            t += 1;
+        } else if p < pattern.len() && pattern[p] == b'*' {
+            star = Some(p);
+            p += 1;
+            retry = t;
+        } else if let Some(last_star) = star {
+            retry += 1;
+            t = retry;
+            p = last_star + 1;
+        } else {
+            return false;
+        }
+    }
+    while p < pattern.len() && pattern[p] == b'*' {
+        p += 1;
+    }
+    p == pattern.len()
+}
+
 /// A version's files, with its snapshot owned for the duration of the build.
 pub(crate) struct VersionSource {
     pub project_root: PathBuf,
@@ -23,7 +124,7 @@ impl VersionSource {
     pub fn resolve(root: &Path, config: &Config, version: &str) -> Result<Self> {
         if let Some(reference) = config.version.git.refs.get(version) {
             let snapshot = GitSnapshot::extract(root, reference)?;
-            let historical = Config::load(snapshot.project_root())?;
+            let historical = Config::load_unresolved(snapshot.project_root())?;
             let content_path = &historical.project.content_dir;
             if content_path.is_absolute()
                 || content_path
@@ -278,6 +379,102 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("no docanvil.toml"));
+    }
+
+    #[test]
+    fn tag_wildcards_match_whole_names() {
+        for (pattern, tag, expected) in [
+            ("v1.*", "v1.2.3", true),
+            ("v1.*", "v2.0.0", false),
+            ("v1.*", "prefix-v1.2.3", false),
+            ("v1.*", "v1.", true),
+            ("v1.?.0", "v1.2.0", true),
+            ("v1.?.0", "v1.12.0", false),
+            ("*beta*", "v1.2.3-beta.1", true),
+            ("v1.*.3", "v1.2.4.3", true),
+            ("v1.*.3", "v1.2.4", false),
+            ("**", "anything", true),
+            ("v1.0.0", "v1.0.0-extra", false),
+        ] {
+            assert_eq!(matches_tag(pattern, tag), expected, "{pattern}: {tag}");
+        }
+    }
+
+    fn pattern_config(repo: &Path, patterns: &str, extra: &str) -> Result<Config> {
+        std::fs::write(
+            repo.join("site/docanvil.toml"),
+            format!(
+                "[version]\ncurrent = 'v1.0.0'\nenabled = ['master']\n[version.git]\nworking_tree = 'master'\ntag_patterns = {patterns}\n{extra}"
+            ),
+        )?;
+        Config::load(&repo.join("site"))
+    }
+
+    #[test]
+    fn discovers_semver_ordered_tags_and_deduplicates_overlaps() {
+        let repo = repository();
+        for tag in ["v1.9.0", "v1.10.0", "v1.10.0-beta.1", "v2.0.0"] {
+            git(repo.path(), &["tag", tag]);
+        }
+        let config = pattern_config(
+            repo.path(),
+            "['v1.*', 'v1.9.*']",
+            "refs = { 'v1.9.0' = 'refs/tags/v1.0.0' }",
+        )
+        .unwrap();
+        assert_eq!(
+            config.version.enabled,
+            ["v1.0.0", "v1.0.1", "v1.9.0", "v1.10.0", "master"]
+        );
+        assert_eq!(config.version.git.refs["v1.9.0"], "refs/tags/v1.0.0");
+        assert_eq!(config.version.git.refs["v1.10.0"], "refs/tags/v1.10.0");
+        let config = pattern_config(repo.path(), "['v1.*']", "include_prereleases = true").unwrap();
+        assert_eq!(
+            config.version.enabled,
+            [
+                "v1.0.0",
+                "v1.0.1",
+                "v1.9.0",
+                "v1.10.0-beta.1",
+                "v1.10.0",
+                "master"
+            ]
+        );
+    }
+
+    #[test]
+    fn errors_for_invalid_or_empty_patterns_and_missing_tags() {
+        let repo = repository();
+        git(repo.path(), &["tag", "v1.1.0-beta.1"]);
+        for patterns in ["['']", "['v[1].*']", "['v9.*']", "['v1.1.0-beta.*']"] {
+            assert!(
+                pattern_config(repo.path(), patterns, "").is_err(),
+                "{patterns}"
+            );
+        }
+        let config = pattern_config(
+            repo.path(),
+            "['v1.1.0-beta.*']",
+            "include_prereleases = true",
+        );
+        // Eligible prereleases were found, but the configured current release
+        // is not selected by this pattern.
+        assert!(config.unwrap_err().to_string().contains("version.current"));
+    }
+
+    #[test]
+    fn snapshots_do_not_discover_their_historical_patterns() {
+        let repo = repository();
+        pattern_config(repo.path(), "['v1.*']", "").unwrap();
+        git(repo.path(), &["add", "."]);
+        git(
+            repo.path(),
+            &["commit", "-m", "Configure pattern discovery"],
+        );
+        git(repo.path(), &["tag", "v1.0.2"]);
+        let config = Config::load(&repo.path().join("site")).unwrap();
+        let source = VersionSource::resolve(&repo.path().join("site"), &config, "v1.0.2").unwrap();
+        assert!(source.content_dir.join("index.md").is_file());
     }
 
     #[cfg(unix)]

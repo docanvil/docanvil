@@ -248,6 +248,8 @@ See [[guides/localisation|Localisation]] for a complete walkthrough of setting u
 | `display_names` | `{}` | Human-readable names shown in the version switcher (e.g. `{"v2": "v2.0 (latest)"}`) |
 | `git.refs` | `{}` | Map enabled version codes to local Git refs |
 | `git.working_tree` | `None` | Enabled version built from the working checkout, including uncommitted changes |
+| `git.tag_patterns` | `[]` | Discover local tag names with `*` and `?` patterns, such as `["v1.*"]`; add matches to enabled versions |
+| `git.include_prereleases` | `false` | Include semantic-version prereleases discovered by tag patterns |
 
 When `enabled` is non-empty, DocAnvil switches to multi-version mode: each version gets its own URL prefix (`/v1/`, `/v2/`), its own navigation and search index, and a version switcher appears in the header. Pages in older versions automatically show a banner linking to the latest version.
 

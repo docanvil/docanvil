@@ -62,7 +62,7 @@ src/
   edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection); RepoLink: header repository link; Editor: serve's open-in-editor URL schemes
   last_updated.rs              # "Last updated" dates: Date, DateSource trait, NoDates, GitDates (one scoped git log per build)
   error.rs                     # thiserror Error enum
-  git_versions.rs              # GitSnapshot + VersionSource: local Git refs → owned temporary repository snapshots; working-tree and directory sources for build/serve/doctor/PDF
+  git_versions.rs              # Tag discovery + GitSnapshot + VersionSource: local Git refs → owned temporary repository snapshots; working-tree and directory sources for build/serve/doctor/PDF
   diagnostics.rs               # Colored warnings (owo-colors)
   util.rs                      # HTML escape utility
 
@@ -200,7 +200,7 @@ Markdown source
 |------|------|---------|
 | `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig` (incl. `line_numbers`, `[syntax] line_numbers = false` by default), `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `VersionConfig`, `PdfConfig`, `DoctorConfig`, `EditConfig` |
 | `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
-| `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`, `git: GitVersionConfig { refs, working_tree }`. Git sources require explicit `current`; `/latest/` aliases follow it, and working-tree pages get an unreleased banner. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
+| `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`, `git: GitVersionConfig { refs, working_tree, tag_patterns, include_prereleases }`. Local tag patterns expand on working config load, deduplicate matches and sort semantic versions; prereleases are excluded by default. Historical configs are parsed without tag discovery. Git sources require explicit `current`; `/latest/` aliases follow it, and working-tree pages get an unreleased banner. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale`, `version`. `title` = front matter `title` → first `# H1` → filename; only front matter `title`/`slug` change the slug |
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`, `drafts` (pages left out of this build, same keys), `draft_links: DraftLinks`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `resolve_draft()`, `exclude_drafts()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
@@ -325,7 +325,7 @@ Self-update: `ureq` (HTTP, rustls — no OpenSSL, keeps musl/ARM builds simple),
 
 - `ci.yml` (lint + 3-OS test matrix) skips docs-only changes (`docs/**` and root-level `*.md`); `docs.yml` builds `docs/` with `--strict` using the checkout's binary on every PR
 - Release builds live in `.github/workflows/build-targets.yml` (6 targets: linux x86_64 gnu + musl, linux aarch64 musl, macOS arm64/x86_64, Windows x86_64; the installer picks the static musl builds on Linux, while self-update keeps a binary on its own libc and ARM is musl-only), reused by `release.yml`
-- `publish-pages.yml` builds the checkout's binary on each master push; the docs site publishes tag `v1.2.3` as current plus the working-tree `master` version, with `/latest/` aliases and legacy locale URL redirects
+- `publish-pages.yml` builds the checkout's binary on each master push; the docs site publishes local tags matching `v1.2.*`, marks `v1.2.3` current and adds the working-tree `master` version, with `/latest/` aliases and legacy locale URL redirects
 - `ci.yml` runs that build plus an installer smoke test (real releases, incl. Windows PowerShell 5.1) only on `release/v*` PRs or PRs labelled `release-build` — normal PRs stay on the 3-OS test matrix
 - Releases ship archives + `SHA256SUMS` + `install.sh` + `install.ps1`
 - In `release.yml`, crates.io `publish` needs the GitHub `release` job, since a crates.io publish can't be undone

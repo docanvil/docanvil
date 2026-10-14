@@ -352,3 +352,82 @@ fn tag_only_site_does_not_require_working_content_directory() {
     assert!(out.join("latest/index.html").is_file());
     assert!(docanvil::doctor::checks::project::check_project(&site).is_empty());
 }
+
+#[test]
+fn tag_patterns_build_every_matching_release_and_optional_prereleases() {
+    let repo = fixture(false);
+    for tag in ["v1.9.0", "v1.10.0", "v1.11.0-beta.1", "v2.0.0"] {
+        git(repo.path(), &["tag", tag]);
+    }
+    let site = repo.path().join("site");
+    let config = CONFIG
+        .replace("current = \"release\"", "current = \"v1.10.0\"")
+        .replace(
+            "enabled = [\"release\", \"master\"]",
+            "enabled = [\"v1.0.0\", \"master\"]",
+        )
+        .replace(
+            "refs = { release = \"refs/tags/v1.0.0\" }",
+            "tag_patterns = [\"v1.*\", \"v1.9.*\"]",
+        );
+    write(repo.path(), "site/docanvil.toml", &config);
+    let resolved = docanvil::config::Config::load(&site).unwrap();
+    assert_eq!(
+        resolved.version.enabled,
+        ["v1.0.0", "v1.9.0", "v1.10.0", "master"]
+    );
+    let out = site.join("dist");
+    docanvil::cli::build::run(&site, Some(&out), false, true, true, false).unwrap();
+    for version in ["v1.0.0", "v1.9.0", "v1.10.0"] {
+        let page = fs::read_to_string(out.join(format!("{version}/index.html"))).unwrap();
+        assert!(page.contains("Released fragment"));
+        assert!(out.join(format!("{version}/search-index.json")).is_file());
+    }
+    assert!(!out.join("v2.0.0").exists());
+    assert!(!out.join("v1.11.0-beta.1").exists());
+    assert!(
+        fs::read_to_string(out.join("latest/index.html"))
+            .unwrap()
+            .contains("/docs/v1.10.0/index.html")
+    );
+    assert!(docanvil::doctor::checks::version::check_version(&site, &resolved).is_empty());
+    let config = config.replace(
+        "working_tree = \"master\"",
+        "working_tree = \"master\"\ninclude_prereleases = true",
+    );
+    write(repo.path(), "site/docanvil.toml", &config);
+    docanvil::cli::build::run(&site, Some(&out), false, true, true, false).unwrap();
+    assert!(out.join("v1.11.0-beta.1/index.html").is_file());
+    // Discovering a newer prerelease never changes the explicitly chosen current.
+    assert!(
+        fs::read_to_string(out.join("latest/index.html"))
+            .unwrap()
+            .contains("/docs/v1.10.0/index.html")
+    );
+}
+
+#[test]
+fn unmatched_tag_pattern_fails_before_replacing_output() {
+    let repo = fixture(false);
+    let site = repo.path().join("site");
+    let config = CONFIG
+        .replace(
+            "enabled = [\"release\", \"master\"]",
+            "enabled = [\"master\"]",
+        )
+        .replace(
+            "refs = { release = \"refs/tags/v1.0.0\" }",
+            "tag_patterns = [\"v99.*\"]",
+        );
+    write(repo.path(), "site/docanvil.toml", &config);
+    write(repo.path(), "site/dist/index.html", "previous site");
+    let error =
+        docanvil::cli::build::run(&site, Some(&site.join("dist")), false, true, true, false)
+            .unwrap_err();
+    assert!(error.to_string().contains("v99.*"));
+    assert!(error.to_string().contains("no eligible local tags"));
+    assert_eq!(
+        fs::read_to_string(site.join("dist/index.html")).unwrap(),
+        "previous site"
+    );
+}

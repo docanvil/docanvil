@@ -55,11 +55,32 @@ pub struct VersionConfig {
     /// The current/latest version (used for the root redirect and version banner).
     /// Defaults to the last entry in `enabled` if not set.
     pub current: Option<String>,
-    /// All versions to build (e.g. ["v1", "v2"]). Each must have a matching
-    /// subdirectory inside the content directory.
+    /// All versions to build. Unmapped versions use content subdirectories;
+    /// Git mappings and working_tree select other sources.
     pub enabled: Vec<String>,
     /// Human-readable display names for versions (e.g. {"v1": "v1.0", "v2": "v2.0 (latest)"}).
     pub display_names: HashMap<String, String>,
+    /// Optional Git sources; unmapped versions retain directory-based sources.
+    pub git: GitVersionConfig,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct GitVersionConfig {
+    /// Version URL code → local Git ref (prefer refs/tags/... for releases).
+    pub refs: HashMap<String, String>,
+    /// Version built from the working checkout, including uncommitted edits.
+    pub working_tree: Option<String>,
+    /// Local tag-name patterns; '*' matches any sequence and '?' one character.
+    pub tag_patterns: Vec<String>,
+    /// Include semantic-version prerelease tags discovered by patterns.
+    pub include_prereleases: bool,
+}
+
+impl GitVersionConfig {
+    pub fn is_enabled(&self) -> bool {
+        !self.refs.is_empty() || self.working_tree.is_some() || !self.tag_patterns.is_empty()
+    }
 }
 
 /// Localisation configuration for multi-language documentation sites.
@@ -489,6 +510,52 @@ impl Config {
 
     /// Validate version configuration. Returns an error if the config is inconsistent.
     fn validate_version(&self, config_path: &Path) -> Result<()> {
+        let mut seen = std::collections::HashSet::new();
+        for version in &self.version.enabled {
+            if version.is_empty()
+                || version.starts_with('.')
+                || !version
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || b"-_.+".contains(&c))
+                || matches!(
+                    version.as_str(),
+                    "." | ".." | "assets" | "js" | "theme" | "static"
+                )
+                || (self.version.git.is_enabled() && version.eq_ignore_ascii_case("latest"))
+                || !seen.insert(version.to_ascii_lowercase())
+            {
+                return Err(Error::General(format!(
+                    "{}: invalid, reserved or duplicate version code '{version}'",
+                    config_path.display()
+                )));
+            }
+        }
+        let git = &self.version.git;
+        for (version, reference) in &git.refs {
+            if !self.version.enabled.contains(version)
+                || reference.is_empty()
+                || reference.starts_with('-')
+            {
+                return Err(Error::General(format!(
+                    "{}: version.git.refs must map enabled versions to non-empty Git refs that do not start with '-'",
+                    config_path.display()
+                )));
+            }
+        }
+        if let Some(working) = &git.working_tree
+            && (!self.version.enabled.contains(working) || git.refs.contains_key(working))
+        {
+            return Err(Error::General(format!(
+                "{}: version.git.working_tree must name an enabled version without a Git ref mapping",
+                config_path.display()
+            )));
+        }
+        if git.is_enabled() && self.version.current.is_none() {
+            return Err(Error::General(format!(
+                "{}: Git-backed versions require an explicit version.current",
+                config_path.display()
+            )));
+        }
         if let Some(ref current) = self.version.current {
             if self.version.enabled.is_empty() {
                 return Err(Error::General(format!(
@@ -542,6 +609,17 @@ impl Config {
     /// Load config from a `docanvil.toml` file in the given directory.
     /// Returns default config if the file doesn't exist.
     pub fn load(project_root: &Path) -> Result<Self> {
+        let mut config = Self::load_unresolved(project_root)?;
+        let config_path = project_root.join("docanvil.toml");
+        config.validate_locale(&config_path)?;
+        crate::git_versions::discover_tags(project_root, &mut config)?;
+        config.validate_version(&config_path)?;
+        Ok(config)
+    }
+
+    /// Historical publishing settings are irrelevant to a snapshot's content
+    /// path. Parse them without trying to discover tags inside an archive.
+    pub(crate) fn load_unresolved(project_root: &Path) -> Result<Self> {
         let config_path = project_root.join("docanvil.toml");
         if !config_path.exists() {
             return Ok(Self::default());
@@ -551,8 +629,6 @@ impl Config {
             path: config_path.clone(),
             source: e,
         })?;
-        config.validate_locale(&config_path)?;
-        config.validate_version(&config_path)?;
         Ok(config)
     }
 }
@@ -883,5 +959,29 @@ root = "site"
     #[test]
     fn redirects_reject_non_string_targets() {
         assert!(toml::from_str::<Config>("[redirects]\n\"old\" = 3\n").is_err());
+    }
+
+    #[test]
+    fn git_versions_validate_source_mappings() {
+        let valid = "[version]\ncurrent = 'v1'\nenabled = ['v1', 'master']\n[version.git]\nrefs = { v1 = 'refs/tags/v1' }\nworking_tree = 'master'\n";
+        let config: Config = toml::from_str(valid).unwrap();
+        assert!(config.validate_version(Path::new("docanvil.toml")).is_ok());
+        for invalid in [
+            valid.replace("current = 'v1'\n", ""),
+            valid.replace("working_tree = 'master'", "working_tree = 'v1'"),
+            valid.replace("working_tree = 'master'", "working_tree = 'absent'"),
+            valid.replace("refs/tags/v1", "--help"),
+            valid.replace("refs/tags/v1", ""),
+            valid.replace("refs = { v1", "refs = { absent"),
+            valid.replace("['v1', 'master']", "['v1', 'v1', 'master']"),
+            valid.replace("master", "../escape"),
+            valid.replace("master", "latest"),
+        ] {
+            let config: Config = toml::from_str(&invalid).unwrap();
+            assert!(
+                config.validate_version(Path::new("docanvil.toml")).is_err(),
+                "{invalid}"
+            );
+        }
     }
 }

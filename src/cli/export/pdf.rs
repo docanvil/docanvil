@@ -442,9 +442,22 @@ fn prepare_pdf(
     version: Option<&str>,
     config: &Config,
     quiet: bool,
-) -> Result<(PdfContext, Option<String>)> {
-    let content_dir = project_root.join(&config.project.content_dir);
-    let content_dir = version.map_or(content_dir.clone(), |v| content_dir.join(v));
+) -> Result<(
+    PdfContext,
+    Option<String>,
+    Option<crate::git_versions::VersionSource>,
+)> {
+    let version_source = version
+        .map(|v| crate::git_versions::VersionSource::resolve(project_root, config, v))
+        .transpose()?;
+    let source_root = version_source
+        .as_ref()
+        .map(|s| s.project_root.as_path())
+        .unwrap_or(project_root);
+    let content_dir = version_source
+        .as_ref()
+        .map(|s| s.content_dir.clone())
+        .unwrap_or_else(|| project_root.join(&config.project.content_dir));
     if !content_dir.exists() {
         return Err(Error::ContentDirNotFound(content_dir));
     }
@@ -479,8 +492,8 @@ fn prepare_pdf(
     // ── Build nav tree (after slug updates) ───────────────────────────────────
     let nav_tree = if let Some(locale) = export_locale {
         let nav_config = match version {
-            Some(v) => nav::load_nav_for_version_and_locale(project_root, v, locale)?,
-            None => nav::load_nav_for_locale(project_root, locale)?,
+            Some(v) => nav::load_nav_for_version_and_locale(source_root, v, locale)?,
+            None => nav::load_nav_for_locale(source_root, locale)?,
         };
         match nav_config {
             Some(entries) => {
@@ -491,8 +504,8 @@ fn prepare_pdf(
         }
     } else {
         let nav_config = match version {
-            Some(v) => nav::load_nav_for_version(project_root, v)?,
-            None => nav::load_nav(project_root)?,
+            Some(v) => nav::load_nav_for_version(source_root, v)?,
+            None => nav::load_nav(source_root)?,
         };
         match nav_config {
             Some(entries) => {
@@ -512,7 +525,7 @@ fn prepare_pdf(
         let n = flat_pages.len();
         eprintln!("Rendering {} page{}…", n, if n == 1 { "" } else { "s" });
     }
-    let registry = ComponentRegistry::load(project_root)?;
+    let registry = ComponentRegistry::load(source_root)?;
     let highlighter = if config.syntax.enabled {
         Some(SyntaxHighlighter::new(&config.syntax.theme))
     } else {
@@ -543,13 +556,13 @@ fn prepare_pdf(
             "/",
             highlighter.as_ref(),
             config.syntax.line_numbers,
-            project_root,
+            source_root,
             export_locale,
         )?
         .html;
         let html_body = scope_heading_anchors(&html_body, slug);
         let html_body = rewrite_links_for_pdf(&html_body, &inventory, export_locale);
-        let html_body = resolve_pdf_images(&html_body, project_root);
+        let html_body = resolve_pdf_images(&html_body, source_root);
 
         chapters.push(ChapterData {
             slug: slug.clone(),
@@ -646,7 +659,7 @@ fn prepare_pdf(
         paper_size_css,
         theme_css_vars,
     };
-    Ok((ctx, accent_color))
+    Ok((ctx, accent_color, version_source))
 }
 
 fn run_single_locale(
@@ -657,7 +670,8 @@ fn run_single_locale(
     config: &Config,
     quiet: bool,
 ) -> Result<()> {
-    let (ctx, accent_color) = prepare_pdf(project_root, locale, version, config, quiet)?;
+    let (ctx, accent_color, _version_source) =
+        prepare_pdf(project_root, locale, version, config, quiet)?;
     let html = assemble_pdf_html(&ctx)?;
 
     // Write HTML to a temp file
@@ -949,11 +963,63 @@ custom_css = "theme/print.css"
     }
 
     #[test]
+    fn tagged_pdf_keeps_snapshot_images_alive_until_rendering() {
+        let dir = tempfile::tempdir().unwrap();
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .current_dir(dir.path())
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        git(&["init", "-b", "master"]);
+        git(&["config", "user.email", "test@example.com"]);
+        git(&["config", "user.name", "Test"]);
+        std::fs::create_dir_all(dir.path().join("docs")).unwrap();
+        std::fs::create_dir_all(dir.path().join("assets")).unwrap();
+        std::fs::write(
+            dir.path().join("docanvil.toml"),
+            "[project]\nname = 'Test'\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("docs/index.md"),
+            "# Tagged chapter\n\n![Image](assets/image.svg)\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("assets/image.svg"), "<svg></svg>").unwrap();
+        git(&["add", "."]);
+        git(&["commit", "-m", "Release"]);
+        git(&["tag", "v1"]);
+        std::fs::write(dir.path().join("docs/index.md"), "# Master chapter\n").unwrap();
+        std::fs::write(dir.path().join("docanvil.toml"), "[project]\nname = 'Test'\n[version]\ncurrent = 'v1'\nenabled = ['v1', 'master']\n[version.git]\nrefs = { v1 = 'refs/tags/v1' }\nworking_tree = 'master'\n").unwrap();
+        let config = Config::load(dir.path()).unwrap();
+        let (ctx, _, source) = prepare_pdf(dir.path(), None, Some("v1"), &config, true).unwrap();
+        assert_eq!(ctx.chapters[0].title, "Tagged chapter");
+        let source = source.unwrap();
+        let image = source.project_root.join("assets/image.svg");
+        assert!(image.is_file());
+        assert!(
+            ctx.chapters[0]
+                .content_html
+                .contains(&local_file_url(&image).unwrap())
+        );
+        let root = source.project_root.clone();
+        drop(source);
+        assert!(!root.exists());
+    }
+
+    #[test]
     fn exports_only_selected_version_and_locale_once_with_scoped_links_and_styles() {
         let (dir, config) = export_fixture();
         for version in ["v1", "v2"] {
             for locale in ["en", "fr"] {
-                let (ctx, accent) =
+                let (ctx, accent, _version_source) =
                     prepare_pdf(dir.path(), Some(locale), Some(version), &config, true).unwrap();
                 assert_eq!(
                     ctx.chapters

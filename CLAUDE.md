@@ -62,6 +62,7 @@ src/
   edit.rs                      # "Edit this page" URLs (EditLinks: provider + repo root detection); RepoLink: header repository link; Editor: serve's open-in-editor URL schemes
   last_updated.rs              # "Last updated" dates: Date, DateSource trait, NoDates, GitDates (one scoped git log per build)
   error.rs                     # thiserror Error enum
+  git_versions.rs              # Tag discovery + GitSnapshot + VersionSource: local Git refs → owned temporary repository snapshots; working-tree and directory sources for build/serve/doctor/PDF
   diagnostics.rs               # Colored warnings (owo-colors)
   util.rs                      # HTML escape utility
 
@@ -199,7 +200,7 @@ Markdown source
 |------|------|---------|
 | `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig` (incl. `line_numbers`, `[syntax] line_numbers = false` by default), `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `VersionConfig`, `PdfConfig`, `DoctorConfig`, `EditConfig` |
 | `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
-| `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
+| `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`, `git: GitVersionConfig { refs, working_tree, tag_patterns, include_prereleases }`. Local tag patterns expand on working config load, deduplicate matches and sort semantic versions; prereleases are excluded by default. Historical configs are parsed without tag discovery. Git sources require explicit `current`; `/latest/` aliases follow it, and working-tree pages get an unreleased banner. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale`, `version`. `title` = front matter `title` → first `# H1` → filename; only front matter `title`/`slug` change the slug |
 | `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`, `drafts` (pages left out of this build, same keys), `draft_links: DraftLinks`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `resolve_draft()`, `exclude_drafts()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
@@ -210,7 +211,7 @@ Markdown source
 | `ComponentContext` | `components/mod.rs` | `attributes: &HashMap<String, String>`, `body_raw: &str`, `inline: bool`, `render_markdown: &dyn Fn(&str) -> String` |
 | `ComponentRegistry` | `components/mod.rs` | `with_builtins()` (embedded templates + providers), `load(project_root)` (+ `theme/components/`), `render_markdown()` (pre-comrak + comrak + placeholder swap), `render_block()`. Templates get `attrs`, `body`, `body_raw`, `name`, `inline` (public 1.x API) |
 | `DraftLinks` | `config.rs` | `[build] draft_links`: `Text` (default; links to drafts become plain text) / `Warn` (also warns) |
-| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `edit_local` (`edit_url` opens the local editor; changes the label and drops `target="_blank"`), `repo` (`Option<RepoLink>`, the header repository link), `breadcrumbs`, `last_updated` (ISO date or `None`), `draft`, `toc` (`false` when front matter has `"toc": false`; the layout then omits `<aside class="toc">`) |
+| `PageContext` | `render/templates.rs` | All template data: `page_title`, `content`, `nav_html`, CSS paths, `prev_page`/`next_page`, meta fields, feature flags, locale fields (`current_locale`, `current_flag`, `available_locales`, `locale_auto_detect`), SEO fields (`canonical_url`, `x_default_url`), `edit_url`, `edit_local` (`edit_url` opens the local editor; changes the label and drops `target="_blank"`), `repo` (`Option<RepoLink>`, the header repository link), `breadcrumbs`, `last_updated` (ISO date or `None`), `current_version_unreleased` (working-tree version banner), `draft`, `toc` (`false` when front matter has `"toc": false`; the layout then omits `<aside class="toc">`) |
 | `Crumb` | `project.rs` | Nav breadcrumb step: `label`, `slug: Option<String>` (`None` for groups without a page and labelled separators). `build_breadcrumb_map()` → slug → trail; `crumb_labels()` for the search index |
 | `Breadcrumb` | `render/templates.rs` | Template breadcrumb: `title`, `url: Option<String>`. `page_breadcrumbs()` builds them (empty for top-level pages); `with_page_description()` puts the front matter `description` under the leading `<h1>` (skipped when the page opens with `<section class="hero">`) |
 | `LocaleInfo` | `render/templates.rs` | Language switcher data: `code`, `display_name`, `flag`, `url`, `absolute_url`, `is_current`, `has_page` |
@@ -314,6 +315,8 @@ Interactive: `dialoguer` (CLI prompts for theme generator), `toml_edit` (preserv
 
 Polish: `owo-colors` (colored output)
 
+Git version snapshots: `tempfile` (runtime dependency for temporary snapshot directories and archive files), `tar` (archive extraction), local `git` executable (ref resolution and archive export; no checkout changes or network fetch). Snapshots preserve nested project paths, respect Git export attributes, omit submodule contents and currently reject symlinks.
+
 PDF export: `tungstenite` (sync WebSocket for CDP), `base64` (decode CDP `printToPDF` response)
 
 Self-update: `ureq` (HTTP, rustls — no OpenSSL, keeps musl/ARM builds simple), `sha2` (checksums), `flate2`/`tar`/`zip` (archives), `self-replace` (swap the running binary, Windows-safe), `semver`, `dirs` (cache dir)
@@ -322,6 +325,7 @@ Self-update: `ureq` (HTTP, rustls — no OpenSSL, keeps musl/ARM builds simple),
 
 - `ci.yml` (lint + 3-OS test matrix) skips docs-only changes (`docs/**` and root-level `*.md`); `docs.yml` builds `docs/` with `--strict` using the checkout's binary on every PR
 - Release builds live in `.github/workflows/build-targets.yml` (6 targets: linux x86_64 gnu + musl, linux aarch64 musl, macOS arm64/x86_64, Windows x86_64; the installer picks the static musl builds on Linux, while self-update keeps a binary on its own libc and ARM is musl-only), reused by `release.yml`
+- `publish-pages.yml` builds the checkout's binary on each master push; the docs site publishes local tags matching `v1.2.*`, marks `v1.2.3` current and adds the working-tree `master` version, with `/latest/` aliases and legacy locale URL redirects
 - `ci.yml` runs that build plus an installer smoke test (real releases, incl. Windows PowerShell 5.1) only on `release/v*` PRs or PRs labelled `release-build` — normal PRs stay on the 3-OS test matrix
 - Releases ship archives + `SHA256SUMS` + `install.sh` + `install.ps1`
 - In `release.yml`, crates.io `publish` needs the GitHub `release` job, since a crates.io publish can't be undone

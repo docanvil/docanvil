@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- Git-backed documentation versions: map version codes to local release tags or discover tags with wildcard patterns (semantic version ordering, optional prereleases), and publish a working-tree version alongside them, with current-version selection, stable `/latest/` page aliases, per-version content/navigation/assets, historical dates and edit links, and an unreleased banner.
 - Markdown section includes: use `:::include{file="other.md" section="heading-id"}` to reuse a heading and its subsections, with custom anchors, locale fallback, nested includes and existing build/doctor diagnostics.
 
 - Line highlighting: add `highlight="2,5-8"` to code fences to emphasise selected source lines while preserving syntax colours and copied text. Supports the same ranges as `lines`, inline and local/remote blocks, source selections, PDF exports and theme CSS overrides.
@@ -15,6 +16,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Git documentation snapshots now ignore machine-level line-ending preferences, keeping exports consistent across operating systems while respecting committed `.gitattributes`.
 - Redirects that collide with files published from `static/` are now skipped and reported as `redirect-shadowed` by build and doctor; strict builds fail instead of silently allowing a static file to overwrite the redirect (#76).
 - Inline attribute blocks now merge classes with an element's existing classes and replace its existing ID instead of emitting duplicate attributes (#54).
 - Ambiguous basename redirect targets are now skipped with a warning listing full page slugs, instead of selecting a destination that could change between builds (#77).

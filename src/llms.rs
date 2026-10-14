@@ -54,12 +54,43 @@ pub fn page_entry(
     base: &str,
     project_root: &Path,
 ) -> LlmsPage {
+    page_entry_with_asset_base(
+        page,
+        fm,
+        markdown,
+        inventory,
+        locale,
+        base,
+        project_root,
+        base,
+    )
+}
+
+/// Build an entry with version-specific content images and shared site URLs.
+#[allow(clippy::too_many_arguments)]
+pub fn page_entry_with_asset_base(
+    page: &PageInfo,
+    fm: &FrontMatter,
+    markdown: &str,
+    inventory: &PageInventory,
+    locale: Option<&str>,
+    base: &str,
+    project_root: &Path,
+    asset_base: &str,
+) -> LlmsPage {
     LlmsPage {
         slug: page.slug.clone(),
         title: page.title.clone(),
         url: page_url(base, page),
         description: fm.description.clone(),
-        markdown: clean_markdown(markdown, inventory, locale, base, project_root),
+        markdown: clean_markdown_with_asset_base(
+            markdown,
+            inventory,
+            locale,
+            base,
+            project_root,
+            asset_base,
+        ),
     }
 }
 
@@ -76,6 +107,17 @@ pub fn clean_markdown(
     base: &str,
     project_root: &Path,
 ) -> String {
+    clean_markdown_with_asset_base(source, inventory, locale, base, project_root, base)
+}
+
+fn clean_markdown_with_asset_base(
+    source: &str,
+    inventory: &PageInventory,
+    locale: Option<&str>,
+    base: &str,
+    project_root: &Path,
+    asset_base: &str,
+) -> String {
     let body = frontmatter::strip(source);
     let mut out = String::with_capacity(body.len());
     let mut fence = FenceState::default();
@@ -91,7 +133,14 @@ pub fn clean_markdown(
                 out.push_str(&FENCE_META_RE.replace(text, ""));
             }
         } else {
-            out.push_str(&clean_line(text, inventory, locale, base, project_root));
+            out.push_str(&clean_line(
+                text,
+                inventory,
+                locale,
+                base,
+                project_root,
+                asset_base,
+            ));
         }
         out.push_str(eol);
     }
@@ -106,12 +155,13 @@ fn clean_line(
     locale: Option<&str>,
     base: &str,
     project_root: &Path,
+    asset_base: &str,
 ) -> String {
     let line = HEADING_ATTRS_RE.replace(line, "$1");
     let mut out = String::with_capacity(line.len());
     let mut last = 0;
     for (start, end) in wikilinks::find_links(&line, &inline_code_ranges(&line)) {
-        out.push_str(&clean_text(&line[last..start], base, project_root));
+        out.push_str(&clean_text(&line[last..start], asset_base, project_root));
         out.push_str(&link_markdown(
             &line[start + 2..end - 2],
             inventory,
@@ -120,7 +170,7 @@ fn clean_line(
         ));
         last = end;
     }
-    out.push_str(&clean_text(&line[last..], base, project_root));
+    out.push_str(&clean_text(&line[last..], asset_base, project_root));
     out
 }
 

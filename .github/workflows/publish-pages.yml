@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - master
-    paths:
-      - "docs/**"        # 👈 folder to watch for changes
-      - ".github/workflows/publish-pages.yml"
 
 permissions:
   contents: read
@@ -28,13 +25,19 @@ jobs:
           # Full history, so [last_updated] dates are right (a shallow clone fails --strict)
           fetch-depth: 0
 
-      - name: Install docanvil from latest release
-        run: curl -fsSL https://github.com/docanvil/docanvil/releases/latest/download/install.sh | DOCANVIL_INSTALL_DIR=/usr/local/bin sh
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Run tool
-        working-directory: ./docs
-        run: |
-          docanvil build --strict --out public                  # 👈 output folder (example)
+        run: cargo run --quiet --release -- build --strict --path docs --out docs/public
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

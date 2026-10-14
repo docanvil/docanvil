@@ -48,6 +48,35 @@ pub fn process(
     project_root: &Path,
     locale: Option<&str>,
 ) -> Result<Processed> {
+    process_with_asset_base(
+        source,
+        inventory,
+        source_file,
+        registry,
+        base_url,
+        highlighter,
+        line_numbers,
+        project_root,
+        locale,
+        base_url,
+    )
+}
+
+/// Version sources can share site links while serving content images beneath
+/// their own version prefix. Existing directory versions keep shared assets.
+#[allow(clippy::too_many_arguments)]
+pub fn process_with_asset_base(
+    source: &str,
+    inventory: &PageInventory,
+    source_file: &Path,
+    registry: &ComponentRegistry,
+    base_url: &str,
+    highlighter: Option<&SyntaxHighlighter>,
+    line_numbers: bool,
+    project_root: &Path,
+    locale: Option<&str>,
+    asset_base_url: &str,
+) -> Result<Processed> {
     // 1. Splice :::include fragments and fill file="…" code blocks
     let expanded = includes::expand(
         source,
@@ -89,7 +118,7 @@ pub fn process(
     let html = headings::inject_heading_ids(&html);
 
     // 8. Rewrite relative image paths with base_url
-    let html = images::rewrite_image_paths(&html, base_url, project_root);
+    let html = images::rewrite_image_paths(&html, asset_base_url, project_root);
 
     Ok(Processed {
         html,

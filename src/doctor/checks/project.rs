@@ -39,6 +39,18 @@ pub fn check_project(project_root: &Path) -> Vec<Diagnostic> {
         }
     };
 
+    // Sites made exclusively from Git snapshots have no working content tree.
+    // Version checks inspect their historical projects instead.
+    if config.is_versioning_enabled()
+        && config
+            .version
+            .enabled
+            .iter()
+            .all(|version| config.version.git.refs.contains_key(version))
+    {
+        return diags;
+    }
+
     // Check content directory exists
     let content_dir = project_root.join(&config.project.content_dir);
     if !content_dir.is_dir() {

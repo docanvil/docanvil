@@ -240,6 +240,10 @@ impl TemplateRenderer {
         context.insert("x_default_url", &ctx.x_default_url);
         context.insert("search_index_url", &ctx.search_index_url);
         context.insert("current_version", &ctx.current_version);
+        context.insert(
+            "current_version_unreleased",
+            &ctx.current_version_unreleased,
+        );
         context.insert("available_versions", &ctx.available_versions);
         context.insert("latest_version", &ctx.latest_version);
         context.insert("latest_version_url", &ctx.latest_version_url);
@@ -292,6 +296,8 @@ pub struct PageContext {
     pub search_index_url: String,
     /// Version code for the current page (e.g. "v2"), if versioning is enabled.
     pub current_version: Option<String>,
+    /// This page is built from the working checkout rather than a release.
+    pub current_version_unreleased: bool,
     /// All available versions for the version switcher.
     pub available_versions: Vec<VersionInfo>,
     /// The current/latest version code (from `version.current` config).

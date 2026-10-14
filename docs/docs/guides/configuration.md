@@ -243,9 +243,13 @@ See [[guides/localisation|Localisation]] for a complete walkthrough of setting u
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `current` | *(last in `enabled`)* | The current/latest version code — used for the root redirect and the older-version banner. Defaults to the last entry in `enabled` when not set. |
-| `enabled` | `[]` | List of version directory names to build (e.g. `["v1", "v2"]`). Each must have a matching subdirectory in your content directory. |
+| `current` | *(last in `enabled`)* | The current/latest version code — used for the root redirect and the older-version banner. Defaults to the last entry in `enabled` for directory sources; Git sources require an explicit value. |
+| `enabled` | `[]` | Version codes to build. Each uses a content subdirectory unless mapped by `[version.git]`. |
 | `display_names` | `{}` | Human-readable names shown in the version switcher (e.g. `{"v2": "v2.0 (latest)"}`) |
+| `git.refs` | `{}` | Map enabled version codes to local Git refs |
+| `git.working_tree` | `None` | Enabled version built from the working checkout, including uncommitted changes |
+| `git.tag_patterns` | `[]` | Discover local tag names with `*` and `?` patterns, such as `["v1.*"]`; add matches to enabled versions |
+| `git.include_prereleases` | `false` | Include semantic-version prereleases discovered by tag patterns |
 
 When `enabled` is non-empty, DocAnvil switches to multi-version mode: each version gets its own URL prefix (`/v1/`, `/v2/`), its own navigation and search index, and a version switcher appears in the header. Pages in older versions automatically show a banner linking to the latest version.
 

@@ -12,6 +12,7 @@ use crate::config::LastUpdatedSource;
 use crate::diagnostics::{self, reset_warnings, warning_count};
 use crate::edit::{EditLinks, Editor, RepoLink};
 use crate::error::{Error, Result};
+use crate::git_versions::{GitSnapshot, VersionSource};
 use crate::last_updated::{self, DateSource, GitDates, NoDates, Override};
 use crate::llms::{self, LlmsScope};
 use crate::nav;
@@ -211,7 +212,12 @@ pub(crate) fn read_sources(
 }
 
 /// One version's pages (version `None` without versioning): inventory and front matter.
-pub(crate) type SiteVersion = (Option<String>, PageInventory, HashMap<String, FrontMatter>);
+pub(crate) type SiteVersion = (
+    Option<String>,
+    PageInventory,
+    HashMap<String, FrontMatter>,
+    Option<GitSnapshot>,
+);
 
 /// Scan the site the way `docanvil build` sees it: one inventory per version (or
 /// one for the whole site), with front matter slugs applied and drafts left out.
@@ -229,10 +235,14 @@ pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<Site
 
     let mut sites = Vec::new();
     for version in versions {
-        let dir = match &version {
-            Some(v) => content_dir.join(v),
-            None => content_dir.clone(),
-        };
+        let source = version
+            .as_deref()
+            .map(|v| VersionSource::resolve(project_root, config, v))
+            .transpose()?;
+        let dir = source
+            .as_ref()
+            .map(|s| s.content_dir.clone())
+            .unwrap_or_else(|| content_dir.clone());
         if !dir.is_dir() {
             continue;
         }
@@ -244,7 +254,12 @@ pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<Site
         )?;
         let (_, front_matters) = read_sources(&mut inventory)?;
         exclude_drafts(&mut inventory, &front_matters, config, false);
-        sites.push((version, inventory, front_matters));
+        sites.push((
+            version,
+            inventory,
+            front_matters,
+            source.and_then(|s| s.snapshot),
+        ));
     }
     Ok(sites)
 }
@@ -457,6 +472,31 @@ fn last_updated_source(config: &Config, project_root: &Path) -> Option<Box<dyn D
     }
 }
 
+fn snapshot_date_source(
+    config: &Config,
+    root: &Path,
+    snapshot: &GitSnapshot,
+) -> Option<Box<dyn DateSource>> {
+    if !config.last_updated.enabled {
+        return None;
+    }
+    if config.last_updated.source == LastUpdatedSource::FrontMatter {
+        return Some(Box::new(NoDates));
+    }
+    match GitDates::collect_snapshot(root, snapshot) {
+        Ok(git) => {
+            if git.is_shallow() {
+                diagnostics::warn_last_updated_shallow();
+            }
+            Some(Box::new(git))
+        }
+        Err(message) => {
+            diagnostics::warn_last_updated_no_git(&message);
+            Some(Box::new(NoDates))
+        }
+    }
+}
+
 /// A page's "last updated" date: its front matter override, else the newest
 /// date across its source file and the files it pulls in.
 fn page_last_updated(
@@ -560,7 +600,7 @@ fn build_site(
         editor,
     } = mode;
     let content_dir = project_root.join(&config.project.content_dir);
-    if !content_dir.exists() {
+    if !config.is_versioning_enabled() && !content_dir.exists() {
         return Err(Error::ContentDirNotFound(content_dir));
     }
 
@@ -594,8 +634,11 @@ fn build_site(
     } else {
         None
     };
-    let mut inventory =
-        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None)?;
+    let mut inventory = if config.is_versioning_enabled() {
+        PageInventory::default()
+    } else {
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None)?
+    };
 
     // Pre-pass: read all sources and extract front matter.
     // Override page titles and slugs from front matter before nav/search are built.
@@ -671,8 +714,14 @@ fn build_site(
 
         // Pre-scan all version directories to know which pages each version publishes.
         // This powers the version switcher's has_page flag without full re-scans later.
+        let version_sources = config
+            .version
+            .enabled
+            .iter()
+            .map(|v| VersionSource::resolve(project_root, config, v))
+            .collect::<Result<Vec<_>>>()?;
         let version_pages =
-            prescan_version_pages(&content_dir, config, enabled_locales, include_drafts)?;
+            prescan_version_pages(&version_sources, config, enabled_locales, include_drafts)?;
         let latest_version = config.current_version().map(String::from);
         let current_ver_str = config.current_version().unwrap_or("").to_string();
 
@@ -683,16 +732,47 @@ fn build_site(
         let mut latest_nav_tree: Vec<project::NavNode> = Vec::new();
         let mut latest_version_base_url = root_base_url.clone();
 
-        for version in &config.version.enabled {
-            let version_content_dir = content_dir.join(version);
+        for (version, version_source) in config.version.enabled.iter().zip(&version_sources) {
+            let version_project_root = version_source.project_root.as_path();
+            let version_content_dir = &version_source.content_dir;
+            let asset_base_url = if version_source.versioned_assets {
+                format!("{}{}/", root_base_url, version)
+            } else {
+                root_base_url.clone()
+            };
+            let llms_asset_base = if version_source.versioned_assets {
+                format!("{}{}/", llms_base, version)
+            } else {
+                llms_base.clone()
+            };
+            let version_registry = ComponentRegistry::load(version_project_root)?;
+            let version_editor = if version_source.snapshot.is_some() {
+                None
+            } else {
+                editor
+            };
+            let version_edit_links = match &version_source.snapshot {
+                Some(snapshot) => match EditLinks::for_snapshot(&config.edit, snapshot) {
+                    Ok(links) => links,
+                    Err(message) => {
+                        diagnostics::warn_edit_link_config(&message);
+                        None
+                    }
+                },
+                None => None,
+            };
+            let mut version_dates = match &version_source.snapshot {
+                Some(snapshot) => snapshot_date_source(config, project_root, snapshot),
+                None => last_updated_source(config, version_project_root),
+            };
             if !version_content_dir.exists() {
-                return Err(Error::ContentDirNotFound(version_content_dir));
+                return Err(Error::ContentDirNotFound(version_content_dir.clone()));
             }
 
             let version_base_url = format!("{}{}/", root_base_url, version);
 
             let mut ver_inventory = PageInventory::scan(
-                &version_content_dir,
+                version_content_dir,
                 enabled_locales,
                 config.default_locale(),
                 Some(version),
@@ -715,8 +795,11 @@ fn build_site(
                 for locale in &config.locale.enabled {
                     let locale_base_url = format!("{}{}/", version_base_url, locale);
 
-                    let nav_config =
-                        nav::load_nav_for_version_and_locale(project_root, version, locale)?;
+                    let nav_config = nav::load_nav_for_version_and_locale(
+                        version_project_root,
+                        version,
+                        locale,
+                    )?;
                     let nav_tree = match nav_config {
                         Some(entries) => {
                             nav::validate_for_locale(&entries, &ver_inventory, locale);
@@ -765,31 +848,33 @@ fn build_site(
                         let fm = &ver_front_matters[key];
                         let base_slug = &page.slug;
 
-                        let processed = pipeline::process(
+                        let processed = pipeline::process_with_asset_base(
                             source,
                             &ver_inventory,
                             &page.source_path,
-                            &registry,
+                            &version_registry,
                             &root_base_url,
                             highlighter.as_ref(),
                             config.syntax.line_numbers,
-                            project_root,
+                            version_project_root,
                             Some(locale),
+                            &asset_base_url,
                         )?;
                         if let Some(pages) = llms_pages.as_mut().filter(|_| fm.llms != Some(false))
                         {
-                            pages.push(llms::page_entry(
+                            pages.push(llms::page_entry_with_asset_base(
                                 page,
                                 fm,
                                 &processed.markdown,
                                 &ver_inventory,
                                 Some(locale),
                                 &llms_base,
-                                project_root,
+                                version_project_root,
+                                &llms_asset_base,
                             ));
                         }
                         let last_updated = page_last_updated(
-                            &mut last_updated_dates,
+                            &mut version_dates,
                             page,
                             fm,
                             &processed.dependencies,
@@ -797,7 +882,9 @@ fn build_site(
                         if let Some(date) = &last_updated {
                             lastmod.insert(page.output_path.clone(), date.clone());
                         }
-                        dependencies.extend(processed.dependencies);
+                        if version_source.snapshot.is_none() {
+                            dependencies.extend(processed.dependencies);
+                        }
                         let html_body = processed.html;
 
                         if let Some(ref mut entries) = search_entries {
@@ -837,7 +924,7 @@ fn build_site(
                             base_slug,
                             locale,
                             &slug_coverage,
-                            &root_base_url,
+                            &version_base_url,
                             site_url_ref,
                         );
 
@@ -886,8 +973,17 @@ fn build_site(
                             mermaid_version: config.charts.mermaid_version.clone(),
                             search_enabled: config.search.enabled,
                             meta_description: fm.description.clone(),
-                            edit_url: page_edit_url(edit_links.as_ref(), editor, page, fm),
-                            edit_local: editor.is_some(),
+                            edit_url: page_edit_url(
+                                if version_source.snapshot.is_some() {
+                                    version_edit_links.as_ref()
+                                } else {
+                                    edit_links.as_ref()
+                                },
+                                version_editor,
+                                page,
+                                fm,
+                            ),
+                            edit_local: version_editor.is_some(),
                             breadcrumbs,
                             last_updated,
                             draft: fm.draft,
@@ -906,6 +1002,8 @@ fn build_site(
                             x_default_url,
                             search_index_url: format!("{}search-index.json", locale_base_url),
                             current_version: Some(version.clone()),
+                            current_version_unreleased: config.version.git.working_tree.as_deref()
+                                == Some(version),
                             available_versions,
                             latest_version: latest_version.clone(),
                             latest_version_url: latest_ver_url,
@@ -964,7 +1062,7 @@ fn build_site(
                 }
             } else {
                 // ── versioned + single-language build ──
-                let nav_config = nav::load_nav_for_version(project_root, version)?;
+                let nav_config = nav::load_nav_for_version(version_project_root, version)?;
                 let nav_tree = match nav_config {
                     Some(entries) => {
                         nav::validate(&entries, &ver_inventory);
@@ -1012,38 +1110,38 @@ fn build_site(
                     let fm = &ver_front_matters[slug];
                     let base_slug = &page.slug;
 
-                    let processed = pipeline::process(
+                    let processed = pipeline::process_with_asset_base(
                         source,
                         &ver_inventory,
                         &page.source_path,
-                        &registry,
+                        &version_registry,
                         &root_base_url,
                         highlighter.as_ref(),
                         config.syntax.line_numbers,
-                        project_root,
+                        version_project_root,
                         None,
+                        &asset_base_url,
                     )?;
                     if let Some(pages) = llms_pages.as_mut().filter(|_| fm.llms != Some(false)) {
-                        pages.push(llms::page_entry(
+                        pages.push(llms::page_entry_with_asset_base(
                             page,
                             fm,
                             &processed.markdown,
                             &ver_inventory,
                             None,
                             &llms_base,
-                            project_root,
+                            version_project_root,
+                            &llms_asset_base,
                         ));
                     }
-                    let last_updated = page_last_updated(
-                        &mut last_updated_dates,
-                        page,
-                        fm,
-                        &processed.dependencies,
-                    );
+                    let last_updated =
+                        page_last_updated(&mut version_dates, page, fm, &processed.dependencies);
                     if let Some(date) = &last_updated {
                         lastmod.insert(page.output_path.clone(), date.clone());
                     }
-                    dependencies.extend(processed.dependencies);
+                    if version_source.snapshot.is_none() {
+                        dependencies.extend(processed.dependencies);
+                    }
                     let html_body = processed.html;
 
                     if let Some(ref mut entries) = search_entries {
@@ -1113,8 +1211,17 @@ fn build_site(
                         mermaid_version: config.charts.mermaid_version.clone(),
                         search_enabled: config.search.enabled,
                         meta_description: fm.description.clone(),
-                        edit_url: page_edit_url(edit_links.as_ref(), editor, page, fm),
-                        edit_local: editor.is_some(),
+                        edit_url: page_edit_url(
+                            if version_source.snapshot.is_some() {
+                                version_edit_links.as_ref()
+                            } else {
+                                edit_links.as_ref()
+                            },
+                            version_editor,
+                            page,
+                            fm,
+                        ),
+                        edit_local: version_editor.is_some(),
                         breadcrumbs,
                         last_updated,
                         draft: fm.draft,
@@ -1133,6 +1240,8 @@ fn build_site(
                         x_default_url: None,
                         search_index_url: format!("{}search-index.json", version_base_url),
                         current_version: Some(version.clone()),
+                        current_version_unreleased: config.version.git.working_tree.as_deref()
+                            == Some(version),
                         available_versions,
                         latest_version: latest_version.clone(),
                         latest_version_url: latest_ver_url,
@@ -1169,6 +1278,9 @@ fn build_site(
                 }
             }
 
+            if version_source.versioned_assets {
+                assets::copy_version_assets(version_project_root, &output_dir.join(version))?;
+            }
             version_sets.push((version.clone(), ver_inventory, ver_front_matters));
         }
 
@@ -1317,6 +1429,7 @@ fn build_site(
                 x_default_url: None,
                 search_index_url: search_index_url_404,
                 current_version: None,
+                current_version_unreleased: false,
                 available_versions: Vec::new(),
                 latest_version: None,
                 latest_version_url: None,
@@ -1513,6 +1626,7 @@ fn build_site(
                     x_default_url,
                     search_index_url: format!("{}search-index.json", locale_base_url),
                     current_version: None,
+                    current_version_unreleased: false,
                     available_versions: Vec::new(),
                     latest_version: None,
                     latest_version_url: None,
@@ -1701,6 +1815,7 @@ fn build_site(
                 x_default_url: None,
                 search_index_url: format!("{}search-index.json", base_url),
                 current_version: None,
+                current_version_unreleased: false,
                 available_versions: Vec::new(),
                 latest_version: None,
                 latest_version_url: None,
@@ -1879,6 +1994,7 @@ fn build_site(
             x_default_url: None,
             search_index_url: search_index_url_404,
             current_version: None,
+            current_version_unreleased: false,
             available_versions: Vec::new(),
             latest_version: None,
             latest_version_url: None,
@@ -1905,21 +2021,21 @@ type VersionPages = HashSet<(Option<String>, String)>;
 /// Scans the way the build does, so front matter slugs apply and drafts are left
 /// out unless `include_drafts`: the switcher only links to pages that exist.
 fn prescan_version_pages(
-    content_dir: &Path,
+    sources: &[VersionSource],
     config: &Config,
     enabled_locales: Option<&[String]>,
     include_drafts: bool,
 ) -> Result<HashMap<String, VersionPages>> {
     let mut sets = HashMap::new();
-    for version in &config.version.enabled {
-        let version_dir = content_dir.join(version);
+    for (version, source) in config.version.enabled.iter().zip(sources) {
+        let version_dir = &source.content_dir;
         if !version_dir.exists() {
             sets.insert(version.clone(), HashSet::new());
             continue;
         }
         // Scan without version prefix — we only need slugs, not output paths
         let mut inv =
-            PageInventory::scan(&version_dir, enabled_locales, config.default_locale(), None)?;
+            PageInventory::scan(version_dir, enabled_locales, config.default_locale(), None)?;
         let (_, front_matters) = read_sources(&mut inv)?;
         exclude_drafts(&mut inv, &front_matters, config, include_drafts);
         let pages = inv
@@ -2074,7 +2190,7 @@ mod tests {
         let sites = scan_site(dir.path(), &config).unwrap();
 
         assert_eq!(sites.len(), 2);
-        let (version, inventory, front_matters) = &sites[1];
+        let (version, inventory, front_matters, _) = &sites[1];
         assert_eq!(version.as_deref(), Some("v2"));
         assert!(inventory.pages.contains_key("install"));
         assert_eq!(

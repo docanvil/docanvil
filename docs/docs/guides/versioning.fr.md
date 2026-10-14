@@ -24,6 +24,64 @@ v2 = "v2.0 (latest)"
 
 C'est tout ce qu'il faut configurer. DocAnvil cherchera désormais des sous-répertoires de version dans votre répertoire de contenu et compilera un arbre de site distinct pour chaque version.
 
+## Compiler depuis les tags Git
+
+Conservez un seul arbre de documentation et compilez les versions depuis leurs tags Git :
+
+```toml
+[version]
+current = "v1.2.3"
+enabled = ["v1.2.3", "master"]
+
+[version.git]
+refs = { "v1.2.3" = "refs/tags/v1.2.3" }
+working_tree = "master"
+
+[version.display_names]
+master = "Master (non publié)"
+```
+
+`refs` associe les codes de version des URL aux références Git locales. `working_tree` nomme la version compilée depuis votre copie de travail, modifications non commitées comprises. Ce nom est une étiquette : vous pouvez choisir `main` ou `development`. DocAnvil ne change pas de branche.
+
+### Découvrir les tags de version
+
+Pour publier toutes les versions correspondant à votre convention de tags, utilisez `tag_patterns` :
+
+```toml
+[version]
+current = "v1.2.3"
+enabled = ["master"]
+
+[version.git]
+tag_patterns = ["v1.*"]
+working_tree = "master"
+# include_prereleases = true
+```
+
+DocAnvil découvre les tags locaux correspondants et les ajoute à `enabled`, en utilisant le nom de chaque tag comme code de version dans les URL. `*` correspond à une suite quelconque de caractères et `?` à un seul caractère ; le motif doit correspondre au nom entier du tag. `v1.*` sélectionne les versions v1, tandis que `v1.2.*` sélectionne uniquement les versions v1.2.
+
+Les tags de version sémantique, avec ou sans préfixe `v`, sont triés de la plus ancienne à la plus récente : `v1.9.0` précède `v1.10.0`. Les autres noms sont triés alphabétiquement après les versions sémantiques. Les versions découvertes précèdent celles activées explicitement, comme `master`. Les motifs qui se chevauchent et les tags activés explicitement ne créent pas de doublons ; une correspondance `refs` explicite est prioritaire pour un même code.
+
+Les préversions comme `v1.3.0-beta.1` sont exclues de la découverte par défaut. Activez `include_prereleases = true` pour les inclure. Ce filtre concerne les tags de version sémantique ; une préversion associée explicitement reste disponible indépendamment de ce paramètre.
+
+Les tags historiques peuvent contenir des traductions absentes ou des liens cassés signalés par les vérifications strictes actuelles. Utilisez un motif plus précis si ces instantanés font échouer la compilation stricte ; les tags conservent la documentation telle qu’elle a été publiée.
+
+Chaque motif doit trouver au moins un tag local admissible, et `current` doit nommer une version activée ou découverte. Ce choix reste explicite : découvrir un nouveau tag ne change ni la version recommandée ni les liens `/latest/`. La compilation ne récupère pas les tags manquants. Chaque tag ajoute un arbre de documentation complet ; précisez le motif si le site devient trop volumineux.
+
+Chaque tag fournit son répertoire de contenu, sa navigation, ses inclusions, ses composants personnalisés et ses ressources de contenu. La configuration de travail contrôle le thème commun, les langues, la publication et la version courante. Les configurations historiques n'ont pas besoin de nouveaux paramètres. Les images relatives sont publiées sous le préfixe de leur version ; les URL absolues restent inchangées.
+
+Avec les sources Git, définissez explicitement `current`. La racine redirige vers cette version et `/latest/` fournit des liens stables vers ses pages. `/latest/guides/setup.html` redirige vers `/v1.2.3/guides/setup.html`, tandis que `/master/guides/setup.html` montre les changements non publiés. Avec la localisation, utilisez `/latest/fr/guides/setup.html`. `/latest/` ouvre l'accueil dans la langue par défaut. Modifier `current` déplace ces alias vers une autre version activée.
+
+Master affiche une bannière de documentation non publiée. Les pages des tags utilisent leur commit pour les liens de modification et les dates. Les liens vers l'éditeur local sont réservés à la copie de travail. L'export PDF utilise aussi les sources et la navigation de la version choisie.
+
+Les versions sans correspondance Git utilisent toujours des sous-répertoires : les deux approches peuvent coexister. Les codes doivent être des segments d'URL uniques composés de lettres, chiffres, points, tirets, traits de soulignement ou signes plus. Les noms des ressources générées sont réservés, ainsi que `latest` pour les sites Git.
+
+Git doit être installé et les références doivent exister localement. La compilation ne récupère jamais de tags automatiquement. Avec GitHub Actions, utilisez `fetch-depth: 0` dans `actions/checkout` pour disposer des tags et de l'historique. Une référence absente fait échouer la compilation sans remplacer la sortie précédente, sauf si vous avez demandé `--clean`.
+
+Les instantanés utilisent `git archive` : les attributs d'export s'appliquent, le contenu des sous-modules est omis et les liens symboliques ne sont pas pris en charge. Les préférences de fin de ligne propres à la machine n'affectent pas l'export ; les attributs de fin de ligne commités restent respectés. Les fichiers nécessaires doivent être présents au tag choisi.
+
+Pour migrer un site publié, activez `[redirects] unprefixed = true` afin de conserver les URL simples et celles préfixées par une langue pour les pages de la version courante.
+
 ## Structure des répertoires
 
 Les versions se trouvent dans des sous-répertoires à l'intérieur de votre répertoire de contenu — pas comme des suffixes de fichiers. Cela permet de garder les anciennes versions autonomes et faciles à figer :
@@ -183,6 +241,7 @@ La commande `docanvil doctor` exécute des vérifications spécifiques aux versi
 | `current-not-in-enabled` | Erreur | `version.current` spécifie une version absente de la liste `enabled` |
 | `version-dir-missing` | Erreur | Une version activée n'a pas de sous-répertoire correspondant dans le répertoire de contenu |
 | `empty-version` | Avertissement | Un répertoire de version existe mais ne contient aucun fichier `.md` |
+| `version-source-invalid` | Erreur | Une référence Git ou un projet historique ne peut pas être résolu ou analysé |
 
 Lancez `docanvil doctor --fix` pour créer automatiquement les répertoires de version manquants.
 

@@ -38,6 +38,21 @@ auto_detect = true
 en = "English"
 fr = "Français"
 
+[version]
+current = "v1.2.3"
+enabled = ["master"]
+
+[version.git]
+# Earlier release docs have incomplete translations; keep strict builds on v1.2.
+tag_patterns = ["v1.2.*"]
+working_tree = "master"
+
+[version.display_names]
+master = "Master (unreleased)"
+
+[redirects]
+unprefixed = true
+
 [pdf]
 cover_page = true
 author = "The DocAnvil Team"

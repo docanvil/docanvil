@@ -200,9 +200,13 @@ Consultez [[guides/localisation|Localisation]] pour un guide complet sur la mise
 
 | Clé | Défaut | Description |
 |-----|---------|-------------|
-| `current` | *(dernier de `enabled`)* | Le code de version actuelle/dernière — utilisé pour la redirection racine et la bannière de version obsolète. Par défaut, le dernier élément de `enabled` si non défini. |
-| `enabled` | `[]` | Liste des noms de répertoires de versions à compiler (ex. `["v1", "v2"]`). Chacun doit avoir un sous-répertoire correspondant dans le répertoire de contenu. |
+| `current` | *(dernier de `enabled`)* | Le code de version actuelle/dernière — utilisé pour la redirection racine et la bannière de version obsolète. Par défaut, le dernier élément de `enabled` pour les sources par répertoire ; les sources Git exigent une valeur explicite. |
+| `enabled` | `[]` | Codes des versions à compiler. Chaque code utilise un sous-répertoire sauf correspondance dans `[version.git]`. |
 | `display_names` | `{}` | Noms lisibles affichés dans le sélecteur de version (ex. `{"v2": "v2.0 (latest)"}`) |
+| `git.refs` | `{}` | Associer les codes activés aux références Git locales |
+| `git.working_tree` | `None` | Version activée compilée depuis la copie de travail, modifications non commitées comprises |
+| `git.tag_patterns` | `[]` | Découvrir les noms de tags locaux avec les motifs `*` et `?`, par exemple `["v1.*"]`, et ajouter les correspondances aux versions activées |
+| `git.include_prereleases` | `false` | Inclure les préversions sémantiques découvertes par les motifs de tags |
 
 Lorsque `enabled` est non vide, DocAnvil passe en mode multi-version : chaque version obtient son propre préfixe d'URL (`/v1/`, `/v2/`), sa propre navigation et son propre index de recherche, et un sélecteur de version apparaît dans l'en-tête. Les pages des versions antérieures affichent automatiquement une bannière redirigeant vers la dernière version.
 

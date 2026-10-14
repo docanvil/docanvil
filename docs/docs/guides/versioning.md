@@ -24,6 +24,64 @@ v2 = "v2.0 (latest)"
 
 That's all the config needed. DocAnvil will now look for version subdirectories in your content directory and build a separate site tree for each version.
 
+## Building from Git Tags
+
+Keep one flat documentation tree and build releases from their Git tags:
+
+```toml
+[version]
+current = "v1.2.3"
+enabled = ["v1.2.3", "master"]
+
+[version.git]
+refs = { "v1.2.3" = "refs/tags/v1.2.3" }
+working_tree = "master"
+
+[version.display_names]
+master = "Master (unreleased)"
+```
+
+`refs` maps URL version codes to local Git refs. `working_tree` names the version built from your checkout, including uncommitted edits. This is a label: use `main` or `development` if you prefer. DocAnvil does not switch branches.
+
+### Discovering Release Tags
+
+To publish every release matching your tag convention, use `tag_patterns`:
+
+```toml
+[version]
+current = "v1.2.3"
+enabled = ["master"]
+
+[version.git]
+tag_patterns = ["v1.*"]
+working_tree = "master"
+# include_prereleases = true
+```
+
+DocAnvil discovers local tags matching these patterns and adds them to `enabled`, using each tag name as its URL version code. `*` matches any sequence of characters and `?` matches one character; patterns match the whole tag name. For example, `v1.*` selects the v1 release line, while `v1.2.*` selects only v1.2 releases.
+
+Semantic-version tags, with or without a leading `v`, are ordered oldest to newest: `v1.9.0` comes before `v1.10.0`. Other tag names are sorted alphabetically after semantic versions. Discovered versions come before explicitly enabled versions such as `master`. Overlapping patterns and explicitly enabled tags produce only one version, and an explicit `refs` mapping takes precedence for the same code.
+
+Prerelease tags such as `v1.3.0-beta.1` are excluded from discovery by default. Set `include_prereleases = true` to include them. This filter applies to semantic-version tags; an explicitly mapped prerelease remains available regardless of this setting.
+
+Historical tags can contain missing translations or broken links that newer strict checks report. Use a narrower pattern when publishing those snapshots would fail your strict build; tags preserve the documentation as it was released.
+
+Every pattern must match at least one eligible local tag, and `current` must name an enabled or discovered version. It stays explicit: discovering a newer tag does not change the recommended release or the `/latest/` links. Builds do not fetch missing tags. Publishing every patch release adds a complete documentation tree for each tag, so narrow the pattern if the site grows too large.
+
+Each tag supplies its content directory, navigation, includes, custom components and content assets. The working configuration controls the combined site's theme, locales, publishing settings and current version. Historical configs need no new version settings. Relative images are published beneath their version prefix; absolute URLs stay as written.
+
+With Git sources, set `current` explicitly. The root redirects to it, and `/latest/` provides stable page links to that selected version. `/latest/guides/setup.html` redirects to `/v1.2.3/guides/setup.html`, while `/master/guides/setup.html` shows unreleased docs. With localisation, use `/latest/en/guides/setup.html`; `/latest/` opens the default locale's home page. Change `current` to move these aliases to another enabled version.
+
+Master displays an unreleased banner. Tagged pages use their commit for edit links and last-updated dates. Local editor links are only available for working-tree pages. PDF export also uses the selected version's source files and navigation.
+
+Unmapped versions continue to use subdirectories, so Git and directory sources can coexist. Version codes must be unique URL segments containing letters, digits, dots, underscores, hyphens or plus signs. Generated asset names are reserved, and Git sites also reserve `latest` for the alias.
+
+Git must be installed and refs must exist locally. Builds never fetch automatically. In GitHub Actions, use `fetch-depth: 0` on `actions/checkout` for release tags and history. Missing refs fail the build without replacing the previous output, unless you explicitly requested `--clean`.
+
+Snapshots use `git archive`: export attributes apply, submodule contents are omitted, and symlinks are currently unsupported. Machine-level line-ending preferences do not affect exports; committed line-ending attributes still apply. Required historical files must be included in the tagged repository.
+
+When migrating a published site, enable `[redirects] unprefixed = true` to preserve both plain page URLs and existing locale-prefixed URLs for pages in the current version.
+
 ## Directory Structure
 
 Versions live as subdirectories inside your content directory — not as file suffixes. This keeps old versions self-contained and easy to freeze:
@@ -183,6 +241,7 @@ The `docanvil doctor` command runs version-specific checks when `version.enabled
 | `current-not-in-enabled` | Error | `version.current` specifies a version not in the `enabled` list |
 | `version-dir-missing` | Error | An enabled version has no matching subdirectory in the content directory |
 | `empty-version` | Warning | A version directory exists but contains no `.md` files |
+| `version-source-invalid` | Error | A Git ref or historical project cannot be resolved or scanned |
 
 Run `docanvil doctor --fix` to automatically create missing version directories.
 

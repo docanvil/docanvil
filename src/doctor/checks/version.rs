@@ -11,8 +11,6 @@ pub fn check_version(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
         return diags;
     }
 
-    let content_dir = project_root.join(&config.project.content_dir);
-
     // Check: current-not-in-enabled — version.current is not listed in version.enabled
     if let Some(ref current) = config.version.current
         && !config.version.enabled.contains(current)
@@ -32,7 +30,23 @@ pub fn check_version(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
     }
 
     for version in &config.version.enabled {
-        let version_dir = content_dir.join(version);
+        let resolved =
+            match crate::git_versions::VersionSource::resolve(project_root, config, version) {
+                Ok(source) => source,
+                Err(error) => {
+                    diags.push(Diagnostic {
+                        check: "version-source-invalid",
+                        category: "version",
+                        severity: Severity::Error,
+                        message: format!("Version '{version}': {error}"),
+                        file: Some(project_root.join("docanvil.toml")),
+                        line: None,
+                        fix: None,
+                    });
+                    continue;
+                }
+            };
+        let version_dir = resolved.content_dir.clone();
 
         // Check: version-dir-missing — no subdirectory in the content directory
         if !version_dir.exists() {
@@ -47,9 +61,86 @@ pub fn check_version(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
                 ),
                 file: None,
                 line: None,
-                fix: Some(Fix::CreateDir(version_dir)),
+                fix: if config.version.git.refs.contains_key(version) {
+                    None
+                } else {
+                    Some(Fix::CreateDir(version_dir))
+                },
             });
             continue;
+        }
+
+        // The normal doctor inventory covers working-tree pages. Historical
+        // snapshots need their own inventory and include root while still using
+        // the combined site's locale and diagnostics settings.
+        if resolved.snapshot.is_some() {
+            let result = (|| -> crate::error::Result<Vec<Diagnostic>> {
+                let mut source_config = Config::load(project_root)?;
+                source_config.project.content_dir = resolved
+                    .content_dir
+                    .strip_prefix(&resolved.project_root)
+                    .map_err(|e| crate::error::Error::General(e.to_string()))?
+                    .to_owned();
+                let inventory = crate::project::PageInventory::scan(
+                    &resolved.content_dir,
+                    config
+                        .is_i18n_enabled()
+                        .then_some(config.locale.enabled.as_slice()),
+                    config.default_locale(),
+                    Some(version),
+                )?;
+                let mut checks = super::content::check_content(
+                    &resolved.project_root,
+                    &source_config,
+                    &inventory,
+                );
+                checks.extend(super::readability::check_readability(
+                    &resolved.project_root,
+                    &source_config,
+                    &inventory,
+                ));
+                if config.is_i18n_enabled() {
+                    checks.extend(super::locale::check_locale(
+                        &resolved.project_root,
+                        &source_config,
+                        Some(&inventory),
+                    ));
+                }
+                Ok(checks)
+            })();
+            match result {
+                Ok(checks) => diags.extend(checks.into_iter().map(|mut diagnostic| {
+                    let location = diagnostic
+                        .file
+                        .as_ref()
+                        .map(|file| {
+                            let relative =
+                                file.strip_prefix(&resolved.project_root).unwrap_or(file);
+                            match diagnostic.line {
+                                Some(line) => format!(" ({}:{line})", relative.display()),
+                                None => format!(" ({})", relative.display()),
+                            }
+                        })
+                        .unwrap_or_default();
+                    diagnostic.message =
+                        format!("Version '{version}'{location}: {}", diagnostic.message);
+                    // Temp paths disappear after this check; retain the source ref
+                    // in the message and link to the version's configuration.
+                    diagnostic.file = Some(project_root.join("docanvil.toml"));
+                    diagnostic.line = None;
+                    diagnostic.fix = None;
+                    diagnostic
+                })),
+                Err(error) => diags.push(Diagnostic {
+                    check: "version-source-invalid",
+                    category: "version",
+                    severity: Severity::Error,
+                    message: format!("Version '{version}': {error}"),
+                    file: Some(project_root.join("docanvil.toml")),
+                    line: None,
+                    fix: None,
+                }),
+            }
         }
 
         // Check: empty-version — version directory has no .md files

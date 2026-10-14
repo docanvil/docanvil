@@ -1,6 +1,19 @@
 use std::path::Path;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
+
+/// Copy a version's content assets without allowing its static files to
+/// replace pages, search indexes or redirects already generated for it.
+pub fn copy_version_assets(project_root: &Path, output_dir: &Path) -> Result<()> {
+    for path in static_output_paths(project_root)? {
+        if output_dir.join(&path).exists() {
+            return Err(Error::General(format!(
+                "Version static file '{path}' would overwrite generated documentation"
+            )));
+        }
+    }
+    copy_assets(project_root, output_dir, None)
+}
 
 /// Paths copied from `static/`, relative to the output root. Follow directories
 /// the same way as the asset copier, including directory symlinks.

@@ -87,7 +87,7 @@ pub fn warn_redirect(project_root: &Path, problem: &RedirectProblem) {
     increment();
     let place = match &problem.origin {
         Origin::FrontMatter(path) => display_path(project_root, path).display().to_string(),
-        Origin::Table(_) | Origin::Unprefixed => "docanvil.toml".to_string(),
+        Origin::Table(_) | Origin::Unprefixed | Origin::Latest => "docanvil.toml".to_string(),
     };
     eprintln!(
         "{}: {} ({})",

@@ -15,7 +15,7 @@ pub fn check_redirects(project_root: &Path, config: &Config) -> Vec<Diagnostic> 
     };
     let sets: Vec<PageSet> = sites
         .iter()
-        .map(|(version, inventory, front_matters)| PageSet {
+        .map(|(version, inventory, front_matters, _)| PageSet {
             version: version.as_deref(),
             inventory,
             front_matters,
@@ -41,6 +41,11 @@ pub fn check_redirects(project_root: &Path, config: &Config) -> Vec<Diagnostic> 
         .into_iter()
         .map(|problem| {
             let (category, file, line) = match &problem.origin {
+                Origin::Latest => (
+                    "config",
+                    config_path.clone(),
+                    line_of(&config_path, |l| is_toml_key(l, "current")),
+                ),
                 Origin::FrontMatter(path) => (
                     "content",
                     path.clone(),

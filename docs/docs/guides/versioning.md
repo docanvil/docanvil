@@ -24,6 +24,39 @@ v2 = "v2.0 (latest)"
 
 That's all the config needed. DocAnvil will now look for version subdirectories in your content directory and build a separate site tree for each version.
 
+## Building from Git Tags
+
+Keep one flat documentation tree and build releases from their Git tags:
+
+```toml
+[version]
+current = "v1.2.3"
+enabled = ["v1.2.3", "master"]
+
+[version.git]
+refs = { "v1.2.3" = "refs/tags/v1.2.3" }
+working_tree = "master"
+
+[version.display_names]
+master = "Master (unreleased)"
+```
+
+`refs` maps URL version codes to local Git refs. `working_tree` names the version built from your checkout, including uncommitted edits. This is a label: use `main` or `development` if you prefer. DocAnvil does not switch branches.
+
+Each tag supplies its content directory, navigation, includes, custom components and content assets. The working configuration controls the combined site's theme, locales, publishing settings and current version. Historical configs need no new version settings. Relative images are published beneath their version prefix; absolute URLs stay as written.
+
+With Git sources, set `current` explicitly. The root redirects to it, and `/latest/` provides stable page links to that selected version. `/latest/guides/setup.html` redirects to `/v1.2.3/guides/setup.html`, while `/master/guides/setup.html` shows unreleased docs. With localisation, use `/latest/en/guides/setup.html`; `/latest/` opens the default locale's home page. Change `current` to move these aliases to another enabled version.
+
+Master displays an unreleased banner. Tagged pages use their commit for edit links and last-updated dates. Local editor links are only available for working-tree pages. PDF export also uses the selected version's source files and navigation.
+
+Unmapped versions continue to use subdirectories, so Git and directory sources can coexist. Version codes must be unique URL segments containing letters, digits, dots, underscores or hyphens. Generated asset names are reserved, and Git sites also reserve `latest` for the alias.
+
+Git must be installed and refs must exist locally. Builds never fetch automatically. In GitHub Actions, use `fetch-depth: 0` on `actions/checkout` for release tags and history. Missing refs fail the build without replacing the previous output, unless you explicitly requested `--clean`.
+
+Snapshots use `git archive`: export attributes apply, submodule contents are omitted, and symlinks are currently unsupported. Required historical files must be included in the tagged repository.
+
+When migrating a published site, enable `[redirects] unprefixed = true` to preserve both plain page URLs and existing locale-prefixed URLs for pages in the current version.
+
 ## Directory Structure
 
 Versions live as subdirectories inside your content directory — not as file suffixes. This keeps old versions self-contained and easy to freeze:
@@ -183,6 +216,7 @@ The `docanvil doctor` command runs version-specific checks when `version.enabled
 | `current-not-in-enabled` | Error | `version.current` specifies a version not in the `enabled` list |
 | `version-dir-missing` | Error | An enabled version has no matching subdirectory in the content directory |
 | `empty-version` | Warning | A version directory exists but contains no `.md` files |
+| `version-source-invalid` | Error | A Git ref or historical project cannot be resolved or scanned |
 
 Run `docanvil doctor --fix` to automatically create missing version directories.
 

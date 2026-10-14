@@ -36,7 +36,6 @@ Les fonctionnalités du quotidien qu'on attend d'un outil de documentation, pour
 - ✅ Personnalisation des fonds, en-têtes, polices et badges des blocs de code dans les thèmes
 - ✅ Blocs de code distants depuis une URL HTTPS brute (`url="…"`)
 - ✅ Régions de code nommées (`{== region="name" ==}` / `{== endregion="name" ==}`), pour que les exemples ne cassent pas quand les numéros de ligne changent
-
 - ✅ Inclusion d’une section Markdown avec `section="heading-id"`
 
 Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.

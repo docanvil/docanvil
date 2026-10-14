@@ -18,6 +18,27 @@ pub struct EditLinks {
 }
 
 impl EditLinks {
+    /// Historical pages link to the resolved commit, never the live branch.
+    pub fn for_snapshot(
+        config: &EditConfig,
+        snapshot: &crate::git_versions::GitSnapshot,
+    ) -> std::result::Result<Option<Self>, String> {
+        let historical = EditConfig {
+            repo: config.repo.clone(),
+            branch: snapshot.commit().to_owned(),
+            provider: config.provider,
+            root: Some(config.root.clone().unwrap_or_else(|| {
+                snapshot
+                    .project_root()
+                    .strip_prefix(snapshot.repository_root())
+                    .unwrap_or(Path::new(""))
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })),
+        };
+        Self::from_config(&historical, snapshot.project_root())
+    }
+
     /// Resolve edit-link settings. Returns `Ok(None)` when no `repo` is configured,
     /// and `Err` with a user-facing message when the config can't produce links.
     pub fn from_config(

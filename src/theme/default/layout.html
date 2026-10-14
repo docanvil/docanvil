@@ -141,9 +141,13 @@
   {% endblock %}
 
   <main class="content">
-    {% if current_version and current_version != latest_version %}
+    {% if current_version and (current_version_unreleased or current_version != latest_version) %}
     <div class="version-banner" role="alert">
+      {% if current_version_unreleased %}
+      You're viewing <strong>{{ current_version }}</strong> documentation for unreleased changes.
+      {% else %}
       ⚠️ You're viewing docs for <strong>{{ current_version }}</strong>.
+      {% endif %}
       {% if latest_version_url %}
       <a href="{{ latest_version_url }}">Switch to latest ({{ latest_version }})</a>
       {% endif %}

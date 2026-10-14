@@ -38,6 +38,20 @@ auto_detect = true
 en = "English"
 fr = "Français"
 
+[version]
+current = "v1.2.3"
+enabled = ["v1.2.3", "master"]
+
+[version.git]
+refs = { "v1.2.3" = "refs/tags/v1.2.3" }
+working_tree = "master"
+
+[version.display_names]
+master = "Master (unreleased)"
+
+[redirects]
+unprefixed = true
+
 [pdf]
 cover_page = true
 author = "The DocAnvil Team"

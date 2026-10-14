@@ -166,6 +166,7 @@ pub enum Target {
 /// matter beats the `[redirects]` table, which beats `unprefixed`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Origin {
+    Latest,
     FrontMatter(PathBuf),
     Table(String),
     Unprefixed,
@@ -239,6 +240,7 @@ fn plan_with_static(
     front_matter_candidates(config, sets, &mut candidates, &mut problems);
     let drafted = table_candidates(config, sets, &mut candidates, &mut problems);
     unprefixed_candidates(config, sets, &mut candidates);
+    latest_candidates(config, sets, &mut candidates);
     resolve(config, sets, candidates, &drafted, problems, static_paths)
 }
 
@@ -537,6 +539,18 @@ fn unprefixed_candidates(config: &Config, sets: &[PageSet], out: &mut Vec<Candid
     let lang = default_lang(config);
     for key in &set.inventory.ordered {
         let page = &set.inventory.pages[key];
+        // Preserve the locale-prefixed URLs of a formerly unversioned site.
+        if config.is_versioning_enabled()
+            && let Some(locale) = &page.locale
+        {
+            out.push(Candidate {
+                from: format!("{locale}/{}.html", page.slug),
+                to: Target::Page(output_path(page)),
+                lang: page.locale.clone(),
+                origin: Origin::Unprefixed,
+                must_resolve: false,
+            });
+        }
         if page.locale.as_deref() != lang {
             continue;
         }
@@ -557,9 +571,49 @@ fn unprefixed_candidates(config: &Config, sets: &[PageSet], out: &mut Vec<Candid
 
 fn describe(origin: &Origin) -> String {
     match origin {
+        Origin::Latest => "the automatic latest version alias".to_string(),
         Origin::FrontMatter(path) => format!("the front matter of {}", path.display()),
         Origin::Table(key) => format!("[redirects] (\"{key}\")"),
         Origin::Unprefixed => "[redirects] unprefixed".to_string(),
+    }
+}
+
+/// Stable page URLs for the version explicitly marked current. Only Git-backed
+/// sites enable the alias, preserving legacy directory versions named latest.
+fn latest_candidates(config: &Config, sets: &[PageSet], out: &mut Vec<Candidate>) {
+    if !config.version.git.is_enabled() {
+        return;
+    }
+    let Some(set) = current_set(config, sets) else {
+        return;
+    };
+    for page in set.inventory.pages.values() {
+        out.push(Candidate {
+            from: format!(
+                "latest/{}{}.html",
+                page.locale
+                    .as_ref()
+                    .map(|l| format!("{l}/"))
+                    .unwrap_or_default(),
+                page.slug
+            ),
+            to: Target::Page(output_path(page)),
+            lang: page.locale.clone(),
+            origin: Origin::Latest,
+            must_resolve: false,
+        });
+        if page.slug == "index"
+            && page.locale.as_deref() == default_lang(config)
+            && config.is_i18n_enabled()
+        {
+            out.push(Candidate {
+                from: "latest/index.html".into(),
+                to: Target::Page(output_path(page)),
+                lang: page.locale.clone(),
+                origin: Origin::Latest,
+                must_resolve: false,
+            });
+        }
     }
 }
 
@@ -875,7 +929,7 @@ mod tests {
     struct Site {
         _dir: tempfile::TempDir,
         config: Config,
-        versions: Vec<(Option<String>, PageInventory, HashMap<String, FrontMatter>)>,
+        versions: Vec<crate::cli::build::SiteVersion>,
     }
 
     impl Site {
@@ -900,7 +954,7 @@ mod tests {
             let sets: Vec<PageSet> = self
                 .versions
                 .iter()
-                .map(|(version, inventory, front_matters)| PageSet {
+                .map(|(version, inventory, front_matters, _)| PageSet {
                     version: version.as_deref(),
                     inventory,
                     front_matters,

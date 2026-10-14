@@ -25,7 +25,7 @@ pub struct PageInfo {
 }
 
 /// Ordered collection of all pages in the docs directory.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PageInventory {
     /// Slug → PageInfo lookup. When i18n is enabled, keys are composite `{locale}:{slug}`.
     pub pages: HashMap<String, PageInfo>,

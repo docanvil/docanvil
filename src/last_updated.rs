@@ -112,6 +112,40 @@ pub struct GitDates {
 }
 
 impl GitDates {
+    /// Read history reachable from a snapshot's commit and key dates by its
+    /// extracted paths. This includes files outside the nested docs project.
+    pub fn collect_snapshot(
+        original_project: &Path,
+        snapshot: &crate::git_versions::GitSnapshot,
+    ) -> std::result::Result<Self, String> {
+        let top = run_git(original_project, &["rev-parse", "--show-toplevel"])?;
+        let root = Path::new(top.trim());
+        let shallow = run_git(root, &["rev-parse", "--is-shallow-repository"])
+            .is_ok_and(|s| s.trim() == "true");
+        let log = run_git(
+            root,
+            &[
+                "-c",
+                "diff.relative=false",
+                "-c",
+                "log.showSignature=false",
+                "log",
+                "--format=%x00%at",
+                "--name-only",
+                "-z",
+                snapshot.commit(),
+                "--",
+                ".",
+            ],
+        )?;
+        Ok(Self {
+            project_root: canonical(snapshot.repository_root()),
+            dates: parse_log(&log, &canonical(snapshot.repository_root())),
+            looked_up: HashMap::new(),
+            shallow,
+        })
+    }
+
     /// Read the project's Git history. `Err` holds a user-facing message when
     /// there's no repository or no `git` binary.
     pub fn collect(project_root: &Path) -> std::result::Result<Self, String> {

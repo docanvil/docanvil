@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `docanvil serve` now rebuilds when a missing included Markdown or code file is created outside the usual watched folders, including new locale variants and missing parent directories (#62).
+
 ## [1.2.4] - 2026-10-14
 
 ### Added

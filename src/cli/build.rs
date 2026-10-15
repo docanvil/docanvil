@@ -883,7 +883,7 @@ fn build_site(
                             lastmod.insert(page.output_path.clone(), date.clone());
                         }
                         if version_source.snapshot.is_none() {
-                            dependencies.extend(processed.dependencies);
+                            dependencies.extend(processed.watch_dependencies);
                         }
                         let html_body = processed.html;
 
@@ -1140,7 +1140,7 @@ fn build_site(
                         lastmod.insert(page.output_path.clone(), date.clone());
                     }
                     if version_source.snapshot.is_none() {
-                        dependencies.extend(processed.dependencies);
+                        dependencies.extend(processed.watch_dependencies);
                     }
                     let html_body = processed.html;
 
@@ -1532,7 +1532,7 @@ fn build_site(
                 if let Some(date) = &last_updated {
                     lastmod.insert(page.output_path.clone(), date.clone());
                 }
-                dependencies.extend(processed.dependencies);
+                dependencies.extend(processed.watch_dependencies);
                 let html_body = processed.html;
 
                 if let Some(ref mut entries) = search_entries {
@@ -1747,7 +1747,7 @@ fn build_site(
             if let Some(date) = &last_updated {
                 lastmod.insert(page.output_path.clone(), date.clone());
             }
-            dependencies.extend(processed.dependencies);
+            dependencies.extend(processed.watch_dependencies);
             let html_body = processed.html;
 
             if let Some(ref mut entries) = search_entries {

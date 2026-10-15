@@ -14,7 +14,7 @@ struct WatchSet {
     root: PathBuf,
     /// Directories watched recursively: content, theme, assets, static.
     dirs: Vec<PathBuf>,
-    /// Files outside `dirs` that the last build read through `:::include` or
+    /// Files outside `dirs` that the last build tried to read through `:::include` or
     /// `file="…"` code blocks.
     dependencies: BTreeSet<PathBuf>,
     /// Their parent directories (except the root), watched non-recursively —
@@ -54,7 +54,11 @@ impl WatchSet {
 
     /// Whether a change to `path` should trigger a rebuild.
     fn is_relevant(&self, path: &Path) -> bool {
-        if self.dependencies.contains(path) {
+        if self
+            .dependencies
+            .iter()
+            .any(|dependency| dependency == path || (path.is_dir() && dependency.starts_with(path)))
+        {
             return true;
         }
         if self.dirs.iter().any(|d| path.starts_with(d)) {
@@ -70,7 +74,7 @@ impl WatchSet {
         false
     }
 
-    /// Track the files the last build read. Returns the directories to start
+    /// Track the files the last build tried to read. Returns the directories to start
     /// and stop watching (non-recursively).
     fn set_dependencies(
         &mut self,
@@ -83,7 +87,12 @@ impl WatchSet {
             .collect();
         let dirs: BTreeSet<PathBuf> = outside
             .iter()
-            .filter_map(|p| p.parent().map(Path::to_path_buf))
+            .filter_map(|p| {
+                p.ancestors()
+                    .skip(1)
+                    .find(|p| p.is_dir())
+                    .map(Path::to_path_buf)
+            })
             .filter(|d| *d != self.root)
             .collect();
         let added = dirs.difference(&self.dependency_dirs).cloned().collect();
@@ -210,6 +219,29 @@ mod tests {
         assert!(!set.is_relevant(&set.root.join("dist/index.html")));
         assert!(!set.is_relevant(&set.root.join(".dist.docanvil-staging")));
         assert!(!set.is_relevant(&set.root.join("README.md")));
+    }
+
+    #[test]
+    fn watches_missing_dependencies_as_their_directories_are_created() {
+        let dir = project("[project]\nname = \"T\"\n");
+        let mut set = WatchSet::new(dir.path());
+        let root = set.root.clone();
+        let file = root.join("examples/nested/new.rs");
+        let dependencies = BTreeSet::from([file.clone()]);
+        let (added, _) = set.set_dependencies(&dependencies);
+        assert!(added.is_empty()); // The root is already watched.
+        fs::create_dir(root.join("examples")).unwrap();
+        assert!(set.is_relevant(&root.join("examples")));
+        let (added, _) = set.set_dependencies(&dependencies);
+        assert_eq!(added, vec![root.join("examples")]);
+        fs::create_dir(root.join("examples/nested")).unwrap();
+        assert!(set.is_relevant(&root.join("examples/nested")));
+        let (added, removed) = set.set_dependencies(&dependencies);
+        assert_eq!(added, vec![root.join("examples/nested")]);
+        assert_eq!(removed, vec![root.join("examples")]);
+        fs::write(&file, "fn main() {}").unwrap();
+        assert!(set.is_relevant(&file));
+        assert!(!set.is_relevant(&root.join("examples/nested/other.rs")));
     }
 
     #[test]

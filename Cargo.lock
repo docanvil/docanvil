@@ -683,6 +683,7 @@ dependencies = [
  "comrak",
  "dialoguer",
  "dirs",
+ "entities",
  "flate2",
  "notify",
  "notify-debouncer-mini",

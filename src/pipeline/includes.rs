@@ -39,8 +39,10 @@ pub struct IncludeContext<'a> {
 pub struct Expanded {
     /// Markdown with includes spliced in and file code blocks filled.
     pub source: String,
-    /// Every file read along the way (canonical paths), for the dev server's watcher.
+    /// Every file read along the way (canonical paths), for source dates.
     pub dependencies: BTreeSet<PathBuf>,
+    /// Local paths to watch, including missing files and preferred locale variants.
+    pub watch_dependencies: BTreeSet<PathBuf>,
     pub problems: Vec<IncludeProblem>,
 }
 
@@ -199,7 +201,11 @@ impl Expander<'_> {
             candidates.push(localized(&base, locale));
         }
         candidates.push(base.clone());
-        let Some(found) = candidates.into_iter().find(|p| p.is_file()) else {
+        let found = candidates.into_iter().find(|p| {
+            self.expanded.watch_dependencies.insert(canonical(p));
+            p.is_file()
+        });
+        let Some(found) = found else {
             let message = match self.locale {
                 Some(locale) => format!(
                     "can't find {} or {written}",
@@ -453,6 +459,7 @@ impl Expander<'_> {
         } else {
             let path = resolve_path(written, file, self.project_root)
                 .map_err(|m| Invalid::new(CHECK_INVALID, m, None))?;
+            self.expanded.watch_dependencies.insert(canonical(&path));
             if !path.is_file() {
                 return Err(Invalid::new(
                     CHECK_UNRESOLVED,
@@ -785,7 +792,15 @@ pub fn display_path(project_root: &Path, canonical_file: &Path) -> PathBuf {
 }
 
 fn canonical(path: &Path) -> PathBuf {
-    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+    if let Ok(path) = path.canonicalize() {
+        return path;
+    }
+    // Resolve the existing ancestor so missing paths match canonical watcher
+    // events too (including symlinked roots and macOS /private paths).
+    match (path.parent(), path.file_name()) {
+        (Some(parent), Some(name)) if parent != path => canonical(parent).join(name),
+        _ => path.to_path_buf(),
+    }
 }
 
 /// Read a fragment or code file as UTF-8, dropping a leading byte order mark.
@@ -1287,6 +1302,51 @@ mod tests {
         );
         assert_eq!(run(&dir, "docs/page.fr.md", Some("de")).source, "EN\n");
         assert_eq!(run(&dir, "docs/page.fr.md", None).source, "EN\n");
+    }
+
+    #[test]
+    fn watches_missing_local_files_and_locale_candidates() {
+        let dir = project(&[(
+            "docs/page.md",
+            ":::include{file=\"/shared/install.md\"}\n```rust file=\"/examples/new.rs\"\n```\n",
+        )]);
+        let root = dir.path().canonicalize().unwrap();
+        let missing = run(&dir, "docs/page.md", Some("fr"));
+        assert_eq!(missing.problems.len(), 2);
+        assert!(missing.dependencies.is_empty());
+        assert_eq!(
+            missing.watch_dependencies,
+            BTreeSet::from([
+                root.join("shared/install.fr.md"),
+                root.join("shared/install.md"),
+                root.join("examples/new.rs"),
+            ])
+        );
+        std::fs::create_dir_all(root.join("shared")).unwrap();
+        std::fs::create_dir_all(root.join("examples")).unwrap();
+        std::fs::write(root.join("shared/install.md"), "English\n").unwrap();
+        std::fs::write(root.join("examples/new.rs"), "fn main() {}\n").unwrap();
+        let fallback = run(&dir, "docs/page.md", Some("fr"));
+        assert!(fallback.problems.is_empty());
+        assert!(fallback.source.contains("English"));
+        assert!(
+            fallback
+                .watch_dependencies
+                .contains(&root.join("shared/install.fr.md"))
+        );
+        assert!(
+            !fallback
+                .dependencies
+                .contains(&root.join("shared/install.fr.md"))
+        );
+        std::fs::write(root.join("shared/install.fr.md"), "French\n").unwrap();
+        let translated = run(&dir, "docs/page.md", Some("fr"));
+        assert!(translated.source.contains("French"));
+        assert!(
+            !translated
+                .watch_dependencies
+                .contains(&root.join("shared/install.md"))
+        );
     }
 
     #[test]

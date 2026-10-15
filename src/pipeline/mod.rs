@@ -28,6 +28,8 @@ use self::syntax::SyntaxHighlighter;
 pub struct Processed {
     pub html: String,
     pub dependencies: BTreeSet<PathBuf>,
+    /// Local include candidates to watch, including files not yet created.
+    pub watch_dependencies: BTreeSet<PathBuf>,
     pub markdown: String,
 }
 
@@ -123,6 +125,7 @@ pub fn process_with_asset_base(
     Ok(Processed {
         html,
         dependencies: expanded.dependencies,
+        watch_dependencies: expanded.watch_dependencies,
         markdown: expanded.source,
     })
 }

@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Doctor’s `long-paragraph` check now counts tight bulleted and numbered list items separately, while still reporting long individual items and their wrapped continuation text (#86).
 - Generated heading IDs now use decoded HTML entity text, including headings rendered by template components (#53). For example, `Fish & Chips` now gets `fish-chips` instead of `fish-amp-chips`. Existing deep links to affected generated anchors must be updated; use an explicit `{#id}` to preserve an old anchor.
 - `docanvil serve` now rebuilds when a missing included Markdown or code file is created outside the usual watched folders, including new locale variants and missing parent directories (#62).
 

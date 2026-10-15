@@ -790,6 +790,7 @@ fn check_missing_fenced_code_language(
 // ---------------------------------------------------------------------------
 
 /// Flag paragraphs whose word count exceeds `config.doctor.max_paragraph_words`.
+/// List items start separate paragraphs; wrapped item text stays together.
 /// The check is disabled entirely when the threshold is 0.
 fn check_long_paragraph(
     lines: &[(usize, &str)],
@@ -797,6 +798,11 @@ fn check_long_paragraph(
     config: &Config,
     diags: &mut Vec<Diagnostic>,
 ) {
+    // Trim indentation before matching so nested items use the same boundary.
+    // CommonMark ordered markers contain at most nine digits.
+    static LIST_MARKER_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^(?:[-*+]|[0-9]{1,9}[.)])(?:[ \t]+|$)").unwrap());
+
     let threshold = config.doctor.max_paragraph_words;
     if threshold == 0 {
         return;
@@ -834,10 +840,18 @@ fn check_long_paragraph(
             word_count = 0;
             para_start = None;
         } else {
+            let text = if let Some(marker) = LIST_MARKER_RE.find(trimmed) {
+                flush(word_count, para_start);
+                word_count = 0;
+                para_start = None;
+                &trimmed[marker.end()..]
+            } else {
+                trimmed
+            };
             if para_start.is_none() {
                 para_start = Some(line_num);
             }
-            word_count += trimmed.split_whitespace().count();
+            word_count += text.split_whitespace().count();
         }
     }
     flush(word_count, para_start);
@@ -1679,6 +1693,90 @@ mod tests {
         let config = test_config();
         check_long_paragraph(&lines, &fake_path(), &config, &mut diags);
         assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn long_paragraph_tight_lists_count_items_separately() {
+        let item = vec!["word"; 18].join(" ");
+        for marker in ["-", "*", "+", "1.", "2)"] {
+            let src = (0..10)
+                .map(|_| format!("{marker} {item}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let mut diags = Vec::new();
+            check_long_paragraph(
+                &active_lines(&src),
+                &fake_path(),
+                &test_config(),
+                &mut diags,
+            );
+            assert!(diags.is_empty(), "{marker}: {diags:?}");
+        }
+    }
+
+    #[test]
+    fn long_paragraph_list_item_keeps_continuations_and_source_line() {
+        let first = vec!["word"; 75].join(" ");
+        let second = vec!["word"; 76].join(" ");
+        for marker in ["-", "*", "+", "1.", "2)"] {
+            let src = format!(
+                "# Heading\n\n{marker} Short item\n{marker} {first}\n   {second}\n{marker} Final item"
+            );
+            let mut diags = Vec::new();
+            check_long_paragraph(
+                &active_lines(&src),
+                &fake_path(),
+                &test_config(),
+                &mut diags,
+            );
+            assert_eq!(diags.len(), 1, "{marker}: {diags:?}");
+            assert_eq!(diags[0].line, Some(4));
+            assert!(diags[0].message.contains("151 words"));
+        }
+    }
+
+    #[test]
+    fn long_paragraph_nested_items_and_intro_are_separate() {
+        let text = vec!["word"; 100].join(" ");
+        let src = format!("{text}\n- {text}\n  + {text}\n  + {text}\n- {text}");
+        let mut diags = Vec::new();
+        check_long_paragraph(
+            &active_lines(&src),
+            &fake_path(),
+            &test_config(),
+            &mut diags,
+        );
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn long_paragraph_list_marker_is_not_a_word() {
+        let text = vec!["word"; 150].join(" ");
+        let src = format!("- {text}\n1. {text}");
+        let mut diags = Vec::new();
+        check_long_paragraph(
+            &active_lines(&src),
+            &fake_path(),
+            &test_config(),
+            &mut diags,
+        );
+        assert!(diags.is_empty());
+    }
+
+    #[test]
+    fn long_paragraph_marker_like_prose_does_not_split() {
+        let text = vec!["word"; 80].join(" ");
+        for prefix in ["-word", "*emphasis*", "+word", "1.2", "1234567890."] {
+            let src = format!("{text}\n{prefix} {text}");
+            let mut diags = Vec::new();
+            check_long_paragraph(
+                &active_lines(&src),
+                &fake_path(),
+                &test_config(),
+                &mut diags,
+            );
+            assert_eq!(diags.len(), 1, "{prefix}");
+        }
     }
 
     // --- check_repeated_word ---

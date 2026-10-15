@@ -1176,6 +1176,50 @@ fn test_template_component_inline_attributes_merge_class_and_replace_id() {
 }
 
 #[test]
+fn test_heading_entity_anchors_match_search_and_preserve_custom_ids() {
+    let dir = create_project(
+        "[project]\nname = \"T\"\n[build]\nsite_url = \"https://example.com\"\n",
+        &[(
+            "index.md",
+            "# Home\n\n## Fish & Chips\n\n## Fish &#38; Chips\n\n:::section{title=\"Don't panic\"}\nHello\n:::\n\n## Fish & Chips {#fish-amp-chips}\n",
+        )],
+    );
+    let components = dir.path().join("theme/components");
+    fs::create_dir_all(&components).unwrap();
+    fs::write(
+        components.join("section.html"),
+        "<section><h2>{{ attrs.title }}</h2>{{ body | safe }}</section>",
+    )
+    .unwrap();
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("<h2 id=\"fish-chips\">Fish &amp; Chips</h2>"));
+    assert!(html.contains("<h2 id=\"don-t-panic\">Don&#39;t panic</h2>"));
+    let index: serde_json::Value =
+        serde_json::from_str(&read_output(dir.path(), "search-index.json")).unwrap();
+    for anchor in [
+        "fish-chips",
+        "fish-chips-1",
+        "don-t-panic",
+        "fish-amp-chips",
+    ] {
+        assert!(html.contains(&format!("id=\"{anchor}\"")));
+        assert!(
+            index
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|section| section["anchor"] == anchor
+                    && section["url"]
+                        .as_str()
+                        .unwrap()
+                        .ends_with(&format!("#{anchor}"))),
+            "search target missing: {anchor}"
+        );
+    }
+}
+
+#[test]
 fn test_template_components_custom_and_override() {
     let dir = create_project(
         DEFAULT_CONFIG,

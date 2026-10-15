@@ -39,7 +39,7 @@ Le Titre 1 reçoit une bordure inférieure colorée. Le Titre 2 reçoit une lign
 
 ### IDs de titres personnalisés
 
-Par défaut, les titres reçoivent des IDs générés automatiquement à partir de leur texte. Vous pouvez remplacer cela avec un ID personnalisé en utilisant `{#id}` à la fin de la ligne de titre :
+Par défaut, les titres reçoivent des IDs générés automatiquement à partir de leur texte, après décodage des entités HTML (par exemple, `Fish & Chips` donne `fish-chips`). Vous pouvez remplacer cela avec un ID personnalisé en utilisant `{#id}` à la fin de la ligne de titre :
 
 ```markdown
 ### Référence API {#api-ref}

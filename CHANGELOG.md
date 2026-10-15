@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- Generated heading IDs now use decoded HTML entity text, including headings rendered by template components (#53). For example, `Fish & Chips` now gets `fish-chips` instead of `fish-amp-chips`. Existing deep links to affected generated anchors must be updated; use an explicit `{#id}` to preserve an old anchor.
+
 ## [1.2.4] - 2026-10-14
 
 ### Added

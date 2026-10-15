@@ -39,7 +39,7 @@ Heading 1 gets a colored bottom border. Heading 2 gets a subtle separator line. 
 
 ### Custom Heading IDs
 
-By default, headings get auto-generated IDs based on their text. You can override this with a custom ID using `{#id}` at the end of the heading line:
+By default, headings get auto-generated IDs based on their text, with HTML entities decoded (for example, `Fish & Chips` gets `fish-chips`). You can override this with a custom ID using `{#id}` at the end of the heading line:
 
 ```markdown
 ### API Reference {#api-ref}

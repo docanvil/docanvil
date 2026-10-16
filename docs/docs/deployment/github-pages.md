@@ -6,7 +6,7 @@
 ---
 # Deploying to GitHub Pages
 
-This guide sets up a GitHub Actions workflow that builds your DocAnvil docs and publishes them to GitHub Pages every time you push to `main`. It's the same setup these docs use.
+This guide sets up a GitHub Actions workflow that builds your DocAnvil docs and publishes them to GitHub Pages every time you push to `main`. The example uses the latest stable DocAnvil binary, so you don't need a Rust toolchain.
 
 ## Prerequisites
 

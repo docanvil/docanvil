@@ -15,7 +15,7 @@ jobs:
     name: Push release tag
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Create and push tag
         id: tag

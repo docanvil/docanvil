@@ -5,13 +5,13 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::LazyLock;
 
 use regex::Regex;
-use syntect::parsing::SyntaxSet;
 
 mod regions;
 pub mod remote;
 
 use crate::pipeline::code_blocks::BlockMeta;
 use crate::pipeline::directives::{ATTR_RE, FenceState, inline_code_ranges};
+use crate::pipeline::syntax::syntax_set;
 use crate::render::templates::include_cycle_message;
 use crate::util::html_escape;
 
@@ -660,8 +660,6 @@ fn longer_marker(marker: &str, content: &[String]) -> String {
     c.to_string().repeat(marker.len().max(longest + 1))
 }
 
-static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
-
 /// Prefer a readable language token for inferred file blocks (also used as
 /// code-group labels). Keep the extension when the syntax name is not a single
 /// token or would select a different syntax in the highlighter.
@@ -674,10 +672,10 @@ fn language_for(path: &Path) -> String {
     }
     for token in [path.extension(), path.file_name()].into_iter().flatten() {
         let token = token.to_string_lossy();
-        if let Some(syntax) = SYNTAXES.find_syntax_by_extension(&token) {
+        if let Some(syntax) = syntax_set().find_syntax_by_extension(&token) {
             let name = syntax.name.to_lowercase();
             if !name.chars().any(char::is_whitespace)
-                && SYNTAXES
+                && syntax_set()
                     .find_syntax_by_token(&name)
                     .is_some_and(|found| std::ptr::eq(found, syntax))
             {
@@ -1811,29 +1809,30 @@ mod tests {
         assert_eq!(language_for(Path::new("changes.diff")), "diff");
         assert_eq!(language_for(Path::new("changes.patch")), "diff");
         assert_eq!(language_for(Path::new("a/b.rs")), "rust");
+        assert_eq!(language_for(Path::new("config.toml")), "toml");
         assert_eq!(language_for(Path::new("x.unknownzzz")), "text");
         assert_eq!(language_for(Path::new("README")), "text");
     }
 
     #[test]
     fn inferred_language_tokens_keep_the_original_syntax() {
-        for syntax in SYNTAXES.syntaxes() {
+        for syntax in syntax_set().syntaxes() {
             for extension in &syntax.file_extensions {
                 let path = PathBuf::from(format!("example.{extension}"));
                 let token = language_for(&path);
                 if matches!(extension.as_str(), "diff" | "patch") {
                     continue;
                 }
-                let original = SYNTAXES
+                let original = syntax_set()
                     .find_syntax_by_extension(path.extension().unwrap().to_str().unwrap())
                     .or_else(|| {
-                        SYNTAXES
+                        syntax_set()
                             .find_syntax_by_extension(path.file_name().unwrap().to_str().unwrap())
                     })
-                    .unwrap_or_else(|| SYNTAXES.find_syntax_plain_text());
-                let inferred = SYNTAXES
+                    .unwrap_or_else(|| syntax_set().find_syntax_plain_text());
+                let inferred = syntax_set()
                     .find_syntax_by_token(&token)
-                    .unwrap_or_else(|| SYNTAXES.find_syntax_plain_text());
+                    .unwrap_or_else(|| syntax_set().find_syntax_plain_text());
                 assert!(std::ptr::eq(original, inferred), "{extension}: {token}");
                 assert!(!token.chars().any(char::is_whitespace));
             }

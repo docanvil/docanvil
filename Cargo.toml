@@ -27,7 +27,7 @@ tera = "1"
 rust-embed = "8"
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.6", features = ["fs"] }
+tower-http = { version = "0.7", features = ["fs"] }
 notify = "8"
 notify-debouncer-mini = "0.7"
 owo-colors = "4"

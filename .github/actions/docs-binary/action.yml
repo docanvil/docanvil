@@ -1,0 +1,25 @@
+name: Obtain docs binary
+description: Reuse a matching master CI binary, or build the checkout
+runs:
+  using: composite
+  steps:
+    - name: Find master binary
+      id: binary
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: bash bin/find-docs-binary.sh
+
+    - uses: dtolnay/rust-toolchain@stable
+      if: steps.binary.outputs.found != 'true'
+
+    - name: Build fallback binary
+      if: steps.binary.outputs.found != 'true'
+      shell: bash
+      run: |
+        cargo build --locked
+        cp target/debug/docanvil "$RUNNER_TEMP/docs-binary/docanvil"
+
+    - name: Add binary to PATH
+      shell: bash
+      run: echo "$RUNNER_TEMP/docs-binary" >> "$GITHUB_PATH"

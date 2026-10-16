@@ -1,38 +1,33 @@
 name: Docs
 
-# Separate from ci.yml so docs-only changes are checked without running the
-# full test matrix. No path filter: code changes can break the docs too.
+# PR validation. Master is validated and published by publish-pages.yml after CI.
 on:
-  push:
-    branches: [master]
   pull_request:
     branches: [master]
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   # The docs site uses i18n, nav groups, wiki-links and components together,
   # so building it with this checkout's binary is a broad end-to-end check.
   docs:
     name: Docs site (--strict)
+    # The release script selects a tag that only exists after the PR merges.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/v')
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           # Full history, so [last_updated] dates are right (a shallow clone fails --strict)
           fetch-depth: 0
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+      - uses: ./.github/actions/docs-binary
 
       - name: Build docs site
-        run: cargo run --quiet -- build --strict --path docs --out "$RUNNER_TEMP/docs-site"
+        run: docanvil build --strict --path docs --out "$RUNNER_TEMP/docs-site"
 
       - name: Lint docs site
-        run: cargo run --quiet -- doctor --strict --path docs
+        run: docanvil doctor --strict --path docs

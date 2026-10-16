@@ -186,6 +186,9 @@ git checkout -b "release/v$NEW_VERSION"
 echo "Updating Cargo.toml..."
 sed -i '' -E "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
 
+echo "Updating docs/docanvil.toml..."
+sed -i '' -E "s/^current = \".*\"/current = \"v$NEW_VERSION\"/" docs/docanvil.toml
+
 ############################################
 # Ensure lockfile is up to date
 ############################################
@@ -209,7 +212,7 @@ mv "$CHANGELOG.tmp" "$CHANGELOG"
 # Stage and commit version changes
 ############################################
 
-git add Cargo.toml "$CHANGELOG"
+git add Cargo.toml docs/docanvil.toml "$CHANGELOG"
 
 if [ -f Cargo.lock ]; then
   git add Cargo.lock

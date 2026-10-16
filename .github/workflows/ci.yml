@@ -1,14 +1,10 @@
 name: CI
 
-# Docs-only changes (the docs site, or root-level Markdown like README.md and
-# ROADMAP.md) skip this workflow; docs.yml still builds the docs site.
-# `*.md` only matches the repo root, since `*` doesn't cross `/`.
+# Every master push completes CI before Pages starts. Docs-only pushes skip
+# compilation and testing, retaining the existing master binary for reuse.
 on:
   push:
     branches: [master]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
   pull_request:
     branches: [master]
     paths-ignore:
@@ -16,8 +12,35 @@ on:
       - '*.md'
 
 jobs:
+  changes:
+    name: Check application changes
+    runs-on: ubuntu-latest
+    outputs:
+      application: ${{ steps.changes.outputs.application }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide whether to build
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          application=true
+          if [[ "$EVENT" == push && "$BEFORE" != 0000000000000000000000000000000000000000 ]]; then
+            changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+            application_files=$(printf '%s\n' "$changed" | rg -v '^(docs/|[^/]+\.md$)' || true)
+            if [[ -z "$application_files" ]]; then
+              application=false
+            fi
+          fi
+          echo "application=$application" >> "$GITHUB_OUTPUT"
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -177,6 +200,8 @@ jobs:
 
   build:
     name: Build & Test (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -200,3 +225,43 @@ jobs:
 
       - name: Test
         run: cargo test
+
+      - name: Fingerprint master binary
+        if: github.event_name == 'push' && runner.os == 'Linux'
+        id: docs-binary
+        run: echo "key=$(bash bin/docs-binary-key.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Keep master binary for docs
+        if: github.event_name == 'push' && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-docanvil-${{ steps.docs-binary.outputs.key }}
+          path: target/debug/docanvil
+          retention-days: 90
+
+  cleanup-docs-binaries:
+    name: Keep only the newest master docs binary
+    needs: [lint, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    concurrency:
+      group: master-docs-binary-cleanup
+      cancel-in-progress: false
+    steps:
+      - name: Delete older master docs binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Fetch every page before deleting, so pagination cannot skip entries.
+          # Preserve the newest upload even if master runs finish out of order.
+          artifacts=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100")
+          old_ids=$(jq -r '
+            [.[].artifacts[] | select(.name | startswith("master-docanvil-"))]
+            | sort_by(.id) | reverse | .[1:][] | .id
+          ' <<< "$artifacts")
+          while read -r artifact_id; do
+            [ -n "$artifact_id" ] || continue
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id"
+          done <<< "$old_ids"

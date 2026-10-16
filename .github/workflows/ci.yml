@@ -95,14 +95,12 @@ jobs:
           echo "$NOTES"
 
   # Extra release targets (musl, ARM, Intel Mac) only build at release time.
-  # Build them on release PRs, or any PR labelled `release-build`, so a broken
-  # target is caught before tagging. Add the label, then push a commit.
+  # Build them on release PRs so a broken target is caught before tagging.
   release-build:
     name: Release build
     if: >-
       github.event_name == 'pull_request' &&
-      (startsWith(github.head_ref, 'release/v') ||
-       contains(github.event.pull_request.labels.*.name, 'release-build'))
+      startsWith(github.head_ref, 'release/v')
     uses: ./.github/workflows/build-targets.yml
     with:
       ref: ${{ startsWith(github.head_ref, 'release/v') && github.head_ref || 'v0.0.0-ci' }}
@@ -113,8 +111,7 @@ jobs:
     name: Installer smoke (${{ matrix.os }})
     if: >-
       github.event_name == 'pull_request' &&
-      (startsWith(github.head_ref, 'release/v') ||
-       contains(github.event.pull_request.labels.*.name, 'release-build'))
+      startsWith(github.head_ref, 'release/v')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

@@ -1,23 +1,47 @@
 name: CI
 
-# Docs-only changes (the docs site, or root-level Markdown like README.md and
-# ROADMAP.md) skip this workflow; docs.yml still builds the docs site.
-# `*.md` only matches the repo root, since `*` doesn't cross `/`.
+# Every master push completes CI before Pages starts. Docs-only pushes skip
+# compilation and testing, retaining the existing master binary for reuse.
 on:
   push:
     branches: [master]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
   pull_request:
     branches: [master]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
 
 jobs:
+  changes:
+    name: Check application changes
+    runs-on: ubuntu-latest
+    outputs:
+      application: ${{ steps.changes.outputs.application }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Decide whether to build
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          application=true
+          if [[ "$EVENT" == pull_request ]]; then
+            BEFORE="$BASE"
+          fi
+          if [[ -n "$BEFORE" && "$BEFORE" != 0000000000000000000000000000000000000000 ]]; then
+            changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+            application_files=$(printf '%s\n' "$changed" | awk 'NF && index($0, "docs/") != 1 && !(index($0, "/") == 0 && $0 ~ /[.]md$/)')
+            if [[ -z "$application_files" ]]; then
+              application=false
+            fi
+          fi
+          echo "application=$application" >> "$GITHUB_OUTPUT"
+
   lint:
     name: Lint
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,14 +95,12 @@ jobs:
           echo "$NOTES"
 
   # Extra release targets (musl, ARM, Intel Mac) only build at release time.
-  # Build them on release PRs, or any PR labelled `release-build`, so a broken
-  # target is caught before tagging. Add the label, then push a commit.
+  # Build them on release PRs so a broken target is caught before tagging.
   release-build:
     name: Release build
     if: >-
       github.event_name == 'pull_request' &&
-      (startsWith(github.head_ref, 'release/v') ||
-       contains(github.event.pull_request.labels.*.name, 'release-build'))
+      startsWith(github.head_ref, 'release/v')
     uses: ./.github/workflows/build-targets.yml
     with:
       ref: ${{ startsWith(github.head_ref, 'release/v') && github.head_ref || 'v0.0.0-ci' }}
@@ -89,8 +111,7 @@ jobs:
     name: Installer smoke (${{ matrix.os }})
     if: >-
       github.event_name == 'pull_request' &&
-      (startsWith(github.head_ref, 'release/v') ||
-       contains(github.event.pull_request.labels.*.name, 'release-build'))
+      startsWith(github.head_ref, 'release/v')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -175,12 +196,11 @@ jobs:
           if ($kind -ne 'ExpandString') { throw "user PATH type changed to $kind" }
           if (($raw -split ';') -notcontains $dir) { throw "user PATH is missing $dir" }
 
-  build:
-    name: Build & Test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+  build-linux:
+    name: Build & Test (ubuntu-latest)
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -200,3 +220,121 @@ jobs:
 
       - name: Test
         run: cargo test
+
+      - name: Keep PR binary for docs
+        if: github.event_name == 'pull_request' && runner.os == 'Linux' && !startsWith(github.head_ref, 'release/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-docanvil
+          path: target/debug/docanvil
+          retention-days: 1
+
+      - name: Fingerprint master binary
+        if: github.event_name == 'push' && runner.os == 'Linux'
+        id: docs-binary
+        run: echo "key=$(bash bin/docs-binary-key.sh)" >> "$GITHUB_OUTPUT"
+
+      - name: Keep master binary for docs
+        if: github.event_name == 'push' && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: master-docanvil-${{ steps.docs-binary.outputs.key }}
+          path: target/debug/docanvil
+          retention-days: 90
+
+  build:
+    name: Build & Test (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: cargo build
+
+      - name: Test
+        run: cargo test
+
+  docs:
+    name: Docs site (--strict)
+    needs: [changes, build-linux]
+    # Release PRs select a tag which is only created after merging.
+    # Docs-only PRs skip compilation and can reuse the master binary.
+    if: >-
+      !cancelled() && github.event_name == 'pull_request' &&
+      !startsWith(github.head_ref, 'release/v') &&
+      needs.changes.result == 'success' &&
+      (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download this PR's tested binary
+        if: needs.build-linux.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-docanvil
+          path: ${{ runner.temp }}/docs-binary
+
+      - name: Enable PR binary
+        if: needs.build-linux.result == 'success'
+        run: |
+          chmod +x "$RUNNER_TEMP/docs-binary/docanvil"
+          echo "$RUNNER_TEMP/docs-binary" >> "$GITHUB_PATH"
+
+      - name: Obtain binary for docs-only PR
+        if: needs.build-linux.result == 'skipped'
+        uses: ./.github/actions/docs-binary
+
+      - name: Build docs site
+        run: docanvil build --strict --path docs --out "$RUNNER_TEMP/docs-site"
+
+      - name: Lint docs site
+        run: docanvil doctor --strict --path docs
+
+  cleanup-docs-binaries:
+    name: Keep only the newest master docs binary
+    needs: [lint, build-linux, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    concurrency:
+      group: master-docs-binary-cleanup
+      cancel-in-progress: false
+    steps:
+      - name: Delete older master docs binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Fetch every page before deleting, so pagination cannot skip entries.
+          # Preserve the newest upload even if master runs finish out of order.
+          artifacts=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100")
+          old_ids=$(jq -r '
+            [.[].artifacts[] | select(.name | startswith("master-docanvil-"))]
+            | sort_by(.id) | reverse | .[1:][] | .id
+          ' <<< "$artifacts")
+          while read -r artifact_id; do
+            [ -n "$artifact_id" ] || continue
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id"
+          done <<< "$old_ids"

@@ -2569,3 +2569,33 @@ fn test_section_includes_render_and_validate_in_build_and_doctor() {
             .any(|d| d.check == "include-invalid" && d.message.contains("missing"))
     );
 }
+
+#[test]
+fn test_code_group_inferred_languages_have_readable_labels() {
+    let dir = create_project(
+        "[project]\nname = \"T\"\n[build]\nsite_url = \"https://example.com\"\n",
+        &[(
+            "index.md",
+            "# Home\n\n::::code-group\n```file=\"/examples/server.rs\"\n```\n```file=\"/examples/client.py\"\n```\n```js file=\"/examples/server.rs\"\n```\n```file=\"/examples/notes.unknownzzz\"\n```\n::::\n",
+        )],
+    );
+    fs::create_dir(dir.path().join("examples")).unwrap();
+    for (name, source) in [
+        ("server.rs", "fn main() {}"),
+        ("client.py", "print(1)"),
+        ("notes.unknownzzz", "plain"),
+    ] {
+        fs::write(dir.path().join("examples").join(name), source).unwrap();
+    }
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "index.html");
+    for (index, label) in [(0, "rust"), (1, "python"), (2, "js"), (3, "text")] {
+        assert!(
+            html.contains(&format!("data-tab=\"{index}\">{label}</button>")),
+            "missing label {label}"
+        );
+    }
+    assert!(html.contains("data-language=\"rust\""));
+    assert!(html.contains("data-language=\"python\""));
+    assert!(html.contains("data-language=\"js\""));
+}

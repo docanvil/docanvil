@@ -249,7 +249,7 @@ mod tests {
         assert!(out.problems.is_empty(), "{:?}", out.problems);
         assert!(out.dependencies.is_empty());
         assert!(
-            out.source.starts_with("```rs docanvil ranges=2-3"),
+            out.source.starts_with("```rust docanvil ranges=2-3"),
             "{}",
             out.source
         );

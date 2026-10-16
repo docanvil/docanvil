@@ -39,7 +39,7 @@ en = "English"
 fr = "Français"
 
 [version]
-current = "v1.2.4"
+current = "v1.2.5"
 enabled = ["master"]
 
 [version.git]

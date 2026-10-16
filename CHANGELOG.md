@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Doctor’s `include-inline` warning now explains that includes inside blockquotes are unsupported and suggests moving the include outside the quote or putting the quote in the included fragment (#63).
 - Code groups now use readable inferred language tokens such as `rust` and `python` instead of file extensions such as `rs` and `py` for file-sourced blocks without an explicit language. Explicit fence languages and syntax selection are preserved (#61).
 - Doctor’s `long-paragraph` check now counts tight bulleted and numbered list items separately, while still reporting long individual items and their wrapped continuation text (#86).
 - Generated heading IDs now use decoded HTML entity text, including headings rendered by template components (#53). For example, `Fish & Chips` now gets `fish-chips` instead of `fish-amp-chips`. Existing deep links to affected generated anchors must be updated; use an explicit `{#id}` to preserve an old anchor.

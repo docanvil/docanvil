@@ -282,12 +282,18 @@ fn check_last_updated(source: &str, source_path: &Path, diags: &mut Vec<Diagnost
 }
 
 fn check_inline_includes(source: &str, source_path: &Path, diags: &mut Vec<Diagnostic>) {
+    let lines: Vec<&str> = source.lines().collect();
     for line in includes::inline_include_lines(source) {
+        let message = if lines[line - 1].trim_start().starts_with('>') {
+            ":::include can't go inside a blockquote — move it outside the quote, or put the quote inside the included fragment"
+        } else {
+            ":::include needs a line of its own — inside other text it's shown as written, not included"
+        };
         diags.push(Diagnostic {
             check: "include-inline",
             category: "content",
             severity: Severity::Warning,
-            message: ":::include needs a line of its own — inside other text it's shown as written, not included".to_string(),
+            message: message.to_string(),
             file: Some(source_path.to_path_buf()),
             line: Some(line),
             fix: None,
@@ -636,6 +642,37 @@ mod tests {
             found(&diags, "include-inline"),
             vec![(dir.path().join("docs/index.md"), Some(3))]
         );
+    }
+
+    #[test]
+    fn blockquote_include_warning_explains_placement_and_remedy() {
+        let source = "# Home\n\n> :::include{file=\"_a.md\"}\n  >> :::include{file=\"_a.md\"}\nSee :::include{file=\"_a.md\"} here.\n";
+        let path = Path::new("docs/index.md");
+        let mut diags = Vec::new();
+        check_inline_includes(source, path, &mut diags);
+        assert_eq!(diags.len(), 3);
+        for (diag, line) in diags[..2].iter().zip([3, 4]) {
+            assert_eq!(diag.check, "include-inline");
+            assert_eq!(diag.severity, Severity::Warning);
+            assert_eq!(diag.line, Some(line));
+            assert_eq!(diag.file.as_deref(), Some(path));
+            assert!(diag.message.contains("can't go inside a blockquote"));
+            assert!(diag.message.contains("move it outside the quote"));
+            assert!(
+                diag.message
+                    .contains("put the quote inside the included fragment")
+            );
+            assert!(!diag.message.contains("line of its own"));
+        }
+        assert!(diags[2].message.contains("line of its own"));
+    }
+
+    #[test]
+    fn blockquote_include_examples_in_code_are_not_warned() {
+        let source = "`> :::include{file=\"_a.md\"}`\n\n```markdown\n> :::include{file=\"_a.md\"}\n```\n\n:::include{file=\"_a.md\"}\n";
+        let mut diags = Vec::new();
+        check_inline_includes(source, Path::new("docs/index.md"), &mut diags);
+        assert!(diags.is_empty());
     }
 
     #[test]

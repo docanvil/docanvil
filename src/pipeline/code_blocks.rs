@@ -199,7 +199,13 @@ fn render_block(
     {
         return match meta {
             None => original.to_string(),
-            Some(_) => wrap("", body),
+            Some(_) => {
+                let mut block = wrap("", body);
+                if original.ends_with('\n') {
+                    block.push('\n');
+                }
+                block
+            }
         };
     }
 
@@ -507,6 +513,35 @@ mod tests {
                 false
             ),
             "<pre style=\"background-color:#2b303b;\">\nx</pre>"
+        );
+    }
+
+    #[test]
+    fn stripping_foreign_meta_preserves_trailing_newlines_and_surrounding_html() {
+        for block in [
+            "<pre><code class=\"language-js\" data-meta=\"{1,3}\">x\n</code></pre>",
+            "<pre style=\"background-color:#2b303b;\" data-language=\"rust\" data-meta=\"ignore\">\n<span>x\n</span></pre>",
+        ] {
+            for separator in ["", "\n", "\n\n"] {
+                let input = format!("<p>Before</p>\n{block}{separator}<p>After</p>\n");
+                let expected = input
+                    .replace(" data-meta=\"{1,3}\"", "")
+                    .replace(" data-meta=\"ignore\"", "");
+                assert_eq!(process(&input, false), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn foreign_meta_preserves_real_highlighter_output_newline() {
+        let highlighter = SyntaxHighlighter::new("base16-ocean.dark");
+        let input =
+            "<pre><code class=\"language-rust\" data-meta=\"ignore\">fn main() {}\n</code></pre>\n";
+        let highlighted = highlight_code_blocks(input, &highlighter);
+        assert!(highlighted.contains(" data-meta=\"ignore\""));
+        assert_eq!(
+            process(&highlighted, false),
+            highlighted.replace(" data-meta=\"ignore\"", "")
         );
     }
 

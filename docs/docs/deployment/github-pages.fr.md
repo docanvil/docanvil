@@ -7,7 +7,7 @@
 ---
 # Déploiement sur GitHub Pages
 
-Ce guide met en place un workflow GitHub Actions qui compile votre documentation DocAnvil et la publie sur GitHub Pages à chaque push sur `main`. C'est la configuration utilisée par cette documentation.
+Ce guide met en place un workflow GitHub Actions qui compile votre documentation DocAnvil et la publie sur GitHub Pages à chaque push sur `main`. L'exemple utilise le binaire de la dernière version stable de DocAnvil, sans nécessiter de toolchain Rust.
 
 ## Prérequis
 

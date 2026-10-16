@@ -5,16 +5,10 @@ use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::{SyntaxDefinition, SyntaxSet};
 
-/// Holds preloaded syntax definitions and themes for reuse across pages.
-pub struct SyntaxHighlighter {
-    syntax_set: SyntaxSet,
-    theme_set: ThemeSet,
-    theme_name: String,
-}
-
-impl SyntaxHighlighter {
-    /// Create a new highlighter. Loads bundled syntaxes and themes once.
-    pub fn new(theme_name: &str) -> Self {
+/// The process-wide syntax catalogue used by highlighting and file inference.
+/// Include bundled additions here so both paths resolve tokens identically.
+pub(crate) fn syntax_set() -> &'static SyntaxSet {
+    static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(|| {
         let mut builder = SyntaxSet::load_defaults_newlines().into_builder();
         builder.add(
             SyntaxDefinition::load_from_str(
@@ -24,8 +18,23 @@ impl SyntaxHighlighter {
             )
             .expect("bundled TOML syntax is valid"),
         );
+        builder.build()
+    });
+    &SYNTAXES
+}
+
+/// Holds preloaded syntax definitions and themes for reuse across pages.
+pub struct SyntaxHighlighter {
+    syntax_set: &'static SyntaxSet,
+    theme_set: ThemeSet,
+    theme_name: String,
+}
+
+impl SyntaxHighlighter {
+    /// Create a new highlighter. Loads bundled syntaxes and themes once.
+    pub fn new(theme_name: &str) -> Self {
         Self {
-            syntax_set: builder.build(),
+            syntax_set: syntax_set(),
             theme_set: ThemeSet::load_defaults(),
             theme_name: theme_name.to_string(),
         }
@@ -90,7 +99,7 @@ pub fn highlight_code_blocks(html: &str, highlighter: &SyntaxHighlighter) -> Str
                 return with_meta(highlighted, lang, caps.get(2).map(|m| m.as_str()));
             }
 
-            match highlighted_html_for_string(&code, &highlighter.syntax_set, syntax, theme) {
+            match highlighted_html_for_string(&code, highlighter.syntax_set, syntax, theme) {
                 Ok(highlighted) => with_meta(highlighted, lang, caps.get(2).map(|m| m.as_str())),
                 Err(_) => caps[0].to_string(),
             }
@@ -107,7 +116,7 @@ fn highlight_diff(
 ) -> Result<String, syntect::Error> {
     use syntect::easy::HighlightLines;
     use syntect::html::{IncludeBackground, styled_line_to_highlighted_html};
-    let base = highlighted_html_for_string("", &highlighter.syntax_set, syntax, theme)?;
+    let base = highlighted_html_for_string("", highlighter.syntax_set, syntax, theme)?;
     let mut out = base[..base.find('>').unwrap() + 1].to_string();
     if let Some(fg) = theme.settings.foreground {
         out = out.replace(
@@ -140,12 +149,12 @@ fn highlight_diff(
         };
         out.push_str(marker);
         let spans = if marker == "-" {
-            old.highlight_line(source, &highlighter.syntax_set)?
+            old.highlight_line(source, highlighter.syntax_set)?
         } else {
             if marker != "+" {
-                old.highlight_line(source, &highlighter.syntax_set)?;
+                old.highlight_line(source, highlighter.syntax_set)?;
             }
-            new.highlight_line(source, &highlighter.syntax_set)?
+            new.highlight_line(source, highlighter.syntax_set)?
         };
         out.push_str(&styled_line_to_highlighted_html(
             &spans,
@@ -197,6 +206,15 @@ mod tests {
 
     fn highlighter() -> SyntaxHighlighter {
         SyntaxHighlighter::new("base16-ocean.dark")
+    }
+
+    #[test]
+    fn highlighters_share_the_process_syntax_catalogue() {
+        let first = SyntaxHighlighter::new("base16-ocean.dark");
+        let second = SyntaxHighlighter::new("InspiredGitHub");
+        assert!(std::ptr::eq(first.syntax_set, second.syntax_set));
+        assert!(std::ptr::eq(first.syntax_set, syntax_set()));
+        assert!(first.syntax_set.find_syntax_by_token("toml").is_some());
     }
 
     #[test]
@@ -255,7 +273,7 @@ mod tests {
             "# still literal\n",
             "last'''\n",
         ] {
-            let spans = lines.highlight_line(line, &h.syntax_set).unwrap();
+            let spans = lines.highlight_line(line, h.syntax_set).unwrap();
             assert_eq!(
                 spans.iter().map(|(_, text)| *text).collect::<String>(),
                 line
@@ -284,7 +302,7 @@ mod tests {
             ("name = \"DocAnvil\"\n", "DocAnvil"),
             ("# config comment\n", "config comment"),
         ] {
-            let spans = lines.highlight_line(line, &h.syntax_set).unwrap();
+            let spans = lines.highlight_line(line, h.syntax_set).unwrap();
             assert!(
                 spans.iter().any(|(style, text)| text.contains(token)
                     && Some(style.foreground) != theme.settings.foreground),

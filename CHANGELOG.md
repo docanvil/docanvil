@@ -6,6 +6,7 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Fixed
 
+- Syntax highlighting and file-language inference now share one process-wide syntax catalogue, avoiding duplicate loads of the default syntaxes. Inference also recognises the bundled TOML syntax, so `.toml` file blocks no longer need an explicit language (#65).
 - Code blocks with foreign fence metadata now preserve the newline after `</pre>` when stripping that metadata, keeping surrounding output unchanged (#64).
 - Doctor’s `include-inline` warning now explains that includes inside blockquotes are unsupported and suggests moving the include outside the quote or putting the quote in the included fragment (#63).
 - Code groups now use readable inferred language tokens such as `rust` and `python` instead of file extensions such as `rs` and `py` for file-sourced blocks without an explicit language. Explicit fence languages and syntax selection are preserved (#61).

@@ -2599,3 +2599,21 @@ fn test_code_group_inferred_languages_have_readable_labels() {
     assert!(html.contains("data-language=\"python\""));
     assert!(html.contains("data-language=\"js\""));
 }
+
+#[test]
+fn test_toml_file_without_explicit_language_uses_shared_syntax() {
+    let dir = create_project(
+        "[project]\nname = \"T\"\n[build]\nsite_url = \"https://example.com\"\n",
+        &[("index.md", "# Home\n\n```file=\"/sample.toml\"\n```\n")],
+    );
+    fs::write(
+        dir.path().join("sample.toml"),
+        "[project]\nname = \"Example\"\n",
+    )
+    .unwrap();
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("data-language=\"toml\""));
+    assert!(html.contains("<span style=\"color:"));
+    assert!(!html.contains("<div class=\"include-error\">"));
+}

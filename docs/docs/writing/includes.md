@@ -24,7 +24,9 @@ docs/
 
 ## Including a fragment
 
-Put `:::include` on a line of its own:
+Put `:::include` on a line of its own. Includes inside blockquotes (`> :::include{…}`) are not supported: move the include outside the quote, or put the blockquote inside the included fragment.
+
+For example:
 
 ```markdown
 :::include{file="_shared/install.md"}

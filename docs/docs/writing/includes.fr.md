@@ -25,7 +25,9 @@ docs/
 
 ## Inclure un fragment
 
-Placez `:::include` seul sur sa ligne :
+Placez `:::include` seul sur sa ligne. Les inclusions dans les citations (`> :::include{…}`) ne sont pas prises en charge : déplacez l’inclusion hors de la citation, ou placez la citation dans le fragment inclus.
+
+Par exemple :
 
 ```markdown
 :::include{file="_shared/install.md"}

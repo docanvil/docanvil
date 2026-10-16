@@ -199,14 +199,11 @@ jobs:
           if ($kind -ne 'ExpandString') { throw "user PATH type changed to $kind" }
           if (($raw -split ';') -notcontains $dir) { throw "user PATH is missing $dir" }
 
-  build:
-    name: Build & Test (${{ matrix.os }})
+  build-linux:
+    name: Build & Test (ubuntu-latest)
     needs: changes
     if: needs.changes.outputs.application == 'true'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -248,16 +245,44 @@ jobs:
           path: target/debug/docanvil
           retention-days: 90
 
+  build:
+    name: Build & Test (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.application == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build
+        run: cargo build
+
+      - name: Test
+        run: cargo test
+
   docs:
     name: Docs site (--strict)
-    needs: [changes, build]
+    needs: [changes, build-linux]
     # Release PRs select a tag which is only created after merging.
-    # Docs-only PRs skip the build matrix and can reuse the master binary.
+    # Docs-only PRs skip compilation and can reuse the master binary.
     if: >-
       !cancelled() && github.event_name == 'pull_request' &&
       !startsWith(github.head_ref, 'release/v') &&
       needs.changes.result == 'success' &&
-      (needs.build.result == 'success' || needs.build.result == 'skipped')
+      (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -268,20 +293,20 @@ jobs:
           fetch-depth: 0
 
       - name: Download this PR's tested binary
-        if: needs.build.result == 'success'
+        if: needs.build-linux.result == 'success'
         uses: actions/download-artifact@v4
         with:
           name: pr-docanvil
           path: ${{ runner.temp }}/docs-binary
 
       - name: Enable PR binary
-        if: needs.build.result == 'success'
+        if: needs.build-linux.result == 'success'
         run: |
           chmod +x "$RUNNER_TEMP/docs-binary/docanvil"
           echo "$RUNNER_TEMP/docs-binary" >> "$GITHUB_PATH"
 
       - name: Obtain binary for docs-only PR
-        if: needs.build.result == 'skipped'
+        if: needs.build-linux.result == 'skipped'
         uses: ./.github/actions/docs-binary
 
       - name: Build docs site
@@ -292,7 +317,7 @@ jobs:
 
   cleanup-docs-binaries:
     name: Keep only the newest master docs binary
-    needs: [lint, build]
+    needs: [lint, build-linux, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:

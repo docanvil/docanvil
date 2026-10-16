@@ -31,7 +31,7 @@ jobs:
           fi
           if [[ -n "$BEFORE" && "$BEFORE" != 0000000000000000000000000000000000000000 ]]; then
             changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
-            application_files=$(printf '%s\n' "$changed" | rg -v '^(docs/|[^/]+\.md$)' || true)
+            application_files=$(printf '%s\n' "$changed" | awk 'NF && $0 !~ /^(docs\/|[^/]+\.md$)/')
             if [[ -z "$application_files" ]]; then
               application=false
             fi

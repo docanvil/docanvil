@@ -662,10 +662,9 @@ fn longer_marker(marker: &str, content: &[String]) -> String {
 
 static SYNTAXES: LazyLock<SyntaxSet> = LazyLock::new(SyntaxSet::load_defaults_newlines);
 
-/// Language token for a file block without one: the extension (or the bare
-/// file name, e.g. `Makefile`) when syntect knows it, otherwise `text`.
-/// `syntax.rs` looks tokens up with `find_syntax_by_token`, which checks
-/// extensions first, so the same syntax is picked.
+/// Prefer a readable language token for inferred file blocks (also used as
+/// code-group labels). Keep the extension when the syntax name is not a single
+/// token or would select a different syntax in the highlighter.
 fn language_for(path: &Path) -> String {
     if matches!(
         path.extension().and_then(|s| s.to_str()),
@@ -673,12 +672,21 @@ fn language_for(path: &Path) -> String {
     ) {
         return "diff".to_string();
     }
-    [path.extension(), path.file_name()]
-        .into_iter()
-        .flatten()
-        .map(|s| s.to_string_lossy().into_owned())
-        .find(|token| SYNTAXES.find_syntax_by_extension(token).is_some())
-        .unwrap_or_else(|| "text".to_string())
+    for token in [path.extension(), path.file_name()].into_iter().flatten() {
+        let token = token.to_string_lossy();
+        if let Some(syntax) = SYNTAXES.find_syntax_by_extension(&token) {
+            let name = syntax.name.to_lowercase();
+            if !name.chars().any(char::is_whitespace)
+                && SYNTAXES
+                    .find_syntax_by_token(&name)
+                    .is_some_and(|found| std::ptr::eq(found, syntax))
+            {
+                return name;
+            }
+            return token.into_owned();
+        }
+    }
+    "text".to_string()
 }
 
 fn problem(
@@ -1785,7 +1793,7 @@ mod tests {
         ]);
         let source = run(&dir, "docs/page.md", None).source;
         assert!(
-            source.contains("```py docanvil file=x.py\nprint(1)\n```"),
+            source.contains("```python docanvil file=x.py\nprint(1)\n```"),
             "{source}"
         );
         assert!(
@@ -1802,9 +1810,34 @@ mod tests {
     fn language_for_known_and_unknown_files() {
         assert_eq!(language_for(Path::new("changes.diff")), "diff");
         assert_eq!(language_for(Path::new("changes.patch")), "diff");
-        assert_eq!(language_for(Path::new("a/b.rs")), "rs");
+        assert_eq!(language_for(Path::new("a/b.rs")), "rust");
         assert_eq!(language_for(Path::new("x.unknownzzz")), "text");
         assert_eq!(language_for(Path::new("README")), "text");
+    }
+
+    #[test]
+    fn inferred_language_tokens_keep_the_original_syntax() {
+        for syntax in SYNTAXES.syntaxes() {
+            for extension in &syntax.file_extensions {
+                let path = PathBuf::from(format!("example.{extension}"));
+                let token = language_for(&path);
+                if matches!(extension.as_str(), "diff" | "patch") {
+                    continue;
+                }
+                let original = SYNTAXES
+                    .find_syntax_by_extension(path.extension().unwrap().to_str().unwrap())
+                    .or_else(|| {
+                        SYNTAXES
+                            .find_syntax_by_extension(path.file_name().unwrap().to_str().unwrap())
+                    })
+                    .unwrap_or_else(|| SYNTAXES.find_syntax_plain_text());
+                let inferred = SYNTAXES
+                    .find_syntax_by_token(&token)
+                    .unwrap_or_else(|| SYNTAXES.find_syntax_plain_text());
+                assert!(std::ptr::eq(original, inferred), "{extension}: {token}");
+                assert!(!token.chars().any(char::is_whitespace));
+            }
+        }
     }
 
     #[test]

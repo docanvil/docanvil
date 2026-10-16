@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-10-16
+
 ### Fixed
 
 - Syntax highlighting and file-language inference now share one process-wide syntax catalogue, avoiding duplicate loads of the default syntaxes. Inference also recognises the bundled TOML syntax, so `.toml` file blocks no longer need an explicit language (#65).

@@ -15,7 +15,7 @@ jobs:
     outputs:
       application: ${{ steps.changes.outputs.application }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Decide whether to build
@@ -44,13 +44,13 @@ jobs:
     if: needs.changes.outputs.application == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -75,7 +75,7 @@ jobs:
     if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'release/v')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check changelog has entries for this release
         env:
@@ -118,7 +118,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: install.sh (fresh, then early exit)
         if: runner.os != 'Windows'
@@ -202,11 +202,11 @@ jobs:
     if: needs.changes.outputs.application == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -223,7 +223,7 @@ jobs:
 
       - name: Keep PR binary for docs
         if: github.event_name == 'pull_request' && runner.os == 'Linux' && !startsWith(github.head_ref, 'release/v')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pr-docanvil
           path: target/debug/docanvil
@@ -236,7 +236,7 @@ jobs:
 
       - name: Keep master binary for docs
         if: github.event_name == 'push' && runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: master-docanvil-${{ steps.docs-binary.outputs.key }}
           path: target/debug/docanvil
@@ -251,11 +251,11 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -285,13 +285,13 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download this PR's tested binary
         if: needs.build-linux.result == 'success'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: pr-docanvil
           path: ${{ runner.temp }}/docs-binary

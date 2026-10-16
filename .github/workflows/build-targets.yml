@@ -17,12 +17,12 @@ jobs:
     name: Record source tree
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Write tree hash
         run: git rev-parse 'HEAD^{tree}' > source-tree.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: source-tree
           path: source-tree.txt
@@ -62,7 +62,7 @@ jobs:
             bin: docanvil.exe
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -72,7 +72,7 @@ jobs:
         if: matrix.apt
         run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -119,7 +119,7 @@ jobs:
         run: target/${{ matrix.target }}/release/${{ matrix.bin }} --version
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: docanvil-${{ matrix.target }}
           path: ${{ env.ARCHIVE }}

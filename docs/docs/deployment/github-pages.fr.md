@@ -62,7 +62,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Installe la dernière version de DocAnvil (somme de contrôle vérifiée)
       - name: Install DocAnvil
@@ -71,7 +71,7 @@ jobs:
       - name: Build docs
         run: docanvil build --strict
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -84,7 +84,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 ```
 
 Quelques points à noter :
@@ -103,7 +103,7 @@ Le workflow ci-dessus suppose que `docanvil.toml` se trouve à la racine du dép
       - name: Build docs
         run: docanvil build --strict --path docs
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs/dist
 ```
@@ -125,7 +125,7 @@ on:
 Par défaut, `actions/checkout` ne récupère que le dernier commit. Si vous avez activé `[last_updated]` dans votre [[guides/configuration|configuration]], toutes les pages afficheraient alors la même date : DocAnvil émet un avertissement et `--strict` fait échouer le build. Récupérez plutôt tout l'historique :
 
 ```yaml
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 ```

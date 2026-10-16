@@ -7,9 +7,6 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
 
 jobs:
   changes:
@@ -26,9 +23,13 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           application=true
-          if [[ "$EVENT" == push && "$BEFORE" != 0000000000000000000000000000000000000000 ]]; then
+          if [[ "$EVENT" == pull_request ]]; then
+            BEFORE="$BASE"
+          fi
+          if [[ -n "$BEFORE" && "$BEFORE" != 0000000000000000000000000000000000000000 ]]; then
             changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
             application_files=$(printf '%s\n' "$changed" | rg -v '^(docs/|[^/]+\.md$)' || true)
             if [[ -z "$application_files" ]]; then
@@ -226,6 +227,14 @@ jobs:
       - name: Test
         run: cargo test
 
+      - name: Keep PR binary for docs
+        if: github.event_name == 'pull_request' && runner.os == 'Linux' && !startsWith(github.head_ref, 'release/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-docanvil
+          path: target/debug/docanvil
+          retention-days: 1
+
       - name: Fingerprint master binary
         if: github.event_name == 'push' && runner.os == 'Linux'
         id: docs-binary
@@ -238,6 +247,48 @@ jobs:
           name: master-docanvil-${{ steps.docs-binary.outputs.key }}
           path: target/debug/docanvil
           retention-days: 90
+
+  docs:
+    name: Docs site (--strict)
+    needs: [changes, build]
+    # Release PRs select a tag which is only created after merging.
+    # Docs-only PRs skip the build matrix and can reuse the master binary.
+    if: >-
+      !cancelled() && github.event_name == 'pull_request' &&
+      !startsWith(github.head_ref, 'release/v') &&
+      needs.changes.result == 'success' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download this PR's tested binary
+        if: needs.build.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-docanvil
+          path: ${{ runner.temp }}/docs-binary
+
+      - name: Enable PR binary
+        if: needs.build.result == 'success'
+        run: |
+          chmod +x "$RUNNER_TEMP/docs-binary/docanvil"
+          echo "$RUNNER_TEMP/docs-binary" >> "$GITHUB_PATH"
+
+      - name: Obtain binary for docs-only PR
+        if: needs.build.result == 'skipped'
+        uses: ./.github/actions/docs-binary
+
+      - name: Build docs site
+        run: docanvil build --strict --path docs --out "$RUNNER_TEMP/docs-site"
+
+      - name: Lint docs site
+        run: docanvil doctor --strict --path docs
 
   cleanup-docs-binaries:
     name: Keep only the newest master docs binary

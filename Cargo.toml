@@ -34,7 +34,7 @@ owo-colors = "4"
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
 dialoguer = "0.12"
 toml_edit = "0.25"
-oxc = { version = "0.114", features = ["minifier", "codegen"] }
+oxc = { version = "0.138", features = ["minifier", "codegen"] }
 tungstenite = "0.30.0"
 base64 = "0.22"
 semver = "1"

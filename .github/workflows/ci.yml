@@ -50,14 +50,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - uses: actions/cache@v6
+      # Keep dependency artifacts only; PRs reuse master caches without saving copies.
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          prefix-key: docanvil-ci-v1
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Check formatting
         run: cargo fmt --check
@@ -206,14 +203,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v6
+      # Keep dependency artifacts only; PRs reuse master caches without saving copies.
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          prefix-key: docanvil-ci-v1
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build
         run: cargo build
@@ -255,14 +249,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: actions/cache@v6
+      # Keep dependency artifacts only; PRs reuse master caches without saving copies.
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          prefix-key: docanvil-ci-v1
+          save-if: ${{ github.ref == 'refs/heads/master' }}
 
       - name: Build
         run: cargo build

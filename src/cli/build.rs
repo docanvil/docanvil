@@ -2138,7 +2138,7 @@ fn minify_js_source(source: &str) -> String {
     let allocator = oxc::allocator::Allocator::default();
     let source_type = oxc::span::SourceType::mjs();
     let ret = oxc::parser::Parser::new(&allocator, source, source_type).parse();
-    if !ret.errors.is_empty() {
+    if !ret.diagnostics.is_empty() {
         return source.to_string();
     }
     let mut program = ret.program;

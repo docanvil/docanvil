@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use crate::components::ComponentRegistry;
 use crate::diagnostics;
 use crate::error::Result;
+use crate::project::PageInfo;
 use crate::project::PageInventory;
 
 use self::includes::IncludeContext;
@@ -31,6 +32,78 @@ pub struct Processed {
     /// Local include candidates to watch, including files not yet created.
     pub watch_dependencies: BTreeSet<PathBuf>,
     pub markdown: String,
+}
+
+/// Shared page rendering entry point for authored and generated sources.
+#[allow(clippy::too_many_arguments)]
+pub fn process_page(
+    source: &str,
+    inventory: &PageInventory,
+    page: &PageInfo,
+    registry: &ComponentRegistry,
+    base_url: &str,
+    highlighter: Option<&SyntaxHighlighter>,
+    line_numbers: bool,
+    project_root: &Path,
+    locale: Option<&str>,
+) -> Result<Processed> {
+    process_page_with_asset_base(
+        source,
+        inventory,
+        page,
+        registry,
+        base_url,
+        highlighter,
+        line_numbers,
+        project_root,
+        locale,
+        base_url,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn process_page_with_asset_base(
+    source: &str,
+    inventory: &PageInventory,
+    page: &PageInfo,
+    registry: &ComponentRegistry,
+    base_url: &str,
+    highlighter: Option<&SyntaxHighlighter>,
+    line_numbers: bool,
+    project_root: &Path,
+    locale: Option<&str>,
+    asset_base_url: &str,
+) -> Result<Processed> {
+    let Some(generated) = inventory.generated_source(page) else {
+        return process_with_asset_base(
+            source,
+            inventory,
+            &page.source_path,
+            registry,
+            base_url,
+            highlighter,
+            line_numbers,
+            project_root,
+            locale,
+            asset_base_url,
+        );
+    };
+    // Specification prose is Markdown, not executable DocAnvil authoring input.
+    // Keep literal includes/directives and omit raw HTML from API descriptions.
+    let html = generated.html.clone();
+    let html = highlighter
+        .map(|h| syntax::highlight_code_blocks(&html, h))
+        .unwrap_or(html);
+    let html = code_blocks::process(&html, line_numbers);
+    let html = wikilinks::resolve(&html, inventory, &page.source_path, base_url, locale);
+    let html = headings::inject_heading_ids(&html);
+    let html = images::rewrite_image_paths(&html, asset_base_url, project_root);
+    Ok(Processed {
+        html,
+        markdown: generated.markdown.clone(),
+        dependencies: generated.dependencies.clone(),
+        watch_dependencies: generated.dependencies.clone(),
+    })
 }
 
 /// Full pipeline: includes → directives + popovers + markdown (via the component

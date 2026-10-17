@@ -27,6 +27,9 @@ pub struct PageInfo {
 /// Ordered collection of all pages in the docs directory.
 #[derive(Debug, Clone, Default)]
 pub struct PageInventory {
+    /// Generated pages retain in-memory content and specification provenance.
+    pub generated: HashMap<String, GeneratedSource>,
+    pub generation_warnings: Vec<crate::openapi::Warning>,
     /// Slug → PageInfo lookup. When i18n is enabled, keys are composite `{locale}:{slug}`.
     pub pages: HashMap<String, PageInfo>,
     /// Pages in directory-walk order (keys matching `pages`).
@@ -40,6 +43,15 @@ pub struct PageInventory {
     pub drafts: HashMap<String, PageInfo>,
     /// How wiki-links to `drafts` render (`[build] draft_links`).
     pub draft_links: DraftLinks,
+}
+
+#[derive(Debug, Clone)]
+pub struct GeneratedSource {
+    pub markdown: String,
+    /// Trusted renderer output; specification prose is rendered safely before
+    /// it is combined with native disclosure and media-selection controls.
+    pub html: String,
+    pub dependencies: std::collections::BTreeSet<PathBuf>,
 }
 
 /// A node in the navigation tree.
@@ -132,6 +144,15 @@ pub fn fragment_files(content_dir: &Path) -> Vec<PathBuf> {
 }
 
 impl PageInventory {
+    pub fn generated_source(&self, page: &PageInfo) -> Option<&GeneratedSource> {
+        let key = page
+            .locale
+            .as_ref()
+            .map(|l| format!("{l}:{}", page.slug))
+            .unwrap_or_else(|| page.slug.clone());
+        self.generated.get(&key)
+    }
+
     /// Scan the content directory and build the page inventory.
     ///
     /// When `enabled_locales` is `Some`, locale suffixes are parsed from filenames
@@ -240,6 +261,8 @@ impl PageInventory {
         }
 
         Ok(Self {
+            generated: HashMap::new(),
+            generation_warnings: Vec::new(),
             pages,
             ordered,
             slug_aliases: HashMap::new(),

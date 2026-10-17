@@ -211,6 +211,27 @@ pub(crate) fn read_sources(
     Ok((sources, front_matters))
 }
 
+/// Assemble authored and generated sources before any consumer plans links/nav.
+pub(crate) fn assemble_sources(
+    inventory: &mut PageInventory,
+    config: &Config,
+    content_dir: &Path,
+    version: Option<&str>,
+    boundary: Option<&Path>,
+) -> Result<(HashMap<String, String>, HashMap<String, FrontMatter>)> {
+    let (mut sources, mut front_matters) = read_sources(inventory)?;
+    crate::openapi::publish::extend(
+        inventory,
+        &mut sources,
+        &mut front_matters,
+        config,
+        content_dir,
+        version,
+        boundary,
+    )?;
+    Ok((sources, front_matters))
+}
+
 /// One version's pages (version `None` without versioning): inventory and front matter.
 pub(crate) type SiteVersion = (
     Option<String>,
@@ -252,7 +273,16 @@ pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<Site
             config.default_locale(),
             version.as_deref(),
         )?;
-        let (_, front_matters) = read_sources(&mut inventory)?;
+        let (_, front_matters) = assemble_sources(
+            &mut inventory,
+            config,
+            &dir,
+            version.as_deref(),
+            source
+                .as_ref()
+                .and_then(|s| s.snapshot.as_ref())
+                .map(GitSnapshot::repository_root),
+        )?;
         exclude_drafts(&mut inventory, &front_matters, config, false);
         sites.push((
             version,
@@ -642,7 +672,14 @@ fn build_site(
 
     // Pre-pass: read all sources and extract front matter.
     // Override page titles and slugs from front matter before nav/search are built.
-    let (sources, front_matters) = read_sources(&mut inventory)?;
+    let (sources, front_matters) = if config.is_versioning_enabled() {
+        read_sources(&mut inventory)?
+    } else {
+        assemble_sources(&mut inventory, config, &content_dir, None, None)?
+    };
+    for warning in &inventory.generation_warnings {
+        diagnostics::warn_openapi(warning);
+    }
 
     // Versioned builds scan each version below and count their drafts there.
     let unversioned_drafts = exclude_drafts(&mut inventory, &front_matters, config, include_drafts);
@@ -779,7 +816,19 @@ fn build_site(
             )?;
 
             // Pre-pass: read all sources and extract front matter for this version.
-            let (ver_sources, ver_front_matters) = read_sources(&mut ver_inventory)?;
+            let (ver_sources, ver_front_matters) = assemble_sources(
+                &mut ver_inventory,
+                config,
+                version_content_dir,
+                Some(version),
+                version_source
+                    .snapshot
+                    .as_ref()
+                    .map(GitSnapshot::repository_root),
+            )?;
+            for warning in &ver_inventory.generation_warnings {
+                diagnostics::warn_openapi(warning);
+            }
 
             drafts_skipped += exclude_drafts(
                 &mut ver_inventory,
@@ -848,10 +897,10 @@ fn build_site(
                         let fm = &ver_front_matters[key];
                         let base_slug = &page.slug;
 
-                        let processed = pipeline::process_with_asset_base(
+                        let processed = pipeline::process_page_with_asset_base(
                             source,
                             &ver_inventory,
-                            &page.source_path,
+                            page,
                             &version_registry,
                             &root_base_url,
                             highlighter.as_ref(),
@@ -1110,10 +1159,10 @@ fn build_site(
                     let fm = &ver_front_matters[slug];
                     let base_slug = &page.slug;
 
-                    let processed = pipeline::process_with_asset_base(
+                    let processed = pipeline::process_page_with_asset_base(
                         source,
                         &ver_inventory,
-                        &page.source_path,
+                        page,
                         &version_registry,
                         &root_base_url,
                         highlighter.as_ref(),
@@ -1350,6 +1399,8 @@ fn build_site(
                 }
             }
             let merged_inv = PageInventory {
+                generated: HashMap::new(),
+                generation_warnings: Vec::new(),
                 pages: merged_pages,
                 ordered: merged_ordered,
                 slug_aliases: HashMap::new(),
@@ -1505,10 +1556,10 @@ fn build_site(
                 let fm = &front_matters[key];
                 let base_slug = &page.slug;
 
-                let processed = pipeline::process(
+                let processed = pipeline::process_page(
                     source,
                     &inventory,
-                    &page.source_path,
+                    page,
                     &registry,
                     &root_base_url,
                     highlighter.as_ref(),
@@ -1720,10 +1771,10 @@ fn build_site(
             let source = &sources[slug];
             let fm = &front_matters[slug];
 
-            let processed = pipeline::process(
+            let processed = pipeline::process_page(
                 source,
                 &inventory,
-                &page.source_path,
+                page,
                 &registry,
                 &base_url,
                 highlighter.as_ref(),
@@ -2036,7 +2087,13 @@ fn prescan_version_pages(
         // Scan without version prefix — we only need slugs, not output paths
         let mut inv =
             PageInventory::scan(version_dir, enabled_locales, config.default_locale(), None)?;
-        let (_, front_matters) = read_sources(&mut inv)?;
+        let (_, front_matters) = assemble_sources(
+            &mut inv,
+            config,
+            version_dir,
+            Some(version),
+            source.snapshot.as_ref().map(GitSnapshot::repository_root),
+        )?;
         exclude_drafts(&mut inv, &front_matters, config, include_drafts);
         let pages = inv
             .pages

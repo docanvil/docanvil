@@ -1,0 +1,6 @@
+Pet:
+  description: A pet
+  content:
+    application/json:
+      schema:
+        $ref: './schemas/pet.json'

@@ -8,7 +8,7 @@ use regex::Regex;
 use serde::Serialize;
 use tera::{Context, Tera};
 
-use crate::cli::build::{exclude_drafts, read_sources};
+use crate::cli::build::{assemble_sources, exclude_drafts};
 use crate::components::ComponentRegistry;
 use crate::config::Config;
 use crate::error::{Error, Result};
@@ -484,7 +484,19 @@ fn prepare_pdf(
         None
     };
 
-    let (sources, front_matters) = read_sources(&mut inventory)?;
+    let (sources, front_matters) = assemble_sources(
+        &mut inventory,
+        config,
+        &content_dir,
+        version,
+        version_source
+            .as_ref()
+            .and_then(|s| s.snapshot.as_ref())
+            .map(crate::git_versions::GitSnapshot::repository_root),
+    )?;
+    for warning in &inventory.generation_warnings {
+        crate::diagnostics::warn_openapi(warning);
+    }
 
     // Drafts never go into the PDF.
     exclude_drafts(&mut inventory, &front_matters, config, false);
@@ -548,10 +560,10 @@ fn prepare_pdf(
             continue;
         };
 
-        let html_body = pipeline::process(
+        let html_body = pipeline::process_page(
             source,
             &inventory,
-            &page.source_path,
+            page,
             &registry,
             "/",
             highlighter.as_ref(),
@@ -960,6 +972,38 @@ custom_css = "theme/print.css"
         }
         let config = Config::load(dir.path()).unwrap();
         (dir, config)
+    }
+
+    #[test]
+    fn pdf_includes_generated_api_chapters_and_scoped_links() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join("docs")).unwrap();
+        std::fs::write(
+            dir.path().join("docanvil.toml"),
+            "[project]\nname = 'API'\n[[openapi]]\nspec = 'openapi.json'\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("docs/index.md"), "# Guide\n[[api/index]]").unwrap();
+        std::fs::write(
+            dir.path().join("docs/openapi.json"),
+            include_str!("../../../tests/fixtures/openapi/petstore.json"),
+        )
+        .unwrap();
+        let config = Config::load(dir.path()).unwrap();
+        let (ctx, _, _) = prepare_pdf(dir.path(), None, None, &config, true).unwrap();
+        assert!(ctx.chapters.iter().any(|c| c.slug == "api/index"));
+        let chapter = ctx
+            .chapters
+            .iter()
+            .find(|c| c.slug == "api/operations/listpets")
+            .unwrap();
+        assert!(chapter.content_html.contains("href=\"#api/schemas/pet\""));
+        assert!(
+            chapter
+                .content_html
+                .contains("id=\"api/operations/listpets--parameters\"")
+        );
+        assert!(ctx.chapters.iter().any(|c| c.slug == "api/schemas/pet"));
     }
 
     #[test]

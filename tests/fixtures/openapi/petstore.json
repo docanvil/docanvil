@@ -1,0 +1,52 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Pet store API",
+    "version": "1.0.0",
+    "description": "A small API for testing **generated reference** alongside authored guides."
+  },
+  "servers": [{"url": "https://api.example.test/v1"}],
+  "security": [{"bearerAuth": []}],
+  "paths": {
+    "/pets": {
+      "get": {
+        "operationId": "listPets",
+        "summary": "List pets",
+        "description": "Returns the pets available for adoption.",
+        "tags": ["Pets"],
+        "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}}],
+        "responses": {
+          "200": {"description": "Available pets", "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/Pet"}}, "example": [{"id": 1, "name": "Milo"}]}}}
+        }
+      },
+      "post": {
+        "operationId": "createPet",
+        "summary": "Create a pet",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}}},
+        "responses": {"201": {"description": "Pet created"}}
+      }
+    },
+    "/pets/{id}": {
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "integer"}}],
+      "get": {
+        "summary": "Get a pet",
+        "security": [],
+        "responses": {"200": {"description": "A pet", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}}}, "404": {"description": "Pet not found"}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer"}},
+    "schemas": {
+      "Pet": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": {"type": "integer", "readOnly": true},
+          "name": {"type": "string"},
+          "friend": {"$ref": "#/components/schemas/Pet"}
+        }
+      }
+    }
+  }
+}

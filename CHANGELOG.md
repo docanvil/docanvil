@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Initial native OpenAPI reference generation through `[[openapi]]`: local JSON/YAML specifications and references, readable operation/schema pages with field constraints, authentication, request/response examples, media-type tabs and collapsed source definitions. Integrates with navigation, search, version/locale URLs, PDF and AI outputs, specification edit links, dependency watching and build/doctor diagnostics. Live requests and full schema validation are deferred.
+
 ## [1.2.5] - 2026-10-16
 
 ### Fixed

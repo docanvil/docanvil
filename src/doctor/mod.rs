@@ -165,7 +165,20 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
         }
     }
     let inventory = if let Some(sites) = &api_sites {
-        sites.first().map(|(_, inventory, _, _)| inventory.clone())
+        // Configuration/nav and readability checks below use the working
+        // project root. Tag discovery sorts older releases first, so selecting
+        // the first inventory compares today's nav with historical content.
+        let preferred = config
+            .version
+            .git
+            .working_tree
+            .as_deref()
+            .or_else(|| config.current_version());
+        sites
+            .iter()
+            .find(|(version, _, _, _)| version.as_deref() == preferred)
+            .or_else(|| sites.first())
+            .map(|(_, inventory, _, _)| inventory.clone())
     } else if has_content_dir {
         PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None)
             .ok()

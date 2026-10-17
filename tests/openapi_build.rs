@@ -396,3 +396,67 @@ fn schema_presentation_preserves_composition_nullability_and_recursive_links() {
     assert!(html.contains("Write only"));
     assert!(html.contains("href=\"/manual/api/schemas/pet.html\""));
 }
+
+#[test]
+fn doctor_validates_working_navigation_against_working_content_not_oldest_tag() {
+    // The latest released version can remain current while Master has newer
+    // guides and navigation. Historical content must not validate today's nav.
+    let config = format!(
+        "{}\n[version]\nenabled = ['v1', 'master']\ncurrent = 'v1'\n[version.git]\nrefs = {{v1 = 'refs/tags/v1'}}\nworking_tree = 'master'\n",
+        CONFIG.replace("output = 'api'", "output = 'api'\nversions = ['master']")
+    );
+    let dir = create_project(&config, &[("index.md", "# Guide")]);
+    write(dir.path(), "nav.toml", "[[nav]]\npage = 'index'\n");
+    let git = |args: &[&str]| {
+        let output = std::process::Command::new("git")
+            .current_dir(dir.path())
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+    git(&["init", "-q"]);
+    git(&["add", "."]);
+    git(&[
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "commit",
+        "-qm",
+        "Old documentation",
+    ]);
+    git(&["tag", "v1"]);
+    write(
+        dir.path(),
+        "docs/writing/includes.md",
+        "# Includes\n\nReuse shared content in guides.",
+    );
+    write(
+        dir.path(),
+        "docs/writing/components/code-blocks.md",
+        "# Code blocks\n\nShow examples from source files.",
+    );
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    let nav = "[[nav]]\npage = 'index'\n[[nav]]\npage = 'writing/includes'\n[[nav]]\npage = 'writing/components/code-blocks'\n[[nav]]\nautodiscover = 'api'\n";
+    write(dir.path(), "nav.toml", nav);
+    let (diagnostics, summary) = doctor::run_checks(dir.path(), true);
+    assert_eq!(summary.errors, 0, "{diagnostics:?}");
+    assert_eq!(summary.warnings, 0, "{diagnostics:?}");
+    // Genuine missing working-tree targets must still be diagnosed.
+    write(
+        dir.path(),
+        "nav.toml",
+        &format!("{nav}\n[[nav]]\npage = 'writing/missing'\n"),
+    );
+    let (diagnostics, _) = doctor::run_checks(dir.path(), true);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.check == "nav-missing-page" && d.message.contains("writing/missing"))
+    );
+}

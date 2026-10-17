@@ -575,6 +575,50 @@ document.querySelectorAll('.popover-trigger').forEach(trigger => {
   });
 })();
 
+// API content types remain readable without JavaScript. Enhance each group
+// independently with keyboard-accessible tabs; print CSS shows every panel.
+document.querySelectorAll('[data-api-media]').forEach(group => {
+  const controls = group.querySelector('.api-media-tabs');
+  if (!controls) return;
+  const tabs = Array.from(controls.querySelectorAll('[role="tab"]'));
+  const panels = Array.from(group.querySelectorAll('[data-api-panel]'));
+  if (!tabs.length || tabs.length !== panels.length) return;
+  function select(index, focus) {
+    tabs.forEach((tab, i) => {
+      tab.setAttribute('aria-selected', String(i === index));
+      tab.tabIndex = i === index ? 0 : -1;
+      panels[i].hidden = i !== index;
+      panels[i].setAttribute('role', 'tabpanel');
+      panels[i].setAttribute('aria-labelledby', tab.id);
+      panels[i].tabIndex = 0;
+    });
+    if (focus) tabs[index].focus();
+  }
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => select(index, false));
+    tab.addEventListener('keydown', event => {
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+      else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = tabs.length - 1;
+      else return;
+      event.preventDefault();
+      select(next, true);
+    });
+  });
+  function revealFragment() {
+    let target;
+    try { target = document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch (_) { return; }
+    const index = panels.findIndex(panel => panel === target || panel.contains(target));
+    if (index >= 0) select(index, false);
+  }
+  select(0, false);
+  controls.hidden = false;
+  revealFragment();
+  window.addEventListener('hashchange', revealFragment);
+});
+
 // Show "last updated" dates in the page's language
 document.querySelectorAll('.last-updated time[datetime]').forEach(time => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(time.getAttribute('datetime'));

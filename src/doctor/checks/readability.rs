@@ -249,6 +249,9 @@ pub fn check_readability(
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     for slug in &inventory.ordered {
+        if inventory.generated.contains_key(slug) {
+            continue;
+        }
         let page = &inventory.pages[slug];
         if let Ok(source) = std::fs::read_to_string(&page.source_path) {
             check_file(&source, &page.source_path, config, true, &mut diags);

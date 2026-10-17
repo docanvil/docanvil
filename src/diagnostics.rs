@@ -17,6 +17,17 @@ fn increment() {
     WARNING_COUNT.with(|c| c.set(c.get() + 1));
 }
 
+pub fn warn_openapi(warning: &crate::openapi::Warning) {
+    increment();
+    eprintln!(
+        "{}: {}: {} ({})",
+        "warning".yellow().bold(),
+        warning.location,
+        warning.message,
+        warning.code
+    );
+}
+
 /// Return the number of warnings emitted on this thread since the last reset.
 pub fn warning_count() -> usize {
     WARNING_COUNT.with(Cell::get)

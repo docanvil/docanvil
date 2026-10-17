@@ -56,3 +56,8 @@ unprefixed = true
 [pdf]
 cover_page = true
 author = "The DocAnvil Team"
+
+[[openapi]]
+spec = "_examples/documents-api.json"
+output = "example-api"
+versions = ["master"]

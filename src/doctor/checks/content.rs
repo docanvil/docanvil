@@ -31,6 +31,9 @@ pub fn check_content(
 
     // Scan each page for content issues
     for slug in &inventory.ordered {
+        if inventory.generated.contains_key(slug) {
+            continue;
+        }
         let page = &inventory.pages[slug];
         let source = match std::fs::read_to_string(&page.source_path) {
             Ok(s) => s,
@@ -72,6 +75,9 @@ fn check_duplicate_slugs(inventory: &PageInventory, diags: &mut Vec<Diagnostic>)
     // Since PageInventory deduplicates, we check the ordered list for duplicates.
     let mut seen: HashMap<&str, usize> = HashMap::new();
     for slug in &inventory.ordered {
+        if inventory.generated.contains_key(slug) {
+            continue;
+        }
         *seen.entry(slug.as_str()).or_insert(0) += 1;
     }
     for (slug, count) in &seen {
@@ -315,6 +321,9 @@ fn check_includes(
     let mut used: BTreeSet<PathBuf> = BTreeSet::new();
 
     for slug in &inventory.ordered {
+        if inventory.generated.contains_key(slug) {
+            continue;
+        }
         let page = &inventory.pages[slug];
         let Ok(source) = std::fs::read_to_string(&page.source_path) else {
             continue;

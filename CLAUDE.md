@@ -25,7 +25,7 @@ cargo fmt                      # Format code
 cargo install --path .         # Install locally
 ```
 
-Unit tests are inline `#[cfg(test)]` modules within their respective source files. Integration tests live in `tests/` — `build_integration.rs` (library-level build pipeline tests), `cli_integration.rs` (binary subprocess tests) and `update_integration.rs` (self-update against a local axum stub, no network), with shared helpers in `integration_helpers.rs`.
+Unit tests are inline `#[cfg(test)]` modules within their respective source files. Integration tests live in `tests/` — `build_integration.rs` (library-level build pipeline tests), `cli_integration.rs` (binary subprocess tests) and `update_integration.rs` (self-update against a local axum stub, no network), `openapi_integration.rs` (parsing/reference/model fixtures) and `openapi_build.rs` (native reference publishing and presentation), with shared helpers in `integration_helpers.rs`.
 
 ## CLI Interface
 
@@ -65,6 +65,13 @@ src/
   git_versions.rs              # Tag discovery + GitSnapshot + VersionSource: local Git refs → owned temporary repository snapshots; working-tree and directory sources for build/serve/doctor/PDF
   diagnostics.rs               # Colored warnings (owo-colors)
   util.rs                      # HTML escape utility
+
+  openapi/
+    mod.rs                     # Local JSON/YAML load() entry point and public API model
+    graph.rs                   # Context-aware local reference graph, cycles, provenance and parser limits
+    model.rs                   # Effective operation parameters, servers, security, bodies and responses
+    publish.rs                 # Generated page routes, collision checks and inventory insertion
+    render.rs                  # Safe Markdown, field/schema presentation, examples and trusted disclosure/media controls
 
   cli/
     mod.rs                     # Cli struct (clap derive), Command enum
@@ -183,7 +190,7 @@ Markdown source
 - **Styling**: Layered — embedded CSS-variable theme + config overrides + user template overrides (Tera)
 - **Templates**: Tera with `{% block %}` sections; embedded defaults via rust-embed, user overrides in `theme/templates/`
 - **Server**: axum with tokio; broadcast channel connects file watcher → WebSocket → browser reload
-- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]`, `[redirects]`, `[llms]` sections; serde deserialization
+- **Config**: `docanvil.toml` with `[project]`, `[build]`, `[theme]`, `[syntax]`, `[charts]`, `[search]`, `[locale]`, `[version]`, `[pdf]`, `[doctor]`, `[edit]`, `[last_updated]`, `[redirects]`, `[llms]` sections and `[[openapi]]` entries; serde deserialization
 - **Versioning**: Version subdirectories inside `content_dir` (`docs/v2/…`, not file suffixes), version-prefixed output (`/v2/page.html`), per-version nav/search, version switcher, and a banner on older versions; combines with i18n (`/v2/en/page.html`)
 - **Localisation**: Filename suffix convention (`page.en.md`), locale-prefixed output (`/en/page.html`), per-locale nav/search, language switcher with browser auto-detection
 - **Self-update**: Only `docanvil update` and the `serve` notice touch the network; checksums (`SHA256SUMS`, or GitHub's asset digest for releases ≤ v1.1.3) are mandatory; the latest version comes from the `releases/latest` redirect, not the rate-limited API
@@ -194,15 +201,17 @@ Markdown source
 - **Redirects**: Front matter `redirect_from` (old slugs in the page's version; applies to every translation of the page; a `/literal` entry points at the page's copy in the current version and default language) + `[redirects]` table (`"old" = "new"`: a slug is expanded per version × language where the target exists, `/path` is a literal site path, a `://` value is external) + `unprefixed = true` (`page.html` → current version/default language). Written as HTML stubs (meta refresh + `location.replace` keeping `?query`/`#hash`, canonical, `noindex`), never in the sitemap, search or nav. Precedence front matter > table > unprefixed; chains are flattened; a stub never replaces a page (drafts included), `404.html`, or the root `index.html` on i18n/versioned sites. `redirects::plan()` runs once per build after every version/language is scanned and is shared with doctor: `redirect-target-missing`/`-shadowed`/`-conflict`/`-loop` (warning, fail `--strict`) and `redirect-invalid` (error). The root `index.html` redirects use the same `stub_html()`
 - **llms.txt**: Opt-in `[llms]` (`full = true` also writes `llms-full.txt`). One pair per (version, locale) scope beside its `search-index.json`, plus a root copy of the current version / default locale with an `## Optional` section linking every other scope. Built from `Processed.markdown` (include-expanded source) cleaned by `llms::clean_markdown()`: front matter dropped, wiki-links → `[text](url)` (plain text for missing/draft targets), DocAnvil fence meta and heading `{#id .class}` removed, relative images made absolute; code untouched, components pass through. Sections follow the nav (top-level groups, labelled separators, "Docs", then "Other pages"). URLs use `site_url`, else `base_url`. Never emits diagnostics; skipped in `serve`. Front matter `"llms": false` opts a page out
 
+- **OpenAPI**: Opt-in `[[openapi]]` entries have `spec` (relative to each selected content directory), `output` (default `api`) and optional `versions` (enabled version names). Local JSON/YAML 3.0/3.1 inputs and references become overview, operation and schema pages. `build::assemble_sources()` appends generated sources after authored front matter establishes routes; build, site scans, version prescans and PDF share it. Generated pages retain spec source paths/dependencies for edit links, dates and serve; locales share the specification without translation. `PageInventory.generated` carries safe rendered HTML and Markdown for exports; `process_page*()` bypasses includes/directives for generated prose, then applies highlighting, links and heading IDs. The renderer provides parameter/property constraints, linked bounded schema expansion and composition, authentication, request/response examples, media tabs with a no-JavaScript fallback, and collapsed source definitions. Graph loading diagnoses unsupported URI scopes/anchors/dialects; build/doctor report unrendered callback/webhook warnings. Full schema validation and live requests remain deferred. Our docs scope the Documents API example to Master.
+
 ### Key Types and Where They Live
 
 | Type | File | Purpose |
 |------|------|---------|
-| `Config` | `config.rs` | Top-level config with sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig` (incl. `line_numbers`, `[syntax] line_numbers = false` by default), `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `VersionConfig`, `PdfConfig`, `DoctorConfig`, `EditConfig` |
+| `Config` | `config.rs` | Top-level config with `openapi: Vec<OpenApiConfig>` (`spec`, `output`, `versions`) and sections: `ProjectConfig`, `BuildConfig`, `ThemeConfig`, `SyntaxConfig` (incl. `line_numbers`, `[syntax] line_numbers = false` by default), `ChartsConfig`, `SearchConfig`, `LocaleConfig`, `VersionConfig`, `PdfConfig`, `DoctorConfig`, `EditConfig` |
 | `LocaleConfig` | `config.rs` | i18n config: `default`, `enabled`, `display_names`, `auto_detect`, `flags`. Helpers: `is_i18n_enabled()`, `default_locale()`, `locale_display_name()`, `locale_flag()`. Free fn: `is_rtl_locale(code)` → `bool` |
 | `VersionConfig` | `config.rs` | Versioning config: `current`, `enabled`, `display_names`, `git: GitVersionConfig { refs, working_tree, tag_patterns, include_prereleases }`. Local tag patterns expand on working config load, deduplicate matches and sort semantic versions; prereleases are excluded by default. Historical configs are parsed without tag discovery. Git sources require explicit `current`; `/latest/` aliases follow it, and working-tree pages get an unreleased banner. Helpers on `Config`: `is_versioning_enabled()`, `current_version()`, `version_display_name()` |
 | `PageInfo` | `project.rs` | Single page metadata: `source_path`, `output_path`, `title`, `slug`, `locale`, `version`. `title` = front matter `title` → first `# H1` → filename; only front matter `title`/`slug` change the slug |
-| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`, `drafts` (pages left out of this build, same keys), `draft_links: DraftLinks`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `resolve_draft()`, `exclude_drafts()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
+| `PageInventory` | `project.rs` | All pages: `pages: HashMap<String, PageInfo>`, `ordered: Vec<String>`, `generated: HashMap<String, GeneratedSource>` (in-memory Markdown, safe renderer HTML and dependencies), `generation_warnings`, `drafts` (pages left out of this build, same keys), `draft_links: DraftLinks`. Key methods: `scan()` (skips `_`-prefixed files/folders as fragments), `resolve_link()`, `resolve_link_in_locale()`, `resolve_draft()`, `exclude_drafts()`, `nav_tree()`, `nav_tree_for_locale()`, `slug_locale_coverage()`. Free fn `project::fragment_files()` lists fragments under `content_dir` for doctor's unused/locale-coverage checks |
 | `NavNode` | `project.rs` | Nav tree enum: `Page { label, slug }`, `Group { label, slug, children }`, `Separator { label }` |
 | `NavEntry` | `nav.rs` | Parsed nav.toml entry: `page`, `label`, `separator`, `group`, `autodiscover` |
 | `Error` | `error.rs` | Variants: `Io`, `ConfigParse { path, source }`, `ConfigNotFound`, `ContentDirNotFound`, `Render`, `General`, `UnsafeOutputDir { path, reason }`, `StrictWarnings`, `DoctorFailed { warnings, errors }`, `ChromeNotFound`, `Update { message, hint }`, `ComponentTemplate { path, message }` |
@@ -314,6 +323,8 @@ Server: `axum` (HTTP + WebSocket), `tokio` (async runtime), `tower-http` (static
 Interactive: `dialoguer` (CLI prompts for theme generator), `toml_edit` (preserving TOML formatting)
 
 Polish: `owo-colors` (colored output)
+
+OpenAPI: `serde-saphyr` 2.0 for YAML parsing (duplicate-key rejection, strict scalar behavior and bounded alias/merge handling); JSON-compatible values are preserved with `serde_json`. A context-aware reference graph retains cycles and source pointers rather than flattening schemas.
 
 Git version snapshots: `tempfile` (runtime dependency for temporary snapshot directories and archive files), `tar` (archive extraction), local `git` executable (ref resolution and archive export; no checkout changes or network fetch). Snapshots preserve nested project paths, respect Git export attributes, omit submodule contents and currently reject symlinks.
 

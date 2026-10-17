@@ -1,0 +1,35 @@
+parameters:
+  - name: id
+    in: path
+    required: true
+    schema: {type: integer}
+  - name: expand
+    in: query
+    schema: {type: boolean}
+servers:
+  - url: https://pets.example.test
+get:
+  operationId: getPet
+  summary: Find a pet
+  parameters:
+    - name: expand
+      in: query
+      description: Operation override
+      schema: {type: string}
+  responses:
+    '200':
+      $ref: '../responses.yaml#/Pet'
+post:
+  summary: Update a pet
+  servers: []
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../schemas/pet.json'
+        example:
+          $ref: 'this-is-example-data-not-a-file.json'
+  responses:
+    '204': {description: Updated}

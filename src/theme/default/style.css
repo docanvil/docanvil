@@ -2038,6 +2038,30 @@ body.nav-open .mobile-nav-icon-close {
 .step > :last-child { margin-bottom: 0; }
 
 /* ---- Native expandable details ---- */
+/* API reference uses the site's type, border and surface tokens. */
+.api-operation { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; padding: 1rem; margin: 1rem 0 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-secondary); }
+.api-method { font-size: .75rem; font-weight: 750; letter-spacing: .04em; padding: .25rem .5rem; border-radius: .3rem; background: var(--color-text); color: var(--color-bg); }
+.api-method-get { background: #1d4ed8; color: #fff; }
+.api-method-post { background: #047857; color: #fff; }
+.api-method-put, .api-method-patch { background: #92400e; color: #fff; }
+.api-method-delete { background: #b91c1c; color: #fff; }
+.content .api-path { background: transparent; padding: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.api-deprecated { font-size: .8rem; font-weight: 600; color: var(--color-text-muted); }
+.api-source { margin-top: 2rem; }
+.api-schema-branch { margin-top: .75rem; }
+.api-media { border: 1px solid var(--color-border); border-radius: var(--radius-md); margin: 1rem 0 1.5rem; overflow: hidden; }
+.api-media-tabs { display: flex; gap: .25rem; overflow-x: auto; border-bottom: 1px solid var(--color-border); padding: .5rem; background: var(--color-bg-secondary); }
+.api-media-tabs[hidden] { display: none; }
+.api-media-tabs button { appearance: none; cursor: pointer; white-space: nowrap; font: inherit; font-size: .85rem; border: 1px solid transparent; border-radius: .3rem; padding: .4rem .65rem; background: transparent; color: var(--color-text-muted); }
+.api-media-tabs button[aria-selected="true"] { background: var(--color-bg); border-color: var(--color-border); color: var(--color-text); font-weight: 600; }
+.api-media-tabs button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.api-media-panel { padding: 0 1rem 1rem; }
+@media print {
+  .api-media-tabs { display: none !important; }
+  .api-media-panel[hidden] { display: block !important; }
+  .api-operation { break-inside: avoid; }
+}
+
 .details {
   margin-bottom: 1.25rem;
   border: 1px solid var(--color-border);

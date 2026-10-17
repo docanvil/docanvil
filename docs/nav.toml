@@ -29,6 +29,10 @@ autodiscover = "reference"
 open = true
 
 [[nav]]
+label = "Example API"
+autodiscover = "example-api"
+
+[[nav]]
 separator = true
 
 [[nav]]

@@ -83,7 +83,17 @@ impl EditLinks {
 
     /// The edit URL for a page's source file, or `None` if it lies outside the project.
     pub fn url_for(&self, source_path: &Path) -> Option<String> {
-        let relative = source_path.strip_prefix(&self.project_root).ok()?;
+        // Generated sources use canonical reference identities. Reconcile
+        // symlink spellings (including macOS /var versus /private/var) here.
+        let canonical_source;
+        let canonical_root;
+        let relative = if let Ok(relative) = source_path.strip_prefix(&self.project_root) {
+            relative
+        } else {
+            canonical_source = source_path.canonicalize().ok()?;
+            canonical_root = self.project_root.canonicalize().ok()?;
+            canonical_source.strip_prefix(&canonical_root).ok()?
+        };
         let mut segments: Vec<String> = Vec::new();
         if !self.repo_prefix.is_empty() {
             segments.extend(self.repo_prefix.split('/').map(encode_segment));

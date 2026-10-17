@@ -268,6 +268,24 @@ pub struct Config {
     pub last_updated: LastUpdatedConfig,
     pub redirects: RedirectsConfig,
     pub llms: LlmsConfig,
+    pub openapi: Vec<OpenApiConfig>,
+}
+
+/// A local API specification, relative to the selected content directory.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpenApiConfig {
+    pub spec: PathBuf,
+    #[serde(default = "default_api_output")]
+    pub output: String,
+    /// Empty applies to every enabled version. Useful when adding an API
+    /// after older Git snapshots have already been published.
+    #[serde(default)]
+    pub versions: Vec<String>,
+}
+
+fn default_api_output() -> String {
+    "api".into()
 }
 
 #[derive(Debug, Deserialize)]

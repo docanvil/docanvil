@@ -155,11 +155,69 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
     } else {
         None
     };
-    let inventory = if has_content_dir {
-        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None).ok()
+    let api_diag_start = all.len();
+    let mut api_sites = None;
+    let mut api_error = None;
+    if !config.openapi.is_empty() && config.is_versioning_enabled() {
+        match crate::cli::build::scan_site(project_root, &config) {
+            Ok(sites) => api_sites = Some(sites),
+            Err(error) => api_error = Some(error),
+        }
+    }
+    let inventory = if let Some(sites) = &api_sites {
+        sites.first().map(|(_, inventory, _, _)| inventory.clone())
+    } else if has_content_dir {
+        PageInventory::scan(&content_dir, enabled_locales, config.default_locale(), None)
+            .ok()
+            .map(|mut inventory| {
+                if !config.is_versioning_enabled()
+                    && let Err(error) = crate::cli::build::assemble_sources(
+                        &mut inventory,
+                        &config,
+                        &content_dir,
+                        None,
+                        None,
+                    )
+                {
+                    api_error = Some(error);
+                }
+                inventory
+            })
     } else {
         None
     };
+    if let Some(error) = api_error {
+        all.push(Diagnostic {
+            check: "openapi-generation",
+            category: "content",
+            severity: Severity::Error,
+            message: error.to_string(),
+            file: Some(config_path.clone()),
+            line: None,
+            fix: None,
+        });
+    }
+    let warning_inventories: Vec<_> = api_sites
+        .as_ref()
+        .map(|sites| sites.iter().map(|(_, inv, _, _)| inv).collect())
+        .unwrap_or_else(|| inventory.iter().collect());
+    for inv in warning_inventories {
+        for warning in &inv.generation_warnings {
+            all.push(Diagnostic {
+                check: warning.code,
+                category: "content",
+                severity: Severity::Warning,
+                message: format!("{}: {}", warning.location, warning.message),
+                file: Some(warning.location.file.clone()),
+                line: None,
+                fix: None,
+            });
+        }
+    }
+
+    if !silent {
+        print_check_results(&all[api_diag_start..]);
+    }
 
     // B. Configuration checks
     if !silent {
@@ -194,7 +252,20 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
                 .bold()
             );
         }
-        let mut content_diags = checks::content::check_content(project_root, &config, inv);
+        let mut content_diags = if let Some(sites) = &api_sites {
+            sites
+                .iter()
+                .flat_map(|(_, inventory, _, snapshot)| {
+                    let root = snapshot
+                        .as_ref()
+                        .map(|s| s.project_root())
+                        .unwrap_or(project_root);
+                    checks::content::check_content(root, &config, inventory)
+                })
+                .collect::<Vec<_>>()
+        } else {
+            checks::content::check_content(project_root, &config, inv)
+        };
         content_diags.extend(checks::redirects::check_redirects(project_root, &config));
         if !silent {
             print_check_results(&content_diags);

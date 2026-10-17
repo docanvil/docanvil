@@ -1,0 +1,118 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Documents API example",
+    "version": "1.0.0",
+    "description": "A fictional API for a small document library. Explore operations, request examples and reusable schemas alongside the DocAnvil guides.\n\nThis specification is a documentation example; the server URL does not host a running API."
+  },
+  "servers": [{"url": "https://api.example.test/v1", "description": "Fictional example server"}],
+  "security": [{"bearerAuth": []}],
+  "tags": [{"name": "Documents", "description": "Browse and maintain documents."}],
+  "paths": {
+    "/documents": {
+      "get": {
+        "operationId": "listDocuments",
+        "summary": "List documents",
+        "description": "Browse the library in pages. Supply `next_cursor` from the previous response to retrieve the next page.",
+        "tags": ["Documents"],
+        "parameters": [
+          {"name": "limit", "in": "query", "description": "Maximum number of documents to return.", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "cursor", "in": "query", "description": "Pagination cursor from the previous response.", "schema": {"type": "string"}},
+          {"name": "status", "in": "query", "description": "Filter by publication status.", "schema": {"type": "string", "enum": ["draft", "published"]}}
+        ],
+        "responses": {
+          "200": {"description": "A page of documents.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/DocumentPage"}, "example": {"items": [{"id": "doc_123", "title": "Getting started", "status": "published", "created_at": "2026-10-17T09:00:00Z"}], "next_cursor": null}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        }
+      },
+      "post": {
+        "operationId": "createDocument",
+        "summary": "Create a document",
+        "description": "Create a new document from a title and Markdown body. New documents default to **draft** status.",
+        "tags": ["Documents"],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateDocument"}, "example": {"title": "Getting started", "body": "# Welcome\n\nYour first document.", "status": "draft"}}, "application/yaml": {"schema": {"$ref": "#/components/schemas/CreateDocument"}, "example": "title: Getting started\nbody: '# Welcome'\nstatus: draft"}}},
+        "responses": {
+          "201": {"description": "The document was created.", "headers": {"Location": {"description": "URL of the new document.", "schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Document"}}}},
+          "400": {"description": "The request did not pass validation.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"code": "invalid_request", "message": "A title is required."}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"}
+        }
+      }
+    },
+    "/documents/{documentId}": {
+      "parameters": [{"name": "documentId", "in": "path", "required": true, "description": "Unique document identifier.", "schema": {"type": "string", "example": "doc_123"}}],
+      "get": {
+        "operationId": "getDocument",
+        "summary": "Get a document",
+        "description": "Retrieve a document, including its Markdown body and publication metadata.",
+        "tags": ["Documents"],
+        "responses": {
+          "200": {"description": "The requested document.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Document"}, "example": {"id": "doc_123", "title": "Getting started", "body": "# Welcome", "status": "published", "created_at": "2026-10-17T09:00:00Z"}}}},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      },
+      "delete": {
+        "operationId": "deleteDocument",
+        "summary": "Delete a document",
+        "description": "Permanently remove a document from the library. A successful response has no body.",
+        "tags": ["Documents"],
+        "responses": {
+          "204": {"description": "The document was deleted."},
+          "401": {"$ref": "#/components/responses/Unauthorized"},
+          "404": {"$ref": "#/components/responses/NotFound"}
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "description": "Send a bearer token in the Authorization header."}},
+    "responses": {
+      "Unauthorized": {"description": "The bearer token is missing or invalid.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"code": "unauthorized", "message": "Provide a valid bearer token."}}}},
+      "NotFound": {"description": "No document exists with that identifier.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"code": "not_found", "message": "Document not found."}}}}
+    },
+    "schemas": {
+      "Document": {
+        "type": "object",
+        "description": "A document stored in the library.",
+        "required": ["id", "title", "status", "created_at"],
+        "properties": {
+          "id": {"type": "string", "readOnly": true, "description": "Unique document identifier.", "example": "doc_123"},
+          "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "Human-readable document title."},
+          "body": {"type": "string", "description": "Document contents as Markdown."},
+          "status": {"type": "string", "enum": ["draft", "published"], "description": "Publication status."},
+          "created_at": {"type": "string", "format": "date-time", "readOnly": true, "description": "Time the document was created."},
+          "related": {"type": "array", "description": "Related documents, demonstrating a recursive schema reference.", "items": {"$ref": "#/components/schemas/Document"}}
+        }
+      },
+      "CreateDocument": {
+        "type": "object",
+        "description": "The fields accepted when creating a document.",
+        "required": ["title", "body"],
+        "additionalProperties": false,
+        "properties": {
+          "title": {"type": "string", "minLength": 1, "maxLength": 200, "description": "Title of the new document."},
+          "body": {"type": "string", "minLength": 1, "description": "Initial Markdown contents."},
+          "status": {"type": "string", "enum": ["draft", "published"], "default": "draft", "description": "Initial publication status."}
+        }
+      },
+      "DocumentPage": {
+        "type": "object",
+        "description": "One page of results from the library.",
+        "required": ["items", "next_cursor"],
+        "properties": {
+          "items": {"type": "array", "description": "Documents in this page.", "items": {"$ref": "#/components/schemas/Document"}},
+          "next_cursor": {"type": ["string", "null"], "description": "Cursor for the next page, or null when no more results remain."}
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "description": "A machine-readable error code and an explanation for the reader.",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {"type": "string", "description": "Stable error identifier."},
+          "message": {"type": "string", "description": "Explanation of the failure."}
+        }
+      }
+    }
+  }
+}

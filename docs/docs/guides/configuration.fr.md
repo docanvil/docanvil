@@ -8,6 +8,8 @@
 
 DocAnvil utilise deux fichiers de configuration à la racine de votre projet : `docanvil.toml` pour les paramètres du projet et `nav.toml` pour la structure de navigation.
 
+Pour publier une spécification API locale avec vos guides, consultez [[guides/openapi|Référence OpenAPI]].
+
 ## docanvil.toml
 
 ::::tabs

@@ -9,6 +9,7 @@ pub mod git_versions;
 pub mod last_updated;
 pub mod llms;
 pub mod nav;
+pub mod openapi;
 pub mod pipeline;
 pub mod project;
 pub mod redirects;

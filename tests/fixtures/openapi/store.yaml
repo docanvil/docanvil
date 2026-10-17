@@ -1,0 +1,19 @@
+openapi: 3.1.1
+info:
+  title: Pet store
+  version: '1.0'
+servers:
+  - url: https://api.example.test/v1
+security:
+  - bearer: []
+paths:
+  /pets/{id}:
+    $ref: './paths/pet.yaml'
+components:
+  schemas:
+    Pet:
+      $ref: './schemas/pet.json'
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer

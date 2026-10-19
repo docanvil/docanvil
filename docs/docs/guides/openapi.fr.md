@@ -63,6 +63,29 @@ L'identifiant `listPets` produit `api/operations/listpets.html`. Les identifiant
 
 Les pages figurent dans la recherche, le sitemap et les sorties destinées aux outils d'IA lorsqu'elles sont activées. Le PDF inclut les pages sélectionnées par la navigation. Les liens d'édition ciblent la spécification ou le fichier référencé ; les dates Git tiennent compte des dépendances chargées.
 
+### Badges de méthode dans la navigation
+
+Les liens d’opérations affichent un petit badge de méthode HTTP dans la barre latérale par défaut. Cela fonctionne avec les groupes de tags, la découverte automatique, les pages explicites et les groupes liés, y compris les libellés personnalisés. Les liens des schémas et de la vue d’ensemble gardent leur présentation habituelle. La méthode est du texte réel, disponible sans JavaScript et pour les technologies d’assistance ; les libellés du fil d’Ariane et des exports restent identiques.
+
+Si le libellé commence par sa méthode HTTP en majuscules suivie d’un espace, ce préfixe est omis dans la barre latérale : `GET /pets` devient un badge GET suivi de `/pets`. Le titre de la page reste complet.
+
+Le `<li>` d’une opération porte `nav-openapi-operation` et une classe comme `nav-method-get` ou `nav-method-post`. Son lien porte `nav-operation-link` et `data-http-method="GET"` ; le badge et le libellé utilisent `nav-method-badge` et `nav-label`. La méthode provient de la spécification de la version sélectionnée, indépendamment du titre ou de l’URL.
+
+Exemple à ajouter au CSS de votre thème :
+
+```css
+.sidebar .nav-method-post {
+  --nav-method-bg: #d1fae5;
+  --nav-method-color: #065f46;
+}
+
+.sidebar .nav-method-badge {
+  border-radius: 0.25rem;
+}
+```
+
+Pour masquer les badges tout en conservant les classes et attributs de méthode, utilisez `.sidebar .nav-method-badge { display: none; }`.
+
 ## Versions et langues
 
 Pour des versions dans `docs/v1/` et `docs/v2/`, `spec = "openapi.json"` sélectionne le fichier de chaque version. Les versions Git lisent leurs propres spécifications et références, qui doivent rester dans l'instantané du dépôt. La configuration OpenAPI actuelle s'applique à toutes les versions activées : chacune doit contenir l'entrée configurée.

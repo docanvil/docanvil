@@ -53,9 +53,107 @@ fn main_build_links_indexes_and_exports_generated_json_reference() {
         );
     }
     assert!(!dir.path().join("docs/api").exists());
+    let sidebar = html
+        .split("<nav class=\"sidebar\">")
+        .nth(1)
+        .unwrap()
+        .split("</nav>")
+        .next()
+        .unwrap();
+    assert!(sidebar.contains("nav-openapi-operation nav-method-get"));
+    assert!(sidebar.contains("data-http-method=\"GET\""));
+    assert!(sidebar.contains("<span class=\"nav-method-badge\">POST</span>"));
+    assert!(
+        !sidebar.contains("href=\"/manual/api/schemas/pet.html\" class=\"nav-operation-link\"")
+    );
+    assert!(read_output(dir.path(), "404.html").contains("data-http-method=\"GET\""));
     let (diagnostics, summary) = doctor::run_checks(dir.path(), true);
     assert_eq!(summary.errors, 0, "{diagnostics:?}");
     assert!(!diagnostics.iter().any(|d| d.check == "broken-wikilink"));
+}
+
+#[test]
+fn navigation_badges_replace_method_prefixes_without_changing_page_titles() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut api = spec();
+    api["paths"]["/pets"]["get"]["summary"] = "GET /pets".into();
+    api["paths"]["/pets"]["post"]["summary"] = "POST Create a pet".into();
+    api["paths"]["/pets/{id}"]["get"]
+        .as_object_mut()
+        .unwrap()
+        .remove("summary");
+    api["paths"]["/guide"] = json!({"get": {"operationId": "guide", "summary": "GETTING started", "responses": {"200": {"description": "OK"}}}});
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/operations/listpets.html");
+    let sidebar = html
+        .split("<nav class=\"sidebar\">")
+        .nth(1)
+        .unwrap()
+        .split("</nav>")
+        .next()
+        .unwrap();
+    for label in ["/pets", "/pets/{id}", "Create a pet", "GETTING started"] {
+        assert!(
+            sidebar.contains(&format!("<span class=\"nav-label\">{label}</span>")),
+            "{label}"
+        );
+    }
+    assert!(!sidebar.contains("<span class=\"nav-label\">GET /pets"));
+    assert!(!sidebar.contains("<span class=\"nav-label\">POST Create a pet"));
+    assert!(html.contains("GET /pets</h1>"));
+    assert!(
+        read_output(dir.path(), "api/operations/createpet.html").contains("POST Create a pet</h1>")
+    );
+}
+
+#[test]
+fn method_badges_follow_explicit_links_custom_labels_and_linked_groups() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut api =
+        json!({"openapi": "3.1.1", "info": {"title": "Methods", "version": "1"}, "paths": {}});
+    let mut nav = String::from("[[nav]]\npage = 'index'\n");
+    for method in [
+        "get", "post", "put", "patch", "delete", "head", "options", "trace",
+    ] {
+        api["paths"][format!("/{method}")][method] = json!({"operationId": format!("op{method}"), "responses": {"200": {"description": "OK"}}});
+        nav.push_str(&format!(
+            "[[nav]]\npage = 'api/operations/op{method}'\nlabel = 'Custom {method}'\n"
+        ));
+    }
+    nav.push_str(
+        "[[nav]]\npage = 'api/operations/opget'\nlabel = 'Linked <group>'\ngroup = [{ page = 'index' }]\n",
+    );
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    write(dir.path(), "nav.toml", &nav);
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/operations/opget.html");
+    let sidebar = html
+        .split("<nav class=\"sidebar\">")
+        .nth(1)
+        .unwrap()
+        .split("</nav>")
+        .next()
+        .unwrap();
+    for method in [
+        "get", "post", "put", "patch", "delete", "head", "options", "trace",
+    ] {
+        assert!(sidebar.contains(&format!("nav-openapi-operation nav-method-{method}")));
+        assert!(sidebar.contains(&format!("data-http-method=\"{}\"", method.to_uppercase())));
+        assert!(sidebar.contains(&format!("<span class=\"nav-label\">Custom {method}</span>")));
+    }
+    assert!(
+        sidebar.contains(
+            "class=\"nav-group-link active nav-operation-link\" data-http-method=\"GET\""
+        )
+    );
+    assert!(sidebar.contains("<span class=\"nav-label\">Linked &lt;group&gt;</span>"));
+    assert!(
+        sidebar.contains("<li class=\"nav-item\"><a href=\"/manual/index.html\">Guide</a></li>")
+    );
+    let ai = read_output(dir.path(), "llms.txt");
+    assert!(!ai.contains("nav-method-badge"));
+    assert!(!ai.contains("Custom get GET"));
 }
 
 #[test]
@@ -156,6 +254,11 @@ fn directory_versions_and_locales_use_the_selected_specs_and_urls() {
         let mut api = spec();
         api["info"]["title"] = format!("API {version}").into();
         api["paths"]["/pets"]["get"]["tags"] = json!([format!("Pets {version}")]);
+        if version == "v1" {
+            let methods = api["paths"]["/pets"].as_object_mut().unwrap();
+            let operation = methods.remove("get").unwrap();
+            methods.insert("put".into(), operation);
+        }
         write(
             dir.path(),
             &format!("docs/{version}/openapi.json"),
@@ -185,6 +288,8 @@ fn directory_versions_and_locales_use_the_selected_specs_and_urls() {
                 .next()
                 .unwrap();
             assert!(sidebar.contains(&format!("Pets {version}")));
+            let method = if version == "v1" { "PUT" } else { "GET" };
+            assert!(sidebar.contains(&format!("href=\"/manual/{version}/{locale}/api/operations/listpets.html\" class=\"nav-operation-link\" data-http-method=\"{method}\"")), "{version}/{locale}: {sidebar}");
             assert!(!sidebar.contains(if version == "v1" {
                 "Pets v2"
             } else {
@@ -823,6 +928,12 @@ fn overview_groups_all_tags_in_declared_then_lexical_order() {
             .matches("href=\"/manual/api/operations/listpets.html\"")
             .count(),
         4
+    );
+    assert_eq!(
+        sidebar
+            .matches("nav-openapi-operation nav-method-get")
+            .count(),
+        5
     );
     let tag_positions: Vec<_> = [
         "Zebra",

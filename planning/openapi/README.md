@@ -7,6 +7,7 @@ Merged in [PR #139](https://github.com/docanvil/docanvil/pull/139) on 17 October
 - [User guide and support boundaries](../../docs/docs/guides/openapi.md)
 - [Schema presentation matrix](../../docs/docs/guides/openapi.md#schema-support-matrix) and [regression inventory](foundation.md#schema-presentation-regression-coverage)
 - [Browser/print review results and hands-on checklist](browser-review.md)
+- [Larger local specification results and input adjustments](large-spec-review.md)
 - [Loader, model and publishing design](foundation.md)
 - [Documents API used by our own documentation](../../docs/docs/_examples/documents-api.json)
 - [JSON/YAML and multi-file test fixtures](../../tests/fixtures/openapi)

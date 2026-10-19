@@ -757,6 +757,31 @@ body {
   border-left-color: var(--color-primary);
 }
 
+/* Operation metadata is independent of custom navigation labels and grouping. */
+.sidebar a.nav-operation-link { display: flex; align-items: flex-start; gap: .45rem; }
+.nav-operation-link .nav-label { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.nav-method-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 3.7em;
+  margin-top: .2rem;
+  padding: .1rem .3rem;
+  border-radius: 999px;
+  font-size: .62rem;
+  font-weight: 750;
+  line-height: 1.5;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  background: var(--nav-method-bg, #e2e8f0);
+  color: var(--nav-method-color, #334155);
+}
+.nav-method-get { --nav-method-bg: #dbeafe; --nav-method-color: #1e40af; }
+.nav-method-post { --nav-method-bg: #d1fae5; --nav-method-color: #065f46; }
+.nav-method-put, .nav-method-patch { --nav-method-bg: #fef3c7; --nav-method-color: #92400e; }
+.nav-method-delete { --nav-method-bg: #fee2e2; --nav-method-color: #991b1b; }
+
 /* Linked group pages highlight the entire row, including the toggle. */
 .sidebar .nav-group-header > .nav-group-link {
   border-left: none;
@@ -789,6 +814,7 @@ body {
   flex: 1;
   padding: 2.5rem 3rem;
   max-width: calc(var(--content-max-width) + 6rem);
+  overflow-wrap: break-word;
 }
 
 /* ---- Headings ---- */

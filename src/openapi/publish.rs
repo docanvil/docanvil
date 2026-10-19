@@ -68,6 +68,11 @@ pub(crate) fn extend(
             }
         }
         let pages = plan(&api, &entry.output)?;
+        for (operation, page) in api.operations.iter().zip(pages.iter().skip(1)) {
+            inventory
+                .operation_methods
+                .insert(page.slug.clone(), operation.method.clone());
+        }
         let tags = super::render::tag_groups(&api)?;
         if !tags.is_empty() {
             let mut groups: Vec<_> = tags

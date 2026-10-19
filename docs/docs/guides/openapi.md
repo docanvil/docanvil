@@ -71,6 +71,29 @@ The overview groups operations by tag. Declare top-level `tags` in the specifica
 
 Search, sitemap and enabled AI-readable outputs include generated pages. PDF includes generated pages selected by navigation, like authored chapters. Edit links point to the specification or referenced source file, and Git dates account for the specification's loaded dependencies.
 
+### Navigation method badges
+
+Operation links display a compact HTTP-method badge in the default sidebar. This works with tag groups, automatic discovery, explicit page entries and linked groups, including custom labels. Schema and overview links keep their usual appearance. Badges use real text, so the method remains available without JavaScript and to assistive technology; navigation labels in breadcrumbs and exports are unchanged.
+
+When a label begins with its uppercase HTTP method followed by whitespace, that prefix is omitted from the sidebar text: `GET /pets` becomes a GET badge followed by `/pets`. Page headings keep their full titles.
+
+For custom styling, the operation's `<li>` has `nav-openapi-operation` and a method class such as `nav-method-get` or `nav-method-post`. Its link has `nav-operation-link` and `data-http-method="GET"`; the badge and label use `nav-method-badge` and `nav-label`. Method metadata comes from the selected version's specification, independently of page titles or URL spelling.
+
+Add overrides to your custom theme CSS, for example:
+
+```css
+.sidebar .nav-method-post {
+  --nav-method-bg: #d1fae5;
+  --nav-method-color: #065f46;
+}
+
+.sidebar .nav-method-badge {
+  border-radius: 0.25rem;
+}
+```
+
+To hide the badges while retaining the method classes and data attributes, use `.sidebar .nav-method-badge { display: none; }`.
+
 ## Versions and languages
 
 Directory versions load from their own content directory: with `docs/v1/` and `docs/v2/`, `spec = "openapi.json"` selects `docs/v1/openapi.json` and `docs/v2/openapi.json`. Git versions read the specification and references from the selected snapshot; all inputs must stay inside that repository snapshot. Current OpenAPI configuration applies to every enabled version, so each must contain the configured input.

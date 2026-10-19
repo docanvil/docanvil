@@ -31,6 +31,8 @@ pub struct PageInventory {
     pub generated: HashMap<String, GeneratedSource>,
     /// Generated folder navigation uses canonical slugs, independent of locale/version prefixes.
     pub generated_nav: std::collections::BTreeMap<String, Vec<NavNode>>,
+    /// Canonical operation slug → HTTP method, independent of navigation labels.
+    pub operation_methods: HashMap<String, String>,
     pub generation_warnings: Vec<crate::openapi::Warning>,
     /// Slug → PageInfo lookup. When i18n is enabled, keys are composite `{locale}:{slug}`.
     pub pages: HashMap<String, PageInfo>,
@@ -265,6 +267,7 @@ impl PageInventory {
         Ok(Self {
             generated: HashMap::new(),
             generated_nav: std::collections::BTreeMap::new(),
+            operation_methods: HashMap::new(),
             generation_warnings: Vec::new(),
             pages,
             ordered,
@@ -742,16 +745,88 @@ fn section_contains_active(node: &NavNode, current_slug: &str) -> bool {
 
 /// Render a navigation tree as nested HTML `<ul>` lists with collapsible groups.
 pub fn render_nav(nodes: &[NavNode], current_slug: &str, base_url: &str) -> String {
+    render_nav_with_methods(nodes, current_slug, base_url, &HashMap::new())
+}
+
+/// Render operation badges for any navigation entry targeting an API operation,
+/// including explicit page links and linked groups.
+pub fn render_nav_with_methods(
+    nodes: &[NavNode],
+    current_slug: &str,
+    base_url: &str,
+    operation_methods: &HashMap<String, String>,
+) -> String {
     if nodes.is_empty() {
         return String::new();
     }
 
     let mut html = String::from("<ul>\n");
     for node in nodes {
-        render_nav_node(node, current_slug, base_url, 0, &mut html);
+        render_nav_node(
+            node,
+            current_slug,
+            base_url,
+            operation_methods,
+            0,
+            &mut html,
+        );
     }
     html.push_str("</ul>\n");
     html
+}
+
+fn nav_method<'a>(slug: &str, methods: &'a HashMap<String, String>) -> Option<&'a str> {
+    methods.get(slug).map(String::as_str).filter(|method| {
+        matches!(
+            *method,
+            "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS" | "TRACE"
+        )
+    })
+}
+
+fn nav_operation_class(method: Option<&str>) -> String {
+    method
+        .map(|m| {
+            format!(
+                " nav-openapi-operation nav-method-{}",
+                m.to_ascii_lowercase()
+            )
+        })
+        .unwrap_or_default()
+}
+
+fn nav_link(label: &str, slug: &str, base_url: &str, class: &str, method: Option<&str>) -> String {
+    let href = html_escape(&format!("{base_url}{slug}.html"));
+    // A fallback title or specification summary may already start with the
+    // HTTP method. The badge carries it, so omit only that matching prefix.
+    let label = method
+        .and_then(|method| label.trim_start().strip_prefix(method))
+        .filter(|rest| rest.starts_with(char::is_whitespace))
+        .map(str::trim_start)
+        .filter(|rest| !rest.is_empty())
+        .unwrap_or(label);
+    let label = html_escape(label);
+    let mut classes = class.to_owned();
+    let body = if let Some(method) = method {
+        if !classes.is_empty() {
+            classes.push(' ');
+        }
+        classes.push_str("nav-operation-link");
+        format!(
+            "<span class=\"nav-method-badge\">{method}</span> <span class=\"nav-label\">{label}</span>"
+        )
+    } else {
+        label
+    };
+    let class_attr = if classes.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{}\"", html_escape(&classes))
+    };
+    let method_attr = method
+        .map(|m| format!(" data-http-method=\"{m}\""))
+        .unwrap_or_default();
+    format!("<a href=\"{href}\"{class_attr}{method_attr}>{body}</a>")
 }
 
 /// Render a single nav node at the given nesting depth.
@@ -760,6 +835,7 @@ fn render_nav_node(
     node: &NavNode,
     current_slug: &str,
     base_url: &str,
+    operation_methods: &HashMap<String, String>,
     depth: usize,
     html: &mut String,
 ) {
@@ -771,15 +847,16 @@ fn render_nav_node(
 
     match node {
         NavNode::Page { label, slug } => {
-            let label = html_escape(label);
-            let href = format!("{}{}.html", base_url, slug);
+            let method = nav_method(slug, operation_methods);
             let class = if slug == current_slug {
                 "nav-item active"
             } else {
                 "nav-item"
             };
+            let operation_class = nav_operation_class(method);
+            let link = nav_link(label, slug, base_url, "", method);
             html.push_str(&format!(
-                "{indent}<li class=\"{class}\"><a href=\"{href}\">{label}</a></li>\n",
+                "{indent}<li class=\"{class}{operation_class}\">{link}</li>\n"
             ));
         }
         NavNode::Group {
@@ -789,27 +866,46 @@ fn render_nav_node(
             open,
         } => {
             let is_open = *open || section_contains_active(node, current_slug);
-            let label = html_escape(label);
+            let method = slug
+                .as_deref()
+                .and_then(|s| nav_method(s, operation_methods));
+            let operation_class = nav_operation_class(method);
+            let escaped_label = html_escape(label);
             let open_class = if is_open { " open" } else { "" };
             let aria = if is_open { "true" } else { "false" };
             let chevron = "<svg class=\"nav-chevron\" viewBox=\"0 0 16 16\" width=\"12\" height=\"12\" aria-hidden=\"true\"><path d=\"M6 4l4 4-4 4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>";
-            html.push_str(&format!("{indent}<li class=\"nav-group{open_class}\">\n"));
+            html.push_str(&format!(
+                "{indent}<li class=\"nav-group{open_class}{operation_class}\">\n"
+            ));
             if let Some(s) = slug {
                 // A linked group gets a chevron-only toggle button next to the
                 // link: interactive content can't be nested inside a <button>.
-                let href = format!("{}{}.html", base_url, s);
                 let link_class = if s == current_slug { " active" } else { "" };
+                let link = nav_link(
+                    label,
+                    s,
+                    base_url,
+                    &format!("nav-group-link{link_class}"),
+                    method,
+                );
                 html.push_str(&format!(
-                    "{inner}<div class=\"nav-group-header\">\n{deep}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\" aria-label=\"Toggle {label} section\">{chevron}</button>\n{deep}<a href=\"{href}\" class=\"nav-group-link{link_class}\">{label}</a>\n{inner}</div>\n",
+                    "{inner}<div class=\"nav-group-header\">\n{deep}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\" aria-label=\"Toggle {escaped_label} section\">{chevron}</button>\n{deep}{link}\n{inner}</div>\n",
                 ));
             } else {
                 html.push_str(&format!(
-                    "{inner}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n{deep}{chevron}\n{deep}{label}\n{inner}</button>\n",
+                    "{inner}<button class=\"nav-group-toggle\" aria-expanded=\"{aria}\">\n{deep}{chevron}\n{deep}{escaped_label}\n{inner}</button>\n",
                 ));
             }
             html.push_str(&format!("{inner}<ul class=\"nav-group-children\">\n"));
             for child in children {
-                render_nav_node(child, current_slug, base_url, depth + 1, html);
+                render_nav_node(
+                    child,
+                    current_slug,
+                    base_url,
+                    operation_methods,
+                    depth + 1,
+                    html,
+                );
             }
             html.push_str(&format!("{inner}</ul>\n{indent}</li>\n"));
         }

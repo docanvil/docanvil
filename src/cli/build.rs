@@ -772,6 +772,7 @@ fn build_site(
             Vec::new();
         // Save the latest version's nav tree and base URL for the 404 page.
         let mut latest_nav_tree: Vec<project::NavNode> = Vec::new();
+        let mut latest_operation_methods = HashMap::new();
         let mut latest_version_base_url = root_base_url.clone();
 
         for (version, version_source) in config.version.enabled.iter().zip(&version_sources) {
@@ -956,7 +957,12 @@ fn build_site(
                             entries.append(&mut sections);
                         }
 
-                        let nav_html = project::render_nav(&nav_tree, base_slug, &locale_base_url);
+                        let nav_html = project::render_nav_with_methods(
+                            &nav_tree,
+                            base_slug,
+                            &locale_base_url,
+                            &ver_inventory.operation_methods,
+                        );
 
                         let breadcrumbs =
                             page_breadcrumbs(breadcrumb_map.get(base_slug), &locale_base_url);
@@ -1097,6 +1103,7 @@ fn build_site(
                         && locale == config.default_locale().unwrap_or("en")
                     {
                         latest_nav_tree = nav_tree;
+                        latest_operation_methods = ver_inventory.operation_methods.clone();
                         latest_version_base_url = locale_base_url;
                     }
                 }
@@ -1213,7 +1220,12 @@ fn build_site(
                         entries.append(&mut sections);
                     }
 
-                    let nav_html = project::render_nav(&nav_tree, base_slug, &version_base_url);
+                    let nav_html = project::render_nav_with_methods(
+                        &nav_tree,
+                        base_slug,
+                        &version_base_url,
+                        &ver_inventory.operation_methods,
+                    );
 
                     let breadcrumbs =
                         page_breadcrumbs(breadcrumb_map.get(base_slug), &version_base_url);
@@ -1328,6 +1340,7 @@ fn build_site(
                 // Track the latest version's nav for the 404 page
                 if version == &current_ver_str {
                     latest_nav_tree = nav_tree;
+                    latest_operation_methods = ver_inventory.operation_methods.clone();
                     latest_version_base_url = version_base_url;
                 }
             }
@@ -1406,6 +1419,7 @@ fn build_site(
             let merged_inv = PageInventory {
                 generated: HashMap::new(),
                 generated_nav: Default::default(),
+                operation_methods: Default::default(),
                 generation_warnings: Vec::new(),
                 pages: merged_pages,
                 ordered: merged_ordered,
@@ -1427,7 +1441,12 @@ fn build_site(
 
         // Generate 404 page using the latest version's nav
         {
-            let nav_html = project::render_nav(&latest_nav_tree, "", &latest_version_base_url);
+            let nav_html = project::render_nav_with_methods(
+                &latest_nav_tree,
+                "",
+                &latest_version_base_url,
+                &latest_operation_methods,
+            );
 
             let mut not_found_links = String::from(
                 "<div class=\"not-found\">\
@@ -1607,7 +1626,12 @@ fn build_site(
                     entries.append(&mut sections);
                 }
 
-                let nav_html = project::render_nav(&nav_tree, base_slug, &locale_base_url);
+                let nav_html = project::render_nav_with_methods(
+                    &nav_tree,
+                    base_slug,
+                    &locale_base_url,
+                    &inventory.operation_methods,
+                );
 
                 let breadcrumbs = page_breadcrumbs(breadcrumb_map.get(base_slug), &locale_base_url);
 
@@ -1817,7 +1841,12 @@ fn build_site(
                 entries.append(&mut sections);
             }
 
-            let nav_html = project::render_nav(&nav_tree, slug, &base_url);
+            let nav_html = project::render_nav_with_methods(
+                &nav_tree,
+                slug,
+                &base_url,
+                &inventory.operation_methods,
+            );
 
             let breadcrumbs = page_breadcrumbs(breadcrumb_map.get(slug), &base_url);
 
@@ -1981,7 +2010,12 @@ fn build_site(
                 None => inventory.nav_tree(),
             }
         };
-        let nav_html = project::render_nav(&nav_tree_404, "", &base_url_404);
+        let nav_html = project::render_nav_with_methods(
+            &nav_tree_404,
+            "",
+            &base_url_404,
+            &inventory.operation_methods,
+        );
 
         let not_found_content = if config.is_i18n_enabled() {
             let mut links = String::from(

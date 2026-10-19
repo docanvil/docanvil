@@ -150,7 +150,10 @@ impl DocumentGraph {
                 graph.schema_nodes.insert(location.clone());
             }
             let value = graph.value(&location)?;
-            if kind == Kind::Schema {
+            if kind == Kind::Schema
+                && !(graph.version == Version::V3_0 && value.get("$ref").is_some())
+            {
+                check_schema(value, &location, graph.version)?;
                 if let Some(dialect) = value.get("$schema") {
                     check_dialect(dialect, &location.child("$schema"))?;
                 }
@@ -260,6 +263,10 @@ impl DocumentGraph {
         self.schema_nodes.contains(location)
     }
 
+    pub(crate) fn schemas(&self) -> impl Iterator<Item = &Location> {
+        self.schema_nodes.iter()
+    }
+
     pub(crate) fn reference_at(&self, object: &Location) -> Option<&Reference> {
         self.references.get(&object.child("$ref"))
     }
@@ -280,6 +287,129 @@ impl DocumentGraph {
         }
         Ok(current)
     }
+}
+
+// Check the shapes consumed by the renderer, not complete schema validity or
+// whether example/default values satisfy a schema.
+fn check_schema(value: &Value, source: &Location, version: Version) -> Result<(), OpenApiError> {
+    let Some(schema) = value.as_object() else {
+        return Ok(());
+    };
+    let invalid = |key: &str, expected: &str| {
+        OpenApiError::at(&source.child(key), format!("{key} must be {expected}"))
+    };
+    if let Some(kind) = schema.get("type") {
+        let valid_type = |value: &Value| {
+            value.as_str().is_some_and(|kind| {
+                matches!(
+                    kind,
+                    "object" | "array" | "string" | "number" | "integer" | "boolean"
+                ) || (version == Version::V3_1 && kind == "null")
+            })
+        };
+        let valid = valid_type(kind)
+            || (version == Version::V3_1
+                && kind.as_array().is_some_and(|types| {
+                    !types.is_empty()
+                        && types.iter().all(valid_type)
+                        && types
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .collect::<BTreeSet<_>>()
+                            .len()
+                            == types.len()
+                }));
+        if !valid {
+            return Err(invalid(
+                "type",
+                if version == Version::V3_0 {
+                    "a single OpenAPI 3.0 type name (use nullable for nullability)"
+                } else {
+                    "a JSON Schema type name or a non-empty array of unique type names"
+                },
+            ));
+        }
+    }
+    for key in ["title", "description", "format", "pattern"] {
+        if schema.get(key).is_some_and(|v| !v.is_string()) {
+            return Err(invalid(key, "a string"));
+        }
+    }
+    for key in ["readOnly", "writeOnly", "deprecated", "uniqueItems"] {
+        if schema.get(key).is_some_and(|v| !v.is_boolean()) {
+            return Err(invalid(key, "a boolean"));
+        }
+    }
+    if version == Version::V3_0 && schema.get("nullable").is_some_and(|v| !v.is_boolean()) {
+        return Err(invalid("nullable", "a boolean in OpenAPI 3.0"));
+    }
+    for key in ["minimum", "maximum", "multipleOf"] {
+        if schema.get(key).is_some_and(|v| !v.is_number()) {
+            return Err(invalid(key, "a number"));
+        }
+    }
+    for key in ["exclusiveMinimum", "exclusiveMaximum"] {
+        if let Some(v) = schema.get(key) {
+            let (valid, expected) = match version {
+                Version::V3_0 => (v.is_boolean(), "a boolean in OpenAPI 3.0"),
+                Version::V3_1 => (v.is_number(), "a number in OpenAPI 3.1"),
+            };
+            if !valid {
+                return Err(invalid(key, expected));
+            }
+        }
+    }
+    for key in [
+        "minLength",
+        "maxLength",
+        "minItems",
+        "maxItems",
+        "minProperties",
+        "maxProperties",
+    ] {
+        if schema
+            .get(key)
+            .is_some_and(|v| !v.as_f64().is_some_and(|n| n >= 0.0 && n.fract() == 0.0))
+        {
+            return Err(invalid(key, "a non-negative integer"));
+        }
+    }
+    if let Some(required) = schema.get("required")
+        && !required.as_array().is_some_and(|names| {
+            names.iter().all(Value::is_string)
+                && names
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<BTreeSet<_>>()
+                    .len()
+                    == names.len()
+        })
+    {
+        return Err(invalid("required", "an array of unique property names"));
+    }
+    if schema.get("enum").is_some_and(|v| !v.is_array()) {
+        return Err(invalid("enum", "an array"));
+    }
+    for key in [
+        "properties",
+        "patternProperties",
+        "$defs",
+        "definitions",
+        "dependentSchemas",
+    ] {
+        if schema.get(key).is_some_and(|v| !v.is_object()) {
+            return Err(invalid(key, "an object of schemas"));
+        }
+    }
+    for key in ["allOf", "oneOf", "anyOf", "prefixItems"] {
+        if schema
+            .get(key)
+            .is_some_and(|v| !v.as_array().is_some_and(|v| !v.is_empty()))
+        {
+            return Err(invalid(key, "a non-empty array of schemas"));
+        }
+    }
+    Ok(())
 }
 
 fn valid_version(value: &str, prefix: &str) -> bool {

@@ -183,13 +183,16 @@ fn schema_type(api: &Api, schema: &Value, source: &Location, routes: &Routes) ->
         _ if schema.get("properties").is_some() => "object".into(),
         _ => "Any type".into(),
     };
-    if schema.get("nullable").and_then(Value::as_bool) == Some(true) {
+    if api.graph.version == Version::V3_0
+        && schema.get("type").is_some_and(Value::is_string)
+        && schema.get("nullable").and_then(Value::as_bool) == Some(true)
+    {
         kind.push_str(" or null");
     }
     kind
 }
 
-fn constraints(schema: &Value) -> Vec<String> {
+fn constraints(schema: &Value, version: Version) -> Vec<String> {
     let mut result = Vec::new();
     for (key, label) in [
         ("format", "Format"),
@@ -209,6 +212,9 @@ fn constraints(schema: &Value) -> Vec<String> {
         ("minProperties", "Minimum properties"),
         ("maxProperties", "Maximum properties"),
     ] {
+        if key == "const" && version == Version::V3_0 {
+            continue;
+        }
         if let Some(value) = schema.get(key) {
             result.push(format!("{label}: {}", literal(value)));
         }
@@ -217,6 +223,14 @@ fn constraints(schema: &Value) -> Vec<String> {
         result.push(format!(
             "Allowed values: {}",
             values.iter().map(literal).collect::<Vec<_>>().join(", ")
+        ));
+    }
+    if let Some(names) = schema.get("required").and_then(Value::as_array)
+        && !names.is_empty()
+    {
+        result.push(format!(
+            "Required properties: {}",
+            names.iter().map(literal).collect::<Vec<_>>().join(", ")
         ));
     }
     for (key, label) in [
@@ -272,7 +286,7 @@ fn schema_fields(
     if !description.is_empty() {
         out.md(description);
     }
-    let constraints = constraints(schema);
+    let constraints = constraints(schema, api.graph.version);
     if !constraints.is_empty() {
         out.md(constraints
             .iter()
@@ -289,7 +303,13 @@ fn schema_fields(
                 .get("required")
                 .and_then(Value::as_array)
                 .is_some_and(|list| list.iter().any(|v| v.as_str() == Some(name)));
-            let mut details = vec![inline(&text(property, "description"))];
+            let ignores_siblings =
+                api.graph.version == Version::V3_0 && api.graph.reference_at(&location).is_some();
+            let mut details = if ignores_siblings {
+                Vec::new()
+            } else {
+                vec![inline(&text(property, "description"))]
+            };
             details.extend(constraints_for_property(api, property, &location)?);
             table.push_str(&format!(
                 "| {} | {} | {} | {} |\n",
@@ -306,8 +326,12 @@ fn schema_fields(
         out.table(table);
         for (name, property) in properties {
             let location = source.child("properties").child(name);
+            if api.graph.version == Version::V3_0 && api.graph.reference_at(&location).is_some() {
+                continue;
+            }
             if property.get("properties").is_some()
                 || property.get("items").is_some()
+                || property.get("additionalProperties").is_some()
                 || ["allOf", "oneOf", "anyOf"]
                     .iter()
                     .any(|k| property.get(k).is_some())
@@ -370,15 +394,20 @@ fn schema_fields(
 }
 
 fn constraints_for_property(api: &Api, schema: &Value, location: &Location) -> Result<Vec<String>> {
-    let mut result = constraints(schema);
+    let mut result = Vec::new();
     // Referenced types stay linked, but their scalar constraints should still
     // be visible without making readers visit another page for an enum/default.
-    if let Some(edge) = api.graph.reference_at(location) {
-        let target = api
-            .graph
-            .dereference(&edge.target)
-            .unwrap_or_else(|_| edge.target.clone());
-        result.extend(constraints(value(api, &target)?));
+    let mut current = location;
+    let mut schema = schema;
+    let mut seen = BTreeSet::new();
+    while seen.insert(current.clone()) {
+        let reference = api.graph.reference_at(current);
+        if api.graph.version == Version::V3_1 || reference.is_none() {
+            result.extend(constraints(schema, api.graph.version));
+        }
+        let Some(edge) = reference else { break };
+        current = &edge.target;
+        schema = value(api, current)?;
     }
     Ok(result)
 }
@@ -542,7 +571,10 @@ fn media(
                     0,
                     &mut BTreeSet::new(),
                 )?);
-                if let Some(example) = schema.get("example") {
+                if !(api.graph.version == Version::V3_0
+                    && api.graph.reference_at(&location.child("schema")).is_some())
+                    && let Some(example) = schema.get("example")
+                {
                     body.md("**Schema example**");
                     body.md(example_code(example, name));
                 }

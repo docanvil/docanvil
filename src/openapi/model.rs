@@ -90,7 +90,7 @@ impl Api {
             }
         }
         let mut operations = Vec::new();
-        let mut warnings = Vec::new();
+        let mut warnings = schema_warnings(&graph)?;
         if root_value.get("webhooks").is_some() {
             warnings.push(Warning {
                 location: root.child("webhooks"),
@@ -301,6 +301,89 @@ impl Api {
             graph,
         })
     }
+}
+
+fn schema_warnings(graph: &DocumentGraph) -> Result<Vec<Warning>, OpenApiError> {
+    let mut warnings = Vec::new();
+    for source in graph.schemas() {
+        // Reference siblings have no schema meaning in 3.0, including unknown
+        // keywords and URI-scope declarations.
+        if graph.version == Version::V3_0 && graph.reference_at(source).is_some() {
+            continue;
+        }
+        let Some(schema) = graph.value(source)?.as_object() else {
+            continue;
+        };
+        for key in schema.keys() {
+            if key.starts_with("x-") {
+                continue;
+            }
+            let common = matches!(
+                key.as_str(),
+                "$ref"
+                    | "type"
+                    | "title"
+                    | "description"
+                    | "format"
+                    | "default"
+                    | "enum"
+                    | "minimum"
+                    | "maximum"
+                    | "exclusiveMinimum"
+                    | "exclusiveMaximum"
+                    | "multipleOf"
+                    | "minLength"
+                    | "maxLength"
+                    | "pattern"
+                    | "minItems"
+                    | "maxItems"
+                    | "uniqueItems"
+                    | "minProperties"
+                    | "maxProperties"
+                    | "properties"
+                    | "required"
+                    | "items"
+                    | "additionalProperties"
+                    | "allOf"
+                    | "oneOf"
+                    | "anyOf"
+                    | "readOnly"
+                    | "writeOnly"
+                    | "deprecated"
+                    | "example"
+                    | "discriminator"
+                    | "xml"
+                    | "externalDocs"
+                    | "not"
+            );
+            let wrong_dialect = match graph.version {
+                Version::V3_0 => !common && key != "nullable",
+                Version::V3_1 => key == "nullable",
+            };
+            let source_only = matches!(
+                key.as_str(),
+                "not" | "discriminator" | "xml" | "externalDocs"
+            );
+            let supported_3_1 = matches!(
+                key.as_str(),
+                "$schema" | "$defs" | "$comment" | "examples" | "const"
+            );
+            if wrong_dialect {
+                warnings.push(Warning {
+                    location: source.child(key),
+                    code: "openapi-schema-dialect",
+                    message: format!("schema keyword {key:?} is outside the selected OpenAPI schema dialect; retained in source only"),
+                });
+            } else if source_only || (!common && !supported_3_1 && key != "nullable") {
+                warnings.push(Warning {
+                    location: source.child(key),
+                    code: "openapi-schema-unrendered",
+                    message: format!("schema keyword {key:?} has no dedicated presentation; consult View source definition"),
+                });
+            }
+        }
+    }
+    Ok(warnings)
 }
 
 pub(super) fn sourced(

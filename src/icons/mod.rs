@@ -12,7 +12,7 @@ static ICONS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
 
 /// Render trusted bundled SVGs; escape legacy text/emoji before marking it safe.
 /// An explicit `lucide:` prefix catches misspelled icon names at build time.
-pub fn render(name: &str) -> tera::Result<String> {
+pub fn render(name: &str) -> tera::TeraResult<String> {
     let key = name.strip_prefix("lucide:").unwrap_or(name);
     if let Some(svg) = ICONS.get(key) {
         return Ok(svg
@@ -20,18 +20,15 @@ pub fn render(name: &str) -> tera::Result<String> {
             .replacen("class=\"lucide", "class=\"docanvil-icon lucide", 1));
     }
     if name.starts_with("lucide:") {
-        return Err(tera::Error::msg(format!("Unknown Lucide icon: {key}")));
+        return Err(tera::Error::message(format!("Unknown Lucide icon: {key}")));
     }
     Ok(crate::util::html_escape(name).replace('\'', "&#39;"))
 }
 
-/// `{{ icon(name="lucide:zap") | safe }}` in any component template.
-pub fn template_icon(args: &HashMap<String, serde_json::Value>) -> tera::Result<serde_json::Value> {
-    let name = args
-        .get("name")
-        .and_then(serde_json::Value::as_str)
-        .ok_or_else(|| tera::Error::msg("icon() requires a string name"))?;
-    render(name).map(serde_json::Value::String)
+/// `{{ icon(name="lucide:zap") }}` returns trusted SVG or escaped legacy text.
+pub fn template_icon(args: tera::Kwargs, _: &tera::State) -> tera::TeraResult<tera::Value> {
+    let html = render(args.must_get::<&str>("name")?)?;
+    Ok(tera::Value::safe_string(&html))
 }
 
 #[cfg(test)]
@@ -51,6 +48,34 @@ mod tests {
     }
 
     #[test]
+    fn template_icons_are_safe_but_legacy_text_is_escaped_once() {
+        let mut tera = tera::Tera::default();
+        tera.register_function("icon", template_icon);
+        tera.add_raw_template("test.html", "{{ icon(name=name) }}")
+            .unwrap();
+        let mut context = tera::Context::new();
+        for name in [
+            "lucide:zap",
+            "⚡",
+            "<script>alert('x')</script>",
+            "A & B / C",
+        ] {
+            context.insert("name", name);
+            assert_eq!(
+                tera.render("test.html", &context).unwrap(),
+                render(name).unwrap()
+            );
+        }
+        // Existing custom templates with an explicit safe filter still work.
+        tera.add_raw_template("legacy.html", "{{ icon(name=name) | safe }}")
+            .unwrap();
+        assert_eq!(
+            tera.render("legacy.html", &context).unwrap(),
+            "A &amp; B / C"
+        );
+    }
+
+    #[test]
     fn legacy_text_is_escaped_and_explicit_unknown_names_fail() {
         assert_eq!(render("⚡").unwrap(), "⚡");
         assert_eq!(
@@ -59,6 +84,9 @@ mod tests {
         );
         assert!(render("lucide:not-a-real-icon").is_err());
         assert!(render("lucide:../../LICENSE").is_err());
-        assert!(template_icon(&HashMap::new()).is_err());
+        let mut tera = tera::Tera::default();
+        tera.register_function("icon", template_icon);
+        tera.add_raw_template("test.html", "{{ icon() }}").unwrap();
+        assert!(tera.render("test.html", &tera::Context::new()).is_err());
     }
 }

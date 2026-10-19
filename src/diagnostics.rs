@@ -269,7 +269,7 @@ pub fn warn_component_render(source_file: &Path, name: &str, message: &str) {
         source_file.display(),
         message
     );
-    if message.contains("not found in context") {
+    if message.contains("is not defined") {
         eprintln!(
             "  {}: Optional attributes need a fallback, e.g. {{{{ attrs.title | default(value=\"…\") }}}}",
             "hint".dimmed()

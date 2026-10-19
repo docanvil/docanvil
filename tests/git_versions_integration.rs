@@ -140,9 +140,7 @@ fn builds_tag_and_dirty_working_tree_with_independent_sources() {
         docanvil::cli::build::run(&site, Some(&out), false, true, true, false).unwrap();
         let locale = if locales { "en/" } else { "" };
         let release = fs::read_to_string(out.join(format!("release/{locale}index.html"))).unwrap();
-        let release = release.replace("&#x2F;", "/");
         let master = fs::read_to_string(out.join(format!("master/{locale}index.html"))).unwrap();
-        let master = master.replace("&#x2F;", "/");
         assert!(release.contains("Released home"));
         assert!(release.contains("Released fragment"));
         assert!(release.contains("Released example"));
@@ -253,10 +251,8 @@ fn serve_does_not_watch_or_open_snapshot_files() {
     );
     let release = fs::read_to_string(out.join("release/index.html")).unwrap();
     assert!(release.contains("/release/assets/diagram.svg"));
-    assert!(!release.replace("&#x2F;", "/").contains("vscode://"));
-    let master = fs::read_to_string(out.join("master/index.html"))
-        .unwrap()
-        .replace("&#x2F;", "/");
+    assert!(!release.contains("vscode://"));
+    let master = fs::read_to_string(out.join("master/index.html")).unwrap();
     assert!(master.contains("vscode://"));
 }
 

@@ -7,9 +7,9 @@
    Docs: https://docanvil.github.io/docanvil/en/writing/components.html #}
 <div class="link-card">
 <div class="link-card-heading">
-{% if attrs.icon %}<span class="link-card-icon" aria-hidden="true">{{ icon(name=attrs.icon) | safe }}</span>
+{% if attrs.icon %}<span class="link-card-icon" aria-hidden="true">{{ icon(name=attrs.icon) }}</span>
 {% endif %}<a class="link-card-link" href="{{ attrs.href | default(value="#") }}">{{ attrs.title | default(value="Learn more") }}</a>
-<span class="link-card-arrow" aria-hidden="true">{{ icon(name="arrow-up-right") | safe }}</span>
+<span class="link-card-arrow" aria-hidden="true">{{ icon(name="arrow-up-right") }}</span>
 </div>
 <div class="link-card-body">{{ body | safe }}</div>
 </div>

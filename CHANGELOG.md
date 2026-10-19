@@ -4,6 +4,10 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Custom layout and component templates now use Tera 2. Replace Tera macros/imports with Tera components, remove `include … ignore missing`, and use bracket indexing (`items[0]`) instead of numeric dot access. Undefined nested values and some filters also have different behavior; see the theming migration notes. Markdown and DocAnvil's `:::component` syntax are unchanged.
+
 ### Added
 
 - Initial native OpenAPI reference generation through `[[openapi]]`: local JSON/YAML specifications and references, readable operation/schema pages with field constraints, authentication, request/response examples, media-type tabs and collapsed source definitions. Integrates with navigation, search, version/locale URLs, PDF and AI outputs, specification edit links, dependency watching and build/doctor diagnostics. Live requests and full schema validation are deferred.

@@ -64,13 +64,17 @@ impl Content {
         self.details("View source definition", body, "api-source");
     }
 
-    fn media(&mut self, items: Vec<(String, Self)>, id: &str) {
+    fn media(&mut self, items: Vec<(String, Self)>, id: &str, heading_level: usize) {
         if items.is_empty() {
             return;
         }
         if items.len() == 1 {
             let (name, content) = items.into_iter().next().unwrap();
-            self.md(format!("### {}\n\n", inline(&name)));
+            self.md(format!(
+                "{} {}\n\n",
+                "#".repeat(heading_level),
+                inline(&name)
+            ));
             self.append(content);
             return;
         }
@@ -80,9 +84,13 @@ impl Content {
         }
         self.html.push_str("</div>");
         for (index, (name, content)) in items.into_iter().enumerate() {
-            self.markdown
-                .push_str(&format!("\n### {}\n\n{}", inline(&name), content.markdown));
-            self.html.push_str(&format!("<section class=\"api-media-panel\" id=\"{}-panel-{index}\" data-api-panel><h4 class=\"api-media-label\">{}</h4>{}</section>", html_escape(id), html_escape(&name), content.html));
+            self.markdown.push_str(&format!(
+                "\n{} {}\n\n{}",
+                "#".repeat(heading_level),
+                inline(&name),
+                content.markdown
+            ));
+            self.html.push_str(&format!("<section class=\"api-media-panel\" id=\"{}-panel-{index}\" data-api-panel><h{heading_level} class=\"api-media-label\">{}</h{heading_level}>{}</section>", html_escape(id), html_escape(&name), content.html));
         }
         self.html.push_str("</div>\n");
     }
@@ -556,6 +564,7 @@ fn media(
     routes: &Routes,
     out: &mut Content,
     id: &str,
+    heading_level: usize,
 ) -> Result<()> {
     let mut items = Vec::new();
     if let Some(types) = object.get("content").and_then(Value::as_object) {
@@ -589,7 +598,7 @@ fn media(
             items.push((name.clone(), body));
         }
     }
-    out.media(items, id);
+    out.media(items, id, heading_level);
     Ok(())
 }
 
@@ -694,6 +703,7 @@ pub(super) fn operation(
                     routes,
                     &mut out,
                     &format!("{slug}-parameter-{index}"),
+                    4,
                 )?;
             }
         }
@@ -718,6 +728,7 @@ pub(super) fn operation(
             routes,
             &mut out,
             &format!("{slug}-request"),
+            3,
         )?;
     }
     out.md("## Responses");
@@ -740,6 +751,7 @@ pub(super) fn operation(
             routes,
             &mut out,
             &format!("{slug}-response-{status}"),
+            4,
         )?;
     }
     // Preserve normalized values too: source Reference Objects alone would hide

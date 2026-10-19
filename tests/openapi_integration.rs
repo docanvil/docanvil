@@ -333,3 +333,226 @@ fn declared_tags_validate_shape_names_and_descriptions_with_source_context() {
         assert!(load_value(&spec).is_ok());
     }
 }
+
+#[test]
+fn malformed_rendered_schema_keywords_report_the_exact_location() {
+    for version in ["3.0.4", "3.1.1"] {
+        for (key, value) in [
+            ("type", json!("file")),
+            ("type", json!([])),
+            ("description", json!(false)),
+            ("title", json!(12)),
+            ("format", json!([])),
+            ("pattern", json!(12)),
+            ("readOnly", json!("true")),
+            ("writeOnly", json!(1)),
+            ("deprecated", json!(null)),
+            ("uniqueItems", json!("yes")),
+            ("minimum", json!("0")),
+            ("maximum", json!(false)),
+            ("multipleOf", json!([])),
+            ("minLength", json!(-1)),
+            ("maxLength", json!(1.5)),
+            ("minItems", json!("1")),
+            ("maxItems", json!(-1)),
+            ("minProperties", json!(false)),
+            ("maxProperties", json!(1.5)),
+            ("required", json!("name")),
+            ("required", json!(["name", "name"])),
+            ("required", json!([1])),
+            ("enum", json!("yes")),
+            ("properties", json!([])),
+            ("allOf", json!({})),
+            ("oneOf", json!([])),
+            ("anyOf", json!(false)),
+            ("items", json!([])),
+            ("additionalProperties", json!(12)),
+        ] {
+            let mut spec = base();
+            spec["openapi"] = version.into();
+            spec["components"] = json!({"schemas": {"Test": {key: value}}});
+            let error = load_value(&spec).unwrap_err();
+            assert_eq!(
+                error.location.pointer,
+                format!("/components/schemas/Test/{key}"),
+                "{version}: {error}"
+            );
+        }
+    }
+}
+
+#[test]
+fn schema_types_and_exclusive_bounds_follow_the_selected_dialect() {
+    for version in ["3.0.4", "3.1.1"] {
+        for (schema, valid) in [
+            (json!({"type": "null"}), version == "3.1.1"),
+            (json!({"type": ["string", "null"]}), version == "3.1.1"),
+            (json!({"type": ["string", "string"]}), false),
+            (json!({"type": ["string", 1]}), false),
+            (
+                json!({"type": "number", "minimum": 0, "exclusiveMinimum": true, "maximum": 9, "exclusiveMaximum": false}),
+                version == "3.0.4",
+            ),
+            (
+                json!({"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 9}),
+                version == "3.1.1",
+            ),
+        ] {
+            let mut spec = base();
+            spec["openapi"] = version.into();
+            spec["components"] = json!({"schemas": {"Test": schema}});
+            assert_eq!(load_value(&spec).is_ok(), valid, "{version}: {spec}");
+        }
+    }
+}
+
+#[test]
+fn source_only_schema_keywords_have_source_located_warnings() {
+    for (key, value) in [
+        ("not", json!({})),
+        ("discriminator", json!({"propertyName": "kind"})),
+        ("xml", json!({"name": "item"})),
+        ("externalDocs", json!({"url": "https://example.test"})),
+        ("prefixItems", json!([{}])),
+        ("contains", json!({})),
+        ("minContains", json!(1)),
+        ("maxContains", json!(2)),
+        ("patternProperties", json!({"^x": {}})),
+        ("propertyNames", json!({})),
+        ("dependentRequired", json!({"a": ["b"]})),
+        ("dependentSchemas", json!({"a": {}})),
+        ("if", json!({})),
+        ("then", json!({})),
+        ("else", json!({})),
+        ("unevaluatedProperties", json!(false)),
+        ("unevaluatedItems", json!(true)),
+        ("contentEncoding", json!("base64")),
+        ("contentMediaType", json!("application/json")),
+        ("contentSchema", json!({})),
+        ("$vocabulary", json!({})),
+        ("definitions", json!({"Old": {}})),
+        ("customKeyword", json!({"$ref": "literal.json"})),
+    ] {
+        let mut spec = base();
+        spec["components"] = json!({"schemas": {"Test": {key: value}}});
+        let api = load_value(&spec).unwrap();
+        assert_eq!(api.warnings.len(), 1, "{key}: {:?}", api.warnings);
+        assert_eq!(api.warnings[0].code, "openapi-schema-unrendered");
+        assert_eq!(
+            api.warnings[0].location.pointer,
+            format!(
+                "/components/schemas/Test/{}",
+                key.replace('~', "~0").replace('/', "~1")
+            )
+        );
+    }
+}
+
+#[test]
+fn schema_diagnostics_ignore_literals_extensions_and_ignored_reference_siblings() {
+    let mut spec = base();
+    spec["components"] = json!({"schemas": {
+        "Target": {"type": "string", "default": {"if": {}, "$id": "literal"},
+            "enum": [{"$ref": "literal.json"}], "x-info": {"not": {}},
+            "examples": [{"$ref": "literal.json"}], "$comment": "An annotation"},
+        "Use": {"$ref": "#/components/schemas/Target", "$id": "ignored", "type": [], "customKeyword": true}
+    }});
+    spec["openapi"] = "3.0.4".into();
+    // examples/$comment are 3.1 keywords; use 3.0 annotations for this case.
+    spec["components"]["schemas"]["Target"]
+        .as_object_mut()
+        .unwrap()
+        .remove("examples");
+    spec["components"]["schemas"]["Target"]
+        .as_object_mut()
+        .unwrap()
+        .remove("$comment");
+    assert!(load_value(&spec).unwrap().warnings.is_empty());
+    spec["components"]["schemas"]
+        .as_object_mut()
+        .unwrap()
+        .remove("Use");
+    spec["components"]["schemas"]["Target"]["examples"] = json!([{"$ref": "literal.json"}]);
+    spec["components"]["schemas"]["Target"]["$comment"] = "An annotation".into();
+    spec["openapi"] = "3.1.1".into();
+    assert!(load_value(&spec).unwrap().warnings.is_empty());
+}
+
+#[test]
+fn advanced_schema_references_are_resolved_once_with_file_provenance() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut spec = base();
+    spec["components"] = json!({"schemas": {
+        "A": {"$ref": "advanced.json"}, "B": {"$ref": "advanced.json"}
+    }});
+    write(dir.path(), "api.json", &spec.to_string());
+    write(
+        dir.path(),
+        "advanced.json",
+        r#"{"if":{"$ref":"nested.json"},"then":{},"$defs":{"Local":{"type":"string"}}}"#,
+    );
+    write(dir.path(), "nested.json", r#"{"type":"string"}"#);
+    let api = openapi::load(&dir.path().join("api.json")).unwrap();
+    assert_eq!(api.graph.dependencies().count(), 3);
+    assert_eq!(api.warnings.len(), 2);
+    assert!(
+        api.warnings
+            .iter()
+            .all(|w| w.location.file.ends_with("advanced.json"))
+    );
+    write(dir.path(), "nested.json", r#"{"type":"invalid"}"#);
+    let error = openapi::load(&dir.path().join("api.json")).unwrap_err();
+    assert!(error.location.file.ends_with("nested.json"));
+    assert_eq!(error.location.pointer, "/type");
+}
+
+#[test]
+fn schema_uri_scopes_and_custom_dialects_are_rejected_at_the_keyword() {
+    for (key, value) in [
+        ("$id", json!("local.json")),
+        ("$anchor", json!("named")),
+        ("$dynamicAnchor", json!("named")),
+        ("$dynamicRef", json!("#named")),
+        ("$recursiveAnchor", json!(true)),
+        ("$recursiveRef", json!("#")),
+        ("$schema", json!("https://example.test/dialect")),
+    ] {
+        let mut spec = base();
+        spec["components"] = json!({"schemas": {"Test": {key: value}}});
+        let error = load_value(&spec).unwrap_err();
+        assert_eq!(
+            error.location.pointer,
+            format!("/components/schemas/Test/{key}")
+        );
+    }
+    for dialect in [
+        "https://spec.openapis.org/oas/3.1/dialect/base",
+        "https://json-schema.org/draft/2020-12/schema",
+    ] {
+        let mut spec = base();
+        spec["jsonSchemaDialect"] = dialect.into();
+        spec["components"] = json!({"schemas": {"Test": {"$schema": dialect, "$defs": {"Nested": {"type": "string"}}, "minLength": 1.0}}});
+        assert!(load_value(&spec).unwrap().warnings.is_empty());
+    }
+}
+
+#[test]
+fn keywords_from_another_schema_dialect_warn_instead_of_claiming_support() {
+    for (version, keyword, value) in [
+        ("3.0.4", "const", json!("fixed")),
+        ("3.0.4", "prefixItems", json!([{}])),
+        ("3.0.4", "examples", json!(["example"])),
+        ("3.1.1", "nullable", json!(true)),
+    ] {
+        let mut spec = base();
+        spec["openapi"] = version.into();
+        spec["components"] = json!({"schemas": {"Test": {keyword: value}}});
+        let api = load_value(&spec).unwrap();
+        assert_eq!(api.warnings.len(), 1);
+        assert_eq!(api.warnings[0].code, "openapi-schema-dialect");
+        assert_eq!(
+            api.warnings[0].location.pointer,
+            format!("/components/schemas/Test/{keyword}")
+        );
+    }
+}

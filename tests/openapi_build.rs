@@ -1,7 +1,7 @@
 mod integration_helpers;
 
 use docanvil::{cli::build, doctor, error::Error};
-use integration_helpers::{build_project_strict, create_project, read_output};
+use integration_helpers::{build_project, build_project_strict, create_project, read_output};
 use serde_json::{Value, json};
 use std::fs;
 use std::path::Path;
@@ -441,6 +441,226 @@ fn operation_presentation_separates_fields_examples_and_collapsed_source() {
     assert!(source.contains("View source definition"));
     assert!(source.contains("Maximum length: 200"));
     assert!(source.contains("\"properties\""));
+}
+
+#[test]
+fn property_reference_siblings_follow_the_schema_version() {
+    for version in ["3.0.4", "3.1.1"] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        let api = json!({
+            "openapi": version,
+            "info": {"title": "Reference siblings", "version": "1"},
+            "paths": {"/echo": {"post": {"operationId": "echo", "requestBody": {
+                "content": {"application/json": {"schema": {
+                    "$ref": "#/components/schemas/Name", "example": "Sibling example"
+                }}}
+            }, "responses": {"200": {"description": "OK"}}}}},
+            "components": {"schemas": {
+                "Name": {"type": "string", "minLength": 2},
+                "Record": {"type": "object", "required": ["name"], "properties": {
+                    "name": {
+                        "$ref": "#/components/schemas/Name",
+                        "description": "Sibling description",
+                        "maxLength": 9,
+                        "readOnly": true,
+                        "properties": {"ignored": {"type": "string"}}
+                    }
+                }}
+            }}
+        });
+        write(dir.path(), "docs/openapi.json", &api.to_string());
+        build_project_strict(dir.path()).unwrap();
+        let html = read_output(dir.path(), "api/schemas/record.html");
+        let table = html
+            .split("<table>")
+            .nth(1)
+            .unwrap()
+            .split("</table>")
+            .next()
+            .unwrap();
+        assert!(table.contains("Minimum length: 2"), "{version}");
+        assert!(table.contains("/manual/api/schemas/name.html"), "{version}");
+        assert!(table.contains("Yes"), "{version}");
+        let keeps_siblings = version == "3.1.1";
+        for label in ["Sibling description", "Maximum length: 9", "Read only"] {
+            assert_eq!(table.contains(label), keeps_siblings, "{version}: {label}");
+        }
+        assert_eq!(html.contains("Explore name"), keeps_siblings, "{version}");
+        assert_eq!(
+            read_output(dir.path(), "api/operations/echo.html").contains("Schema example"),
+            keeps_siblings,
+            "{version}"
+        );
+        let markdown = read_output(dir.path(), "llms-full.txt");
+        assert_eq!(
+            markdown.contains("Maximum length: 9"),
+            keeps_siblings,
+            "{version}"
+        );
+    }
+}
+
+#[test]
+fn schema_matrix_constraints_objects_arrays_and_boolean_schemas_are_published() {
+    for version in ["3.0.4", "3.1.1"] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        let mut api = json!({
+            "openapi": version, "info": {"title": "Schema matrix", "version": "1"}, "paths": {},
+            "components": {"schemas": {
+                "Fields": {"type": "object", "minProperties": 1, "maxProperties": 8,
+                    "additionalProperties": false, "required": ["name"], "properties": {
+                        "name": {"type": "string", "format": "email", "default": "a@b.test",
+                            "minLength": 1, "maxLength": 20, "pattern": "@", "enum": ["a@b.test"],
+                            "readOnly": true, "deprecated": true},
+                        "secret": {"type": "string", "writeOnly": true},
+                        "values": {"type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true,
+                            "items": {"type": "integer", "minimum": 0, "maximum": 10, "multipleOf": 2}},
+                        "lookup": {"type": "object", "additionalProperties": {"type": "string", "maxLength": 7}}
+                    }},
+                "Composed": {"allOf": [{"type": "string"}], "anyOf": [{"type": "string"}]},
+                "Open": {"type": "object", "additionalProperties": true}
+            }}
+        });
+        if version == "3.0.4" {
+            api["components"]["schemas"]["Maybe"] = json!({"type": "string", "nullable": true});
+            api["components"]["schemas"]["Bounds"] = json!({"type": "number", "minimum": 0, "exclusiveMinimum": true, "maximum": 9, "exclusiveMaximum": true});
+        } else {
+            api["components"]["schemas"]["Maybe"] =
+                json!({"type": ["string", "null"], "const": "fixed"});
+            api["components"]["schemas"]["Bounds"] =
+                json!({"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 9});
+            api["components"]["schemas"]["Allowed"] = json!(true);
+            api["components"]["schemas"]["Forbidden"] = json!(false);
+        }
+        write(dir.path(), "docs/openapi.json", &api.to_string());
+        build_project_strict(dir.path()).unwrap();
+        let markdown = read_output(dir.path(), "llms-full.txt");
+        for label in [
+            "Format: \"email\"",
+            "Default:",
+            "Minimum length: 1",
+            "Maximum length: 20",
+            "Pattern: \"@\"",
+            "Allowed values:",
+            "Read only",
+            "Write only",
+            "Deprecated",
+            "Minimum items: 1",
+            "Maximum items: 3",
+            "Unique items: true",
+            "Minimum: 0",
+            "Maximum: 10",
+            "Multiple of: 2",
+            "Minimum properties: 1",
+            "Maximum properties: 8",
+            "Additional properties are not allowed.",
+            "Additional properties are allowed.",
+            "Additional property values",
+            "Maximum length: 7",
+            "All of — every schema applies",
+            "Any of — one or more schemas apply",
+            "string or null",
+            "Exclusive minimum:",
+            "Exclusive maximum:",
+        ] {
+            assert!(markdown.contains(label), "{version}: {label}");
+        }
+        if version == "3.1.1" {
+            for (page, label) in [
+                ("allowed", "Any value"),
+                ("forbidden", "No value allowed"),
+                ("maybe", "Constant:"),
+            ] {
+                assert!(
+                    read_output(dir.path(), &format!("api/schemas/{page}.html")).contains(label),
+                    "{label}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn schema_source_only_and_dialect_warnings_reach_build_doctor_and_exports() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut api = spec();
+    api["components"]["schemas"]["Advanced"] = json!({
+        "type": "string", "nullable": true, "not": {"const": "blocked"}, "customKeyword": "retained"
+    });
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    build_project(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/schemas/advanced.html");
+    assert!(!html.contains("string or null"));
+    assert!(html.contains("View source definition"));
+    assert!(html.contains("customKeyword"));
+    assert!(read_output(dir.path(), "llms-full.txt").contains("\"customKeyword\": \"retained\""));
+    assert!(matches!(
+        build_project_strict(dir.path()),
+        Err(Error::StrictWarnings(3))
+    ));
+    assert_eq!(html, read_output(dir.path(), "api/schemas/advanced.html"));
+    let (diagnostics, _) = doctor::run_checks(dir.path(), true);
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|d| d.check == "openapi-schema-unrendered")
+            .count(),
+        2
+    );
+    assert_eq!(
+        diagnostics
+            .iter()
+            .filter(|d| d.check == "openapi-schema-dialect")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn chained_property_references_preserve_dialect_constraints_and_terminate_cycles() {
+    for version in ["3.0.4", "3.1.1"] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        let api = json!({
+            "openapi": version, "info": {"title": "Chains", "version": "1"}, "paths": {},
+            "components": {"schemas": {
+                "Final": {"type": "string", "maxLength": 20},
+                "Middle": {"$ref": "#/components/schemas/Final", "minLength": 2},
+                "CycleA": {"$ref": "#/components/schemas/CycleB", "minLength": 3},
+                "CycleB": {"$ref": "#/components/schemas/CycleA", "maxLength": 9},
+                "Record": {"type": "object", "properties": {
+                    "name": {"$ref": "#/components/schemas/Middle", "minLength": 1},
+                    "cycle": {"$ref": "#/components/schemas/CycleA"}
+                }},
+                "Composed": {"allOf": [{"$ref": "#/components/schemas/Record"}], "required": ["name"]}
+            }}
+        });
+        write(dir.path(), "docs/openapi.json", &api.to_string());
+        build_project_strict(dir.path()).unwrap();
+        let html = read_output(dir.path(), "api/schemas/record.html");
+        let table = html
+            .split("<table>")
+            .nth(1)
+            .unwrap()
+            .split("</table>")
+            .next()
+            .unwrap();
+        assert!(table.contains("Maximum length: 20"));
+        for label in [
+            "Minimum length: 1",
+            "Minimum length: 2",
+            "Minimum length: 3",
+            "Maximum length: 9",
+        ] {
+            assert_eq!(
+                table.contains(label),
+                version == "3.1.1",
+                "{version}: {label}"
+            );
+        }
+        assert!(
+            read_output(dir.path(), "api/schemas/composed.html").contains("Required properties:")
+        );
+    }
 }
 
 #[test]

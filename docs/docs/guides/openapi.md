@@ -87,4 +87,27 @@ Schema fields show requiredness, enums, defaults, nullability, common constraint
 
 Internal and relative local-file JSON Pointer references are supported, including recursive schemas. Remote references, named anchors, schema `$id` scopes, dynamic anchors and custom schema dialects fail with source context. Webhooks and callbacks are checked for references but are not rendered as operations; DocAnvil reports warnings, which fail `build --strict` and `doctor --strict`.
 
+### Schema support matrix
+
+This matrix describes documentation output, not validation of API payloads. Constraint values are displayed; DocAnvil does not evaluate schemas, check examples against them, or combine composition branches into a flattened model.
+
+| Schema feature | OpenAPI 3.0 | OpenAPI 3.1 |
+| --- | --- | --- |
+| `type` and nullability | Single type name; `nullable: true` adds null only when the same schema declares a type | Single type or an array of unique types, including `null`; boolean schemas show “Any value” or “No value allowed” |
+| `properties`, `required`, `items`, `additionalProperties` | Property tables, required-name lists, array items and open/closed/typed maps | Same; boolean subschemas are also supported |
+| `allOf`, `oneOf`, `anyOf` | Separate expandable branches; no merging or discriminator-based selection | Same |
+| `enum`, `default`, `format`, `minimum`, `maximum`, `multipleOf`, `minLength`, `maxLength`, `pattern`, `minItems`, `maxItems`, `uniqueItems`, `minProperties`, `maxProperties` | Values displayed as constraints/annotations | Same; `const` is also displayed |
+| `exclusiveMinimum`, `exclusiveMaximum` | Boolean flags displayed alongside `minimum`/`maximum` | Numeric exclusive bounds displayed directly |
+| `description`, `readOnly`, `writeOnly`, `deprecated` | Descriptions and annotations; read/write flags do not filter fields from requests or responses | Same |
+| Local `$ref` | Linked targets; siblings ignored, including in property tables | Target and sibling constraints retained; recursive expansion is bounded |
+| `$defs`, `$schema` | Dialect warning; no dedicated presentation | `$defs` is traversed for local references; supported `$schema` declarations select an accepted dialect, without a payload evaluator |
+| `not`, `discriminator`, `xml`, `externalDocs` | Source only, with a warning | Same |
+| `prefixItems`, `contains`, `minContains`, `maxContains`, `patternProperties`, `propertyNames`, `dependentRequired`, `dependentSchemas`, `if`, `then`, `else`, `unevaluatedProperties`, `unevaluatedItems`, `contentEncoding`, `contentMediaType`, `contentSchema`, `$vocabulary` | Dialect warning; source only | Source only, with a warning; references in recognized subschemas are still loaded |
+| Metadata and examples | `title` and `example` retained in source; a direct media schema's `example` is also shown beneath it | Same; `examples` and `$comment` retained in source |
+| Extensions and other keywords | `x-…` payloads retained without interpretation; other unknown keywords produce a dialect warning | `x-…` payloads retained without interpretation; other unknown/legacy keywords produce a source-only warning |
+
+`openapi-schema-unrendered` reports features without a dedicated presentation; `openapi-schema-dialect` reports keywords outside the selected dialect, including `nullable` in 3.1 and `const` in 3.0. Both warnings include a source file and JSON Pointer and fail strict builds and doctor checks. Source-only metadata listed above and `x-…` extensions do not warn. Unsupported URI scopes, anchors and custom dialects remain errors.
+
+Malformed types and the field shapes consumed by the renderer produce errors rather than incomplete tables: for example, `required` must contain unique property names, composition branches must be non-empty arrays, and exclusive bounds must use the selected dialect's value type. These checks are deliberately partial. They do not establish complete OpenAPI/JSON Schema conformance or enforce relationships between constraints.
+
 Descriptions render as Markdown. Raw HTML is omitted, and DocAnvil includes/directives are not executed from specification descriptions. Live requests, parameter serialization, SDK generation and full schema validation remain outside this initial integration.

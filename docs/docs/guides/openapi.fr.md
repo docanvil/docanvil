@@ -79,6 +79,29 @@ Les champs présentent les propriétés obligatoires, énumérations, valeurs pa
 
 Les références JSON Pointer internes et entre fichiers locaux relatifs sont prises en charge, y compris les schémas récursifs. Les références distantes, ancres nommées, portées `$id`, ancres dynamiques et dialectes personnalisés produisent une erreur contextualisée. Les références des webhooks et callbacks sont vérifiées, mais leurs opérations ne sont pas rendues : un avertissement fait échouer les modes `--strict`.
 
+### Matrice des schémas
+
+Cette matrice décrit la documentation produite, sans validation des données de l’API. DocAnvil affiche les contraintes, sans les évaluer, vérifier les exemples ou fusionner les branches de composition.
+
+| Fonctionnalité | OpenAPI 3.0 | OpenAPI 3.1 |
+| --- | --- | --- |
+| `type` et nullabilité | Un seul type ; `nullable: true` ajoute null si le même schéma déclare un type | Un type ou une liste de types uniques, dont `null` ; schémas booléens présentés comme « Any value » ou « No value allowed » |
+| `properties`, `required`, `items`, `additionalProperties` | Tableaux de propriétés, listes des noms obligatoires, éléments de tableau et dictionnaires ouverts, fermés ou typés | Identique, avec sous-schémas booléens |
+| `allOf`, `oneOf`, `anyOf` | Branches dépliables distinctes, sans fusion ni sélection par discriminateur | Identique |
+| `enum`, `default`, `format`, `minimum`, `maximum`, `multipleOf`, `minLength`, `maxLength`, `pattern`, `minItems`, `maxItems`, `uniqueItems`, `minProperties`, `maxProperties` | Valeurs affichées comme contraintes ou annotations | Identique, avec affichage de `const` |
+| `exclusiveMinimum`, `exclusiveMaximum` | Indicateurs booléens affichés avec `minimum`/`maximum` | Bornes exclusives numériques affichées directement |
+| `description`, `readOnly`, `writeOnly`, `deprecated` | Descriptions et annotations ; les indicateurs lecture/écriture ne filtrent pas les champs des requêtes et réponses | Identique |
+| `$ref` local | Liens vers les cibles ; champs voisins ignorés, y compris dans les tableaux de propriétés | Contraintes de la cible et des champs voisins conservées ; profondeur récursive limitée |
+| `$defs`, `$schema` | Avertissement de dialecte ; source uniquement | Références locales parcourues dans `$defs` ; seuls les dialectes `$schema` acceptés sont autorisés, sans évaluateur de données |
+| `not`, `discriminator`, `xml`, `externalDocs` | Source uniquement, avec avertissement | Identique |
+| `prefixItems`, `contains`, `minContains`, `maxContains`, `patternProperties`, `propertyNames`, `dependentRequired`, `dependentSchemas`, `if`, `then`, `else`, `unevaluatedProperties`, `unevaluatedItems`, `contentEncoding`, `contentMediaType`, `contentSchema`, `$vocabulary` | Avertissement de dialecte ; source uniquement | Source uniquement, avec avertissement ; les références des sous-schémas reconnus sont chargées |
+| Métadonnées et exemples | `title` et `example` conservés dans la source ; `example` d’un schéma directement attaché à un type de contenu est aussi affiché | Identique ; `examples` et `$comment` conservés dans la source |
+| Extensions et autres mots-clés | Contenu `x-…` conservé sans interprétation ; les autres mots-clés inconnus produisent un avertissement de dialecte | Contenu `x-…` conservé sans interprétation ; les autres mots-clés inconnus ou anciens produisent un avertissement de présentation |
+
+`openapi-schema-unrendered` signale les fonctionnalités sans présentation dédiée ; `openapi-schema-dialect` signale les mots-clés hors dialecte, notamment `nullable` en 3.1 et `const` en 3.0. Ces avertissements indiquent le fichier et le JSON Pointer et font échouer les modes stricts de build et doctor. Les métadonnées conservées en source ci-dessus et les extensions `x-…` ne produisent pas d’avertissement. Les portées URI, ancres et dialectes personnalisés non pris en charge restent des erreurs.
+
+Les types incorrects et structures utilisées par le rendu produisent une erreur : `required` doit contenir des noms de propriétés uniques, les branches de composition doivent former des tableaux non vides, et les bornes exclusives doivent respecter le type de valeur du dialecte. Ces vérifications sont partielles : elles ne garantissent pas la conformité complète à OpenAPI ou JSON Schema et ne vérifient pas les relations entre contraintes.
+
 Les descriptions sont rendues en Markdown. Le HTML brut est omis ; les inclusions et directives DocAnvil ne sont pas exécutées. Les requêtes interactives, la sérialisation des paramètres, la génération de SDK et la validation complète des schémas restent à venir.
 
 ## Groupes d’opérations

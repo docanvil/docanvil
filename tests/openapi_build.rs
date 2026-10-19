@@ -142,13 +142,20 @@ fn directory_versions_and_locales_use_the_selected_specs_and_urls() {
     let dir = create_project(
         &config,
         &[
-            ("v1/index.md", "# Guide one\n[[api/index]]"),
-            ("v2/index.md", "# Guide two\n[[api/index]]"),
+            (
+                "v1/index.md",
+                "# Guide one\n[[api/index]]\n[[api/operations/listpets#parameters|Parameters]]",
+            ),
+            (
+                "v2/index.md",
+                "# Guide two\n[[api/index]]\n[[api/operations/listpets#parameters|Parameters]]",
+            ),
         ],
     );
     for version in ["v1", "v2"] {
         let mut api = spec();
         api["info"]["title"] = format!("API {version}").into();
+        api["paths"]["/pets"]["get"]["tags"] = json!([format!("Pets {version}")]);
         write(
             dir.path(),
             &format!("docs/{version}/openapi.json"),
@@ -158,7 +165,7 @@ fn directory_versions_and_locales_use_the_selected_specs_and_urls() {
         write(
             dir.path(),
             &format!("docs/{version}/index.fr.md"),
-            "# Guide traduit\n[[api/index]]",
+            "# Guide traduit\n[[api/index]]\n[[api/operations/listpets#parameters|Paramètres]]",
         );
     }
     build_project_strict(dir.path()).unwrap();
@@ -166,6 +173,23 @@ fn directory_versions_and_locales_use_the_selected_specs_and_urls() {
         for locale in ["en", "fr"] {
             let html = read_output(dir.path(), &format!("{version}/{locale}/api/index.html"));
             assert!(html.contains(&format!("API {version}")));
+            let guide = read_output(dir.path(), &format!("{version}/{locale}/index.html"));
+            assert!(guide.contains(&format!(
+                "href=\"/manual/{version}/{locale}/api/operations/listpets.html#parameters\""
+            )));
+            let sidebar = html
+                .split("<nav class=\"sidebar\">")
+                .nth(1)
+                .unwrap()
+                .split("</nav>")
+                .next()
+                .unwrap();
+            assert!(sidebar.contains(&format!("Pets {version}")));
+            assert!(!sidebar.contains(if version == "v1" {
+                "Pets v2"
+            } else {
+                "Pets v1"
+            }));
             assert!(html.contains(&format!(
                 "/manual/{version}/{locale}/api/operations/listpets.html"
             )));
@@ -223,7 +247,13 @@ fn several_apis_have_independent_namespaces_and_slug_collisions_fail() {
 
 #[test]
 fn git_snapshots_use_historical_json_and_referenced_schemas() {
-    let dir = create_project(CONFIG, &[("index.md", "# Guide\n[[api/index]]")]);
+    let dir = create_project(
+        CONFIG,
+        &[(
+            "index.md",
+            "# Guide\n[[api/index]]\n[[api/operations/listpets#parameters|Parameters]]",
+        )],
+    );
     let git = |args: &[&str]| {
         let output = std::process::Command::new("git")
             .current_dir(dir.path())
@@ -279,6 +309,47 @@ fn git_snapshots_use_historical_json_and_referenced_schemas() {
     assert!(read_output(dir.path(), "dev/api/schemas/pet.html").contains("Working schema"));
     let (diagnostics, summary) = doctor::run_checks(dir.path(), true);
     assert_eq!(summary.errors, 0, "{diagnostics:?}");
+    assert!(
+        !diagnostics
+            .iter()
+            .any(|diag| matches!(diag.check, "broken-wiki-link" | "broken-generated-link")),
+        "{diagnostics:?}"
+    );
+    // Current anchors must not make a broken historical target look valid.
+    api["paths"]["/pets"]["get"]
+        .as_object_mut()
+        .unwrap()
+        .remove("parameters");
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    git(&["add", "docs/openapi.json"]);
+    git(&[
+        "-c",
+        "user.name=Test",
+        "-c",
+        "user.email=test@example.test",
+        "commit",
+        "-qm",
+        "Remove historical parameters",
+    ]);
+    git(&["tag", "v2"]);
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    let version_config = format!(
+        "{CONFIG}\n[version]\nenabled = ['v2', 'dev']\ncurrent = 'dev'\n[version.git]\nrefs = {{v2 = 'refs/tags/v2'}}\nworking_tree = 'dev'\n"
+    );
+    write(dir.path(), "docanvil.toml", &version_config);
+    assert!(matches!(
+        build_project_strict(dir.path()),
+        Err(Error::StrictWarnings(_))
+    ));
+    let (diagnostics, _) = doctor::run_checks(dir.path(), true);
+    assert!(
+        diagnostics
+            .iter()
+            .any(|diag| diag.check == "broken-generated-link"
+                && diag.message.contains("Version 'v2'")
+                && diag.message.contains("parameters")),
+        "{diagnostics:?}"
+    );
 }
 
 #[test]
@@ -456,4 +527,176 @@ fn doctor_validates_working_navigation_against_working_content_not_oldest_tag() 
             .iter()
             .any(|d| d.check == "nav-missing-page" && d.message.contains("writing/missing"))
     );
+}
+
+#[test]
+fn overview_groups_all_tags_in_declared_then_lexical_order() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut api = spec();
+    api["tags"] = json!([
+        {"name": "Zebra", "description": "**Declared first** <script>bad()</script>"},
+        {"name": "Empty"},
+        {"name": "Alpha"}
+    ]);
+    api["paths"]["/pets"]["get"]["tags"] = json!(["Alpha", "Zebra", "Alpha", "Beta", "Aardvark"]);
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/index.html");
+    // Restrict assertions to content rather than the sidebar/source disclosure.
+    let start = html.find("<h2 id=\"operations\"").unwrap();
+    let end = html[start..].find("<h2 id=\"schemas\"").unwrap() + start;
+    let sidebar = html
+        .split("<nav class=\"sidebar\">")
+        .nth(1)
+        .unwrap()
+        .split("</nav>")
+        .next()
+        .unwrap();
+    assert_eq!(
+        sidebar
+            .matches("href=\"/manual/api/operations/listpets.html\"")
+            .count(),
+        4
+    );
+    let tag_positions: Vec<_> = [
+        "Zebra",
+        "Empty",
+        "Alpha",
+        "Aardvark",
+        "Beta",
+        "Untagged operations",
+    ]
+    .iter()
+    .map(|tag| sidebar.find(&format!("{tag}\n")).unwrap())
+    .collect();
+    assert!(tag_positions.windows(2).all(|pair| pair[0] < pair[1]));
+    let operations = &html[start..end];
+    let labels = [
+        ">Zebra</h3>",
+        ">Empty</h3>",
+        ">Alpha</h3>",
+        ">Aardvark</h3>",
+        ">Beta</h3>",
+        ">Untagged operations</h3>",
+    ];
+    let positions: Vec<_> = labels
+        .iter()
+        .map(|label| operations.find(label).unwrap())
+        .collect();
+    assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
+    assert!(operations.contains("<strong>Declared first</strong>"));
+    assert!(!operations.contains("<script>"));
+    assert!(operations.contains("No operations."));
+    assert_eq!(
+        operations
+            .matches("/manual/api/operations/listpets.html")
+            .count(),
+        4
+    );
+    assert!(operations.contains("/manual/api/operations/createpet.html"));
+    assert!(read_output(dir.path(), "llms-full.txt").contains("### Zebra"));
+    assert!(
+        dir.path()
+            .join("dist/api/operations/listpets.html")
+            .exists()
+    );
+}
+
+#[test]
+fn guide_links_to_generated_anchors_survive_build_and_ai_exports() {
+    let dir = create_project(
+        CONFIG,
+        &[(
+            "index.md",
+            "# Guide\n\n[[api/operations/listpets#%70arameters|Parameters]] and [[api/schemas/pet#properties|Fields]].\n\n[Responses](api/operations/listpets.html?view=full#responses)\n\n[Schema](api/schemas/pet.html#properties)\n\n`[[api/operations/listpets#missing]]`\n\n```md\n[Ignored](api/operations/listpets.html#missing)\n```",
+        )],
+    );
+    let mut api = spec();
+    api["paths"]["/pets"]["get"]["description"] =
+        "## Responses\n\nDescription heading.\n\n[Local response](#responses-1)".into();
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    build_project_strict(dir.path()).unwrap();
+    let guide = read_output(dir.path(), "index.html");
+    assert!(guide.contains("href=\"/manual/api/operations/listpets.html#%70arameters\""));
+    assert!(guide.contains("href=\"/manual/api/schemas/pet.html#properties\""));
+    let operation = read_output(dir.path(), "api/operations/listpets.html");
+    assert!(operation.contains("id=\"responses\""));
+    assert!(operation.contains("id=\"responses-1\""));
+    assert!(
+        read_output(dir.path(), "llms-full.txt")
+            .contains("api/operations/listpets.html#%70arameters")
+    );
+    let (diags, summary) = doctor::run_checks(dir.path(), true);
+    assert_eq!(summary.errors, 0, "{diags:?}");
+    assert!(
+        !diags
+            .iter()
+            .any(|diag| diag.check == "broken-generated-link" || diag.check == "broken-wiki-link"),
+        "{diags:?}"
+    );
+}
+
+#[test]
+fn invalid_generated_targets_fail_strict_build_and_doctor_without_publishing() {
+    for link in [
+        "[[api/operations/listpets#missing|Missing section]]",
+        "[[api/schemas/pet#%ZZ|Bad encoding]]",
+        "[Missing section](api/operations/listpets.html#missing)",
+        "[Missing page](api/operations/missing.html)",
+        "[Reference][target]\n\n[target]: /manual/api/schemas/pet.html#missing",
+    ] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        write(dir.path(), "docs/openapi.json", &spec().to_string());
+        build_project_strict(dir.path()).unwrap();
+        let previous = read_output(dir.path(), "index.html");
+        write(dir.path(), "docs/index.md", &format!("# Guide\n\n{link}"));
+        assert!(
+            matches!(
+                build_project_strict(dir.path()),
+                Err(Error::StrictWarnings(_))
+            ),
+            "{link}"
+        );
+        assert_eq!(previous, read_output(dir.path(), "index.html"));
+        let (diags, _) = doctor::run_checks(dir.path(), true);
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.check == "broken-generated-link"
+                    && diag
+                        .file
+                        .as_ref()
+                        .is_some_and(|file| file.ends_with("index.md"))),
+            "{link}: {diags:?}"
+        );
+    }
+}
+
+#[test]
+fn generated_description_links_use_the_same_target_checks() {
+    for description in [
+        "[Broken](../schemas/pet.html#missing)",
+        "[[api/schemas/pet#missing|Broken]]",
+    ] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        let mut api = spec();
+        api["paths"]["/pets"]["get"]["description"] = description.into();
+        write(dir.path(), "docs/openapi.json", &api.to_string());
+        assert!(matches!(
+            build_project_strict(dir.path()),
+            Err(Error::StrictWarnings(_))
+        ));
+        let (diags, _) = doctor::run_checks(dir.path(), true);
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.check == "broken-generated-link"
+                    && diag
+                        .file
+                        .as_ref()
+                        .is_some_and(|file| file.ends_with("openapi.json"))
+                    && diag.line.is_none()),
+            "{diags:?}"
+        );
+    }
 }

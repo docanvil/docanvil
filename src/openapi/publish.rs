@@ -9,7 +9,7 @@ use super::Api;
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::pipeline::frontmatter::FrontMatter;
-use crate::project::{GeneratedSource, PageInfo, PageInventory};
+use crate::project::{GeneratedSource, NavNode, PageInfo, PageInventory};
 
 /// Append generated pages after authored front matter has established its URLs.
 /// Specifications are shared across locales; their descriptions are not translated.
@@ -68,6 +68,48 @@ pub(crate) fn extend(
             }
         }
         let pages = plan(&api, &entry.output)?;
+        let tags = super::render::tag_groups(&api)?;
+        if !tags.is_empty() {
+            let mut groups: Vec<_> = tags
+                .iter()
+                .map(|(name, _)| NavNode::Group {
+                    label: (*name).to_owned(),
+                    slug: None,
+                    children: Vec::new(),
+                    open: false,
+                })
+                .collect();
+            let mut untagged = Vec::new();
+            // Planned operation pages precede schema pages (after the overview).
+            for (operation, page) in api.operations.iter().zip(pages.iter().skip(1)) {
+                let node = NavNode::Page {
+                    label: page.title.clone(),
+                    slug: page.slug.clone(),
+                };
+                if operation.tags.is_empty() {
+                    untagged.push(node);
+                } else {
+                    for ((name, _), group) in tags.iter().zip(&mut groups) {
+                        if operation.tags.iter().any(|tag| tag == name)
+                            && let NavNode::Group { children, .. } = group
+                        {
+                            children.push(node.clone());
+                        }
+                    }
+                }
+            }
+            if !untagged.is_empty() {
+                groups.push(NavNode::Group {
+                    label: "Untagged operations".into(),
+                    slug: None,
+                    children: untagged,
+                    open: false,
+                });
+            }
+            inventory
+                .generated_nav
+                .insert(format!("{}/operations", entry.output), groups);
+        }
         inventory.generation_warnings.extend(api.warnings);
         let locales: Vec<Option<String>> = if config.is_i18n_enabled() {
             config.locale.enabled.iter().cloned().map(Some).collect()
@@ -322,7 +364,10 @@ fn plan(api: &Api, namespace: &str) -> Result<Vec<Page>> {
         },
     );
     let mut seen = BTreeSet::new();
-    for page in &pages {
+    for page in &mut pages {
+        // Assign once across the complete page, including all media branches.
+        // Link validation and every publishing consumer then share these IDs.
+        page.html = crate::pipeline::headings::inject_heading_ids(&page.html);
         if !seen.insert(&page.slug) {
             return Err(Error::General(format!(
                 "OpenAPI route collision at {}; use distinct operation IDs/schema names",
@@ -331,4 +376,151 @@ fn plan(api: &Api, namespace: &str) -> Result<Vec<Page>> {
         }
     }
     Ok(pages)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::project::{build_breadcrumb_map, flatten_nav_pages};
+    use serde_json::json;
+
+    fn tagged_inventory(localized: bool) -> PageInventory {
+        let dir = tempfile::tempdir().unwrap();
+        let docs = dir.path().join("docs");
+        std::fs::create_dir_all(docs.join("api/operations/nested")).unwrap();
+        std::fs::write(docs.join("api/operations/guide.md"), "# Operation guide").unwrap();
+        std::fs::write(docs.join("api/operations/nested/extra.md"), "# Extra").unwrap();
+        let mut spec: Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/openapi/petstore.json"))
+                .unwrap();
+        spec["tags"] = json!([{"name": "Zebra"}, {"name": "Empty"}, {"name": "Alpha"}]);
+        spec["paths"]["/pets"]["get"]["tags"] = json!(["Alpha", "Zebra", "Alpha", "A/B", "A-B"]);
+        std::fs::write(docs.join("openapi.json"), spec.to_string()).unwrap();
+        let locale_config = if localized {
+            "\n[locale]\ndefault = 'en'\nenabled = ['en', 'fr']\n"
+        } else {
+            ""
+        };
+        std::fs::write(
+            dir.path().join("docanvil.toml"),
+            format!("[project]\nname = 'API'\n[[openapi]]\nspec = 'openapi.json'\n{locale_config}"),
+        )
+        .unwrap();
+        let config = Config::load(dir.path()).unwrap();
+        let locales = localized.then_some(config.locale.enabled.as_slice());
+        let mut inventory =
+            PageInventory::scan(&docs, locales, localized.then_some("en"), Some("v2")).unwrap();
+        crate::cli::build::assemble_sources(&mut inventory, &config, &docs, Some("v2"), None)
+            .unwrap();
+        inventory
+    }
+
+    fn assert_tag_groups(nodes: &[NavNode]) {
+        let groups: Vec<_> = nodes
+            .iter()
+            .filter_map(|node| match node {
+                NavNode::Group { label, .. } if label != "Nested" => Some(label.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            groups,
+            [
+                "Zebra",
+                "Empty",
+                "Alpha",
+                "A-B",
+                "A/B",
+                "Untagged operations"
+            ]
+        );
+        let html = crate::project::render_nav(nodes, "api/operations/listpets", "/manual/v2/fr/");
+        assert_eq!(
+            html.matches("href=\"/manual/v2/fr/api/operations/listpets.html\"")
+                .count(),
+            4
+        );
+        let flat = flatten_nav_pages(nodes);
+        assert_eq!(
+            flat.iter()
+                .filter(|(slug, _)| slug == "api/operations/listpets")
+                .count(),
+            1
+        );
+        assert!(
+            flat.iter()
+                .any(|(slug, _)| slug == "api/operations/createpet")
+        );
+        let breadcrumbs = build_breadcrumb_map(nodes);
+        assert_eq!(breadcrumbs["api/operations/listpets"][0].label, "Zebra");
+    }
+
+    #[test]
+    fn tag_navigation_handles_discovery_scopes_locales_and_authored_siblings() {
+        for localized in [false, true] {
+            let inventory = tagged_inventory(localized);
+            let full = if localized {
+                inventory.nav_tree_for_locale("fr")
+            } else {
+                inventory.nav_tree()
+            };
+            let operations = if localized {
+                inventory.nav_tree_for_folder_in_locale("api/operations", None, "fr")
+            } else {
+                inventory.nav_tree_for_folder("api/operations", None)
+            };
+            assert_tag_groups(&operations);
+            let flat = flatten_nav_pages(&full);
+            assert_eq!(
+                flat.iter()
+                    .filter(|(slug, _)| slug == "api/operations/listpets")
+                    .count(),
+                1
+            );
+            // Default-locale authored pages are preserved alongside generated tags.
+            let default = if localized {
+                inventory.nav_tree_for_folder_in_locale("api/operations", None, "en")
+            } else {
+                inventory.nav_tree_for_folder("api/operations", None)
+            };
+            let flat = flatten_nav_pages(&default);
+            assert!(flat.iter().any(|(slug, _)| slug == "api/operations/guide"));
+            assert!(
+                flat.iter()
+                    .any(|(slug, _)| slug == "api/operations/nested/extra")
+            );
+            let filtered = if localized {
+                inventory.nav_tree_for_folder_in_locale(
+                    "api",
+                    Some("api/operations/listpets"),
+                    "en",
+                )
+            } else {
+                inventory.nav_tree_for_folder("api", Some("api/operations/listpets"))
+            };
+            assert!(
+                !flatten_nav_pages(&filtered)
+                    .iter()
+                    .any(|(slug, _)| slug == "api/operations/listpets")
+            );
+            assert!(inventory.nav_tree_for_folder("unrelated", None).is_empty());
+            assert!(inventory.nav_tree_for_locale("unknown").is_empty());
+        }
+    }
+
+    #[test]
+    fn explicit_navigation_remains_author_controlled() {
+        let inventory = tagged_inventory(false);
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("nav.toml"),
+            "[[nav]]\nlabel = 'Chosen operation'\npage = 'api/operations/listpets'\n",
+        )
+        .unwrap();
+        let entries = crate::nav::load_nav(dir.path()).unwrap().unwrap();
+        let nodes = crate::nav::nav_tree_from_config(&entries, &inventory);
+        assert!(
+            matches!(&nodes[..], [NavNode::Page { label, slug }] if label == "Chosen operation" && slug == "api/operations/listpets")
+        );
+    }
 }

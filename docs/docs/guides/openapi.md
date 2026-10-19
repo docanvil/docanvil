@@ -10,6 +10,8 @@ Add an OpenAPI 3.0 or 3.1 specification to your content directory and DocAnvil c
 
 Open the [[example-api/index|Documents API example]] in the Master documentation to see the generated output. It has four operations, pagination, bearer authentication, request/response examples, reusable errors and a recursive document schema. The server is fictional; this example does not make live requests.
 
+Jump directly to the [[example-api/operations/createdocument#request-body|create operation’s request body]] to see a generated section link.
+
 Its source is `docs/docs/_examples/documents-api.json` in the DocAnvil repository. Our documentation config generates it under `example-api` for Master only.
 
 ## Configure an API
@@ -52,7 +54,20 @@ label = "API reference"
 autodiscover = "api"
 ```
 
+Link directly to a generated section by adding its heading ID to the published slug:
+
+```markdown
+[[api/operations/listpets#parameters|Parameters]]
+[[api/schemas/pet#properties|Pet fields]]
+```
+
+Fragments are case-sensitive and percent-encoded fragments are supported. Repeated headings receive suffixes such as `responses-1`; use the ID from the rendered page. Ordinary Markdown links to generated `.html` pages work too, relative to the published guide URL.
+
+Build and doctor check generated API page/fragment targets, including links in API descriptions. Missing targets emit warnings and fail `--strict`; a failed strict build keeps the previous output (unless you requested `--clean`). Valid fragment links are preserved in AI outputs and scoped to the right chapter in PDF. This check does not validate fragments on authored pages, external URLs or arbitrary assets.
+
 An operation with `operationId: listPets` is published at `api/operations/listpets.html`. IDs and schema names are slugified. IDs that normalize to the same route cause a build error. Operations without an ID use a method/path slug with a short deterministic hash. Changing an operation ID changes its URL; provide redirects when needed. These initial route rules may evolve before V1.3 is released.
+
+The overview groups operations by tag. Declare top-level `tags` in the specification to set group order and provide Markdown descriptions. Undeclared tags follow in alphabetical order, then untagged operations. An operation with several tags appears in each group; repeated tags do not repeat an operation within a group. Declared tags without operations remain visible. If there are no tags, the overview keeps a single operation table. Tag names are case-sensitive and declared names must be unique. Automatic navigation and `autodiscover = "api"` (or `"api/operations"`) group operation links by the same tags beneath `Operations`; schema navigation is unchanged. Multiple tags show the same operation link in each group. Breadcrumbs, previous/next links and exports use its first occurrence. Explicit page/group entries in `nav.toml` keep your chosen layout. Tag labels do not affect operation URLs.
 
 Search, sitemap and enabled AI-readable outputs include generated pages. PDF includes generated pages selected by navigation, like authored chapters. Edit links point to the specification or referenced source file, and Git dates account for the specification's loaded dependencies.
 

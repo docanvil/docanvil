@@ -71,12 +71,9 @@ pub fn run(
         live_reload: false,
         drafts,
         editor: None,
+        strict,
     };
     let built = build_into(project_root, &config, &output_dir, mode, &mut dependencies)?;
-
-    if strict && warning_count() > 0 {
-        return Err(Error::StrictWarnings(warning_count()));
-    }
 
     if !quiet {
         let elapsed = start.elapsed();
@@ -101,6 +98,8 @@ pub fn run(
 /// How a build treats the dev server's extras and draft pages.
 #[derive(Debug, Clone, Copy)]
 struct BuildMode<'a> {
+    /// Reject warnings before staged output is published.
+    strict: bool,
     /// Building for `docanvil serve`: inject live reload, use `/` as the base URL.
     live_reload: bool,
     /// Include pages marked `"draft": true` (always on for `docanvil serve`).
@@ -360,6 +359,7 @@ pub fn run_with_options(
         live_reload,
         drafts: true,
         editor,
+        strict: false,
     };
     let built = build_into(project_root, &config, output_dir, mode, &mut dependencies)?;
     eprintln!("Built {} page{}", built.pages, plural(built.pages));
@@ -402,6 +402,10 @@ fn build_into(
         }
     };
 
+    if mode.strict && warning_count() > 0 {
+        let _ = std::fs::remove_dir_all(&staging);
+        return Err(Error::StrictWarnings(warning_count()));
+    }
     sync_output(&staging, output_dir)?;
     std::fs::remove_dir_all(&staging).map_err(io_context(&staging))?;
     Ok(built)
@@ -628,6 +632,7 @@ fn build_site(
         live_reload,
         drafts: include_drafts,
         editor,
+        ..
     } = mode;
     let content_dir = project_root.join(&config.project.content_dir);
     if !config.is_versioning_enabled() && !content_dir.exists() {
@@ -1400,6 +1405,7 @@ fn build_site(
             }
             let merged_inv = PageInventory {
                 generated: HashMap::new(),
+                generated_nav: Default::default(),
                 generation_warnings: Vec::new(),
                 pages: merged_pages,
                 ordered: merged_ordered,

@@ -53,6 +53,17 @@ pub fn warn_broken_link(source_file: &Path, link_target: &str) {
     );
 }
 
+/// Emit a warning about an invalid URL or anchor targeting generated API content.
+pub(crate) fn warn_generated_link(source_file: &Path, message: &str) {
+    increment();
+    eprintln!(
+        "{}: {} in {}",
+        "warning".yellow().bold(),
+        message,
+        source_file.display()
+    );
+}
+
 /// Emit a warning about a wiki-link to a draft page that this build leaves out
 /// (only when `[build] draft_links = "warn"`).
 pub fn warn_draft_link(source_file: &Path, link_target: &str) {

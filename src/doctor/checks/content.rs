@@ -31,10 +31,29 @@ pub fn check_content(
 
     // Scan each page for content issues
     for slug in &inventory.ordered {
-        if inventory.generated.contains_key(slug) {
+        let page = &inventory.pages[slug];
+        if let Some(generated) = inventory.generated_source(page) {
+            let diagnostic_start = diags.len();
+            check_broken_wikilinks(
+                &generated.markdown,
+                &page.source_path,
+                page.locale.as_deref(),
+                inventory,
+                &mut diags,
+            );
+            // Generated Markdown line numbers do not identify specification lines.
+            for diagnostic in &mut diags[diagnostic_start..] {
+                diagnostic.line = None;
+            }
+            check_generated_links(
+                &generated.html,
+                inventory,
+                page,
+                &config.base_url(),
+                &mut diags,
+            );
             continue;
         }
-        let page = &inventory.pages[slug];
         let source = match std::fs::read_to_string(&page.source_path) {
             Ok(s) => s,
             Err(_) => continue,
@@ -68,6 +87,27 @@ pub fn check_content(
     check_includes(project_root, config, inventory, &fragments, &mut diags);
 
     diags
+}
+
+fn check_generated_links(
+    html: &str,
+    inventory: &PageInventory,
+    page: &crate::project::PageInfo,
+    base_url: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    for message in crate::pipeline::links::generated_link_problems(html, inventory, page, base_url)
+    {
+        diags.push(Diagnostic {
+            check: "broken-generated-link",
+            category: "content",
+            severity: Severity::Warning,
+            message,
+            file: Some(page.source_path.clone()),
+            line: None,
+            fix: None,
+        });
+    }
 }
 
 fn check_duplicate_slugs(inventory: &PageInventory, diags: &mut Vec<Diagnostic>) {
@@ -168,18 +208,28 @@ fn check_broken_wikilinks_in_line(
             };
 
             let target = target.trim();
+            let (page_target, fragment) = crate::pipeline::links::split_target(target);
             let resolved = match locale {
-                Some(loc) => inventory
-                    .resolve_link_in_locale(target, loc)
-                    .or_else(|| inventory.resolve_link(target)),
-                None => inventory.resolve_link(target),
+                Some(loc) => inventory.resolve_link_in_locale(page_target, loc),
+                None => inventory.resolve_link(page_target),
             };
-            if !target.is_empty() && resolved.is_none() {
+            let missing_fragment = resolved.is_some_and(|page| {
+                !crate::pipeline::links::fragment_exists(inventory, page, fragment)
+            });
+            if !target.is_empty() && (resolved.is_none() || missing_fragment) {
                 diags.push(Diagnostic {
-                    check: "broken-wiki-link",
+                    check: if missing_fragment {
+                        "broken-generated-link"
+                    } else {
+                        "broken-wiki-link"
+                    },
                     category: "content",
                     severity: Severity::Warning,
-                    message: format!("Broken link [[{target}]]"),
+                    message: if missing_fragment {
+                        format!("Anchor not found in generated API page: [[{target}]]")
+                    } else {
+                        format!("Broken link [[{target}]]")
+                    },
                     file: Some(source_path.to_path_buf()),
                     line: Some(line_number),
                     fix: None,
@@ -341,6 +391,15 @@ fn check_includes(
                 locale,
             },
         );
+        if !inventory.generated.is_empty() {
+            check_generated_links(
+                &crate::pipeline::markdown::render(&expanded.source),
+                inventory,
+                page,
+                &config.base_url(),
+                diags,
+            );
+        }
         used.extend(expanded.dependencies);
         push_include_problems(project_root, expanded.problems, &mut seen, diags);
     }

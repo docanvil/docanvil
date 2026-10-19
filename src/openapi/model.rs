@@ -70,6 +70,25 @@ impl Api {
         let api_version = required_string(info, "version", &info_location)?;
         let description = optional_string(info, "description", &info_location)?;
         let root_value = graph.value(root)?;
+        if let Some(tags) = root_value.get("tags") {
+            let location = root.child("tags");
+            let tags = tags
+                .as_array()
+                .ok_or_else(|| OpenApiError::at(&location, "tags must be an array"))?;
+            let mut names = std::collections::BTreeSet::new();
+            for (index, tag) in tags.iter().enumerate() {
+                let location = location.child(&index.to_string());
+                let tag = object(tag, &location)?;
+                let name = required_string(tag, "name", &location)?;
+                if !names.insert(name) {
+                    return Err(OpenApiError::at(
+                        &location.child("name"),
+                        "duplicate tag name",
+                    ));
+                }
+                optional_string(tag, "description", &location)?;
+            }
+        }
         let mut operations = Vec::new();
         let mut warnings = Vec::new();
         if root_value.get("webhooks").is_some() {

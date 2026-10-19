@@ -5,6 +5,7 @@ pub mod frontmatter;
 pub mod headings;
 pub mod images;
 pub mod includes;
+pub(crate) mod links;
 pub mod markdown;
 pub mod popovers;
 pub mod syntax;
@@ -75,7 +76,7 @@ pub fn process_page_with_asset_base(
     asset_base_url: &str,
 ) -> Result<Processed> {
     let Some(generated) = inventory.generated_source(page) else {
-        return process_with_asset_base(
+        let processed = process_with_asset_base(
             source,
             inventory,
             &page.source_path,
@@ -86,7 +87,9 @@ pub fn process_page_with_asset_base(
             project_root,
             locale,
             asset_base_url,
-        );
+        )?;
+        warn_generated_links(&processed.html, inventory, page, base_url);
+        return Ok(processed);
     };
     // Specification prose is Markdown, not executable DocAnvil authoring input.
     // Keep literal includes/directives and omit raw HTML from API descriptions.
@@ -98,12 +101,19 @@ pub fn process_page_with_asset_base(
     let html = wikilinks::resolve(&html, inventory, &page.source_path, base_url, locale);
     let html = headings::inject_heading_ids(&html);
     let html = images::rewrite_image_paths(&html, asset_base_url, project_root);
+    warn_generated_links(&html, inventory, page, base_url);
     Ok(Processed {
         html,
         markdown: generated.markdown.clone(),
         dependencies: generated.dependencies.clone(),
         watch_dependencies: generated.dependencies.clone(),
     })
+}
+
+fn warn_generated_links(html: &str, inventory: &PageInventory, page: &PageInfo, base_url: &str) {
+    for problem in links::generated_link_problems(html, inventory, page, base_url) {
+        diagnostics::warn_generated_link(&page.source_path, &problem);
+    }
 }
 
 /// Full pipeline: includes → directives + popovers + markdown (via the component

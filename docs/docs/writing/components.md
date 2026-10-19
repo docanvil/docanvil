@@ -449,8 +449,11 @@ produces a component rendering warning and a visible error box so typos are easy
 Custom component and layout templates can render icons with:
 
 ```html
-{{ icon(name="lucide:rocket") | safe }}
+{{ icon(name="lucide:rocket") }}
 ```
+
+The function marks bundled SVGs as safe HTML and escapes legacy text or emoji
+values automatically; no `| safe` filter is needed.
 
 Icons render as decorative inline SVGs at build time, inherit the surrounding
 text colour, and use the `.docanvil-icon` class (default size: `1em`). Supply an

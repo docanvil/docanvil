@@ -97,10 +97,7 @@ fn source_links_point_at_specifications_and_descriptions_cannot_include_files() 
     write(dir.path(), "secret.txt", "DO_NOT_INCLUDE_THIS");
     build_project_strict(dir.path()).unwrap();
     let html = read_output(dir.path(), "api/operations/listpets.html");
-    assert!(
-        html.replace("&#x2F;", "/")
-            .contains("https://github.com/example/project/edit/main/docs/openapi.json")
-    );
+    assert!(html.contains("https://github.com/example/project/edit/main/docs/openapi.json"));
     assert!(html.contains("<strong>Safe Markdown</strong>"));
     assert!(!html.contains("DO_NOT_INCLUDE_THIS"));
     assert!(!html.contains("<script>bad()"));

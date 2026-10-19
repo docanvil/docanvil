@@ -1,7 +1,4 @@
-use std::collections::HashSet;
-
 use serde::Serialize;
-use tera::ast::Node;
 use tera::{Context, Tera};
 
 use crate::config::ColorMode;
@@ -98,19 +95,6 @@ pub struct LocaleInfo {
     pub has_page: bool,
 }
 
-/// Find a chain of `{% include %}`s that leads back to where it started, such as
-/// `["a.html", "b.html", "a.html"]`. Tera follows includes with no depth limit, so
-/// rendering a template on such a chain overflows the stack instead of erroring.
-/// Recursive macros aren't covered: they can legitimately stop on a condition.
-pub fn find_include_cycle(tera: &Tera) -> Option<Vec<String>> {
-    let mut names: Vec<&str> = tera.get_template_names().collect();
-    names.sort_unstable();
-    let mut done = HashSet::new();
-    names
-        .into_iter()
-        .find_map(|name| visit_includes(tera, name, &mut Vec::new(), &mut done))
-}
-
 /// Human-readable form of an include loop such as `["a.html", "b.html", "a.html"]`.
 /// `things` names what's looping in the plural ("templates", "files").
 pub fn include_cycle_message(cycle: &[String], things: &str) -> String {
@@ -121,67 +105,6 @@ pub fn include_cycle_message(cycle: &[String], things: &str) -> String {
             "{things} include each other in a loop ({}), so they would never finish rendering",
             cycle.join(" → ")
         )
-    }
-}
-
-fn visit_includes<'a>(
-    tera: &'a Tera,
-    name: &'a str,
-    path: &mut Vec<&'a str>,
-    done: &mut HashSet<&'a str>,
-) -> Option<Vec<String>> {
-    if let Some(start) = path.iter().position(|n| *n == name) {
-        let mut cycle: Vec<String> = path[start..].iter().map(|n| n.to_string()).collect();
-        cycle.push(name.to_string());
-        return Some(cycle);
-    }
-    if done.contains(name) {
-        return None;
-    }
-    // A missing template can't loop; Tera reports it (or skips it) on its own.
-    let template = tera.get_template(name).ok()?;
-    let mut includes = Vec::new();
-    collect_includes(&template.ast, &mut includes);
-
-    path.push(name);
-    for candidates in includes {
-        // `{% include ["a.html", "b.html"] %}` renders the first one that exists.
-        let Some(target) = candidates.iter().find(|c| tera.get_template(c).is_ok()) else {
-            continue;
-        };
-        if let Some(cycle) = visit_includes(tera, target, path, done) {
-            return Some(cycle);
-        }
-    }
-    path.pop();
-    done.insert(name);
-    None
-}
-
-/// Every `{% include %}` in `nodes`, including those nested inside other tags.
-fn collect_includes<'a>(nodes: &'a [Node], out: &mut Vec<&'a [String]>) {
-    for node in nodes {
-        match node {
-            Node::Include(_, candidates, _) => out.push(candidates),
-            Node::MacroDefinition(_, def, _) => collect_includes(&def.body, out),
-            Node::FilterSection(_, section, _) => collect_includes(&section.body, out),
-            Node::Block(_, block, _) => collect_includes(&block.body, out),
-            Node::Forloop(_, forloop, _) => {
-                collect_includes(&forloop.body, out);
-                if let Some(body) = &forloop.empty_body {
-                    collect_includes(body, out);
-                }
-            }
-            Node::If(if_node, _) => {
-                for (_, _, body) in &if_node.conditions {
-                    collect_includes(body, out);
-                }
-                if let Some((_, body)) = &if_node.otherwise {
-                    collect_includes(body, out);
-                }
-            }
-            _ => {}
-        }
     }
 }
 
@@ -196,63 +119,19 @@ impl TemplateRenderer {
         let mut tera = Tera::default();
         tera.register_function("icon", crate::icons::template_icon);
         tera.add_raw_template("layout.html", &theme.layout_template)
-            .map_err(|e| Error::Render(format!("failed to parse template: {e}")))?;
-        if let Some(cycle) = find_include_cycle(&tera) {
-            return Err(Error::Render(format!(
-                "layout template: {}",
-                include_cycle_message(&cycle, "templates")
-            )));
-        }
+            .map_err(|e| {
+                Error::Render(format!(
+                    "failed to parse template: {}",
+                    crate::components::tera_error_message(&e)
+                ))
+            })?;
         Ok(Self { tera })
     }
 
     /// Render a page with the given context values.
     pub fn render_page(&self, ctx: &PageContext) -> Result<String> {
-        let mut context = Context::new();
-        context.insert("page_title", &ctx.page_title);
-        context.insert("project_name", &ctx.project_name);
-        context.insert("content", &ctx.content);
-        context.insert("nav_html", &ctx.nav_html);
-        context.insert("default_css", &ctx.default_css);
-        context.insert("css_overrides", &ctx.css_overrides);
-        context.insert("custom_css_path", &ctx.custom_css_path);
-        context.insert("custom_css", &ctx.custom_css);
-        context.insert("base_url", &ctx.base_url);
-        context.insert("logo_path", &ctx.logo_path);
-        context.insert("repo", &ctx.repo);
-        context.insert("favicon_path", &ctx.favicon_path);
-        context.insert("live_reload", &ctx.live_reload);
-        context.insert("mermaid_enabled", &ctx.mermaid_enabled);
-        context.insert("mermaid_version", &ctx.mermaid_version);
-        context.insert("search_enabled", &ctx.search_enabled);
-        context.insert("meta_description", &ctx.meta_description);
-        context.insert("meta_author", &ctx.meta_author);
-        context.insert("meta_date", &ctx.meta_date);
-        context.insert("prev_page", &ctx.prev_page);
-        context.insert("next_page", &ctx.next_page);
-        context.insert("color_mode", &ctx.color_mode);
-        context.insert("js_cachebust", &ctx.js_cachebust);
-        context.insert("current_locale", &ctx.current_locale);
-        context.insert("current_flag", &ctx.current_flag);
-        context.insert("available_locales", &ctx.available_locales);
-        context.insert("locale_auto_detect", &ctx.locale_auto_detect);
-        context.insert("canonical_url", &ctx.canonical_url);
-        context.insert("x_default_url", &ctx.x_default_url);
-        context.insert("search_index_url", &ctx.search_index_url);
-        context.insert("current_version", &ctx.current_version);
-        context.insert(
-            "current_version_unreleased",
-            &ctx.current_version_unreleased,
-        );
-        context.insert("available_versions", &ctx.available_versions);
-        context.insert("latest_version", &ctx.latest_version);
-        context.insert("latest_version_url", &ctx.latest_version_url);
-        context.insert("edit_url", &ctx.edit_url);
-        context.insert("edit_local", &ctx.edit_local);
-        context.insert("breadcrumbs", &ctx.breadcrumbs);
-        context.insert("last_updated", &ctx.last_updated);
-        context.insert("draft", &ctx.draft);
-        context.insert("toc", &ctx.toc);
+        let context = Context::from_serialize(ctx)
+            .map_err(|e| Error::Render(format!("failed to serialize page context: {e}")))?;
 
         self.tera
             .render("layout.html", &context)
@@ -261,6 +140,7 @@ impl TemplateRenderer {
 }
 
 /// All the data needed to render a single page.
+#[derive(Serialize)]
 pub struct PageContext {
     pub page_title: String,
     pub project_name: String,
@@ -322,74 +202,49 @@ pub struct PageContext {
 mod tests {
     use super::*;
 
-    fn tera_with(templates: &[(&str, &str)]) -> Tera {
-        let mut tera = Tera::default();
-        tera.add_raw_templates(templates.to_vec()).unwrap();
-        tera
+    fn template_result(templates: &[(&str, &str)]) -> tera::TeraResult<()> {
+        Tera::default().add_raw_templates(templates.to_vec())
     }
 
     #[test]
-    fn self_include_is_a_cycle() {
-        let tera = tera_with(&[("loop.html", "<div>{% include \"loop.html\" %}</div>")]);
-        assert_eq!(
-            find_include_cycle(&tera),
-            Some(vec!["loop.html".to_string(), "loop.html".to_string()])
-        );
-    }
-
-    #[test]
-    fn indirect_include_cycle_is_found() {
-        let tera = tera_with(&[
+    fn indirect_include_cycle_is_rejected() {
+        let err = template_result(&[
             ("a.html", "{% include \"b.html\" %}"),
-            ("b.html", "{% include \"c.html\" %}"),
-            ("c.html", "{% include \"a.html\" %}"),
-        ]);
-        assert_eq!(
-            find_include_cycle(&tera),
-            Some(
-                vec!["a.html", "b.html", "c.html", "a.html"]
-                    .into_iter()
-                    .map(String::from)
-                    .collect()
-            )
-        );
+            ("b.html", "{% include \"a.html\" %}"),
+        ])
+        .unwrap_err();
+        assert!(matches!(
+            err.kind(),
+            tera::ErrorKind::CircularInclude { .. }
+        ));
     }
 
     #[test]
-    fn includes_inside_nested_tags_are_followed() {
+    fn nested_include_cycles_are_rejected() {
         for body in [
             "{% if x %}{% include \"t.html\" %}{% endif %}",
-            "{% if x %}{% else %}{% include \"t.html\" %}{% endif %}",
             "{% for i in xs %}{% include \"t.html\" %}{% endfor %}",
-            "{% for i in xs %}{% else %}{% include \"t.html\" %}{% endfor %}",
             "{% filter upper %}{% include \"t.html\" %}{% endfilter %}",
             "{% block b %}{% include \"t.html\" %}{% endblock %}",
-            "{% macro m() %}{% include \"t.html\" %}{% endmacro %}",
+            "{% component m() %}{% include \"t.html\" %}{% endcomponent %}",
         ] {
-            let tera = tera_with(&[("t.html", body)]);
+            let err = template_result(&[("t.html", body)]).unwrap_err();
             assert!(
-                find_include_cycle(&tera).is_some(),
-                "missed cycle in {body}"
+                matches!(err.kind(), tera::ErrorKind::CircularInclude { .. }),
+                "{err}"
             );
         }
     }
 
     #[test]
     fn shared_includes_without_a_cycle_pass() {
-        // a → b → d and a → c → d: d is reached twice, but nothing loops.
-        let tera = tera_with(&[
+        template_result(&[
             ("a.html", "{% include \"b.html\" %}{% include \"c.html\" %}"),
             ("b.html", "{% include \"d.html\" %}"),
             ("c.html", "{% include \"d.html\" %}"),
             ("d.html", "leaf"),
-        ]);
-        assert_eq!(find_include_cycle(&tera), None);
-    }
-
-    #[test]
-    fn missing_optional_include_is_not_a_cycle() {
-        let tera = tera_with(&[("a.html", "{% include \"nope.html\" ignore missing %}")]);
-        assert_eq!(find_include_cycle(&tera), None);
+        ])
+        .unwrap();
     }
 
     #[test]

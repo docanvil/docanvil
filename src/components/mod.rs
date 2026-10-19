@@ -12,7 +12,6 @@ use crate::diagnostics::warn_component_render;
 use crate::error::{Error, Result};
 use crate::pipeline::directives::{self, DirectiveBlock};
 use crate::pipeline::{headings, markdown, popovers};
-use crate::render::templates::{find_include_cycle, include_cycle_message};
 use crate::util::html_escape;
 
 /// What a component's data provider sees.
@@ -87,15 +86,11 @@ impl Default for ComponentRegistry {
     }
 }
 
-/// Escape a value printed by a component template. Same as `html_escape`, plus
-/// single quotes. Tera's own escaper also rewrites `/` as `&#x2F;`, which is
-/// noisy in output and isn't decoded by the search indexer.
-fn escape_template_value(s: &str) -> String {
-    html_escape(s).replace('\'', "&#39;")
-}
-
-/// Flatten a Tera error and its causes into one line.
+/// Preserve readable include loops and include the causes of other Tera errors.
 pub(crate) fn tera_error_message(e: &tera::Error) -> String {
+    if let tera::ErrorKind::CircularInclude { include_chain, .. } = e.kind() {
+        return crate::render::templates::include_cycle_message(include_chain, "templates");
+    }
     let mut message = e.to_string();
     let mut source = std::error::Error::source(e);
     while let Some(cause) = source {
@@ -110,7 +105,6 @@ impl ComponentRegistry {
     /// A registry with the builtin components and their embedded templates.
     pub fn with_builtins() -> Self {
         let mut tera = Tera::default();
-        tera.set_escape_fn(escape_template_value);
         tera.register_function("icon", crate::icons::template_icon);
         let mut registry = Self {
             providers: HashMap::new(),
@@ -149,10 +143,10 @@ impl ComponentRegistry {
         paths.sort();
 
         // Read every template before registering any of them, then register them
-        // in one batch. Tera resolves `{% import %}` / `{% extends %}` against
+        // in one batch. Tera resolves component calls / `{% extends %}` against
         // whatever's already in its template map, so adding files one at a time
         // (in alphabetical order) breaks a template that references one that
-        // sorts later — e.g. `badge.html` importing macros from `zz-macros.html`.
+        // sorts later — e.g. `badge.html` calling a component from `zz-components.html`.
         let mut sources = Vec::with_capacity(paths.len());
         for path in &paths {
             let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
@@ -178,18 +172,6 @@ impl ComponentRegistry {
                 .unwrap_or_else(|| dir.clone());
             Error::ComponentTemplate { path, message }
         })?;
-
-        if let Some(cycle) = find_include_cycle(&registry.tera) {
-            let path = sources
-                .iter()
-                .find(|(_, stem, _)| template_name(stem) == cycle[0])
-                .map(|(path, _, _)| path.clone())
-                .unwrap_or(dir);
-            return Err(Error::ComponentTemplate {
-                path,
-                message: include_cycle_message(&cycle, "templates"),
-            });
-        }
 
         Ok(registry)
     }
@@ -478,15 +460,13 @@ mod tests {
         assert_eq!(crate::diagnostics::warning_count(), 1);
     }
 
-    /// `warn_component_render` picks a hint based on the error message; this
-    /// pins that an error *without* "not found in context" (so the generic
-    /// hint path) still renders the error box and still counts as a warning.
+    /// A filter conversion failure uses the generic hint and still counts as a warning.
     #[test]
     fn render_error_without_context_hint_still_warns() {
         crate::diagnostics::reset_warnings();
         let mut registry = ComponentRegistry::with_builtins();
         registry
-            .add_template("broken-filter", "{{ attrs.title | no_such_filter }}")
+            .add_template("broken-filter", "{{ attrs.title | int }}")
             .unwrap();
         let html =
             registry.render_markdown(":::broken-filter{title=\"Hi\"}\n:::\n", Path::new("t.md"));
@@ -523,21 +503,19 @@ mod tests {
     }
 
     #[test]
-    fn load_resolves_cross_file_import_regardless_of_file_name_order() {
+    fn load_resolves_cross_file_component_regardless_of_file_name_order() {
         let dir = tempfile::tempdir().unwrap();
         let comps = dir.path().join("theme/components");
         std::fs::create_dir_all(&comps).unwrap();
-        // "badge.html" sorts before "zz-macros.html" alphabetically, so a
-        // one-at-a-time load would try to register badge.html (which imports
-        // zz-macros.html) before zz-macros.html exists.
+        // "badge.html" calls a component defined in a later-sorting file.
         std::fs::write(
             comps.join("badge.html"),
-            "{% import \"zz-macros.html\" as m %}<span>{{ m::shout(text=attrs.text) }}</span>",
+            "<span>{{<shout text={attrs.text} />}}</span>",
         )
         .unwrap();
         std::fs::write(
-            comps.join("zz-macros.html"),
-            "{% macro shout(text) %}{{ text | upper }}{% endmacro shout %}",
+            comps.join("zz-components.html"),
+            "{% component shout(text: string) %}{{ text | upper }}{% endcomponent shout %}",
         )
         .unwrap();
         let registry = ComponentRegistry::load(dir.path()).unwrap();
@@ -810,7 +788,7 @@ mod tests {
 
         let mut registry = ComponentRegistry::with_builtins();
         registry
-            .add_template("badge", "{{ icon(name=attrs.icon) | safe }}")
+            .add_template("badge", "{{ icon(name=attrs.icon) }}")
             .unwrap();
         let html = registry.render_markdown(
             ":::badge{icon=\"lucide:rocket\"}\nLaunch\n:::\n",

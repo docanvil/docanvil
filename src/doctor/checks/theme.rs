@@ -8,7 +8,6 @@ use crate::config::Config;
 use crate::doctor::{Diagnostic, Fix, Severity};
 use crate::error::Error;
 use crate::pipeline::directives::INCLUDE_DIRECTIVE;
-use crate::render::templates::{find_include_cycle, include_cycle_message};
 
 /// Check theme: custom CSS existence, layout template validity.
 pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
@@ -53,12 +52,11 @@ pub fn check_theme(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
         };
 
         let mut tera = tera::Tera::default();
-        let error = match tera.add_raw_template("layout.html", &template_content) {
-            Err(e) => Some(e.to_string()),
-            Ok(()) => {
-                find_include_cycle(&tera).map(|cycle| include_cycle_message(&cycle, "templates"))
-            }
-        };
+        tera.register_function("icon", crate::icons::template_icon);
+        let error = tera
+            .add_raw_template("layout.html", &template_content)
+            .err()
+            .map(|e| crate::components::tera_error_message(&e));
         if let Some(e) = error {
             diags.push(Diagnostic {
                 check: "layout-tera-error",
@@ -96,7 +94,7 @@ fn check_component_templates(project_root: &Path) -> Vec<Diagnostic> {
 
     // Get the Tera verdict the same way the build does: all of
     // `theme/components/*.html` loaded together, so a valid cross-file
-    // `{% extends %}` / `{% import %}` isn't falsely flagged, and a real error
+    // `{% extends %}` or component reference isn't falsely flagged, and a real error
     // matches what `docanvil build` would fail on.
     let tera_error = match ComponentRegistry::load(project_root) {
         Ok(_) => None,
@@ -208,6 +206,25 @@ mod tests {
     }
 
     #[test]
+    fn layout_icon_function_passes_validation() {
+        let dir = tempfile::tempdir().unwrap();
+        let templates = dir.path().join("theme/templates");
+        std::fs::create_dir_all(&templates).unwrap();
+        std::fs::write(
+            templates.join("layout.html"),
+            "{{ icon(name=\"zap\") | safe }}",
+        )
+        .unwrap();
+        assert!(checks_for(&dir).is_empty());
+    }
+
+    #[test]
+    fn unknown_filter_is_reported_before_rendering() {
+        let dir = component_project(&[("card.html", "{{ body | no_such_filter }}")]);
+        assert_eq!(checks_for(&dir), vec!["component-tera-error"]);
+    }
+
+    #[test]
     fn component_include_cycle_is_reported() {
         let dir = component_project(&[("loop.html", "{% include \"loop.html\" %}")]);
         assert_eq!(checks_for(&dir), vec!["component-tera-error"]);
@@ -253,17 +270,14 @@ mod tests {
     }
 
     #[test]
-    fn cross_file_import_with_later_sorting_macros_file_passes() {
-        // "badge.html" sorts before "zz-macros.html" alphabetically; doctor must
+    fn cross_file_component_with_later_sorting_definition_passes() {
+        // "badge.html" sorts before "zz-components.html" alphabetically; doctor must
         // agree with the build that loads every template together.
         let dir = component_project(&[
+            ("badge.html", "{{<shout text={attrs.text} />}}"),
             (
-                "badge.html",
-                "{% import \"zz-macros.html\" as m %}{{ m::shout(text=attrs.text) }}",
-            ),
-            (
-                "zz-macros.html",
-                "{% macro shout(text) %}{{ text | upper }}{% endmacro shout %}",
+                "zz-components.html",
+                "{% component shout(text: string) %}{{ text | upper }}{% endcomponent shout %}",
             ),
         ]);
         assert!(checks_for(&dir).is_empty());

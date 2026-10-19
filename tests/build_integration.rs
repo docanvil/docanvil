@@ -930,9 +930,9 @@ repo = "https://github.com/org/repo"
 root = "site"
 "#;
 
-/// Read an output page with Tera's `&#x2F;` escaping of URLs undone.
+/// Read a rendered output page.
 fn read_page(dir: &std::path::Path, path: &str) -> String {
-    read_output(dir, path).replace("&#x2F;", "/")
+    read_output(dir, path)
 }
 
 #[test]
@@ -975,7 +975,7 @@ fn test_edit_link_front_matter_opt_out() {
     assert!(!read_output(dir.path(), "private.html").contains("Edit this page"));
 }
 
-/// Run a `docanvil serve` build with `editor` and read one output page, URL-unescaped.
+/// Run a `docanvil serve` build with `editor` and read one output page.
 fn serve_build_page(
     dir: &std::path::Path,
     editor: Option<&docanvil::edit::Editor>,
@@ -984,9 +984,7 @@ fn serve_build_page(
     let dev_out = tempfile::tempdir().unwrap();
     docanvil::cli::build::run_with_options(dir, dev_out.path(), true, editor)
         .expect("dev build should succeed");
-    fs::read_to_string(dev_out.path().join(path))
-        .unwrap()
-        .replace("&#x2F;", "/")
+    fs::read_to_string(dev_out.path().join(path)).unwrap()
 }
 
 /// The `vscode://` link for a source file under the project's `docs/`.
@@ -2049,10 +2047,10 @@ fn test_version_switcher_skips_drafts() {
     build_project_strict(dir.path()).expect("strict build should succeed");
 
     assert!(!output_exists(dir.path(), "v2/guide.html"));
-    // v1's guide offers v2's home page, not the unpublished v2 guide (Tera escapes `/`)
+    // v1's guide offers v2's home page, not the unpublished v2 guide
     let v1 = read_output(dir.path(), "v1/guide.html");
-    assert!(!v1.contains("&#x2F;v2&#x2F;guide.html"));
-    assert!(v1.contains("&#x2F;v2&#x2F;index.html"));
+    assert!(!v1.contains("/v2/guide.html"));
+    assert!(v1.contains("/v2/index.html"));
 }
 
 const LOCALE_SECTION: &str = "\n[locale]\ndefault = \"en\"\nenabled = [\"en\", \"fr\"]\n";
@@ -2081,13 +2079,13 @@ fn test_version_switcher_checks_the_current_locale() {
 
     for page in ["guide", "faq"] {
         assert!(!output_exists(dir.path(), &format!("v2/fr/{page}.html")));
-        // French readers get v2's French home page, not a 404 (Tera escapes `/`)
+        // French readers get v2's French home page, not a 404
         let fr = read_output(dir.path(), &format!("v1/fr/{page}.html"));
-        assert!(!fr.contains(&format!("&#x2F;v2&#x2F;fr&#x2F;{page}.html")));
-        assert!(fr.contains("&#x2F;v2&#x2F;fr&#x2F;index.html"));
+        assert!(!fr.contains(&format!("/v2/fr/{page}.html")));
+        assert!(fr.contains("/v2/fr/index.html"));
         // English readers still get the matching v2 page
         let en = read_output(dir.path(), &format!("v1/en/{page}.html"));
-        assert!(en.contains(&format!("&#x2F;v2&#x2F;en&#x2F;{page}.html")));
+        assert!(en.contains(&format!("/v2/en/{page}.html")));
     }
 }
 
@@ -2109,9 +2107,9 @@ fn test_version_switcher_uses_front_matter_slugs() {
 
     // v1's page is published as install.html, so it should link to v2's install page
     let v2 = read_output(dir.path(), "v2/install.html");
-    assert!(v2.contains("&#x2F;v1&#x2F;install.html"));
+    assert!(v2.contains("/v1/install.html"));
     let v1 = read_output(dir.path(), "v1/install.html");
-    assert!(v1.contains("&#x2F;v2&#x2F;install.html"));
+    assert!(v1.contains("/v2/install.html"));
 }
 
 // ── Redirects ──

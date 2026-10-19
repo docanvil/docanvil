@@ -386,7 +386,7 @@ Les [icônes Lucide](https://lucide.dev/icons/) sont disponibles par nom :
 `icon="lucide:zap"` ou `icon="zap"`. Les emojis restent pris en charge.
 Un nom inconnu avec le préfixe `lucide:` provoque un avertissement et un message d’erreur visible dans le composant.
 Les templates de composants et de mise en page peuvent utiliser
-`{{ icon(name="lucide:rocket") | safe }}`. Les SVG sont intégrés au HTML lors du
+`{{ icon(name="lucide:rocket") }}`. Les SVG sont intégrés au HTML lors du
 build, héritent de la couleur du texte et utilisent la classe `.docanvil-icon`.
 Seules les icônes utilisées sont envoyées au navigateur ; aucun CDN n'est requis.
 

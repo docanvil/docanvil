@@ -163,6 +163,44 @@ Styles are applied in this order (last wins):
 If a custom CSS rule doesn't seem to take effect, check that your selector is specific enough to override the default theme. Using `.content pre` is more specific than just `pre`.
 :::
 
+## Migrating custom templates to Tera 2
+
+Custom layout and component templates use Tera 2. DocAnvil's Markdown directives
+(`:::note`, `:::card`, and other components) keep the same syntax.
+
+When upgrading a custom theme written for Tera 1:
+
+- Replace `{% macro %}` definitions and `{% import %}` calls with Tera components.
+  Components are registered globally, so no import is needed. Files in
+  `theme/components/` are loaded together, allowing definitions in another file.
+- Remove `ignore missing` from includes. Include an existing template, or use a
+  condition to skip the include when it is not needed.
+- Replace numeric dot access such as `items.0` with `items[0]`.
+- Guard potentially undefined nested values, or use optional chaining such as
+  `settings?.label or "Default"`.
+- Check renamed and removed filters against the
+  [Tera migration guide](https://github.com/Keats/tera/blob/v2.4.0/MIGRATION.md).
+  For example, `as_str` is now `str`, and `truncate` requires a `length` argument.
+
+For example, a reusable Tera component can be defined in
+`theme/components/shared.html`:
+
+```html
+{% component badge(text: string) %}
+<span class="badge">{{ text }}</span>
+{% endcomponent badge %}
+```
+
+Call it from another component template with:
+
+```html
+{{<badge text={attrs.text} />}}
+```
+
+Tera components are template helpers; DocAnvil's `:::name` directives continue to
+select templates by their file name. Layout templates are loaded separately from
+`theme/components/`, so a helper used in a layout must be defined in that layout.
+
 ## Template Overrides
 
 For complete control over the HTML structure, override the default Tera template. Create a file at `theme/templates/layout.html` in your project:

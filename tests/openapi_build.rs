@@ -444,6 +444,52 @@ fn operation_presentation_separates_fields_examples_and_collapsed_source() {
 }
 
 #[test]
+fn media_headings_follow_request_parameter_and_response_sections() {
+    for multiple_response_types in [false, true] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        let mut api: Value =
+            serde_json::from_str(include_str!("../docs/docs/_examples/documents-api.json"))
+                .unwrap();
+        let operation = &mut api["paths"]["/documents"]["post"];
+        operation["parameters"] = json!([{"name": "filter", "in": "query", "content": {
+            "application/json": {"schema": {"type": "string"}},
+            "application/yaml": {"schema": {"type": "string"}}
+        }}]);
+        if multiple_response_types {
+            operation["responses"]["201"]["content"]["application/yaml"] =
+                operation["responses"]["201"]["content"]["application/json"].clone();
+        }
+        write(dir.path(), "docs/openapi.json", &api.to_string());
+        build_project_strict(dir.path()).unwrap();
+        let html = read_output(dir.path(), "api/operations/createdocument.html");
+        for (group, level) in [("parameter-0", 4), ("request", 3)] {
+            let panel = html
+                .split(&format!(
+                    "id=\"api/operations/createdocument-{group}-panel-0\""
+                ))
+                .nth(1)
+                .unwrap()
+                .split("</section>")
+                .next()
+                .unwrap();
+            assert!(panel.contains(&format!("<h{level} ")), "{group}");
+        }
+        let response = html
+            .split("<h3 id=\"201\"")
+            .nth(1)
+            .unwrap()
+            .split("<h3 id=\"400\"")
+            .next()
+            .unwrap();
+        assert!(response.contains("<h4 "));
+        assert!(!response.contains("<h3 "));
+        let markdown = read_output(dir.path(), "llms-full.txt");
+        assert!(markdown.contains("### application/json"));
+        assert!(markdown.contains("#### application/json"));
+    }
+}
+
+#[test]
 fn property_reference_siblings_follow_the_schema_version() {
     for version in ["3.0.4", "3.1.1"] {
         let dir = create_project(CONFIG, &[("index.md", "# Guide")]);

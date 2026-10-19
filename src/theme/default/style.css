@@ -2109,6 +2109,18 @@ body.nav-open .mobile-nav-icon-close {
   .cards, .columns { grid-template-columns: minmax(0, 1fr); }
 }
 @media print {
+  /* Fixed navigation repeats over page content in browser print output. */
+  .top-header, .sidebar, .toc, .search-overlay, .prev-next,
+  .edit-link, .copy-btn, .heading-anchor, body.nav-open::after {
+    display: none !important;
+  }
+  body { display: block; padding-top: 0; }
+  .content { margin: 0; padding: 0; max-width: none; }
+  .content pre, .content pre code {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow: visible;
+  }
   .cards, .columns { display: block; }
   .link-card, .step, .doc-figure { break-inside: avoid; }
   .details::details-content { content-visibility: visible; }

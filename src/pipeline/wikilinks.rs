@@ -129,14 +129,30 @@ fn resolve_segment(
         let target = target.trim();
         let display = display.trim();
 
+        let (page_target, fragment) = super::links::split_target(target);
         let resolved = match locale {
-            Some(l) => inventory.resolve_link_in_locale(target, l),
-            None => inventory.resolve_link(target),
+            Some(l) => inventory.resolve_link_in_locale(page_target, l),
+            None => inventory.resolve_link(page_target),
         };
         if let Some(page) = resolved {
-            let href = format!("{}{}", base_url, page.output_path.display());
-            result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
-        } else if inventory.resolve_draft(target, locale).is_some() {
+            if !super::links::fragment_exists(inventory, page, fragment) {
+                diagnostics::warn_generated_link(
+                    source_file,
+                    &format!("Anchor not found in generated API page: {target}"),
+                );
+                result.push_str(&format!("<span class=\"broken-link\">{display}</span>"));
+            } else {
+                let suffix = fragment
+                    .map(|fragment| format!("#{fragment}"))
+                    .unwrap_or_default();
+                let href = crate::util::html_escape(&format!(
+                    "{}{}{suffix}",
+                    base_url,
+                    page.output_path.display()
+                ));
+                result.push_str(&format!("<a href=\"{href}\">{display}</a>"));
+            }
+        } else if inventory.resolve_draft(page_target, locale).is_some() {
             // The page exists but this build leaves it out: keep the words, drop the link.
             if inventory.draft_links == DraftLinks::Warn {
                 diagnostics::warn_draft_link(source_file, target);

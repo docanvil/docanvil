@@ -48,6 +48,17 @@ label = "Référence API"
 autodiscover = "api"
 ```
 
+Pour cibler une section générée, ajoutez son identifiant au slug publié :
+
+```markdown
+[[api/operations/listpets#parameters|Paramètres]]
+[[api/schemas/pet#properties|Champs de Pet]]
+```
+
+Les fragments sont sensibles à la casse ; le codage en pourcentage est accepté. Les titres répétés reçoivent un suffixe comme `responses-1` : utilisez l’identifiant de la page rendue. Les liens Markdown ordinaires vers les pages `.html` générées fonctionnent aussi, relativement à l’URL publiée du guide.
+
+Build et doctor vérifient les pages et fragments d’API générés, y compris les liens dans les descriptions. Une cible manquante produit un avertissement et fait échouer `--strict`. Un échec du build strict conserve la sortie précédente, sauf avec `--clean`. Les sorties d’IA et le PDF conservent les liens de sections. Cette vérification ne couvre pas les fragments des pages rédigées, les URL externes ni les ressources arbitraires.
+
 L'identifiant `listPets` produit `api/operations/listpets.html`. Les identifiants et noms de schémas sont normalisés ; les collisions provoquent une erreur. Sans identifiant, une opération utilise la méthode, le chemin et une courte empreinte déterministe. Changer l'identifiant change l'URL : prévoyez des redirections. Ces premières règles pourront évoluer avant la sortie de V1.3.
 
 Les pages figurent dans la recherche, le sitemap et les sorties destinées aux outils d'IA lorsqu'elles sont activées. Le PDF inclut les pages sélectionnées par la navigation. Les liens d'édition ciblent la spécification ou le fichier référencé ; les dates Git tiennent compte des dépendances chargées.
@@ -69,3 +80,7 @@ Les champs présentent les propriétés obligatoires, énumérations, valeurs pa
 Les références JSON Pointer internes et entre fichiers locaux relatifs sont prises en charge, y compris les schémas récursifs. Les références distantes, ancres nommées, portées `$id`, ancres dynamiques et dialectes personnalisés produisent une erreur contextualisée. Les références des webhooks et callbacks sont vérifiées, mais leurs opérations ne sont pas rendues : un avertissement fait échouer les modes `--strict`.
 
 Les descriptions sont rendues en Markdown. Le HTML brut est omis ; les inclusions et directives DocAnvil ne sont pas exécutées. Les requêtes interactives, la sérialisation des paramètres, la génération de SDK et la validation complète des schémas restent à venir.
+
+## Groupes d’opérations
+
+La vue d’ensemble regroupe les opérations par tag. Déclarez les `tags` à la racine de la spécification pour définir leur ordre et leurs descriptions Markdown. Les tags non déclarés suivent par ordre alphabétique, puis les opérations sans tag. Une opération portant plusieurs tags apparaît dans chaque groupe, une seule fois par groupe. Les tags déclarés sans opération restent visibles. Sans tag, la vue conserve un tableau unique. Les noms sont sensibles à la casse et les noms déclarés doivent être uniques. La navigation automatique et `autodiscover = "api"` (ou `"api/operations"`) regroupent les liens d’opérations par tag sous `Operations`. La navigation des schémas reste identique. Une opération portant plusieurs tags figure dans chaque groupe ; le fil d’Ariane, les liens précédent/suivant et les exports utilisent sa première occurrence. Les entrées explicites de pages et de groupes dans `nav.toml` conservent votre disposition. Les tags ne changent pas les URL des opérations.

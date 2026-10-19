@@ -1,5 +1,5 @@
 use regex::{Captures, Regex};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
 
 /// Pre-comrak pass: extract custom heading IDs from `### Heading {#custom-id}`
@@ -25,7 +25,7 @@ pub fn extract_custom_heading_ids(source: &str) -> String {
 
 /// Decode character references once, after stripping actual markup. Decoding
 /// first would mistake escaped literal tags for markup and discard their text.
-fn decode_entities(text: &str) -> String {
+pub(crate) fn decode_entities(text: &str) -> String {
     static ENTITY_RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"&(?:#[xX][0-9a-fA-F]+|#[0-9]+|[A-Za-z][A-Za-z0-9]+);").unwrap()
     });
@@ -66,6 +66,7 @@ pub fn inject_heading_ids(html: &str) -> String {
     static TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^>]+>").unwrap());
     static ID_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"\bid\s*=\s*""#).unwrap());
 
+    let mut used: HashSet<_> = anchor_ids(html).into_iter().collect();
     let mut seen: HashMap<String, usize> = HashMap::new();
 
     HEADING_RE
@@ -92,13 +93,16 @@ pub fn inject_heading_ids(html: &str) -> String {
 
             // Handle duplicates
             let count = seen.entry(id.clone()).or_insert(0);
-            let final_id = if *count == 0 {
+            let final_id = loop {
+                let candidate = if *count == 0 {
+                    id.clone()
+                } else {
+                    format!("{id}-{count}")
+                };
                 *count += 1;
-                id
-            } else {
-                let suffixed = format!("{}-{}", id, count);
-                *count += 1;
-                suffixed
+                if used.insert(candidate.clone()) {
+                    break candidate;
+                }
             };
 
             format!("<{} id=\"{}\"{}>{}</{}>", tag, final_id, attrs, inner, tag)
@@ -106,10 +110,29 @@ pub fn inject_heading_ids(html: &str) -> String {
         .into_owned()
 }
 
+/// IDs actually present in rendered HTML, including native media controls.
+pub(crate) fn anchor_ids(html: &str) -> BTreeSet<String> {
+    static IDS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"<[^>]+\s+id="([^"]*)""#).unwrap());
+    IDS.captures_iter(html)
+        .map(|capture| decode_entities(&capture[1]))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::pipeline::markdown;
+
+    #[test]
+    fn generated_ids_avoid_explicit_ids_and_naturally_suffixed_headings() {
+        let html = "<h2>Foo</h2><h2 id=\"foo\">Explicit</h2><h2>Foo</h2><h2>Foo 1</h2><section id=\"heading\"></section><h2>!!!</h2>";
+        let rendered = inject_heading_ids(html);
+        let ids = anchor_ids(&rendered);
+        assert_eq!(ids.len(), 6, "{rendered}");
+        assert!(ids.contains("foo-1-1"));
+        assert!(ids.contains("heading-1"));
+        assert_eq!(inject_heading_ids(&rendered), rendered);
+    }
 
     #[test]
     fn basic_heading_gets_id() {

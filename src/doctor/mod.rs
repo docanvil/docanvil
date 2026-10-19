@@ -268,12 +268,41 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
         let mut content_diags = if let Some(sites) = &api_sites {
             sites
                 .iter()
-                .flat_map(|(_, inventory, _, snapshot)| {
+                .flat_map(|(version, inventory, _, snapshot)| {
                     let root = snapshot
                         .as_ref()
                         .map(|s| s.project_root())
                         .unwrap_or(project_root);
                     checks::content::check_content(root, &config, inventory)
+                        .into_iter()
+                        .map(|mut diagnostic| {
+                            if snapshot.is_some() {
+                                let location = diagnostic
+                                    .file
+                                    .as_ref()
+                                    .map(|file| {
+                                        let relative = file.strip_prefix(root).unwrap_or(file);
+                                        match diagnostic.line {
+                                            Some(line) => {
+                                                format!(" ({}:{line})", relative.display())
+                                            }
+                                            None => format!(" ({})", relative.display()),
+                                        }
+                                    })
+                                    .unwrap_or_default();
+                                diagnostic.message = format!(
+                                    "Version '{}'{}: {}",
+                                    version.as_deref().unwrap_or_default(),
+                                    location,
+                                    diagnostic.message
+                                );
+                                diagnostic.file = Some(config_path.clone());
+                                diagnostic.line = None;
+                                diagnostic.fix = None;
+                            }
+                            diagnostic
+                        })
+                        .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>()
         } else {

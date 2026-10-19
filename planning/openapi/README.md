@@ -2,6 +2,8 @@
 
 The first V1.3 implementation generates static API reference pages through normal build, serve, doctor and PDF workflows.
 
+Merged in [PR #139](https://github.com/docanvil/docanvil/pull/139) on 17 October 2026. For current progress, remaining acceptance work and the next-session handoff, start with the [V1.3 plan](../v1.3-priorities.md).
+
 - [User guide and support boundaries](../../docs/docs/guides/openapi.md)
 - [Loader, model and publishing design](foundation.md)
 - [Documents API used by our own documentation](../../docs/docs/_examples/documents-api.json)

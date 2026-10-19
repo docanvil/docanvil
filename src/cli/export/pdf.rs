@@ -322,35 +322,69 @@ fn assemble_pdf_html(ctx: &PdfContext) -> Result<String> {
 ///
 /// Only links whose href exactly matches a known page's output path (filtered to
 /// the current export locale) are rewritten; external links are left untouched.
-fn rewrite_links_for_pdf(html: &str, inventory: &PageInventory, locale: Option<&str>) -> String {
-    let mut result = html.to_owned();
-    for page in inventory.pages.values() {
-        if locale.is_some() && page.locale.as_deref() != locale {
-            continue;
+fn rewrite_links_for_pdf(
+    html: &str,
+    inventory: &PageInventory,
+    locale: Option<&str>,
+    source: &PageInfo,
+) -> String {
+    let re = Regex::new(r#"(<a\b[^>]*\bhref=")([^"]*)(")"#).unwrap();
+    re.replace_all(html, |caps: &regex::Captures| {
+        let href = pipeline::headings::decode_entities(&caps[2]);
+        let (path, fragment) = pipeline::links::split_target(&href);
+        // Same-page fragments have already been scoped to this chapter.
+        if path.is_empty() {
+            return caps[0].to_owned();
         }
-        let src = format!("href=\"/{}\"", page.output_path.display());
-        let dest = format!("href=\"#{}\"", page.slug);
-        if result.contains(&src) {
-            result = result.replace(&src, &dest);
-        }
-        let src_fragment = format!("href=\"/{}#", page.output_path.display());
-        result = result.replace(&src_fragment, &format!("href=\"#{}--", page.slug));
-    }
-    result
+        let Some(output) = pipeline::links::local_output_path(path, source, "/") else {
+            return caps[0].to_owned();
+        };
+        let Some(page) = inventory.pages.values().find(|page| {
+            (locale.is_none() || page.locale.as_deref() == locale)
+                && page.output_path == Path::new(&output)
+        }) else {
+            return caps[0].to_owned();
+        };
+        let suffix = fragment
+            .filter(|fragment| !fragment.is_empty())
+            .map(|fragment| format!("--{fragment}"))
+            .unwrap_or_default();
+        format!(
+            "{}#{}{}{}",
+            &caps[1],
+            crate::util::html_escape(&page.slug),
+            crate::util::html_escape(&suffix),
+            &caps[3]
+        )
+    })
+    .into_owned()
 }
 
-/// Headings from different chapters often share IDs (e.g. "installation").
-fn scope_heading_anchors(html: &str, slug: &str) -> String {
-    let re = Regex::new(r#"(<h[1-6]\b[^>]*\bid=")([^"]+)(")"#).expect("valid regex");
-    let mut result = html.to_string();
-    for caps in re.captures_iter(html) {
-        result = result.replace(
-            &format!("href=\"#{}\"", &caps[2]),
-            &format!("href=\"#{slug}--{}\"", &caps[2]),
-        );
-    }
-    re.replace_all(&result, |caps: &regex::Captures| {
-        format!("{}{slug}--{}{}", &caps[1], &caps[2], &caps[3])
+/// Scope page IDs (headings and native controls) to their PDF chapter.
+fn scope_page_anchors(html: &str, slug: &str) -> String {
+    let re = Regex::new(r#"(<[a-zA-Z][^>]*\s+id=")([^"]+)(")"#).expect("valid regex");
+    let ids = pipeline::headings::anchor_ids(html);
+    let href_re = Regex::new(r##"(href="#)([^"]+)(")"##).unwrap();
+    let result = href_re.replace_all(html, |caps: &regex::Captures| {
+        if pipeline::links::decode_fragment(&caps[2]).is_some_and(|id| ids.contains(&id)) {
+            format!("{}{slug}--{}{}", &caps[1], &caps[2], &caps[3])
+        } else {
+            caps[0].to_owned()
+        }
+    });
+    let result = re
+        .replace_all(&result, |caps: &regex::Captures| {
+            format!("{}{slug}--{}{}", &caps[1], &caps[2], &caps[3])
+        })
+        .into_owned();
+    let aria = Regex::new(r#"(aria-(?:controls|labelledby)=")([^"]+)(")"#).unwrap();
+    aria.replace_all(&result, |caps: &regex::Captures| {
+        let ids = caps[2]
+            .split_whitespace()
+            .map(|id| format!("{slug}--{id}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("{}{ids}{}", &caps[1], &caps[3])
     })
     .into_owned()
 }
@@ -572,8 +606,8 @@ fn prepare_pdf(
             export_locale,
         )?
         .html;
-        let html_body = scope_heading_anchors(&html_body, slug);
-        let html_body = rewrite_links_for_pdf(&html_body, &inventory, export_locale);
+        let html_body = scope_page_anchors(&html_body, slug);
+        let html_body = rewrite_links_for_pdf(&html_body, &inventory, export_locale, page);
         let html_body = resolve_pdf_images(&html_body, source_root);
 
         chapters.push(ChapterData {
@@ -983,15 +1017,40 @@ custom_css = "theme/print.css"
             "[project]\nname = 'API'\n[[openapi]]\nspec = 'openapi.json'\n",
         )
         .unwrap();
-        std::fs::write(dir.path().join("docs/index.md"), "# Guide\n[[api/index]]").unwrap();
+        std::fs::write(dir.path().join("docs/index.md"), "# Guide\n[[api/index]]\n[[api/operations/listpets#parameters|API parameters]]\n[API responses](api/operations/listpets.html?view=full#responses)").unwrap();
         std::fs::write(
             dir.path().join("docs/openapi.json"),
             include_str!("../../../tests/fixtures/openapi/petstore.json"),
         )
         .unwrap();
+        let mut spec: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../tests/fixtures/openapi/petstore.json"
+        ))
+        .unwrap();
+        spec["tags"] = serde_json::json!([{"name": "First"}, {"name": "Second"}]);
+        spec["paths"]["/pets"]["get"]["tags"] = serde_json::json!(["Second", "First"]);
+        std::fs::write(dir.path().join("docs/openapi.json"), spec.to_string()).unwrap();
         let config = Config::load(dir.path()).unwrap();
         let (ctx, _, _) = prepare_pdf(dir.path(), None, None, &config, true).unwrap();
         assert!(ctx.chapters.iter().any(|c| c.slug == "api/index"));
+        let guide = ctx.chapters.iter().find(|c| c.slug == "index").unwrap();
+        assert!(
+            guide
+                .content_html
+                .contains("href=\"#api/operations/listpets--parameters\"")
+        );
+        assert!(
+            guide
+                .content_html
+                .contains("href=\"#api/operations/listpets--responses\"")
+        );
+        assert_eq!(
+            ctx.chapters
+                .iter()
+                .filter(|c| c.slug == "api/operations/listpets")
+                .count(),
+            1
+        );
         let chapter = ctx
             .chapters
             .iter()
@@ -1518,7 +1577,7 @@ custom_css = "theme/print.css"
     fn rewrite_links_rewrites_known_page_href() {
         let (_dir, inv) = two_page_inventory();
         let html = r#"<p>See <a href="/setup.html">Setup</a> for details.</p>"#;
-        let out = rewrite_links_for_pdf(html, &inv, None);
+        let out = rewrite_links_for_pdf(html, &inv, None, &inv.pages["index"]);
         assert!(
             out.contains("href=\"#setup\""),
             "expected anchor link, got: {out}"
@@ -1530,7 +1589,7 @@ custom_css = "theme/print.css"
     fn rewrite_links_leaves_external_links_untouched() {
         let (_dir, inv) = two_page_inventory();
         let html = r#"<a href="https://example.com/page.html">External</a>"#;
-        let out = rewrite_links_for_pdf(html, &inv, None);
+        let out = rewrite_links_for_pdf(html, &inv, None, &inv.pages["index"]);
         assert_eq!(out, html);
     }
 
@@ -1538,7 +1597,7 @@ custom_css = "theme/print.css"
     fn rewrite_links_rewrites_multiple_occurrences() {
         let (_dir, inv) = two_page_inventory();
         let html = r#"<a href="/setup.html">A</a> and <a href="/setup.html">B</a>"#;
-        let out = rewrite_links_for_pdf(html, &inv, None);
+        let out = rewrite_links_for_pdf(html, &inv, None, &inv.pages["index"]);
         assert_eq!(out.matches("href=\"#setup\"").count(), 2);
     }
 
@@ -1546,8 +1605,17 @@ custom_css = "theme/print.css"
     fn rewrite_links_rewrites_all_known_pages() {
         let (_dir, inv) = two_page_inventory();
         let html = r#"<a href="/index.html">Home</a> <a href="/setup.html">Setup</a>"#;
-        let out = rewrite_links_for_pdf(html, &inv, None);
+        let out = rewrite_links_for_pdf(html, &inv, None, &inv.pages["index"]);
         assert!(out.contains("href=\"#index\""));
         assert!(out.contains("href=\"#setup\""));
+    }
+    #[test]
+    fn pdf_scopes_encoded_fragments_native_ids_and_control_relationships() {
+        let html = r##"<h2 id="parameters">Parameters</h2><a href="#%70arameters">Read</a><section id="media-panel"></section><button id="media-tab" aria-controls="media-panel" aria-labelledby="parameters media-tab">Tab</button>"##;
+        let scoped = scope_page_anchors(html, "api/operations/listpets");
+        assert!(scoped.contains("href=\"#api/operations/listpets--%70arameters\""));
+        assert!(scoped.contains("id=\"api/operations/listpets--media-panel\""));
+        assert!(scoped.contains("aria-controls=\"api/operations/listpets--media-panel\""));
+        assert!(scoped.contains("aria-labelledby=\"api/operations/listpets--parameters api/operations/listpets--media-tab\""));
     }
 }

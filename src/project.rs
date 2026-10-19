@@ -29,6 +29,8 @@ pub struct PageInfo {
 pub struct PageInventory {
     /// Generated pages retain in-memory content and specification provenance.
     pub generated: HashMap<String, GeneratedSource>,
+    /// Generated folder navigation uses canonical slugs, independent of locale/version prefixes.
+    pub generated_nav: std::collections::BTreeMap<String, Vec<NavNode>>,
     pub generation_warnings: Vec<crate::openapi::Warning>,
     /// Slug → PageInfo lookup. When i18n is enabled, keys are composite `{locale}:{slug}`.
     pub pages: HashMap<String, PageInfo>,
@@ -262,6 +264,7 @@ impl PageInventory {
 
         Ok(Self {
             generated: HashMap::new(),
+            generated_nav: std::collections::BTreeMap::new(),
             generation_warnings: Vec::new(),
             pages,
             ordered,
@@ -415,6 +418,8 @@ impl PageInventory {
             }
         }
 
+        self.apply_generated_nav(&mut root, folder, exclude_slug, None);
+
         root
     }
 
@@ -450,6 +455,8 @@ impl PageInventory {
             }
         }
 
+        self.apply_generated_nav(&mut root, folder, exclude_slug, Some(locale));
+
         root
     }
 
@@ -462,6 +469,8 @@ impl PageInventory {
             let parts: Vec<&str> = info.slug.split('/').collect();
             insert_nav_node(&mut root, &parts, info);
         }
+
+        self.apply_generated_nav(&mut root, "", None, None);
 
         root
     }
@@ -479,8 +488,90 @@ impl PageInventory {
             insert_nav_node(&mut root, &parts, info);
         }
 
+        self.apply_generated_nav(&mut root, "", None, Some(locale));
+
         root
     }
+    /// Replace generated leaves with their semantic groups while retaining authored
+    /// siblings. Explicit `nav.toml` page/group entries bypass discovery entirely.
+    fn apply_generated_nav(
+        &self,
+        root: &mut Vec<NavNode>,
+        folder: &str,
+        exclude_slug: Option<&str>,
+        locale: Option<&str>,
+    ) {
+        let prefix = if folder.is_empty() {
+            String::new()
+        } else {
+            format!("{}/", folder.trim_end_matches('/'))
+        };
+        let available: HashSet<_> = self
+            .pages
+            .values()
+            .filter(|page| {
+                (locale.is_none() || page.locale.as_deref() == locale)
+                    && self.generated_source(page).is_some()
+            })
+            .map(|page| page.slug.as_str())
+            .collect();
+        for (generated_folder, template) in &self.generated_nav {
+            let relative = if generated_folder == folder.trim_end_matches('/') {
+                ""
+            } else if let Some(relative) = generated_folder.strip_prefix(&prefix) {
+                relative
+            } else {
+                continue;
+            };
+            let overview = format!(
+                "{}/index",
+                generated_folder.strip_suffix("/operations").unwrap()
+            );
+            if !available.contains(overview.as_str()) {
+                continue;
+            }
+            let mut groups = template.clone();
+            let mut replaced = HashSet::new();
+            for group in &mut groups {
+                if let NavNode::Group { children, .. } = group {
+                    children.retain(|node| {
+                        let NavNode::Page { slug, .. } = node else {
+                            return false;
+                        };
+                        replaced.insert(slug.clone());
+                        Some(slug.as_str()) != exclude_slug && available.contains(slug.as_str())
+                    });
+                }
+            }
+            let parts: Vec<_> = relative
+                .split('/')
+                .filter(|part| !part.is_empty())
+                .collect();
+            let children = nav_folder_children(root, &parts);
+            children.retain(
+                |node| !matches!(node, NavNode::Page { slug, .. } if replaced.contains(slug)),
+            );
+            children.extend(groups);
+        }
+    }
+}
+
+/// Locate/create directory groups using the same labels as ordinary discovery.
+fn nav_folder_children<'a>(nodes: &'a mut Vec<NavNode>, parts: &[&str]) -> &'a mut Vec<NavNode> {
+    let Some((first, rest)) = parts.split_first() else {
+        return nodes;
+    };
+    let label = title_from_slug(first);
+    let index = nodes.iter().position(|node|
+        matches!(node, NavNode::Group { label: existing, slug: None, .. } if existing == &label))
+        .unwrap_or_else(|| {
+            nodes.push(NavNode::Group { label, slug: None, children: Vec::new(), open: false });
+            nodes.len() - 1
+        });
+    let NavNode::Group { children, .. } = &mut nodes[index] else {
+        unreachable!()
+    };
+    nav_folder_children(children, rest)
 }
 
 fn insert_nav_node(nodes: &mut Vec<NavNode>, parts: &[&str], info: &PageInfo) {
@@ -573,7 +664,7 @@ fn collect_breadcrumbs(
                     label: label.clone(),
                     slug: Some(slug.clone()),
                 });
-                map.insert(slug.clone(), trail);
+                map.entry(slug.clone()).or_insert(trail);
             }
             NavNode::Group {
                 label,
@@ -587,7 +678,7 @@ fn collect_breadcrumbs(
                     slug: slug.clone(),
                 });
                 if let Some(s) = slug {
-                    map.insert(s.clone(), trail.clone());
+                    map.entry(s.clone()).or_insert_with(|| trail.clone());
                 }
                 collect_breadcrumbs(children, &trail, map);
             }
@@ -608,6 +699,8 @@ fn collect_breadcrumbs(
 pub fn flatten_nav_pages(nodes: &[NavNode]) -> Vec<(String, String)> {
     let mut pages = Vec::new();
     collect_nav_pages(nodes, &mut pages);
+    let mut seen = HashSet::new();
+    pages.retain(|(slug, _)| seen.insert(slug.clone()));
     pages
 }
 

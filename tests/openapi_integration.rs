@@ -310,3 +310,26 @@ components:
     assert_eq!(schema["type"], "object");
     assert_eq!(schema["properties"]["on"]["example"], "on");
 }
+
+#[test]
+fn declared_tags_validate_shape_names_and_descriptions_with_source_context() {
+    for version in ["3.0.4", "3.1.1"] {
+        for (tags, pointer) in [
+            (json!({}), "/tags"),
+            (json!([{}]), "/tags/0"),
+            (json!([{"name": 12}]), "/tags/0"),
+            (json!([{"name": "Pets", "description": 12}]), "/tags/0"),
+            (json!([{"name": "Pets"}, {"name": "Pets"}]), "/tags/1/name"),
+        ] {
+            let mut spec = base();
+            spec["openapi"] = version.into();
+            spec["tags"] = tags;
+            let error = load_value(&spec).unwrap_err();
+            assert!(error.location.pointer.starts_with(pointer), "{error}");
+        }
+        let mut spec = base();
+        spec["openapi"] = version.into();
+        spec["tags"] = json!([{"name": "Pets"}, {"name": "pets"}]);
+        assert!(load_value(&spec).is_ok());
+    }
+}

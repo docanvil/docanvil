@@ -89,11 +89,18 @@ pub fn check_version(project_root: &Path, config: &Config) -> Vec<Diagnostic> {
                     config.default_locale(),
                     Some(version),
                 )?;
-                let mut checks = super::content::check_content(
-                    &resolved.project_root,
-                    &source_config,
-                    &inventory,
-                );
+                // With OpenAPI enabled the main doctor pass already checks every
+                // version's assembled inventory. Re-scanning authored pages alone
+                // here would incorrectly report generated targets as missing.
+                let mut checks = if config.openapi.is_empty() {
+                    super::content::check_content(
+                        &resolved.project_root,
+                        &source_config,
+                        &inventory,
+                    )
+                } else {
+                    Vec::new()
+                };
                 checks.extend(super::readability::check_readability(
                     &resolved.project_root,
                     &source_config,

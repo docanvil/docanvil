@@ -186,12 +186,19 @@ fn link_markdown(
         Some((target, display)) => (target.trim(), display.trim()),
         None => (inner.trim(), inner.trim()),
     };
+    let (target, fragment) = crate::pipeline::links::split_target(target);
     let resolved = match locale {
         Some(l) => inventory.resolve_link_in_locale(target, l),
         None => inventory.resolve_link(target),
     };
     match resolved {
-        Some(page) => format!("[{display}]({})", page_url(base, page)),
+        Some(page) if crate::pipeline::links::fragment_exists(inventory, page, fragment) => {
+            let suffix = fragment
+                .map(|fragment| format!("#{fragment}"))
+                .unwrap_or_default();
+            format!("[{display}]({}{suffix})", page_url(base, page))
+        }
+        Some(_) => display.to_string(),
         None => display.to_string(),
     }
 }

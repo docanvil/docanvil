@@ -780,7 +780,55 @@ pub(super) fn overview(
         &mut out,
     )?;
     out.md("## Operations");
+    // Declared tags follow author order; undeclared tags follow lexical order.
+    // An operation belongs to every tag it names, but only once per group.
+    let groups = tag_groups(api)?;
+    if groups.is_empty() {
+        operation_table(
+            &mut out,
+            operations
+                .iter()
+                .map(|(slug, operation)| (slug.as_str(), *operation)),
+        );
+    } else {
+        for (name, description) in groups {
+            out.md(format!("### {}", inline(name)));
+            if let Some(description) = description {
+                out.md(description);
+            }
+            operation_table(
+                &mut out,
+                operations
+                    .iter()
+                    .filter(|(_, operation)| operation.tags.iter().any(|tag| tag == name))
+                    .map(|(slug, operation)| (slug.as_str(), *operation)),
+            );
+        }
+        let untagged: Vec<_> = operations
+            .iter()
+            .filter(|(_, operation)| operation.tags.is_empty())
+            .map(|(slug, operation)| (slug.as_str(), *operation))
+            .collect();
+        if !untagged.is_empty() {
+            out.md("### Untagged operations");
+            operation_table(&mut out, untagged);
+        }
+    }
+    out.md("## Schemas");
+    out.md(schemas
+        .iter()
+        .map(|(name, _, slug)| format!("- {}\n", link(slug, name)))
+        .collect::<String>());
+    out.source(root);
+    Ok(out)
+}
+
+fn operation_table<'a>(
+    out: &mut Content,
+    operations: impl IntoIterator<Item = (&'a str, &'a Operation)>,
+) {
     let mut table = String::from("| Method | Path | Operation |\n| --- | --- | --- |\n");
+    let mut count = 0;
     for (slug, operation) in operations {
         let title = operation
             .summary
@@ -793,13 +841,38 @@ pub(super) fn overview(
             inline(&operation.path),
             link(slug, title)
         ));
+        count += 1;
     }
-    out.table(table);
-    out.md("## Schemas");
-    out.md(schemas
+    if count == 0 {
+        out.md("No operations.");
+    } else {
+        out.table(table);
+    }
+}
+
+/// Shared overview/sidebar tag ordering, retaining specification descriptions.
+pub(super) fn tag_groups(api: &Api) -> Result<Vec<(&str, Option<&str>)>> {
+    let root = value(api, &api.graph.root)?;
+    let mut groups: Vec<_> = root
+        .get("tags")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .map(|tag| {
+            (
+                tag["name"].as_str().unwrap(),
+                tag.get("description").and_then(Value::as_str),
+            )
+        })
+        .collect();
+    let declared: BTreeSet<_> = groups.iter().map(|(name, _)| *name).collect();
+    let extra: BTreeSet<_> = api
+        .operations
         .iter()
-        .map(|(name, _, slug)| format!("- {}\n", link(slug, name)))
-        .collect::<String>());
-    out.source(root);
-    Ok(out)
+        .flat_map(|operation| &operation.tags)
+        .map(String::as_str)
+        .filter(|name| !declared.contains(name))
+        .collect();
+    groups.extend(extra.into_iter().map(|name| (name, None)));
+    Ok(groups)
 }

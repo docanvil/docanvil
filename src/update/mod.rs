@@ -296,7 +296,8 @@ pub fn extract_binary(archive: &[u8], target: &str) -> Result<Vec<u8>> {
             zip::ZipArchive::new(std::io::Cursor::new(archive)).map_err(|e| corrupt(&e))?;
         for i in 0..zip.len() {
             let mut file = zip.by_index(i).map_err(|e| corrupt(&e))?;
-            if file.is_file() && is_bin(Path::new(file.name())) {
+            let name = file.name().map_err(|e| corrupt(&e))?;
+            if file.is_file() && is_bin(Path::new(name.as_ref())) {
                 let mut bytes = Vec::new();
                 file.read_to_end(&mut bytes).map_err(|e| corrupt(&e))?;
                 found = Some(bytes);

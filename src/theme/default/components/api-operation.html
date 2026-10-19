@@ -1,0 +1,26 @@
+{# api-operation — builtin API reference header
+   Variables:
+     attrs.title       operation title (h1)
+     attrs.method      HTTP method
+     attrs.path        endpoint path
+     attrs.endpoint    "false" hides a repeated endpoint when the title is the path
+     attrs.deprecated  "true" shows the deprecation notice
+     tags              native OpenAPI tags (optional)
+     body              safely rendered description HTML
+     body_raw          original description Markdown
+   Generated API pages use this automatically. Eject it to customise their header.
+   Authored usage: :::api-operation{title="List documents" method="GET" path="/documents"}
+#}
+{% set deprecated = attrs.deprecated | default(value="false") %}
+{% set endpoint = attrs.endpoint | default(value="true") %}
+<header class="api-operation api-operation-{{ attrs.method | lower }}">
+  <div class="api-operation-meta">
+    <span class="api-eyebrow">API reference</span>
+    <span class="api-method api-method-{{ attrs.method | lower }}">{{ attrs.method }}</span>
+    {% if deprecated == "true" %}<span class="api-deprecated">Deprecated</span>{% endif %}
+  </div>
+  <h1 class="api-operation-title">{{ attrs.title }}</h1>
+  {% if endpoint != "false" %}<div class="api-endpoint"><code class="api-path">{{ attrs.path }}</code></div>{% endif %}
+  {% if body %}<div class="api-operation-description">{{ body | safe }}</div>{% endif %}
+  {% if tags %}<div class="api-tags" aria-label="Tags">{% for tag in tags %}<span class="api-tag">{{ tag }}</span>{% endfor %}</div>{% endif %}
+</header>

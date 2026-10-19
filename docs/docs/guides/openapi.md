@@ -102,6 +102,36 @@ To introduce an API example without requiring its input in older releases, add `
 
 One specification is shared across enabled locales. Pages receive the usual version/locale prefixes, but API descriptions remain in the specification's original language. Locale-specific specifications are not yet supported.
 
+## API page design
+
+Generated reference pages inherit your theme's colours and fonts. Operation headers group the method, endpoint, description and tags. Authentication/server cards and separate response panels make longer pages easier to scan. Overview and schema pages share the table and section styling. Content stays readable without JavaScript and in print.
+
+To customise the operation header's markup, eject its component:
+
+```sh
+docanvil component eject api-operation
+```
+
+Edit `theme/components/api-operation.html`. It receives `attrs.title`, `attrs.method`, `attrs.path`, `attrs.deprecated` (`"true"` or `"false"`), `attrs.endpoint` (whether to repeat the endpoint beneath the title), a `tags` array, and the safely rendered description as `body`. Plain values are escaped automatically; keep `{{ body | safe }}` for the rendered description. The override applies to generated operation pages in builds, previews and PDF exports. Specification descriptions display embedded DocAnvil directives literally.
+
+The header is also available in authored guides:
+
+````markdown
+:::api-operation{title="List documents" method="GET" path="/documents"}
+Return the documents in your workspace.
+:::
+````
+
+Schema pages use the matching `api-schema` component for their name, type and description, with a separate property panel and compact constraint summaries. Customise their header with:
+
+```sh
+docanvil component eject api-schema
+```
+
+`theme/components/api-schema.html` receives `attrs.title`, `attrs.deprecated`, the rendered type/reference as `type_html`, and the safely rendered description as `body`. Keep `type_html | safe` and `body | safe` when displaying these rendered fragments. You can also use `:::api-schema{title="Document" type="object"}` in an authored guide; its body supplies the description. Schema-specific CSS hooks are `.api-schema`, `.api-schema-kind`, `.api-schema-definition` and `.api-schema-constraints`.
+
+CSS hooks include `.api-reference` for generated API pages, `.api-operation` for the header, `.api-context-card` for authentication and servers, `.api-media` for content types, and `.api-response` for each response. Header surfaces use `--api-header-bg` and `--api-header-border`; `--api-accent` controls the edge accent. Ordinary documentation pages retain their existing styles.
+
 ## Initial support
 
 Operation pages show methods and paths, descriptions, authentication, servers, parameter types and constraints, request bodies, response headers and schema links. Examples appear separately from schemas. When a body supports multiple media types, content-type tabs let readers switch between them; every section remains readable without JavaScript and in PDF exports.

@@ -190,6 +190,7 @@ pub fn run_checks(project_root: &Path, silent: bool) -> (Vec<Diagnostic>, Summar
                         &content_dir,
                         None,
                         None,
+                        project_root,
                     )
                 {
                     api_error = Some(error);

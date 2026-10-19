@@ -1077,3 +1077,136 @@ fn generated_description_links_use_the_same_target_checks() {
         );
     }
 }
+
+#[test]
+fn api_operation_component_is_overridable_without_executing_spec_directives() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut api = spec();
+    api["paths"]["/pets"]["get"]["summary"] = "Pets <script>alert(1)</script>".into();
+    api["paths"]["/pets"]["get"]["description"] = "A **friendly** endpoint.\n\n:::note{title=\"literal\"}\nKeep this literal.\n:::\n\n<script>alert(2)</script>".into();
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    write(
+        dir.path(),
+        "theme/components/api-operation.html",
+        "<header class=\"custom-api\"><h1>{{ attrs.title }}</h1><code>{{ attrs.method }} {{ attrs.path }}</code><div>{{ body | safe }}</div>{% for tag in tags %}<span>{{ tag }}</span>{% endfor %}</header>",
+    );
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/operations/listpets.html");
+    assert!(html.contains("class=\"custom-api\""));
+    assert!(html.contains("<strong>friendly</strong>"));
+    assert!(!html.contains("<script>alert("));
+    assert!(html.contains(":::note"));
+    assert!(!html.contains("class=\"note"));
+    assert!(html.contains("api-context-card"));
+    assert!(html.contains("api-response-success"));
+    let exported = read_output(dir.path(), "llms-full.txt");
+    assert!(exported.contains("A **friendly** endpoint."));
+    assert!(!exported.contains("custom-api"));
+}
+
+#[test]
+fn api_operation_component_can_be_used_in_authored_pages() {
+    let dir = create_project(
+        CONFIG,
+        &[(
+            "index.md",
+            ":::api-operation{title=\"List documents\" method=\"GET\" path=\"/documents\"}\nA **simple** endpoint.\n:::",
+        )],
+    );
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "index.html");
+    assert!(html.contains("api-operation-get"));
+    assert!(html.contains("List documents</h1>"));
+    assert!(html.contains("<strong>simple</strong>"));
+    assert!(html.contains("api-path\">/documents</code>"));
+    assert!(!html.contains("class=\"directive-error\""));
+}
+
+#[test]
+fn schema_headers_preserve_alias_array_and_boolean_definitions() {
+    for version in ["3.0.3", "3.1.1"] {
+        let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+        let mut api = json!({"openapi": version, "info": {"title": "Schemas", "version": "1"}, "paths": {}, "components": {"schemas": {
+            "Record": {"type": "object", "description": "A **reusable** record.", "required": ["id"], "properties": {"id": {"type": "string", "minLength": 2}}, "additionalProperties": false},
+            "Alias": {"$ref": "#/components/schemas/Record", "description": "Alias sibling description."},
+            "Records": {"type": "array", "items": {"$ref": "#/components/schemas/Record"}},
+            "Combined": {"allOf": [{"$ref": "#/components/schemas/Record"}, {"type": "object", "properties": {"name": {"type": "string"}}}]}
+        }}});
+        if version == "3.1.1" {
+            api["components"]["schemas"]["Anything"] = true.into();
+            api["components"]["schemas"]["Nothing"] = false.into();
+        }
+        write(dir.path(), "docs/openapi.json", &api.to_string());
+        build_project_strict(dir.path()).unwrap();
+        let record = read_output(dir.path(), "api/schemas/record.html");
+        let body = record
+            .split("<details class=\"details api-source\">")
+            .next()
+            .unwrap();
+        assert!(body.contains("class=\"api-schema\""));
+        assert!(body.contains("api-schema-title"));
+        assert!(body.contains("api-schema-kind\"><p>object</p>"));
+        assert_eq!(
+            body.matches("A <strong>reusable</strong> record.").count(),
+            1
+        );
+        assert!(body.contains("Required properties:"));
+        assert!(body.contains("Minimum length: 2"));
+        assert!(body.contains("Additional properties are not allowed"));
+        let alias = read_output(dir.path(), "api/schemas/alias.html");
+        let alias = alias
+            .split("<details class=\"details api-source\">")
+            .next()
+            .unwrap();
+        assert!(alias.contains("A <strong>reusable</strong> record."));
+        assert_eq!(
+            alias.contains("Alias sibling description."),
+            version == "3.1.1"
+        );
+        assert!(read_output(dir.path(), "api/schemas/records.html").contains("Array items"));
+        assert!(
+            read_output(dir.path(), "api/schemas/combined.html")
+                .contains("All of — every schema applies")
+        );
+        if version == "3.1.1" {
+            assert!(read_output(dir.path(), "api/schemas/anything.html").contains("Any value"));
+            assert!(
+                read_output(dir.path(), "api/schemas/nothing.html").contains("No value allowed")
+            );
+        }
+    }
+}
+
+#[test]
+fn schema_header_can_be_overridden_and_used_in_authored_pages() {
+    let dir = create_project(
+        CONFIG,
+        &[(
+            "index.md",
+            ":::api-schema{title=\"Record\" type=\"object\"}\nA **reusable** record.\n:::",
+        )],
+    );
+    let mut api = spec();
+    api["components"]["schemas"]["Pet"]["description"] = "A **friendly** pet.\n\n:::note{title=\"literal\"}\nKeep this literal.\n:::\n\n<script>alert(1)</script>".into();
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    build_project_strict(dir.path()).unwrap();
+    let guide = read_output(dir.path(), "index.html");
+    assert!(guide.contains("api-schema-title\">Record</h1>"));
+    assert!(guide.contains("<strong>reusable</strong>"));
+    assert!(!guide.contains("class=\"directive-error\""));
+    write(
+        dir.path(),
+        "theme/components/api-schema.html",
+        "<header class=\"custom-schema\"><h1>{{ attrs.title }}</h1>{{ type_html | safe }}{{ body | safe }}</header>",
+    );
+    write(dir.path(), "docs/index.md", "# Guide");
+    build_project_strict(dir.path()).unwrap();
+    let schema = read_output(dir.path(), "api/schemas/pet.html");
+    assert!(schema.contains("class=\"custom-schema\""));
+    assert!(schema.contains("<strong>friendly</strong>"));
+    assert!(schema.contains(":::note"));
+    assert!(!schema.contains("<script>alert(1)</script>"));
+    assert!(!schema.contains("class=\"admonition note\""));
+    assert!(read_output(dir.path(), "llms-full.txt").contains("A **friendly** pet."));
+}

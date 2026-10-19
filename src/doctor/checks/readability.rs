@@ -16,9 +16,11 @@ use crate::project::{self, PageInventory};
 static HEADING_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(#{1,6})\s*(.*?)\s*$").unwrap());
 
-// A `:::hero{… title="…"}` opening line; the hero renders its title as the page's `<h1>`.
-static HERO_TITLE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"^:{3,}\s*hero\s*\{.*\btitle="[^"]*\S[^"]*""#).unwrap());
+// Components that render their title as the page's `<h1>`.
+static COMPONENT_TITLE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^:{3,}\s*(?:hero|api-operation|api-schema)\s*\{.*\btitle="[^"]*\S[^"]*""#)
+        .unwrap()
+});
 
 static IMAGE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"!\[([^\]]*)\]\([^\)]+\)").unwrap());
@@ -503,7 +505,7 @@ fn check_emphasis_used_as_heading(
     }
 }
 
-/// Flag a page that has no H1 heading (or `:::hero` title) and no `"title"` in its
+/// Flag a page that has no H1 heading (or heading component title) and no `"title"` in its
 /// front matter. Without a title the page renders with no visible heading and the
 /// nav falls back to the slug.
 fn check_no_document_title(
@@ -514,7 +516,7 @@ fn check_no_document_title(
 ) {
     let has_h1 = lines.iter().any(|&(_, line)| {
         HEADING_RE.captures(line).is_some_and(|c| c[1].len() == 1)
-            || HERO_TITLE_RE.is_match(line.trim())
+            || COMPONENT_TITLE_RE.is_match(line.trim())
     });
 
     if has_h1 || front_matter_has_title(source) {
@@ -1331,21 +1333,25 @@ mod tests {
     }
 
     #[test]
-    fn no_title_hero_title_no_issue() {
-        let src = "::::hero{eyebrow=\"New\" title=\"Beautiful docs\"}\nLead.\n::::\n";
-        let lines = active_lines(src);
-        let mut diags = Vec::new();
-        check_no_document_title(src, &lines, &fake_path(), &mut diags);
-        assert!(diags.is_empty());
+    fn no_title_heading_component_title_no_issue() {
+        for name in ["hero", "api-operation", "api-schema"] {
+            let src = format!("::::{name}{{title=\"Beautiful docs\"}}\nLead.\n::::\n");
+            let lines = active_lines(&src);
+            let mut diags = Vec::new();
+            check_no_document_title(&src, &lines, &fake_path(), &mut diags);
+            assert!(diags.is_empty(), "{name}");
+        }
     }
 
     #[test]
-    fn no_title_hero_without_title_flagged() {
-        let src = "::::hero{eyebrow=\"New\"}\nLead.\n::::\n";
-        let lines = active_lines(src);
-        let mut diags = Vec::new();
-        check_no_document_title(src, &lines, &fake_path(), &mut diags);
-        assert_eq!(diags.len(), 1);
+    fn no_title_heading_component_without_title_flagged() {
+        for name in ["hero", "api-operation", "api-schema"] {
+            let src = format!("::::{name}{{eyebrow=\"New\"}}\nLead.\n::::\n");
+            let lines = active_lines(&src);
+            let mut diags = Vec::new();
+            check_no_document_title(&src, &lines, &fake_path(), &mut diags);
+            assert_eq!(diags.len(), 1, "{name}");
+        }
     }
 
     #[test]

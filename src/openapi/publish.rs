@@ -13,6 +13,7 @@ use crate::project::{GeneratedSource, NavNode, PageInfo, PageInventory};
 
 /// Append generated pages after authored front matter has established its URLs.
 /// Specifications are shared across locales; their descriptions are not translated.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn extend(
     inventory: &mut PageInventory,
     sources: &mut HashMap<String, String>,
@@ -21,7 +22,12 @@ pub(crate) fn extend(
     content_dir: &Path,
     version: Option<&str>,
     boundary: Option<&Path>,
+    project_root: &Path,
 ) -> Result<()> {
+    if config.openapi.is_empty() {
+        return Ok(());
+    }
+    let registry = crate::components::ComponentRegistry::load(project_root)?;
     for entry in &config.openapi {
         if !entry.versions.is_empty() {
             if !config.is_versioning_enabled()
@@ -67,7 +73,7 @@ pub(crate) fn extend(
                 return Err(Error::General("OpenAPI specifications and references in Git versions must stay inside the repository snapshot".into()));
             }
         }
-        let pages = plan(&api, &entry.output)?;
+        let pages = plan(&api, &entry.output, &registry)?;
         for (operation, page) in api.operations.iter().zip(pages.iter().skip(1)) {
             inventory
                 .operation_methods
@@ -272,7 +278,11 @@ fn relative_identity(base: &Path, target: &Path) -> String {
         .join("/")
 }
 
-fn plan(api: &Api, namespace: &str) -> Result<Vec<Page>> {
+fn plan(
+    api: &Api,
+    namespace: &str,
+    registry: &crate::components::ComponentRegistry,
+) -> Result<Vec<Page>> {
     let mut schema_routes = BTreeMap::new();
     let mut schemas = Vec::new();
     for (name, source) in &api.schemas {
@@ -335,7 +345,7 @@ fn plan(api: &Api, namespace: &str) -> Result<Vec<Page>> {
         .collect();
     let mut pages = Vec::new();
     for (slug, operation) in &operations {
-        let content = super::render::operation(api, operation, &schema_routes, slug)?;
+        let content = super::render::operation(api, operation, &schema_routes, slug, registry)?;
         pages.push(Page {
             slug: slug.clone(),
             title: operation
@@ -348,7 +358,7 @@ fn plan(api: &Api, namespace: &str) -> Result<Vec<Page>> {
         });
     }
     for (name, source, slug) in &schemas {
-        let content = super::render::schema(api, name, source, &schema_routes)?;
+        let content = super::render::schema(api, name, source, &schema_routes, registry)?;
         pages.push(Page {
             slug: slug.clone(),
             title: name.clone(),
@@ -415,8 +425,15 @@ mod tests {
         let locales = localized.then_some(config.locale.enabled.as_slice());
         let mut inventory =
             PageInventory::scan(&docs, locales, localized.then_some("en"), Some("v2")).unwrap();
-        crate::cli::build::assemble_sources(&mut inventory, &config, &docs, Some("v2"), None)
-            .unwrap();
+        crate::cli::build::assemble_sources(
+            &mut inventory,
+            &config,
+            &docs,
+            Some("v2"),
+            None,
+            dir.path(),
+        )
+        .unwrap();
         inventory
     }
 

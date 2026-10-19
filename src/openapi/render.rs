@@ -70,12 +70,16 @@ impl Content {
         }
         if items.len() == 1 {
             let (name, content) = items.into_iter().next().unwrap();
+            self.html.push_str(
+                "<div class=\"api-media api-media-single\"><section class=\"api-media-panel\">",
+            );
             self.md(format!(
                 "{} {}\n\n",
                 "#".repeat(heading_level),
                 inline(&name)
             ));
             self.append(content);
+            self.html.push_str("</section></div>");
             return;
         }
         self.html.push_str("<div class=\"api-media\" data-api-media><div class=\"api-media-tabs\" role=\"tablist\" aria-label=\"Content type\" hidden>");
@@ -260,6 +264,7 @@ fn schema_fields(
     routes: &Routes,
     depth: usize,
     visiting: &mut BTreeSet<Location>,
+    include_intro: bool,
 ) -> Result<Content> {
     let mut out = Content::default();
     if depth >= 5 || !visiting.insert(source.clone()) {
@@ -268,10 +273,12 @@ fn schema_fields(
         );
         return Ok(out);
     }
-    out.md(format!(
-        "**Type:** {}\n\n",
-        schema_type(api, schema, source, routes)
-    ));
+    if include_intro {
+        out.md(format!(
+            "**Type:** {}\n\n",
+            schema_type(api, schema, source, routes)
+        ));
+    }
     if let Some(edge) = api.graph.reference_at(source) {
         if !visiting.contains(&edge.target) {
             out.append(schema_fields(
@@ -281,6 +288,7 @@ fn schema_fields(
                 routes,
                 depth + 1,
                 visiting,
+                true,
             )?);
         } else {
             out.md("Recursive reference; follow the schema link for its full definition.");
@@ -291,15 +299,17 @@ fn schema_fields(
         }
     }
     let description = text(schema, "description");
-    if !description.is_empty() {
+    if include_intro && !description.is_empty() {
         out.md(description);
     }
     let constraints = constraints(schema, api.graph.version);
     if !constraints.is_empty() {
+        out.html.push_str("<div class=\"api-schema-constraints\">");
         out.md(constraints
             .iter()
             .map(|s| format!("- {s}\n"))
             .collect::<String>());
+        out.html.push_str("</div>");
     }
     if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
         let mut table = String::from(
@@ -344,7 +354,8 @@ fn schema_fields(
                     .iter()
                     .any(|k| property.get(k).is_some())
             {
-                let body = schema_fields(api, property, &location, routes, depth + 1, visiting)?;
+                let body =
+                    schema_fields(api, property, &location, routes, depth + 1, visiting, true)?;
                 out.details(&format!("Explore {name}"), body, "api-schema-branch");
             }
         }
@@ -358,6 +369,7 @@ fn schema_fields(
             routes,
             depth + 1,
             visiting,
+            true,
         )?);
     }
     for (key, label) in [
@@ -375,6 +387,7 @@ fn schema_fields(
                     routes,
                     depth + 1,
                     visiting,
+                    true,
                 )?;
                 out.details(&format!("Schema {}", index + 1), body, "api-schema-branch");
             }
@@ -392,6 +405,7 @@ fn schema_fields(
                     routes,
                     depth + 1,
                     visiting,
+                    true,
                 )?;
                 out.details("Additional property values", body, "api-schema-branch");
             }
@@ -579,6 +593,7 @@ fn media(
                     routes,
                     0,
                     &mut BTreeSet::new(),
+                    true,
                 )?);
                 if !(api.graph.version == Version::V3_0
                     && api.graph.reference_at(&location.child("schema")).is_some())
@@ -632,25 +647,27 @@ pub(super) fn operation(
     operation: &Operation,
     routes: &Routes,
     slug: &str,
+    registry: &crate::components::ComponentRegistry,
 ) -> Result<Content> {
     let mut out = Content::default();
     let title = operation
         .summary
         .clone()
         .unwrap_or_else(|| format!("{} {}", operation.method, operation.path));
-    out.md(format!("# {}", inline(&title)));
-    out.markdown.push_str(&format!(
+    // Keep a readable Markdown export independent of the visual component.
+    let mut header = Content::default();
+    header.md(format!("# {}", inline(&title)));
+    header.markdown.push_str(&format!(
         "**{} {}**\n\n",
         operation.method,
         inline(&operation.path)
     ));
-    out.html.push_str(&format!("<div class=\"api-operation\"><span class=\"api-method api-method-{}\">{}</span><code class=\"api-path\">{}</code>{}</div>", operation.method.to_ascii_lowercase(), html_escape(&operation.method), html_escape(&operation.path), if operation.deprecated { "<span class=\"api-deprecated\">Deprecated</span>" } else { "" }));
     if operation.deprecated {
-        out.markdown.push_str("**Deprecated.**\n\n");
+        header.markdown.push_str("**Deprecated.**\n\n");
     }
     if !operation.tags.is_empty() {
-        out.md(format!(
-            "Tags: {}",
+        header.markdown.push_str(&format!(
+            "Tags: {}\n\n",
             operation
                 .tags
                 .iter()
@@ -659,12 +676,36 @@ pub(super) fn operation(
                 .join(", ")
         ));
     }
-    if let Some(description) = &operation.description {
-        out.md(description);
+    let mut description = Content::default();
+    if let Some(value) = &operation.description {
+        description.md(value);
     }
+    header.markdown.push_str(&description.markdown);
+    let mut context = tera::Context::new();
+    context.insert("attrs", &json!({
+        "title": title, "method": operation.method, "path": operation.path,
+        "deprecated": if operation.deprecated { "true" } else { "false" },
+        "endpoint": if operation.summary.is_some() && title != format!("{} {}", operation.method, operation.path) { "true" } else { "false" }
+    }));
+    context.insert("tags", &operation.tags);
+    context.insert("body", &description.html);
+    context.insert("body_raw", &description.markdown);
+    context.insert("name", "api-operation");
+    context.insert("inline", &false);
+    out.markdown.push_str(&header.markdown);
+    out.html
+        .push_str("<article class=\"api-reference api-reference-operation\">");
+    out.html
+        .push_str(&registry.render_native("api-operation", &context)?);
+    out.html
+        .push_str("<div class=\"api-context\"><section class=\"api-context-card\">");
     security(api, &operation.security, &mut out)?;
+    out.html
+        .push_str("</section><section class=\"api-context-card\">");
     servers(&mut out, &operation.servers);
+    out.html.push_str("</section></div>");
     if !operation.parameters.is_empty() {
+        out.html.push_str("<section class=\"api-section\">");
         out.md("## Parameters");
         let mut table = String::from(
             "| Name | Location | Type | Required | Description and constraints |\n| --- | --- | --- | --- | --- |\n",
@@ -708,7 +749,12 @@ pub(super) fn operation(
             }
         }
     }
+    if !operation.parameters.is_empty() {
+        out.html.push_str("</section>");
+    }
     if let Some(body) = &operation.request_body {
+        out.html
+            .push_str("<section class=\"api-section api-request\">");
         out.md("## Request body");
         out.md(
             if body.value.get("required").and_then(Value::as_bool) == Some(true) {
@@ -730,9 +776,20 @@ pub(super) fn operation(
             &format!("{slug}-request"),
             3,
         )?;
+        out.html.push_str("</section>");
     }
+    out.html
+        .push_str("<section class=\"api-section api-responses\">");
     out.md("## Responses");
     for (status, response) in &operation.responses {
+        let kind = match status.as_bytes().first() {
+            Some(b'2') => "success",
+            Some(b'4' | b'5') => "error",
+            _ => "neutral",
+        };
+        out.html.push_str(&format!(
+            "<section class=\"api-response api-response-{kind}\">"
+        ));
         out.md(format!("### {}", inline(status)));
         out.md(text(&response.value, "description"));
         headers(api, &response.value, &response.source, routes, &mut out)?;
@@ -753,7 +810,9 @@ pub(super) fn operation(
             &format!("{slug}-response-{status}"),
             4,
         )?;
+        out.html.push_str("</section>");
     }
+    out.html.push_str("</section>");
     // Preserve normalized values too: source Reference Objects alone would hide
     // inherited parameters and externally defined request/response details.
     out.source(&json!({
@@ -763,21 +822,57 @@ pub(super) fn operation(
         "requestBody": operation.request_body.as_ref().map(|b| &b.value),
         "responses": operation.responses.iter().map(|(s,r)| (s,&r.value)).collect::<BTreeMap<_,_>>()
     }));
+    out.html.push_str("</article>");
     Ok(out)
 }
 
-pub(super) fn schema(api: &Api, name: &str, source: &Location, routes: &Routes) -> Result<Content> {
+pub(super) fn schema(
+    api: &Api,
+    name: &str,
+    source: &Location,
+    routes: &Routes,
+    registry: &crate::components::ComponentRegistry,
+) -> Result<Content> {
     let mut out = Content::default();
-    out.md(format!("# {}", inline(name)));
+    let definition = value(api, source)?;
+    let kind = schema_type(api, definition, source, routes);
+    let ignores_siblings =
+        api.graph.version == Version::V3_0 && api.graph.reference_at(source).is_some();
+    let mut description = Content::default();
+    if !ignores_siblings {
+        description.md(text(definition, "description"));
+    }
+    let mut rendered_type = Content::default();
+    rendered_type.md(&kind);
+    let mut context = tera::Context::new();
+    context.insert("attrs", &json!({"title": name, "deprecated": if !ignores_siblings && definition.get("deprecated").and_then(Value::as_bool) == Some(true) { "true" } else { "false" }}));
+    context.insert("type_html", &rendered_type.html);
+    context.insert("body", &description.html);
+    context.insert("body_raw", &description.markdown);
+    context.insert("name", "api-schema");
+    context.insert("inline", &false);
+    out.markdown.push_str(&format!(
+        "# {}\n\n**Type:** {kind}\n\n{}",
+        inline(name),
+        description.markdown
+    ));
+    out.html
+        .push_str("<article class=\"api-reference api-reference-schema\">");
+    out.html
+        .push_str(&registry.render_native("api-schema", &context)?);
+    out.html
+        .push_str("<section class=\"api-section api-schema-definition\">");
     out.md("## Properties");
     out.append(schema_fields(
         api,
-        value(api, source)?,
+        definition,
         source,
         routes,
         0,
         &mut BTreeSet::new(),
+        false,
     )?);
+    out.html.push_str("</section>");
     let mut referenced = Vec::new();
     let mut current = source.clone();
     let mut seen = BTreeSet::from([current.clone()]);
@@ -793,6 +888,7 @@ pub(super) fn schema(api: &Api, name: &str, source: &Location, routes: &Routes) 
     } else {
         out.source(&json!({"schema": value(api, source)?, "referencedDefinitions": referenced}));
     }
+    out.html.push_str("</article>");
     Ok(out)
 }
 
@@ -802,11 +898,13 @@ pub(super) fn overview(
     schemas: &[(String, Location, String)],
 ) -> Result<Content> {
     let mut out = Content::default();
+    out.html.push_str("<article class=\"api-reference api-reference-overview\"><header class=\"api-page-header\"><span class=\"api-eyebrow\">API reference</span>");
     out.md(format!("# {}", inline(&api.title)));
     if let Some(description) = &api.description {
         out.md(description);
     }
     out.md(format!("**API version:** {}", inline(&api.api_version)));
+    out.html.push_str(&format!("<div class=\"api-summary\"><span><strong>{}</strong> operations</span><span><strong>{}</strong> schemas</span></div></header><div class=\"api-context\"><section class=\"api-context-card\">", operations.len(), schemas.len()));
     let root = value(api, &api.graph.root)?;
     servers(
         &mut out,
@@ -815,6 +913,8 @@ pub(super) fn overview(
             .map(Vec::as_slice)
             .unwrap_or(&[json!({"url": "/"})]),
     );
+    out.html
+        .push_str("</section><section class=\"api-context-card\">");
     security(
         api,
         root.get("security")
@@ -823,6 +923,8 @@ pub(super) fn overview(
             .unwrap_or_default(),
         &mut out,
     )?;
+    out.html
+        .push_str("</section></div><section class=\"api-section\">");
     out.md("## Operations");
     // Declared tags follow author order; undeclared tags follow lexical order.
     // An operation belongs to every tag it names, but only once per group.
@@ -858,12 +960,16 @@ pub(super) fn overview(
             operation_table(&mut out, untagged);
         }
     }
+    out.html
+        .push_str("</section><section class=\"api-section\">");
     out.md("## Schemas");
     out.md(schemas
         .iter()
         .map(|(name, _, slug)| format!("- {}\n", link(slug, name)))
         .collect::<String>());
+    out.html.push_str("</section>");
     out.source(root);
+    out.html.push_str("</article>");
     Ok(out)
 }
 

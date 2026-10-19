@@ -217,6 +217,7 @@ pub(crate) fn assemble_sources(
     content_dir: &Path,
     version: Option<&str>,
     boundary: Option<&Path>,
+    project_root: &Path,
 ) -> Result<(HashMap<String, String>, HashMap<String, FrontMatter>)> {
     let (mut sources, mut front_matters) = read_sources(inventory)?;
     crate::openapi::publish::extend(
@@ -227,6 +228,7 @@ pub(crate) fn assemble_sources(
         content_dir,
         version,
         boundary,
+        project_root,
     )?;
     Ok((sources, front_matters))
 }
@@ -281,6 +283,10 @@ pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<Site
                 .as_ref()
                 .and_then(|s| s.snapshot.as_ref())
                 .map(GitSnapshot::repository_root),
+            source
+                .as_ref()
+                .map(|s| s.project_root.as_path())
+                .unwrap_or(project_root),
         )?;
         exclude_drafts(&mut inventory, &front_matters, config, false);
         sites.push((
@@ -680,7 +686,14 @@ fn build_site(
     let (sources, front_matters) = if config.is_versioning_enabled() {
         read_sources(&mut inventory)?
     } else {
-        assemble_sources(&mut inventory, config, &content_dir, None, None)?
+        assemble_sources(
+            &mut inventory,
+            config,
+            &content_dir,
+            None,
+            None,
+            project_root,
+        )?
     };
     for warning in &inventory.generation_warnings {
         diagnostics::warn_openapi(warning);
@@ -831,6 +844,7 @@ fn build_site(
                     .snapshot
                     .as_ref()
                     .map(GitSnapshot::repository_root),
+                version_project_root,
             )?;
             for warning in &ver_inventory.generation_warnings {
                 diagnostics::warn_openapi(warning);
@@ -2133,6 +2147,7 @@ fn prescan_version_pages(
             version_dir,
             Some(version),
             source.snapshot.as_ref().map(GitSnapshot::repository_root),
+            &source.project_root,
         )?;
         exclude_drafts(&mut inv, &front_matters, config, include_drafts);
         let pages = inv

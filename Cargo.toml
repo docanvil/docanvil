@@ -36,7 +36,7 @@ dialoguer = "0.12"
 toml_edit = "0.25"
 oxc = { version = "0.138", features = ["minifier", "codegen"] }
 tungstenite = "0.30.0"
-base64 = "0.22"
+base64 = "0.23"
 semver = "1"
 ureq = "3"
 sha2 = "0.11"

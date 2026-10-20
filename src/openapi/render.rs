@@ -1123,6 +1123,9 @@ pub(super) fn operation(
     if !rendered_header.contains("data-api-curl") {
         out.html.push_str(&curl.html);
     }
+    out.html.push_str(super::publish::RELATED_GUIDES_MARKER);
+    out.markdown.push_str(super::publish::RELATED_GUIDES_MARKER);
+    out.markdown.push_str("\n\n");
     out.html
         .push_str("<div class=\"api-context\"><section class=\"api-context-card\">");
     security(api, &operation.security, &mut out)?;

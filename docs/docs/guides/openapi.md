@@ -71,6 +71,32 @@ The overview groups operations by tag. Declare top-level `tags` in the specifica
 
 Search, sitemap and enabled AI-readable outputs include generated pages. PDF includes generated pages selected by navigation, like authored chapters. Edit links point to the specification or referenced source file, and Git dates account for the specification's loaded dependencies.
 
+### Related guides
+
+Add `api_operations` to a guide's JSON front matter to list it beneath the header of the operations it explains:
+
+```markdown
+---
+{
+  "title": "Create your first document",
+  "api_operations": [
+    "example-api/operations/createdocument",
+    "example-api/operations/getdocument"
+  ]
+}
+---
+
+# Create your first document
+```
+
+Use complete published operation slugs, including the API output namespace. Omit `.html`, fragments, wiki-link brackets and version/locale prefixes. This also works for operations without an `operationId`: use their generated method/path slug. One guide can relate to operations in several APIs, and several guides can relate to the same operation. Repeated entries produce one link.
+
+The **Related guides** block uses each guide's published title and URL, including front-matter slug overrides, and sorts links by title. It appears only when there are related guides. Links stay in the operation's documentation version and locale; translations opt in through their own front matter. There is no cross-language fallback. Git snapshots use the associations and titles from that snapshot.
+
+Draft guides are never listed, including when serving or building with drafts enabled. With OpenAPI configured, malformed `api_operations` values and targets that are missing or are not generated operations produce source-located `openapi-related-guide` warnings in build and doctor. Strict mode rejects these warnings; ordinary builds skip invalid entries and keep valid ones. Without `[[openapi]]`, this field is inactive.
+
+These are static links: no JavaScript is required, and PDF/AI outputs retain them. Guide changes participate in normal serve rebuilding. The default theme exposes `.api-related-guides` for styling. Try the [[guides/documents-api|Documents API walkthrough]], then follow its related link back from the [[example-api/operations/createdocument|create operation]].
+
 ### Navigation method badges
 
 Operation links display a compact HTTP-method badge in the default sidebar. This works with tag groups, automatic discovery, explicit page entries and linked groups, including custom labels. Schema and overview links keep their usual appearance. Badges use real text, so the method remains available without JavaScript and to assistive technology; navigation labels in breadcrumbs and exports are unchanged.

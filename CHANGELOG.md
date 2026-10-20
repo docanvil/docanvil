@@ -11,6 +11,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- Related guides on OpenAPI operation pages: declare `api_operations` in a guide’s front matter to link it from matching operations in the same version and locale. Links respect published titles/slugs, exclude drafts and appear in PDF/AI exports; build and doctor diagnose invalid associations.
+
 - A “Copy as cURL” dropdown in OpenAPI operation headers, with request media variants, common parameter serialization, supplied request bodies and authentication placeholders. Commands are copyable and included in PDF and AI outputs.
 
 - Initial native OpenAPI reference generation through `[[openapi]]`: local JSON/YAML specifications and references, readable operation/schema pages with field constraints, authentication, request/response examples, media-type tabs and collapsed source definitions. Integrates with navigation, search, version/locale URLs, PDF and AI outputs, specification edit links, dependency watching and build/doctor diagnostics. Live requests and full schema validation are deferred.

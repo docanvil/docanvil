@@ -45,6 +45,7 @@ Tous les champs sont optionnels. Vous pouvez en inclure n'importe quelle combina
 | `redirect_from` | Liste de chaînes | Anciens chemins qui doivent renvoyer les lecteurs vers cette page, pour que les liens existants continuent de fonctionner (voir [Redirections](#redirections)) |
 | `llms` | Booléen | Définissez à `false` pour exclure cette page de `llms.txt` et `llms-full.txt` (voir `[llms]` dans [[guides/configuration\|Configuration]]) |
 | `toc` | Booléen | Définissez à `false` pour masquer la table des matières de la page, par exemple sur une [[writing/components\|page d'accueil]] |
+| `api_operations` | Liste de chaînes | Affiche ce guide sur les opérations OpenAPI générées indiquées, dans la même version et langue (voir [[guides/openapi#guides-associes\|Guides associés]]) |
 
 Les champs inconnus sont ignorés silencieusement — vous pouvez ajouter vos propres métadonnées personnalisées sans déclencher d'erreurs.
 

@@ -11,6 +11,116 @@ use crate::error::{Error, Result};
 use crate::pipeline::frontmatter::FrontMatter;
 use crate::project::{GeneratedSource, NavNode, PageInfo, PageInventory};
 
+/// Filled after every API namespace and authored route has been assembled.
+pub(super) const RELATED_GUIDES_MARKER: &str = "<!-- docanvil-related-guides -->";
+
+/// Associate authored guides with operations in the same version and locale.
+/// Draft guides are deliberately never advertised, including in serve previews.
+pub(crate) fn attach_related_guides(
+    inventory: &mut PageInventory,
+    sources: &mut HashMap<String, String>,
+    front_matters: &HashMap<String, FrontMatter>,
+) {
+    let mut related: BTreeMap<String, Vec<PageInfo>> = BTreeMap::new();
+    for key in &inventory.ordered {
+        if inventory.generated.contains_key(key) {
+            continue;
+        }
+        let Some(front_matter) = front_matters.get(key).filter(|fm| !fm.draft) else {
+            continue;
+        };
+        let Some(value) = &front_matter.api_operations else {
+            continue;
+        };
+        let guide = &inventory.pages[key];
+        let location = super::Location {
+            file: guide.source_path.clone(),
+            pointer: "/api_operations".into(),
+        };
+        let mut warn = |location, message| {
+            inventory.generation_warnings.push(super::Warning {
+                location,
+                code: "openapi-related-guide",
+                message,
+            })
+        };
+        let Some(targets) = value.as_array() else {
+            warn(
+                location,
+                "api_operations must be an array of generated operation page slugs".into(),
+            );
+            continue;
+        };
+        let mut seen = BTreeSet::new();
+        for (index, target) in targets.iter().enumerate() {
+            let target = target
+                .as_str()
+                .map(str::trim)
+                .filter(|target| !target.is_empty());
+            let Some(target) = target else {
+                warn(
+                    location.child(&index.to_string()),
+                    "api_operations entries must be nonempty operation page slugs".into(),
+                );
+                continue;
+            };
+            if !seen.insert(target) {
+                continue;
+            }
+            let target_key = guide
+                .locale
+                .as_ref()
+                .map(|locale| format!("{locale}:{target}"))
+                .unwrap_or_else(|| target.to_owned());
+            if !inventory.operation_methods.contains_key(target)
+                || !inventory.generated.contains_key(&target_key)
+            {
+                warn(
+                    location.child(&index.to_string()),
+                    format!(
+                        "Related operation {target:?} is not a generated operation page in this version and locale; use its published slug without a locale/version prefix, .html or fragment"
+                    ),
+                );
+                continue;
+            }
+            related.entry(target_key).or_default().push(guide.clone());
+        }
+    }
+    for (key, generated) in &mut inventory.generated {
+        if !generated.html.contains(RELATED_GUIDES_MARKER) {
+            continue;
+        }
+        let mut guides = related.remove(key).unwrap_or_default();
+        guides.sort_by(|a, b| {
+            a.title
+                .to_lowercase()
+                .cmp(&b.title.to_lowercase())
+                .then_with(|| a.slug.cmp(&b.slug))
+        });
+        let mut html = String::new();
+        let mut markdown = String::new();
+        if !guides.is_empty() {
+            html.push_str("<section class=\"api-related-guides\"><h2>Related guides</h2><ul>");
+            markdown.push_str("## Related guides\n\n");
+            for guide in guides {
+                let wiki_link = link(&guide.slug, &guide.title);
+                // Keep title text literal in trusted HTML; Markdown exports use
+                // the usual wiki-link representation and scope-aware resolution.
+                html.push_str(&format!("<li>{wiki_link}</li>"));
+                markdown.push_str(&format!("- {wiki_link}\n"));
+                generated.dependencies.insert(guide.source_path);
+            }
+            html.push_str("</ul></section>");
+            markdown.push('\n');
+        }
+        generated.html = crate::pipeline::headings::inject_heading_ids(
+            &generated.html.replace(RELATED_GUIDES_MARKER, &html),
+        );
+        generated.markdown = generated.markdown.replace(RELATED_GUIDES_MARKER, &markdown);
+        sources.insert(key.clone(), generated.markdown.clone());
+    }
+}
+
 /// Append generated pages after authored front matter has established its URLs.
 /// Specifications are shared across locales; their descriptions are not translated.
 #[allow(clippy::too_many_arguments)]

@@ -1689,8 +1689,8 @@ body {
    ---------------------------------------------------------------- */
 
 .footer {
-  margin-top: 4rem;
-  padding-top: 1.25rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--color-border);
   font-size: 0.85rem;
   color: var(--color-text-muted);
@@ -1782,12 +1782,12 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem 1.5rem;
-  margin-top: 3rem;
+  margin-top: 2rem;
   font-size: 0.875rem;
   color: var(--color-text-muted);
 }
 
-.last-updated {
+.page-meta .last-updated {
   margin: 0;
 }
 
@@ -1809,15 +1809,15 @@ body {
 }
 
 .page-meta + .prev-next {
-  margin-top: 1.25rem;
+  margin-top: 1rem;
 }
 
 .prev-next {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  margin-top: 3rem;
-  padding-top: 1.5rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--color-border);
 }
 
@@ -1829,7 +1829,8 @@ body {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   transition: border-color var(--transition-fast), background var(--transition-fast);
-  max-width: 50%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .prev-next-link:hover {
@@ -1838,7 +1839,6 @@ body {
 }
 
 .prev-next-next {
-  margin-left: auto;
   text-align: right;
 }
 

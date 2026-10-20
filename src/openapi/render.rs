@@ -1123,6 +1123,9 @@ pub(super) fn operation(
     if !rendered_header.contains("data-api-curl") {
         out.html.push_str(&curl.html);
     }
+    out.html.push_str(super::publish::RELATED_GUIDES_MARKER);
+    out.markdown.push_str(super::publish::RELATED_GUIDES_MARKER);
+    out.markdown.push_str("\n\n");
     out.html
         .push_str("<div class=\"api-context\"><section class=\"api-context-card\">");
     security(api, &operation.security, &mut out)?;
@@ -1406,6 +1409,7 @@ fn operation_table<'a>(
 ) {
     let mut table = String::from("| Method | Path | Operation |\n| --- | --- | --- |\n");
     let mut count = 0;
+    let mut methods = BTreeSet::new();
     for (slug, operation) in operations {
         let title = operation
             .summary
@@ -1418,12 +1422,27 @@ fn operation_table<'a>(
             inline(&operation.path),
             link(slug, title)
         ));
+        methods.insert(operation.method.as_str());
         count += 1;
     }
     if count == 0 {
         out.md("No operations.");
     } else {
-        out.table(table);
+        let mut rendered = Content::default();
+        rendered.table(table);
+        rendered.html =
+            rendered
+                .html
+                .replacen("<table>", "<table class=\"api-operation-table\">", 1);
+        // Decorate only the native table's method cells; export Markdown keeps
+        // plain method text and specification Markdown never enables raw HTML.
+        for method in methods {
+            rendered.html = rendered.html.replace(
+                &format!("<td><strong>{method}</strong></td>"),
+                &format!("<td><span class=\"nav-method-badge nav-method-{}\" data-http-method=\"{method}\">{method}</span></td>", method.to_ascii_lowercase()),
+            );
+        }
+        out.append(rendered);
     }
 }
 

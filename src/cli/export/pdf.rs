@@ -1018,7 +1018,7 @@ custom_css = "theme/print.css"
             "[project]\nname = 'API'\n[[openapi]]\nspec = 'openapi.json'\n",
         )
         .unwrap();
-        std::fs::write(dir.path().join("docs/index.md"), "# Guide\n[[api/index]]\n[[api/operations/listpets#parameters|API parameters]]\n[API responses](api/operations/listpets.html?view=full#responses)").unwrap();
+        std::fs::write(dir.path().join("docs/index.md"), "---\n{\"api_operations\":[\"api/operations/listpets\"]}\n---\n# Guide\n[[api/index]]\n[[api/operations/listpets#parameters|API parameters]]\n[API responses](api/operations/listpets.html?view=full#responses)").unwrap();
         std::fs::write(
             dir.path().join("docs/openapi.json"),
             include_str!("../../../tests/fixtures/openapi/petstore.json"),
@@ -1057,6 +1057,8 @@ custom_css = "theme/print.css"
             .iter()
             .find(|c| c.slug == "api/operations/listpets")
             .unwrap();
+        assert!(chapter.content_html.contains("href=\"#index\""));
+        assert!(chapter.content_html.contains("api-related-guides"));
         assert!(chapter.content_html.contains("href=\"#api/schemas/pet\""));
         assert!(
             chapter

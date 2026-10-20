@@ -230,6 +230,9 @@ pub(crate) fn assemble_sources(
         boundary,
         project_root,
     )?;
+    if !config.openapi.is_empty() {
+        crate::openapi::publish::attach_related_guides(inventory, &mut sources, &front_matters);
+    }
     Ok((sources, front_matters))
 }
 

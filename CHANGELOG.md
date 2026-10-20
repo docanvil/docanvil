@@ -6,10 +6,14 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Changed
 
+- OpenAPI overview operation tables use the same HTTP-method lozenges and colours as sidebar navigation.
+
 - Page footers use equal-width previous/next links and tighter spacing around page metadata, navigation and credits.
 - Custom layout and component templates now use Tera 2. Replace Tera macros/imports with Tera components, remove `include … ignore missing`, and use bracket indexing (`items[0]`) instead of numeric dot access. Undefined nested values and some filters also have different behavior; see the theming migration notes. Markdown and DocAnvil's `:::component` syntax are unchanged.
 
 ### Added
+
+- Related guides on OpenAPI operation pages: declare `api_operations` in a guide’s front matter to link it from matching operations in the same version and locale. Links respect published titles/slugs, exclude drafts and appear in PDF/AI exports; build and doctor diagnose invalid associations.
 
 - A “Copy as cURL” dropdown in OpenAPI operation headers, with request media variants, common parameter serialization, supplied request bodies and authentication placeholders. Commands are copyable and included in PDF and AI outputs.
 

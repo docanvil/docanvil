@@ -63,7 +63,35 @@ L'identifiant `listPets` produit `api/operations/listpets.html`. Les identifiant
 
 Les pages figurent dans la recherche, le sitemap et les sorties destinées aux outils d'IA lorsqu'elles sont activées. Le PDF inclut les pages sélectionnées par la navigation. Les liens d'édition ciblent la spécification ou le fichier référencé ; les dates Git tiennent compte des dépendances chargées.
 
+### Guides associés
+
+Ajoutez `api_operations` au front matter JSON d’un guide pour l’afficher sous l’en-tête des opérations qu’il explique :
+
+```markdown
+---
+{
+  "title": "Créer votre premier document",
+  "api_operations": [
+    "example-api/operations/createdocument",
+    "example-api/operations/getdocument"
+  ]
+}
+---
+
+# Créer votre premier document
+```
+
+Utilisez les slugs complets publiés des opérations, avec leur espace d’URL, sans `.html`, fragment, crochets wiki ni préfixe de version ou de langue. Les opérations sans `operationId` utilisent leur slug généré à partir de la méthode et du chemin. Un guide peut viser plusieurs opérations ou API ; les doublons sont éliminés.
+
+Le bloc **Related guides** utilise le titre et l’URL publiés du guide, y compris les remplacements de slug, et trie les liens par titre. Il apparaît uniquement lorsqu’un guide est associé. Les liens restent dans la même version et la même langue ; chaque traduction choisit ses opérations dans son propre front matter. Aucune autre langue n’est utilisée en repli. Les versions Git reprennent les associations et titres de leur instantané.
+
+Les brouillons ne sont jamais listés, même en aperçu. Avec OpenAPI configuré, les valeurs mal formées et les cibles absentes ou autres que des opérations générées produisent des avertissements `openapi-related-guide` avec leur emplacement source, dans build et doctor. Le mode strict les refuse ; une compilation normale ignore les entrées invalides. Sans `[[openapi]]`, le champ est inactif.
+
+Ces liens fonctionnent sans JavaScript et restent présents dans les exports PDF et IA. Les modifications des guides sont prises en compte lors des reconstructions de serve. La classe `.api-related-guides` permet de personnaliser le bloc. Consultez le [[guides/documents-api|parcours Documents API]], puis le lien associé depuis [[example-api/operations/createdocument|l’opération de création]].
+
 ### Badges de méthode dans la navigation
+
+Les tableaux d’opérations de la vue d’ensemble utilisent les mêmes badges et couleurs de méthode que la navigation.
 
 Les liens d’opérations affichent un petit badge de méthode HTTP dans la barre latérale par défaut. Cela fonctionne avec les groupes de tags, la découverte automatique, les pages explicites et les groupes liés, y compris les libellés personnalisés. Les liens des schémas et de la vue d’ensemble gardent leur présentation habituelle. La méthode est du texte réel, disponible sans JavaScript et pour les technologies d’assistance ; les libellés du fil d’Ariane et des exports restent identiques.
 

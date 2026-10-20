@@ -34,6 +34,14 @@ fn main_build_links_indexes_and_exports_generated_json_reference() {
         "[[nav]]\npage = 'index'\n[[nav]]\nlabel = 'API'\nautodiscover = 'api'\n",
     );
     build_project_strict(dir.path()).unwrap();
+    let overview = read_output(dir.path(), "api/index.html");
+    assert!(overview.contains("<table class=\"api-operation-table\">"));
+    for method in ["GET", "POST"] {
+        assert!(overview.contains(&format!("<td><span class=\"nav-method-badge nav-method-{}\" data-http-method=\"{method}\">{method}</span></td>", method.to_ascii_lowercase())));
+    }
+    let ai = read_output(dir.path(), "llms-full.txt");
+    assert!(ai.contains("| **GET** |"));
+    assert!(!ai.contains("nav-method-badge"));
     let html = read_output(dir.path(), "index.html");
     assert!(html.contains("href=\"/manual/api/operations/listpets.html\""));
     let operation = read_output(dir.path(), "api/operations/listpets.html");
@@ -380,6 +388,8 @@ fn git_snapshots_use_historical_json_and_referenced_schemas() {
         "docs/schemas/pet.json",
         r#"{"type":"object","description":"Historical schema"}"#,
     );
+    let historical_guide = "---\n{\"api_operations\":[\"api/operations/listpets\"]}\n---\n# Historical guide\n[[api/index]]\n[[api/operations/listpets#parameters|Parameters]]";
+    write(dir.path(), "docs/index.md", historical_guide);
     git(&["init", "-q"]);
     git(&["add", "."]);
     git(&[
@@ -392,6 +402,11 @@ fn git_snapshots_use_historical_json_and_referenced_schemas() {
         "Snapshot",
     ]);
     git(&["tag", "v1"]);
+    write(
+        dir.path(),
+        "docs/index.md",
+        "---\n{\"api_operations\":[\"api/operations/createpet\"]}\n---\n# Working guide\n[[api/index]]\n[[api/operations/listpets#parameters|Parameters]]",
+    );
     api["info"]["title"] = "Working API".into();
     write(dir.path(), "docs/openapi.json", &api.to_string());
     write(
@@ -407,6 +422,21 @@ fn git_snapshots_use_historical_json_and_referenced_schemas() {
         ),
     );
     build_project_strict(dir.path()).unwrap();
+    assert!(
+        related_block(&read_output(dir.path(), "v1/api/operations/listpets.html"))
+            .contains("Historical guide")
+    );
+    assert!(
+        !read_output(dir.path(), "dev/api/operations/listpets.html")
+            .contains("<section class=\"api-related-guides\">")
+    );
+    assert!(
+        related_block(&read_output(
+            dir.path(),
+            "dev/api/operations/createpet.html"
+        ))
+        .contains("Working guide")
+    );
     assert!(read_output(dir.path(), "v1/api/index.html").contains("Historical API"));
     assert!(read_output(dir.path(), "v1/api/schemas/pet.html").contains("Historical schema"));
     assert!(!read_output(dir.path(), "v1/api/schemas/pet.html").contains("Working schema"));
@@ -1243,4 +1273,245 @@ fn generated_curl_is_published_with_copy_controls_media_and_export_markdown() {
     let ai = read_output(dir.path(), "llms-full.txt");
     assert!(ai.contains("curl --globoff --request 'POST'"));
     assert!(ai.contains("--data-raw '@literal'"));
+}
+
+fn related_block(html: &str) -> &str {
+    html.split("<section class=\"api-related-guides\">")
+        .nth(1)
+        .unwrap()
+        .split("</section>")
+        .next()
+        .unwrap()
+}
+
+#[test]
+fn related_guides_use_authored_routes_and_titles_across_api_namespaces() {
+    let config = format!("{CONFIG}\n[[openapi]]\nspec = 'second.json'\noutput = 'billing'\n");
+    let dir = create_project(
+        &config,
+        &[
+            (
+                "index.md",
+                "# Guide\n[[api/operations/listpets#related-guides-1|Related reading]]",
+            ),
+            (
+                "guides/original.md",
+                "---\n{\"title\":\"Zebra [guide] | <literal>\",\"slug\":\"start\",\"api_operations\":[\"api/operations/listpets\",\"api/operations/listpets\",\"billing/operations/listpets\"]}\n---\n# Introduction",
+            ),
+            (
+                "guides/alpha.md",
+                "---\n{\"api_operations\":[\"api/operations/listpets\"]}\n---\n# Alpha guide",
+            ),
+        ],
+    );
+    let mut api = spec();
+    api["paths"]["/pets"]["get"]["description"] = "## Related guides\nSpecification prose.".into();
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    write(dir.path(), "docs/second.json", &spec().to_string());
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/operations/listpets.html");
+    let block = related_block(&html);
+    assert!(block.contains("id=\"related-guides-1\""));
+    assert_eq!(
+        block.matches("href=\"/manual/guides/start.html\"").count(),
+        1
+    );
+    assert!(
+        block.contains("Zebra &#91;guide&#93; &#124; &lt;literal&gt;"),
+        "{block}"
+    );
+    assert!(!block.contains("<literal>"));
+    assert!(block.find("Alpha guide").unwrap() < block.find("Zebra").unwrap());
+    assert!(html.find("api-related-guides").unwrap() < html.find("class=\"api-context\"").unwrap());
+    assert!(
+        related_block(&read_output(dir.path(), "billing/operations/listpets.html"))
+            .contains("/manual/guides/start.html")
+    );
+    for page in [
+        "api/index.html",
+        "api/schemas/pet.html",
+        "api/operations/createpet.html",
+    ] {
+        assert!(!read_output(dir.path(), page).contains("<section class=\"api-related-guides\">"));
+    }
+    let ai = read_output(dir.path(), "llms-full.txt");
+    assert!(ai.contains("https://example.test/manual/guides/start.html"));
+    assert!(!ai.contains("<!-- docanvil-related-guides -->"));
+    let (diags, _) = doctor::run_checks(dir.path(), true);
+    assert!(
+        !diags.iter().any(|d| matches!(
+            d.check,
+            "openapi-related-guide" | "broken-wiki-link" | "broken-generated-link"
+        )),
+        "{diags:?}"
+    );
+}
+
+#[test]
+fn related_guides_stay_in_their_version_and_locale_without_fallback() {
+    let config = format!(
+        "{CONFIG}\n[version]\nenabled = ['v1', 'v2']\ncurrent = 'v2'\n[locale]\nenabled = ['en', 'fr']\ndefault = 'en'\n"
+    );
+    let dir = create_project(&config, &[]);
+    for version in ["v1", "v2"] {
+        write(
+            dir.path(),
+            &format!("docs/{version}/openapi.json"),
+            &spec().to_string(),
+        );
+        write(dir.path(), &format!("docs/{version}/index.md"), "# Home");
+        write(
+            dir.path(),
+            &format!("docs/{version}/index.fr.md"),
+            "# Accueil",
+        );
+        for locale in ["en", "fr"] {
+            let suffix = if locale == "en" { "" } else { ".fr" };
+            let fm = json!({"title":format!("Guide {version} {locale}"),"slug":"start","api_operations":["api/operations/listpets"]});
+            write(
+                dir.path(),
+                &format!("docs/{version}/guides/start{suffix}.md"),
+                &format!("---\n{fm}\n---\n# Getting started"),
+            );
+        }
+        write(
+            dir.path(),
+            &format!("docs/{version}/english-only.md"),
+            "---\n{\"api_operations\":[\"api/operations/listpets\"]}\n---\n# English only",
+        );
+    }
+    // Missing translations retain the site's normal warning; related links never fall back.
+    build_project(dir.path()).unwrap();
+    for version in ["v1", "v2"] {
+        for locale in ["en", "fr"] {
+            let html = read_output(
+                dir.path(),
+                &format!("{version}/{locale}/api/operations/listpets.html"),
+            );
+            let block = related_block(&html);
+            assert!(block.contains(&format!("Guide {version} {locale}")));
+            assert!(block.contains(&format!("/manual/{version}/{locale}/guides/start.html")));
+            assert_eq!(block.contains("English only"), locale == "en");
+            assert!(!block.contains(if version == "v1" {
+                "Guide v2"
+            } else {
+                "Guide v1"
+            }));
+            assert!(!block.contains(if locale == "en" {
+                "Guide v1 fr"
+            } else {
+                "Guide v1 en"
+            }));
+        }
+    }
+}
+
+#[test]
+fn related_guide_metadata_warns_in_build_and_doctor_and_preserves_strict_output() {
+    let dir = create_project(CONFIG, &[("index.md", "# Home")]);
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    build_project_strict(dir.path()).unwrap();
+    for metadata in [
+        json!("api/operations/listpets"),
+        json!([42, ""]),
+        json!([
+            "api/operations/missing",
+            "api/schemas/pet",
+            "api/operations/listpets#parameters",
+            "en:api/operations/listpets",
+            "api/operations/listpets.html"
+        ]),
+    ] {
+        let original = read_output(dir.path(), "api/operations/listpets.html");
+        let fm = json!({"title":"Kept title","slug":"stable","api_operations":metadata});
+        write(
+            dir.path(),
+            "docs/guide.md",
+            &format!("---\n{fm}\n---\n# Guide"),
+        );
+        assert!(build_project_strict(dir.path()).is_err());
+        assert_eq!(
+            read_output(dir.path(), "api/operations/listpets.html"),
+            original
+        );
+        let (diags, _) = doctor::run_checks(dir.path(), true);
+        assert!(
+            diags.iter().any(|d| d.check == "openapi-related-guide"
+                && d.message.contains("/api_operations")
+                && d.file.as_ref().is_some_and(|f| f.ends_with("guide.md"))),
+            "{diags:?}"
+        );
+        build_project(dir.path()).unwrap();
+        assert!(read_output(dir.path(), "stable.html").contains("Kept title"));
+        assert!(
+            !read_output(dir.path(), "api/operations/listpets.html")
+                .contains("<section class=\"api-related-guides\">")
+        );
+    }
+}
+
+#[test]
+fn draft_related_guides_are_not_advertised_even_when_previewing_drafts() {
+    let dir = create_project(
+        CONFIG,
+        &[
+            ("index.md", "# Home"),
+            (
+                "draft.md",
+                "---\n{\"draft\":true,\"api_operations\":[\"api/operations/listpets\",\"missing\"]}\n---\n# Unfinished guide",
+            ),
+        ],
+    );
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    build_project_strict(dir.path()).unwrap();
+    assert!(
+        !read_output(dir.path(), "api/operations/listpets.html")
+            .contains("<section class=\"api-related-guides\">")
+    );
+    let output = dir.path().join("preview");
+    build::run_with_options(dir.path(), &output, true, None).unwrap();
+    assert!(output.join("draft.html").is_file());
+    assert!(
+        !fs::read_to_string(output.join("api/operations/listpets.html"))
+            .unwrap()
+            .contains("<section class=\"api-related-guides\">")
+    );
+}
+
+#[test]
+fn related_guide_changes_are_reflected_on_serve_rebuilds() {
+    let dir = create_project(
+        CONFIG,
+        &[
+            ("index.md", "# Home"),
+            (
+                "guide.md",
+                "---\n{\"api_operations\":[\"api/operations/listpets\"]}\n---\n# First guide",
+            ),
+        ],
+    );
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    let output = dir.path().join("preview");
+    let dependencies = build::run_with_options(dir.path(), &output, true, None).unwrap();
+    assert!(dependencies.contains(&dir.path().join("docs/guide.md")));
+    assert!(
+        fs::read_to_string(output.join("api/operations/listpets.html"))
+            .unwrap()
+            .contains("<section class=\"api-related-guides\">")
+    );
+    write(
+        dir.path(),
+        "docs/guide.md",
+        "---\n{\"api_operations\":[\"api/operations/createpet\"]}\n---\n# Updated guide",
+    );
+    build::run_with_options(dir.path(), &output, true, None).unwrap();
+    assert!(
+        !fs::read_to_string(output.join("api/operations/listpets.html"))
+            .unwrap()
+            .contains("<section class=\"api-related-guides\">")
+    );
+    assert!(
+        related_block(&fs::read_to_string(output.join("api/operations/createpet.html")).unwrap())
+            .contains("Updated guide")
+    );
 }

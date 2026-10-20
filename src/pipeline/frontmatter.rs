@@ -24,6 +24,9 @@ pub struct FrontMatter {
     pub llms: Option<bool>,
     /// Set to `false` to hide the on-page table of contents.
     pub toc: Option<bool>,
+    /// Generated operation page slugs this guide should appear beside. Raw JSON
+    /// preserves other metadata when this field is malformed; publishing validates it.
+    pub api_operations: Option<serde_json::Value>,
 }
 
 /// Extract JSON front matter from a Markdown source string.
@@ -156,6 +159,19 @@ mod tests {
         let fm = extract(source);
         // No closing `---`, so no valid front matter
         assert!(fm.title.is_none());
+    }
+
+    #[test]
+    fn api_operations_metadata_does_not_discard_other_front_matter() {
+        for value in [r#"["api/operations/listpets"]"#, "42", r#""invalid""#] {
+            let source = format!(
+                "---\n{{\"title\":\"Kept\",\"slug\":\"stable\",\"api_operations\":{value}}}\n---\n# Guide"
+            );
+            let fm = extract(&source);
+            assert_eq!(fm.title.as_deref(), Some("Kept"));
+            assert_eq!(fm.slug.as_deref(), Some("stable"));
+            assert!(fm.api_operations.is_some());
+        }
     }
 
     #[test]

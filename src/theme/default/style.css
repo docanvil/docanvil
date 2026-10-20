@@ -2288,3 +2288,5 @@ body.nav-open .mobile-nav-icon-close {
 .content .api-related-guides > h2 { margin: 0 0 .6rem; padding: 0; border: 0; font-size: .9rem; }
 .api-related-guides ul { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin: 0; padding: 0; list-style: none; }
 .api-related-guides li { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.api-operation-table .nav-method-badge { margin-top: 0; }

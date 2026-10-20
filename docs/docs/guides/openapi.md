@@ -99,7 +99,7 @@ These are static links: no JavaScript is required, and PDF/AI outputs retain the
 
 ### Navigation method badges
 
-Operation links display a compact HTTP-method badge in the default sidebar. This works with tag groups, automatic discovery, explicit page entries and linked groups, including custom labels. Schema and overview links keep their usual appearance. Badges use real text, so the method remains available without JavaScript and to assistive technology; navigation labels in breadcrumbs and exports are unchanged.
+Operation links display a compact HTTP-method badge in the default sidebar. API overview operation tables reuse the same badge styles and method colours. This works with tag groups, automatic discovery, explicit page entries and linked groups, including custom labels. Schema and overview links keep their usual appearance. Badges use real text, so the method remains available without JavaScript and to assistive technology; navigation labels in breadcrumbs and exports are unchanged.
 
 When a label begins with its uppercase HTTP method followed by whitespace, that prefix is omitted from the sidebar text: `GET /pets` becomes a GET badge followed by `/pets`. Page headings keep their full titles.
 

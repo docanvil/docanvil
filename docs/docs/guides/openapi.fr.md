@@ -91,6 +91,8 @@ Ces liens fonctionnent sans JavaScript et restent présents dans les exports PDF
 
 ### Badges de méthode dans la navigation
 
+Les tableaux d’opérations de la vue d’ensemble utilisent les mêmes badges et couleurs de méthode que la navigation.
+
 Les liens d’opérations affichent un petit badge de méthode HTTP dans la barre latérale par défaut. Cela fonctionne avec les groupes de tags, la découverte automatique, les pages explicites et les groupes liés, y compris les libellés personnalisés. Les liens des schémas et de la vue d’ensemble gardent leur présentation habituelle. La méthode est du texte réel, disponible sans JavaScript et pour les technologies d’assistance ; les libellés du fil d’Ariane et des exports restent identiques.
 
 Si le libellé commence par sa méthode HTTP en majuscules suivie d’un espace, ce préfixe est omis dans la barre latérale : `GET /pets` devient un badge GET suivi de `/pets`. Le titre de la page reste complet.

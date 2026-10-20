@@ -34,6 +34,14 @@ fn main_build_links_indexes_and_exports_generated_json_reference() {
         "[[nav]]\npage = 'index'\n[[nav]]\nlabel = 'API'\nautodiscover = 'api'\n",
     );
     build_project_strict(dir.path()).unwrap();
+    let overview = read_output(dir.path(), "api/index.html");
+    assert!(overview.contains("<table class=\"api-operation-table\">"));
+    for method in ["GET", "POST"] {
+        assert!(overview.contains(&format!("<td><span class=\"nav-method-badge nav-method-{}\" data-http-method=\"{method}\">{method}</span></td>", method.to_ascii_lowercase())));
+    }
+    let ai = read_output(dir.path(), "llms-full.txt");
+    assert!(ai.contains("| **GET** |"));
+    assert!(!ai.contains("nav-method-badge"));
     let html = read_output(dir.path(), "index.html");
     assert!(html.contains("href=\"/manual/api/operations/listpets.html\""));
     let operation = read_output(dir.path(), "api/operations/listpets.html");

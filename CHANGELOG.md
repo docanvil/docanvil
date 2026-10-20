@@ -6,6 +6,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Changed
 
+- OpenAPI overview operation tables use the same HTTP-method lozenges and colours as sidebar navigation.
+
 - Page footers use equal-width previous/next links and tighter spacing around page metadata, navigation and credits.
 - Custom layout and component templates now use Tera 2. Replace Tera macros/imports with Tera components, remove `include … ignore missing`, and use bracket indexing (`items[0]`) instead of numeric dot access. Undefined nested values and some filters also have different behavior; see the theming migration notes. Markdown and DocAnvil's `:::component` syntax are unchanged.
 

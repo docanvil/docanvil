@@ -627,6 +627,10 @@ fn resolve(
     mut problems: Vec<RedirectProblem>,
     static_paths: &HashSet<String>,
 ) -> RedirectPlan {
+    let downloads: Vec<_> = sets
+        .iter()
+        .flat_map(|set| set.inventory.generated_files.keys())
+        .collect();
     let pages: HashSet<String> = sets
         .iter()
         .flat_map(|set| set.inventory.pages.values())
@@ -648,9 +652,14 @@ fn resolve(
 
     let mut by_from: BTreeMap<String, Vec<Candidate>> = BTreeMap::new();
     for candidate in candidates {
-        if taken.contains(&candidate.from) {
+        let download_collision = downloads.iter().any(|path| {
+            path.starts_with(&candidate.from) || Path::new(&candidate.from).starts_with(path)
+        });
+        if taken.contains(&candidate.from) || download_collision {
             if candidate.origin != Origin::Unprefixed || static_paths.contains(&candidate.from) {
-                let reason = if static_paths.contains(&candidate.from) {
+                let reason = if download_collision {
+                    "an OpenAPI download occupies that path"
+                } else if static_paths.contains(&candidate.from) {
                     "a static file already occupies that path"
                 } else {
                     "a page already lives there"

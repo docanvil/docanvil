@@ -13,6 +13,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- OpenAPI overview pages offer version-matched specification downloads: unchanged single-file JSON/YAML, or a portable ZIP with normalized JSON documents and rewritten local references. Downloads share locale/version scopes, update in serve and are checked against page/asset collisions by build and doctor.
+
 - Related guides on OpenAPI operation pages: declare `api_operations` in a guide’s front matter to link it from matching operations in the same version and locale. Links respect published titles/slugs, exclude drafts and appear in PDF/AI exports; build and doctor diagnose invalid associations.
 
 - A “Copy as cURL” dropdown in OpenAPI operation headers, with request media variants, common parameter serialization, supplied request bodies and authentication placeholders. Commands are copyable and included in PDF and AI outputs.

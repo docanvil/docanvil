@@ -38,6 +38,21 @@ docanvil doctor
 
 The overview is published at `api/index.html`. Generated pages stay in memory; DocAnvil does not write Markdown into your source tree. Serve watches the specification and its referenced files, including files outside the content directory after a successful build.
 
+## Download the specification
+
+The API overview has a **Download OpenAPI** action in its header. It works without JavaScript and downloads the specification for the documentation version and locale you are viewing. Each API namespace has its own artifact; no separate configuration is needed.
+
+- A single document with internal references is published byte-for-byte as `openapi.json`, `openapi.yaml` or `openapi.yml`, retaining its original formatting and comments.
+- Specifications with local file references download as `openapi.zip`. Extract the ZIP and open its `openapi.json` entry point in your OpenAPI tooling. Referenced documents are normalized to JSON under `references/`, and recognized references are rewritten to portable archive-relative paths. Cycles and JSON Pointer fragments are preserved. YAML comments and original file formatting are not retained in ZIPs.
+
+File-based self-references also use a ZIP, even when they resolve to the same source file. This removes dependencies on the original filename or directory layout. Archive names contain no original absolute source paths, and entry order and metadata are deterministic.
+
+The download includes the complete documents loaded by the local reference graph, including definitions, annotations and examples beyond the rendered reference. It does not fetch or bundle external examples, Markdown images or other assets. Literal `$ref` keys inside examples/extensions are left unchanged. Downloading is not schema or example validation.
+
+With `output = "api"`, the artifact lives beside `api/index.html`, under the same version and locale prefixes. Git versions use the input bytes and referenced documents from their snapshot. Changing a specification or reference updates its download during serve rebuilding; obsolete JSON/YAML/ZIP artifacts disappear from the next output when the format changes. Downloads do not become navigation, search or sitemap pages. AI output includes a link using `site_url` when configured, otherwise `base_url`; the download action is hidden when printing.
+
+Build and doctor reject conflicts between downloads and published pages, static files, assets or copied custom CSS. Redirects cannot occupy a download's file path or a path beneath it. A failed build keeps the previous published output unless `--clean` was requested. Custom themes can style `.api-download` and `.api-overview-toolbar`.
+
 ## Link and navigate
 
 Link to the overview from a guide with a wiki-link:

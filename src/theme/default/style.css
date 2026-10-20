@@ -2290,3 +2290,10 @@ body.nav-open .mobile-nav-icon-close {
 .api-related-guides li { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
 .api-operation-table .nav-method-badge { margin-top: 0; }
+
+
+.api-overview-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+.content .api-download { display: inline-flex; align-items: center; gap: .5rem; padding: .45rem .7rem; border: 1px solid var(--color-border); border-radius: .45rem; background: var(--color-bg); color: var(--color-text); font-size: .85rem; font-weight: 600; text-decoration: none; }
+.content .api-download:hover { border-color: var(--color-primary); }
+.api-download span { font-family: var(--font-mono); font-size: .7rem; color: var(--color-text-muted); }
+@media print { .api-download { display: none !important; } }

@@ -183,7 +183,8 @@ pub(crate) fn extend(
                 return Err(Error::General("OpenAPI specifications and references in Git versions must stay inside the repository snapshot".into()));
             }
         }
-        let pages = plan(&api, &entry.output, &registry)?;
+        let download = super::download::plan(&api)?;
+        let pages = plan(&api, &entry.output, &registry, &download)?;
         for (operation, page) in api.operations.iter().zip(pages.iter().skip(1)) {
             inventory
                 .operation_methods
@@ -238,7 +239,46 @@ pub(crate) fn extend(
             vec![None]
         };
         for locale in locales {
+            let prefix = [version, locale.as_deref()]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join("/");
+            let download_path = PathBuf::from(format!(
+                "{}{}/{}",
+                if prefix.is_empty() {
+                    String::new()
+                } else {
+                    format!("{prefix}/")
+                },
+                entry.output,
+                download.name
+            ));
+            if inventory
+                .generated_files
+                .insert(download_path.clone(), download.bytes.clone())
+                .is_some()
+            {
+                return Err(Error::General(format!(
+                    "OpenAPI download collision at {}",
+                    download_path.display()
+                )));
+            }
+            let download_url = format!(
+                "{}{}",
+                config.site_url().unwrap_or_else(|| config.base_url()),
+                download_path.to_string_lossy().replace('\\', "/")
+            );
             for page in &pages {
+                let markdown = if page.slug == format!("{}/index", entry.output) {
+                    format!(
+                        "[Download OpenAPI ({})]({download_url})\n\n{}",
+                        download.format(),
+                        page.markdown
+                    )
+                } else {
+                    page.markdown.clone()
+                };
                 let key = locale
                     .as_ref()
                     .map(|l| format!("{l}:{}", page.slug))
@@ -290,12 +330,12 @@ pub(crate) fn extend(
                 inventory.generated.insert(
                     key.clone(),
                     GeneratedSource {
-                        markdown: page.markdown.clone(),
+                        markdown: markdown.clone(),
                         html: page.html.clone(),
                         dependencies: dependencies.clone(),
                     },
                 );
-                sources.insert(key.clone(), page.markdown.clone());
+                sources.insert(key.clone(), markdown);
                 front_matters.insert(
                     key,
                     FrontMatter {
@@ -392,6 +432,7 @@ fn plan(
     api: &Api,
     namespace: &str,
     registry: &crate::components::ComponentRegistry,
+    download: &super::download::Download,
 ) -> Result<Vec<Page>> {
     let mut schema_routes = BTreeMap::new();
     let mut schemas = Vec::new();
@@ -477,7 +518,7 @@ fn plan(
             html: content.html,
         });
     }
-    let overview = super::render::overview(api, &operations, &schemas)?;
+    let overview = super::render::overview(api, &operations, &schemas, download)?;
     pages.insert(
         0,
         Page {

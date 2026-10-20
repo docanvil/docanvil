@@ -29,6 +29,8 @@ pub struct PageInfo {
 pub struct PageInventory {
     /// Generated pages retain in-memory content and specification provenance.
     pub generated: HashMap<String, GeneratedSource>,
+    /// Non-page artifacts, scoped like page output paths. Bytes are shared by locales.
+    pub generated_files: std::collections::BTreeMap<PathBuf, std::sync::Arc<[u8]>>,
     /// Generated folder navigation uses canonical slugs, independent of locale/version prefixes.
     pub generated_nav: std::collections::BTreeMap<String, Vec<NavNode>>,
     /// Canonical operation slug → HTTP method, independent of navigation labels.
@@ -266,6 +268,7 @@ impl PageInventory {
 
         Ok(Self {
             generated: HashMap::new(),
+            generated_files: Default::default(),
             generated_nav: std::collections::BTreeMap::new(),
             operation_methods: HashMap::new(),
             generation_warnings: Vec::new(),

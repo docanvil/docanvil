@@ -282,6 +282,22 @@ fn directory_versions_and_locales_use_the_selected_specs_and_urls() {
     build_project_strict(dir.path()).unwrap();
     for version in ["v1", "v2"] {
         for locale in ["en", "fr"] {
+            let file = fs::read(
+                dir.path()
+                    .join(format!("dist/{version}/{locale}/api/openapi.json")),
+            )
+            .unwrap();
+            let downloaded: Value = serde_json::from_slice(&file).unwrap();
+            assert_eq!(downloaded["info"]["title"], format!("API {version}"));
+            assert!(
+                read_output(dir.path(), &format!("{version}/{locale}/api/index.html"))
+                    .contains("href=\"openapi.json\" download")
+            );
+        }
+    }
+
+    for version in ["v1", "v2"] {
+        for locale in ["en", "fr"] {
             let html = read_output(dir.path(), &format!("{version}/{locale}/api/index.html"));
             assert!(html.contains(&format!("API {version}")));
             let guide = read_output(dir.path(), &format!("{version}/{locale}/index.html"));
@@ -422,6 +438,19 @@ fn git_snapshots_use_historical_json_and_referenced_schemas() {
         ),
     );
     build_project_strict(dir.path()).unwrap();
+    for (version, title) in [("v1", "Historical API"), ("dev", "Working API")] {
+        let root = downloaded_root(
+            fs::read(dir.path().join(format!("dist/{version}/api/openapi.zip"))).unwrap(),
+        );
+        assert_eq!(root["info"]["title"], title);
+        assert!(
+            root["components"]["schemas"]["Pet"]["$ref"]
+                .as_str()
+                .unwrap()
+                .starts_with("references/")
+        );
+    }
+
     assert!(
         related_block(&read_output(dir.path(), "v1/api/operations/listpets.html"))
             .contains("Historical guide")
@@ -1514,4 +1543,174 @@ fn related_guide_changes_are_reflected_on_serve_rebuilds() {
         related_block(&fs::read_to_string(output.join("api/operations/createpet.html")).unwrap())
             .contains("Updated guide")
     );
+}
+
+fn downloaded_root(bytes: Vec<u8>) -> Value {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    serde_json::from_reader(archive.by_name("openapi.json").unwrap()).unwrap()
+}
+
+#[test]
+fn overview_downloads_original_json_yaml_and_yml_with_scoped_ai_links() {
+    for extension in ["json", "yaml", "yml"] {
+        let config = CONFIG.replace("openapi.json", &format!("spec.{extension}"));
+        let dir = create_project(&config, &[("index.md", "# Guide")]);
+        let original = if extension == "json" {
+            format!("{}\n", serde_json::to_string_pretty(&spec()).unwrap())
+        } else {
+            "# Retain source comments\nopenapi: 3.1.0\ninfo: {title: API, version: '1'}\npaths: {}\n".into()
+        };
+        write(dir.path(), &format!("docs/spec.{extension}"), &original);
+        build_project_strict(dir.path()).unwrap();
+        let file = format!("openapi.{extension}");
+        assert_eq!(
+            fs::read(dir.path().join(format!("dist/api/{file}"))).unwrap(),
+            original.as_bytes()
+        );
+        let html = read_output(dir.path(), "api/index.html");
+        assert!(html.contains(&format!("class=\"api-download\" href=\"{file}\" download")));
+        assert!(
+            read_output(dir.path(), "llms-full.txt")
+                .contains(&format!("https://example.test/manual/api/{file}"))
+        );
+        assert!(!read_output(dir.path(), "sitemap.xml").contains(&format!("/api/{file}</loc>")));
+        let (diags, _) = doctor::run_checks(dir.path(), true);
+        assert!(
+            !diags
+                .iter()
+                .any(|d| matches!(d.check, "broken-generated-link" | "openapi-generation")),
+            "{diags:?}"
+        );
+    }
+}
+
+#[test]
+fn download_assets_cannot_overwrite_pages_static_files_or_custom_assets() {
+    for (output, asset) in [
+        ("api", "static/api/openapi.json"),
+        ("api", "static/api/openapi.json/"),
+        ("api", "static/api/openapi.json/nested.txt"),
+        ("assets/api", "assets/api/openapi.json"),
+        ("api", "docs/api/openapi.json/guide.md"),
+    ] {
+        let config = CONFIG.replace("output = 'api'", &format!("output = '{output}'"));
+        let dir = create_project(&config, &[("index.md", "# Guide")]);
+        write(dir.path(), "docs/openapi.json", &spec().to_string());
+        build_project_strict(dir.path()).unwrap();
+        let previous = read_output(dir.path(), &format!("{output}/index.html"));
+        if asset.ends_with('/') {
+            fs::create_dir_all(dir.path().join(asset)).unwrap();
+        } else {
+            write(dir.path(), asset, "# Existing asset");
+        }
+        let error = build_project_strict(dir.path()).unwrap_err().to_string();
+        assert!(
+            error.contains("OpenAPI download") && error.contains("collides"),
+            "{error}"
+        );
+        assert_eq!(
+            previous,
+            read_output(dir.path(), &format!("{output}/index.html"))
+        );
+        let (diags, summary) = doctor::run_checks(dir.path(), true);
+        assert!(
+            summary.errors > 0 && diags.iter().any(|d| d.message.contains("OpenAPI download")),
+            "{diags:?}"
+        );
+    }
+    let config = format!("{CONFIG}\n[theme]\ncustom_css = 'api/openapi.json'\n");
+    let dir = create_project(&config, &[("index.md", "# Guide")]);
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    write(dir.path(), "api/openapi.json", "/* Custom theme */");
+    assert!(
+        build_project_strict(dir.path())
+            .unwrap_err()
+            .to_string()
+            .contains("OpenAPI download")
+    );
+}
+
+#[test]
+fn versioned_downloads_reserve_working_tree_and_root_asset_paths() {
+    let config = format!(
+        "{CONFIG}\n[version]\nenabled = ['dev']\ncurrent = 'dev'\n[version.git]\nworking_tree = 'dev'\n[locale]\nenabled = ['en', 'fr']\ndefault = 'en'\n"
+    );
+    for asset in [
+        "static/en/api/openapi.json",
+        "static/dev/en/api/openapi.json",
+    ] {
+        let dir = create_project(
+            &config,
+            &[("index.md", "# Guide"), ("index.fr.md", "# Guide")],
+        );
+        write(dir.path(), "docs/openapi.json", &spec().to_string());
+        build_project_strict(dir.path()).unwrap();
+        let previous = read_output(dir.path(), "dev/en/api/index.html");
+        write(dir.path(), asset, "Existing asset");
+        assert!(
+            build_project_strict(dir.path())
+                .unwrap_err()
+                .to_string()
+                .contains("OpenAPI download")
+        );
+        assert_eq!(previous, read_output(dir.path(), "dev/en/api/index.html"));
+        let (diags, summary) = doctor::run_checks(dir.path(), true);
+        assert!(
+            summary.errors > 0 && diags.iter().any(|d| d.message.contains("OpenAPI download")),
+            "{diags:?}"
+        );
+    }
+}
+
+#[test]
+fn downloads_rebuild_with_references_and_remove_obsolete_artifact_formats() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    let output = dir.path().join("preview");
+    build::run_with_options(dir.path(), &output, true, None).unwrap();
+    assert!(output.join("api/openapi.json").exists());
+    let mut api = spec();
+    api["components"]["schemas"]["Pet"] = json!({"$ref":"../shared/pet.yaml"});
+    write(dir.path(), "docs/openapi.json", &api.to_string());
+    write(
+        dir.path(),
+        "shared/pet.yaml",
+        "type: object\ndescription: First schema\n",
+    );
+    let deps = build::run_with_options(dir.path(), &output, true, None).unwrap();
+    assert!(deps.contains(&dir.path().join("shared/pet.yaml").canonicalize().unwrap()));
+    assert!(!output.join("api/openapi.json").exists());
+    let first = fs::read(output.join("api/openapi.zip")).unwrap();
+    assert!(
+        fs::read_to_string(output.join("api/index.html"))
+            .unwrap()
+            .contains("href=\"openapi.zip\" download")
+    );
+    write(
+        dir.path(),
+        "shared/pet.yaml",
+        "type: object\ndescription: Changed schema\n",
+    );
+    build::run_with_options(dir.path(), &output, true, None).unwrap();
+    let second = fs::read(output.join("api/openapi.zip")).unwrap();
+    assert_ne!(first, second);
+    assert_eq!(downloaded_root(second)["info"]["title"], "Pet store API");
+}
+
+#[test]
+fn redirects_cannot_claim_paths_beneath_download_files() {
+    let config = format!("{CONFIG}\n[redirects]\n'/api/openapi.json/old.html' = 'index'\n");
+    let dir = create_project(&config, &[("index.md", "# Guide")]);
+    write(dir.path(), "docs/openapi.json", &spec().to_string());
+    assert!(build_project_strict(dir.path()).is_err());
+    let (diags, _) = doctor::run_checks(dir.path(), true);
+    assert!(
+        diags
+            .iter()
+            .any(|d| d.check == "redirect-shadowed" && d.message.contains("OpenAPI download")),
+        "{diags:?}"
+    );
+    build_project(dir.path()).unwrap();
+    assert!(dir.path().join("dist/api/openapi.json").is_file());
+    assert!(!dir.path().join("dist/api/openapi.json/old.html").exists());
 }

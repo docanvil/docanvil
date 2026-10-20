@@ -632,3 +632,56 @@ document.querySelectorAll('.last-updated time[datetime]').forEach(time => {
     // Keep the ISO date
   }
 });
+
+// Header copy actions enhance commands that remain readable without JavaScript.
+document.querySelectorAll('[data-api-curl]').forEach(dropdown => {
+  const summary = dropdown.querySelector('summary');
+  const status = dropdown.querySelector('.api-curl-status');
+  const buttons = [];
+  dropdown.querySelectorAll('[data-api-curl-option]').forEach(option => {
+    const button = option.querySelector('[data-api-curl-copy]');
+    const command = option.querySelector('[data-api-curl-command]');
+    const pre = command?.querySelector('pre');
+    if (!button || !command || !pre || !navigator.clipboard?.writeText) return;
+    const text = pre.textContent.replace(/\n$/, '');
+    button.hidden = false;
+    command.hidden = true;
+    buttons.push(button);
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        status.textContent = 'cURL copied. Replace placeholder values before running.';
+      } catch (_) {
+        command.hidden = false;
+        status.textContent = 'Copy unavailable. Select and copy the command below.';
+      }
+    });
+  });
+  dropdown.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      dropdown.open = false;
+      summary.focus();
+      event.preventDefault();
+      return;
+    }
+    const index = buttons.indexOf(document.activeElement);
+    if (index < 0) return;
+    let next;
+    if (event.key === 'ArrowDown') next = (index + 1) % buttons.length;
+    else if (event.key === 'ArrowUp') next = (index - 1 + buttons.length) % buttons.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = buttons.length - 1;
+    else return;
+    event.preventDefault();
+    buttons[next].focus();
+  });
+  document.addEventListener('click', event => {
+    if (!dropdown.contains(event.target)) dropdown.open = false;
+  });
+  let wasOpen;
+  window.addEventListener('beforeprint', () => {
+    wasOpen = dropdown.open;
+    dropdown.open = true;
+  });
+  window.addEventListener('afterprint', () => { dropdown.open = wasOpen; });
+});

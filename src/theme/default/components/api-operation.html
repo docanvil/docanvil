@@ -5,6 +5,7 @@
      attrs.path        endpoint path
      attrs.endpoint    "false" hides a repeated endpoint when the title is the path
      attrs.deprecated  "true" shows the deprecation notice
+     curl              native cURL copy dropdown HTML (optional)
      tags              native OpenAPI tags (optional)
      body              safely rendered description HTML
      body_raw          original description Markdown
@@ -14,10 +15,13 @@
 {% set deprecated = attrs.deprecated | default(value="false") %}
 {% set endpoint = attrs.endpoint | default(value="true") %}
 <header class="api-operation api-operation-{{ attrs.method | lower }}">
+  <div class="api-operation-toolbar">
   <div class="api-operation-meta">
     <span class="api-eyebrow">API reference</span>
     <span class="api-method api-method-{{ attrs.method | lower }}">{{ attrs.method }}</span>
     {% if deprecated == "true" %}<span class="api-deprecated">Deprecated</span>{% endif %}
+  </div>
+  {% if curl %}{{ curl | safe }}{% endif %}
   </div>
   <h1 class="api-operation-title">{{ attrs.title }}</h1>
   {% if endpoint != "false" %}<div class="api-endpoint"><code class="api-path">{{ attrs.path }}</code></div>{% endif %}

@@ -1210,3 +1210,37 @@ fn schema_header_can_be_overridden_and_used_in_authored_pages() {
     assert!(!schema.contains("class=\"admonition note\""));
     assert!(read_output(dir.path(), "llms-full.txt").contains("A **friendly** pet."));
 }
+
+#[test]
+fn generated_curl_is_published_with_copy_controls_media_and_export_markdown() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut input = spec();
+    input["paths"]["/pets"]["post"] = json!({
+        "operationId":"createPet", "requestBody":{"content":{
+            "application/json":{"example":{"name":"O'Reilly"}},
+            "text/plain":{"example":"@literal"}
+        }}, "responses":{"201":{"description":"Created"}}
+    });
+    write(dir.path(), "docs/openapi.json", &input.to_string());
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/operations/createpet.html");
+    assert!(!html.contains("id=\"curl-examples\""));
+    let header = html
+        .split("<header class=\"api-operation ")
+        .nth(1)
+        .unwrap()
+        .split("</header>")
+        .next()
+        .unwrap();
+    assert!(header.contains("data-api-curl"));
+    assert!(header.contains("<summary>Copy as cURL</summary>"));
+    assert!(header.contains("data-api-curl-copy"));
+    assert!(html.contains("createpet-curl-command-0"));
+    assert!(html.contains("createpet-curl-command-1"));
+    assert!(html.contains("--data-raw"));
+    assert!(html.contains("data-language=\"bash\""));
+    assert!(html.contains("docanvil.js"));
+    let ai = read_output(dir.path(), "llms-full.txt");
+    assert!(ai.contains("curl --globoff --request 'POST'"));
+    assert!(ai.contains("--data-raw '@literal'"));
+}

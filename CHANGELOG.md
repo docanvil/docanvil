@@ -11,6 +11,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- A “Copy as cURL” dropdown in OpenAPI operation headers, with request media variants, common parameter serialization, supplied request bodies and authentication placeholders. Commands are copyable and included in PDF and AI outputs.
+
 - Initial native OpenAPI reference generation through `[[openapi]]`: local JSON/YAML specifications and references, readable operation/schema pages with field constraints, authentication, request/response examples, media-type tabs and collapsed source definitions. Integrates with navigation, search, version/locale URLs, PDF and AI outputs, specification edit links, dependency watching and build/doctor diagnostics. Live requests and full schema validation are deferred.
 
 ## [1.2.5] - 2026-10-16

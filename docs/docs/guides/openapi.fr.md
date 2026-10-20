@@ -122,7 +122,9 @@ docanvil component eject api-schema
 
 `theme/components/api-schema.html` reçoit `attrs.title`, `attrs.deprecated`, le type ou la référence rendus dans `type_html` et la description rendue dans `body`. Conservez `type_html | safe` et `body | safe` pour afficher ces fragments. Dans un guide rédigé, utilisez `:::api-schema{title="Document" type="object"}` avec la description dans le corps. Les classes propres aux schémas sont `.api-schema`, `.api-schema-kind`, `.api-schema-definition` et `.api-schema-constraints`.
 
-Les classes CSS disponibles comprennent `.api-reference`, `.api-operation`, `.api-context-card`, `.api-media` et `.api-response`. Les variables `--api-header-bg`, `--api-header-border` et `--api-accent` contrôlent les surfaces et l’accent de l’en-tête. Les autres pages de documentation conservent leur présentation.
+Les en-têtes générés reçoivent aussi le menu dans `curl` : affichez-le avec `{{ curl | safe }}` pour le positionner. Les anciens modèles qui l’omettent reçoivent le menu après leur en-tête.
+
+Les classes CSS disponibles comprennent `.api-curl`, `.api-reference`, `.api-operation`, `.api-context-card`, `.api-media` et `.api-response`. Les variables `--api-header-bg`, `--api-header-border` et `--api-accent` contrôlent les surfaces et l’accent de l’en-tête. Les autres pages de documentation conservent leur présentation.
 
 ## Prise en charge initiale
 
@@ -155,8 +157,20 @@ Cette matrice décrit la documentation produite, sans validation des données de
 
 Les types incorrects et structures utilisées par le rendu produisent une erreur : `required` doit contenir des noms de propriétés uniques, les branches de composition doivent former des tableaux non vides, et les bornes exclusives doivent respecter le type de valeur du dialecte. Ces vérifications sont partielles : elles ne garantissent pas la conformité complète à OpenAPI ou JSON Schema et ne vérifient pas les relations entre contraintes.
 
-Les descriptions sont rendues en Markdown. Le HTML brut est omis ; les inclusions et directives DocAnvil ne sont pas exécutées. Les requêtes interactives, la sérialisation des paramètres, la génération de SDK et la validation complète des schémas restent à venir.
+Les descriptions sont rendues en Markdown. Le HTML brut est omis ; les inclusions et directives DocAnvil ne sont pas exécutées. Les requêtes interactives, la génération de SDK et la validation complète des schémas restent à venir.
 
 ## Groupes d’opérations
 
 La vue d’ensemble regroupe les opérations par tag. Déclarez les `tags` à la racine de la spécification pour définir leur ordre et leurs descriptions Markdown. Les tags non déclarés suivent par ordre alphabétique, puis les opérations sans tag. Une opération portant plusieurs tags apparaît dans chaque groupe, une seule fois par groupe. Les tags déclarés sans opération restent visibles. Sans tag, la vue conserve un tableau unique. Les noms sont sensibles à la casse et les noms déclarés doivent être uniques. La navigation automatique et `autodiscover = "api"` (ou `"api/operations"`) regroupent les liens d’opérations par tag sous `Operations`. La navigation des schémas reste identique. Une opération portant plusieurs tags figure dans chaque groupe ; le fil d’Ariane, les liens précédent/suivant et les exports utilisent sa première occurrence. Les entrées explicites de pages et de groupes dans `nav.toml` conservent votre disposition. Les tags ne changent pas les URL des opérations.
+
+## Exemples cURL générés
+
+Le menu **Copy as cURL**, en haut à droite de l’en-tête de l’opération, copie la commande du type de contenu choisi pour un shell POSIX. Sans JavaScript ou accès au presse-papiers, ouvrez le menu pour sélectionner la commande manuellement. Elles utilisent le premier serveur effectif et les valeurs par défaut de ses variables, ainsi que la première option d’authentification. Les identifiants restent des valeurs de remplacement. Une URL de serveur relative ou absente utilise une origine fictive à remplacer.
+
+Les paramètres obligatoires sont inclus ; les paramètres facultatifs le sont lorsqu’un exemple ou une valeur par défaut est disponible. Les valeurs proviennent des exemples directs ou nommés (y compris les références locales), puis de l’exemple ou de la valeur par défaut du schéma résolu. Les valeurs manquantes utilisent `REPLACE_…`. Les arguments sont protégés pour le shell ; les valeurs d’URL sont encodées, même avec `allowReserved`.
+
+La sérialisation couvre les valeurs simples et les tableaux/objets plats : `form`, `simple`, `label`, `matrix`, `deepObject` pour les objets avec `explode`, et les tableaux sans `explode` avec `spaceDelimited` ou `pipeDelimited`. Les valeurs imbriquées, les paramètres `content` et les autres styles demandent une adaptation manuelle indiquée sur la page.
+
+Les corps utilisent les exemples du type de contenu : JSON, texte littéral, formulaires URL-encodés et champs texte multipart pour les objets plats sans `encoding` personnalisé. Sinon, `--data-binary '@request-body'` lit un fichier à préparer. Les fichiers multipart et encodages personnalisés nécessitent des parties préparées et une frontière correspondante. Les exemples externes ne sont pas téléchargés ; aucun corps n’est synthétisé à partir des schémas.
+
+L’authentification Basic, bearer, OAuth 2, OpenID Connect et les clés API utilisent des valeurs à remplacer. Les schémas d’une même option sont combinés ; les autres mécanismes nécessitent une configuration manuelle. DocAnvil n’exécute aucune commande. Ces exemples restent accessibles sans JavaScript et dans les exports PDF et IA.

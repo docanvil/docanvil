@@ -536,6 +536,425 @@ fn security(api: &Api, requirements: &[Value], out: &mut Content) -> Result<()> 
     Ok(())
 }
 
+// Single quotes protect all specification text from shell expansion.
+fn shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+fn url_component(value: &str) -> String {
+    value
+        .bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || b"-._~".contains(&b) {
+                (b as char).to_string()
+            } else {
+                format!("%{b:02X}")
+            }
+        })
+        .collect()
+}
+
+/// Serialize scalar and flat container values; nested values require author input.
+fn serialize_parameter(
+    name: &str,
+    value: &Value,
+    location: &str,
+    style: &str,
+    explode: bool,
+) -> Option<Vec<(String, String)>> {
+    let encode = |v: &Value| -> Option<String> {
+        if v.is_array() || v.is_object() {
+            return None;
+        }
+        let raw = v
+            .as_str()
+            .map(str::to_owned)
+            .unwrap_or_else(|| v.to_string());
+        Some(if location == "header" {
+            raw
+        } else {
+            url_component(&raw)
+        })
+    };
+    let name = if location == "header" {
+        name.to_owned()
+    } else {
+        url_component(name)
+    };
+    let array = match value.as_array() {
+        Some(items) => Some(items.iter().map(&encode).collect::<Option<Vec<_>>>()?),
+        None => None,
+    };
+    let object = match value.as_object() {
+        Some(items) => Some(
+            items
+                .iter()
+                .map(|(k, v)| {
+                    Some((
+                        if location == "header" {
+                            k.clone()
+                        } else {
+                            url_component(k)
+                        },
+                        encode(v)?,
+                    ))
+                })
+                .collect::<Option<Vec<_>>>()?,
+        ),
+        None => None,
+    };
+    let scalar = if array.is_none() && object.is_none() {
+        Some(encode(value)?)
+    } else {
+        None
+    };
+    let flat = |separator: &str, kv: &str| -> String {
+        if let Some(items) = &array {
+            items.join(separator)
+        } else if let Some(items) = &object {
+            items
+                .iter()
+                .map(|(k, v)| format!("{k}{kv}{v}"))
+                .collect::<Vec<_>>()
+                .join(separator)
+        } else {
+            scalar.clone().unwrap_or_default()
+        }
+    };
+    let one = |v| Some(vec![(name.clone(), v)]);
+    match (location, style) {
+        ("query" | "cookie", "form") if explode => {
+            if let Some(items) = array {
+                Some(items.into_iter().map(|v| (name.clone(), v)).collect())
+            } else if let Some(items) = object {
+                Some(items)
+            } else {
+                one(scalar.unwrap())
+            }
+        }
+        ("query" | "cookie", "form") => one(flat(",", ",")),
+        ("query", "spaceDelimited" | "pipeDelimited") if !explode && array.is_some() => one(flat(
+            if style == "spaceDelimited" {
+                "%20"
+            } else {
+                "|"
+            },
+            ",",
+        )),
+        ("query", "deepObject") if explode && object.is_some() => Some(
+            object
+                .unwrap()
+                .into_iter()
+                .map(|(k, v)| (format!("{name}%5B{k}%5D"), v))
+                .collect(),
+        ),
+        ("path" | "header", "simple") => one(flat(",", if explode { "=" } else { "," })),
+        ("path", "label") => one(format!(
+            ".{}",
+            flat(
+                if explode { "." } else { "," },
+                if explode { "=" } else { "," }
+            )
+        )),
+        ("path", "matrix") if explode && object.is_some() => one(object
+            .unwrap()
+            .into_iter()
+            .map(|(k, v)| format!(";{k}={v}"))
+            .collect::<String>()),
+        ("path", "matrix") if explode && array.is_some() => one(array
+            .unwrap()
+            .into_iter()
+            .map(|v| format!(";{name}={v}"))
+            .collect::<String>()),
+        ("path", "matrix") => one(format!(";{name}={}", flat(",", ","))),
+        _ => None,
+    }
+}
+
+fn request_example(api: &Api, object: &Value, source: &Location) -> Result<Option<Value>> {
+    if let Some(example) = object.get("example") {
+        return Ok(Some(example.clone()));
+    }
+    if let Some(examples) = object.get("examples").and_then(Value::as_object) {
+        for name in examples.keys() {
+            let example = resolve(api, &source.child("examples").child(name))?;
+            if let Some(value) = example.value.get("value") {
+                return Ok(Some(value.clone()));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn curl_examples(api: &Api, operation: &Operation, out: &mut Content, slug: &str) -> Result<()> {
+    out.markdown.push_str("## cURL examples\n\n");
+    out.md("POSIX shell examples. Replace placeholder values and credentials before running. Uses the first server and first authentication option; optional parameters without examples are omitted. Bodies without a supplied example are read from a local file.");
+    let server = operation.servers.first();
+    let mut base = server
+        .and_then(|s| s.get("url"))
+        .and_then(Value::as_str)
+        .unwrap_or("https://api.example.com")
+        .to_owned();
+    if let Some(variables) = server
+        .and_then(|s| s.get("variables"))
+        .and_then(Value::as_object)
+    {
+        for (name, variable) in variables {
+            if let Some(default) = variable.get("default").and_then(Value::as_str) {
+                base = base.replace(&format!("{{{name}}}"), default);
+            }
+        }
+    }
+    if !base.starts_with("https://") && !base.starts_with("http://") {
+        out.md("The server URL is relative. Replace the example origin with your API origin.");
+        base = format!("https://api.example.com/{}", base.trim_start_matches('/'));
+    }
+    let mut path = operation.path.clone();
+    let mut query = Vec::new();
+    let mut args = Vec::new();
+    let mut query_cookies = Vec::new();
+    for parameter in &operation.parameters {
+        let example = request_example(
+            api,
+            &parameter.definition.value,
+            &parameter.definition.source,
+        )?;
+        let schema = if parameter.definition.value.get("schema").is_some() {
+            Some(resolve(api, &parameter.definition.source.child("schema"))?.value)
+        } else {
+            None
+        };
+        let example = example.or_else(|| {
+            schema
+                .as_ref()
+                .and_then(|s| s.get("example").or_else(|| s.get("default")))
+                .cloned()
+        });
+        if !parameter.required && example.is_none() {
+            continue;
+        }
+        let value = example.unwrap_or_else(|| Value::String(format!("REPLACE_{}", parameter.name)));
+        let definition = &parameter.definition.value;
+        let default_style = if parameter.location == "query" || parameter.location == "cookie" {
+            "form"
+        } else {
+            "simple"
+        };
+        let style = definition
+            .get("style")
+            .and_then(Value::as_str)
+            .unwrap_or(default_style);
+        let explode = definition
+            .get("explode")
+            .and_then(Value::as_bool)
+            .unwrap_or(style == "form");
+        let serialized =
+            serialize_parameter(&parameter.name, &value, &parameter.location, style, explode);
+        let serialized = match serialized.filter(|_| definition.get("content").is_none()) {
+            None => {
+                out.md(format!("Parameter {} requires custom serialization. Replace its placeholder using the parameter's style, explode and content rules.", inline(&parameter.name)));
+                vec![(
+                    url_component(&parameter.name),
+                    "REPLACE_SERIALIZED_VALUE".into(),
+                )]
+            }
+            Some(serialized) => serialized,
+        };
+        match parameter.location.as_str() {
+            "path" => path = path.replace(&format!("{{{}}}", parameter.name), &serialized[0].1),
+            "query" => query.extend(
+                serialized
+                    .into_iter()
+                    .map(|(name, value)| format!("{name}={value}")),
+            ),
+            "header" => args.push(format!(
+                "--header {}",
+                shell_quote(&format!("{}: {}", parameter.name, serialized[0].1))
+            )),
+            "cookie" => query_cookies.extend(
+                serialized
+                    .into_iter()
+                    .map(|(name, value)| format!("{name}={value}")),
+            ),
+            _ => {}
+        }
+    }
+    if let Some(requirement) = operation.security.first().and_then(Value::as_object) {
+        for name in requirement.keys() {
+            let location = api
+                .graph
+                .root
+                .child("components")
+                .child("securitySchemes")
+                .child(name);
+            if api.graph.value(&location).is_err() {
+                continue;
+            }
+            let scheme = resolve(api, &location)?.value;
+            match text(&scheme, "type").as_str() {
+                "http" if text(&scheme, "scheme").eq_ignore_ascii_case("basic") => {
+                    args.push(format!("--user {}", shell_quote("USERNAME:PASSWORD")))
+                }
+                "http" if text(&scheme, "scheme").eq_ignore_ascii_case("bearer") => {
+                    args.push(format!(
+                        "--header {}",
+                        shell_quote("Authorization: Bearer REPLACE_TOKEN")
+                    ))
+                }
+                "oauth2" | "openIdConnect" => args.push(format!(
+                    "--header {}",
+                    shell_quote("Authorization: Bearer REPLACE_TOKEN")
+                )),
+                "apiKey" => {
+                    let key = text(&scheme, "name");
+                    match text(&scheme, "in").as_str() {
+                        "query" => query.push(format!("{}=REPLACE_API_KEY", url_component(&key))),
+                        "cookie" => query_cookies.push(format!("{key}=REPLACE_API_KEY")),
+                        "header" => args.push(format!(
+                            "--header {}",
+                            shell_quote(&format!("{key}: REPLACE_API_KEY"))
+                        )),
+                        _ => {}
+                    }
+                }
+                _ => out.md(format!(
+                    "Configure authentication for {} before running this example.",
+                    inline(name)
+                )),
+            }
+        }
+    }
+    if !query_cookies.is_empty() {
+        args.push(format!(
+            "--cookie {}",
+            shell_quote(&query_cookies.join("; "))
+        ));
+    }
+    let mut url = format!("{}{}", base.trim_end_matches('/'), path);
+    if !query.is_empty() {
+        url.push(if url.contains('?') { '&' } else { '?' });
+        url.push_str(&query.join("&"));
+    }
+    let mut variants = Vec::new();
+    if let Some(body) = &operation.request_body
+        && let Some(content) = body.value.get("content").and_then(Value::as_object)
+    {
+        for (media_type, media) in content {
+            let mut body_args = args.clone();
+            let example =
+                request_example(api, media, &body.source.child("content").child(media_type))?;
+            let form = media_type == "application/x-www-form-urlencoded"
+                || media_type == "multipart/form-data";
+            if form
+                && media
+                    .get("encoding")
+                    .and_then(Value::as_object)
+                    .is_none_or(|e| e.is_empty())
+                && example
+                    .as_ref()
+                    .and_then(Value::as_object)
+                    .is_some_and(|o| {
+                        !o.is_empty() && o.values().all(|v| !v.is_array() && !v.is_object())
+                    })
+            {
+                let fields = example.as_ref().unwrap().as_object().unwrap();
+                if media_type == "application/x-www-form-urlencoded" {
+                    let payload = fields
+                        .iter()
+                        .map(|(k, v)| {
+                            format!(
+                                "{}={}",
+                                url_component(k),
+                                url_component(
+                                    &v.as_str()
+                                        .map(str::to_owned)
+                                        .unwrap_or_else(|| v.to_string())
+                                )
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("&");
+                    body_args.push(format!(
+                        "--header {}",
+                        shell_quote("Content-Type: application/x-www-form-urlencoded")
+                    ));
+                    body_args.push(format!("--data-raw {}", shell_quote(&payload)));
+                } else {
+                    for (key, value) in fields {
+                        let raw = value
+                            .as_str()
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| value.to_string());
+                        body_args.push(format!(
+                            "--form-string {}",
+                            shell_quote(&format!("{key}={raw}"))
+                        ));
+                    }
+                }
+            } else {
+                let payload = if form {
+                    None
+                } else {
+                    example.and_then(|v| {
+                        if media_type.contains("json") {
+                            Some(v.to_string())
+                        } else {
+                            v.as_str().map(str::to_owned)
+                        }
+                    })
+                };
+                let content_type = if media_type == "multipart/form-data" {
+                    out.md("For multipart requests without a flat supplied example, prepare request-body with encoded parts and replace REPLACE_BOUNDARY with its boundary. Custom encoding and file parts must be prepared explicitly.");
+                    "multipart/form-data; boundary=REPLACE_BOUNDARY"
+                } else {
+                    media_type
+                };
+                body_args.push(format!(
+                    "--header {}",
+                    shell_quote(&format!("Content-Type: {content_type}"))
+                ));
+                body_args.push(format!(
+                    "{} {}",
+                    if payload.is_some() {
+                        "--data-raw"
+                    } else {
+                        "--data-binary"
+                    },
+                    shell_quote(payload.as_deref().unwrap_or("@request-body"))
+                ));
+            }
+            variants.push((media_type.clone(), body_args));
+        }
+    }
+    if variants.is_empty() {
+        variants.push(("Request".into(), args));
+    }
+    let notes = std::mem::take(&mut out.html);
+    out.html.push_str("<details class=\"api-curl\" data-api-curl><summary>Copy as cURL</summary><div class=\"api-curl-menu\">");
+    for (index, (label, args)) in variants.into_iter().enumerate() {
+        let mut command = format!(
+            "curl --globoff --request {}",
+            shell_quote(&operation.method.to_uppercase())
+        );
+        for arg in args {
+            command.push_str(&format!(" \\\n  {arg}"));
+        }
+        command.push_str(&format!(" \\\n  --url {}", shell_quote(&url)));
+        let fence =
+            "`".repeat(3.max(command.split(|c| c != '`').map(str::len).max().unwrap_or(0) + 1));
+        let mut panel = Content::default();
+        panel.md(format!("{fence}bash\n{command}\n{fence}"));
+        out.markdown
+            .push_str(&format!("### {}\n\n{}", inline(&label), panel.markdown));
+        let id = format!("{slug}-curl-command-{index}");
+        out.html.push_str(&format!("<div class=\"api-curl-option\" data-api-curl-option><button type=\"button\" data-api-curl-copy aria-controls=\"{}\" hidden>Copy {}</button><div class=\"api-curl-command\" id=\"{}\" data-api-curl-command><p>{}</p>{}</div></div>", html_escape(&id), html_escape(&label), html_escape(&id), html_escape(&label), panel.html));
+    }
+    out.html.push_str("<p class=\"api-curl-status\" role=\"status\" aria-live=\"polite\"></p><div class=\"api-curl-notes\">");
+    out.html.push_str(&notes);
+    out.html.push_str("</div></div></details>");
+    Ok(())
+}
+
 fn examples(
     api: &Api,
     media: &Value,
@@ -681,7 +1100,10 @@ pub(super) fn operation(
         description.md(value);
     }
     header.markdown.push_str(&description.markdown);
+    let mut curl = Content::default();
+    curl_examples(api, operation, &mut curl, slug)?;
     let mut context = tera::Context::new();
+    context.insert("curl", &curl.html);
     context.insert("attrs", &json!({
         "title": title, "method": operation.method, "path": operation.path,
         "deprecated": if operation.deprecated { "true" } else { "false" },
@@ -695,8 +1117,12 @@ pub(super) fn operation(
     out.markdown.push_str(&header.markdown);
     out.html
         .push_str("<article class=\"api-reference api-reference-operation\">");
-    out.html
-        .push_str(&registry.render_native("api-operation", &context)?);
+    let rendered_header = registry.render_native("api-operation", &context)?;
+    out.html.push_str(&rendered_header);
+    // Older ejected headers may not render the new optional context field.
+    if !rendered_header.contains("data-api-curl") {
+        out.html.push_str(&curl.html);
+    }
     out.html
         .push_str("<div class=\"api-context\"><section class=\"api-context-card\">");
     security(api, &operation.security, &mut out)?;
@@ -778,6 +1204,7 @@ pub(super) fn operation(
         )?;
         out.html.push_str("</section>");
     }
+    out.markdown.push_str(&curl.markdown);
     out.html
         .push_str("<section class=\"api-section api-responses\">");
     out.md("## Responses");
@@ -1025,4 +1452,159 @@ pub(super) fn tag_groups(api: &Api) -> Result<Vec<(&str, Option<&str>)>> {
         .collect();
     groups.extend(extra.into_iter().map(|name| (name, None)));
     Ok(groups)
+}
+
+#[cfg(test)]
+mod curl_tests {
+    use super::*;
+
+    #[test]
+    fn serializes_openapi_parameter_styles_without_encoding_delimiters() {
+        let cases = [
+            (
+                "query",
+                "form",
+                true,
+                json!(["a b", "c&d"]),
+                vec![("id", "a%20b"), ("id", "c%26d")],
+            ),
+            (
+                "query",
+                "form",
+                false,
+                json!({"x":"a b","y":2}),
+                vec![("id", "x,a%20b,y,2")],
+            ),
+            (
+                "query",
+                "deepObject",
+                true,
+                json!({"x":"a&b"}),
+                vec![("id%5Bx%5D", "a%26b")],
+            ),
+            (
+                "path",
+                "matrix",
+                true,
+                json!([1, 2]),
+                vec![("id", ";id=1;id=2")],
+            ),
+            (
+                "path",
+                "label",
+                true,
+                json!({"x":1,"y":2}),
+                vec![("id", ".x=1.y=2")],
+            ),
+            (
+                "header",
+                "simple",
+                true,
+                json!({"x":"a b"}),
+                vec![("id", "x=a b")],
+            ),
+            (
+                "query",
+                "spaceDelimited",
+                false,
+                json!(["a b", "c"]),
+                vec![("id", "a%20b%20c")],
+            ),
+        ];
+        for (location, style, explode, value, expected) in cases {
+            let actual = serialize_parameter("id", &value, location, style, explode).unwrap();
+            assert_eq!(
+                actual,
+                expected
+                    .into_iter()
+                    .map(|(k, v)| (k.into(), v.into()))
+                    .collect::<Vec<_>>()
+            );
+        }
+        assert!(serialize_parameter("id", &json!({"nested":[1]}), "query", "form", true).is_none());
+    }
+
+    fn render(spec: Value) -> String {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("api.json");
+        std::fs::write(&path, spec.to_string()).unwrap();
+        let api = super::super::load(&path).unwrap();
+        let mut out = Content::default();
+        curl_examples(&api, &api.operations[0], &mut out, "test").unwrap();
+        out.markdown
+    }
+
+    #[test]
+    fn generates_effective_url_credentials_and_media_examples() {
+        let output = render(json!({
+            "openapi":"3.0.3", "info":{"title":"Test", "version":"1"},
+            "servers":[{"url":"https://example.test/{version}", "variables":{"version":{"default":"v2"}}}],
+            "security":[{"token":[],"key":[]}],
+            "components":{"securitySchemes":{
+                "token":{"type":"http","scheme":"bearer"},
+                "key":{"type":"apiKey","in":"query","name":"api-key"}
+            }, "examples":{"body":{"value":{"text":"don't $(touch /tmp/nope)"}}}},
+            "paths":{"/items/{id}":{"parameters":[{"name":"id","in":"path","required":true,"example":"a/b ?","schema":{"type":"string"}}],
+                "post":{"parameters":[
+                    {"name":"tag","in":"query","example":["a b","c&d"],"schema":{"type":"array","items":{"type":"string"}}},
+                    {"name":"omitted","in":"query","schema":{"type":"string"}}
+                ],"requestBody":{"content":{
+                    "application/json":{"examples":{"payload":{"$ref":"#/components/examples/body"}}},
+                    "text/plain":{"example":"@literal"},
+                    "application/octet-stream":{"schema":{"type":"string","format":"binary"}}
+                }},"responses":{"200":{"description":"OK"}}}}
+            }
+        }));
+        assert!(output.contains(
+            "https://example.test/v2/items/a%2Fb%20%3F?tag=a%20b&tag=c%26d&api-key=REPLACE_API_KEY"
+        ));
+        assert!(output.contains("Authorization: Bearer REPLACE_TOKEN"));
+        assert!(output.contains("--data-raw '@literal'"));
+        assert!(output.contains("--data-binary '@request-body'"));
+        assert!(output.contains("don'\\''t $(touch /tmp/nope)"));
+        assert!(!output.contains("omitted="));
+        assert!(output.contains(" \\\n  --url"));
+    }
+
+    #[test]
+    fn forms_and_relative_servers_use_literal_fields_or_explicit_files() {
+        let output = render(json!({
+            "openapi":"3.1.0", "info":{"title":"Forms", "version":"1"},
+            "servers":[{"url":"/v1"}], "security":[{}],
+            "paths":{"/form":{"post":{
+                "parameters":[
+                    {"name":"a","in":"cookie","required":true,"example":"a;b","schema":{"type":"string"}},
+                    {"name":"b","in":"cookie","required":true,"example":"c d","schema":{"type":"string"}},
+                    {"name":"default","in":"query","schema":{"$ref":"#/components/schemas/Default"}},
+                    {"name":"nested","in":"query","required":true,"example":{"x":[1]},"schema":{"type":"object"}}
+                ],
+                "requestBody":{"content":{
+                    "application/x-www-form-urlencoded":{"example":{"q":"a&b + c"}},
+                    "multipart/form-data":{"example":{"file":"@not-a-file;type=text/plain"}}
+                }},"responses":{"200":{"description":"OK"}}
+            }}}, "components":{"schemas":{"Default":{"type":"integer","default":10}}}
+        }));
+        assert!(output.contains(
+            "https://api.example.com/v1/form?default=10&nested=REPLACE_SERIALIZED_VALUE"
+        ));
+        assert!(output.contains("--cookie 'a=a%3Bb; b=c%20d'"));
+        assert!(output.contains("--data-raw 'q=a%26b%20%2B%20c'"));
+        assert!(output.contains("--form-string 'file=@not-a-file;type=text/plain'"));
+        assert!(!output.contains("--header 'Content-Type: multipart/form-data'"));
+        assert!(!output.contains("Authorization:"));
+        assert!(output.contains("requires custom serialization"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn posix_quoting_preserves_hostile_literal_text() {
+        let text = "don't `echo bad` $(echo bad)\n'quoted'";
+        let result = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(format!("printf %s {}", shell_quote(text)))
+            .output()
+            .unwrap();
+        assert!(result.status.success());
+        assert_eq!(String::from_utf8(result.stdout).unwrap(), text);
+    }
 }

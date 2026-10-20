@@ -130,7 +130,9 @@ docanvil component eject api-schema
 
 `theme/components/api-schema.html` receives `attrs.title`, `attrs.deprecated`, the rendered type/reference as `type_html`, and the safely rendered description as `body`. Keep `type_html | safe` and `body | safe` when displaying these rendered fragments. You can also use `:::api-schema{title="Document" type="object"}` in an authored guide; its body supplies the description. Schema-specific CSS hooks are `.api-schema`, `.api-schema-kind`, `.api-schema-definition` and `.api-schema-constraints`.
 
-CSS hooks include `.api-reference` for generated API pages, `.api-operation` for the header, `.api-context-card` for authentication and servers, `.api-media` for content types, and `.api-response` for each response. Header surfaces use `--api-header-bg` and `--api-header-border`; `--api-accent` controls the edge accent. Ordinary documentation pages retain their existing styles.
+Generated headers also receive the copy dropdown as `curl`; render it with `{{ curl | safe }}` to position it in a custom header. Older overrides that omit it receive the dropdown immediately after their header.
+
+CSS hooks include `.api-curl` for the copy dropdown, `.api-reference` for generated API pages, `.api-operation` for the header, `.api-context-card` for authentication and servers, `.api-media` for content types, and `.api-response` for each response. Header surfaces use `--api-header-bg` and `--api-header-border`; `--api-accent` controls the edge accent. Ordinary documentation pages retain their existing styles.
 
 ## Initial support
 
@@ -163,4 +165,16 @@ This matrix describes documentation output, not validation of API payloads. Cons
 
 Malformed types and the field shapes consumed by the renderer produce errors rather than incomplete tables: for example, `required` must contain unique property names, composition branches must be non-empty arrays, and exclusive bounds must use the selected dialect's value type. These checks are deliberately partial. They do not establish complete OpenAPI/JSON Schema conformance or enforce relationships between constraints.
 
-Descriptions render as Markdown. Raw HTML is omitted, and DocAnvil includes/directives are not executed from specification descriptions. Live requests, parameter serialization, SDK generation and full schema validation remain outside this initial integration.
+Descriptions render as Markdown. Raw HTML is omitted, and DocAnvil includes/directives are not executed from specification descriptions. Live requests, SDK generation and full schema validation remain outside this initial integration.
+
+## Generated cURL examples
+
+The operation header has a **Copy as cURL** dropdown at the top right. Choose a request media type to copy its POSIX shell command. Without JavaScript or clipboard access, open the dropdown to select the command manually. They use the first effective server (expanding variable defaults) and the first authentication alternative. Credentials always use placeholders. Relative or absent server URLs use an example origin that you must replace.
+
+Required parameters are included. Optional parameters are included when they have a supplied example or schema default. Values come from the parameter example, the first inline or locally referenced named example, then the resolved schema example/default. Missing values use `REPLACE_…` placeholders. Query/path values are percent-encoded, and all command arguments use shell quoting.
+
+Supported serialization covers flat scalar/array/object values with query/cookie `form`, path/header `simple`, path `label`/`matrix`, query `deepObject` (exploded objects), and non-exploded `spaceDelimited`/`pipeDelimited` arrays. Nested values, parameter `content` and other styles receive replacement values and an explanation. Reserved characters are encoded even when `allowReserved` is set.
+
+Bodies use the media type's example or first available named example. JSON is serialized as JSON; text examples are preserved literally. Flat object examples support URL-encoded forms and multipart text fields without custom `encoding`. Other bodies use `--data-binary '@request-body'`: create that file with the desired payload. Multipart file/custom-encoding requests require prepared parts and a matching boundary. External examples are not fetched, payloads are not synthesized from schemas, and examples are not validated against schemas.
+
+Basic authentication uses username/password placeholders; bearer, OAuth 2 and OpenID Connect use token placeholders. API keys support headers, query strings and cookies. Schemes within the selected authentication alternative are combined. Other schemes require manual setup. DocAnvil never executes these commands. The examples remain visible without JavaScript and are included in PDF and AI outputs.

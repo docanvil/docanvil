@@ -2,6 +2,7 @@
 //!
 //! This is a foundation, not a complete OpenAPI/schema validator. See
 //! `planning/openapi/foundation.md` for the supported subset and boundaries.
+pub(crate) mod download;
 mod graph;
 mod model;
 pub(crate) mod publish;

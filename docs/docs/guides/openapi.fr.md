@@ -34,6 +34,21 @@ docanvil doctor
 
 La vue d'ensemble se trouve dans `api/index.html`. Les pages restent en mémoire : aucun Markdown n'est écrit dans les sources. Après une compilation réussie, le serveur surveille aussi les fichiers référencés hors du répertoire de contenu.
 
+## Télécharger la spécification
+
+L’en-tête de la vue d’ensemble propose **Download OpenAPI**. Cette action fonctionne sans JavaScript et télécharge la spécification de la version et de la langue affichées. Chaque espace d’URL possède son fichier ; aucune configuration supplémentaire n’est nécessaire.
+
+- Un document unique avec des références internes est publié sans modification dans `openapi.json`, `openapi.yaml` ou `openapi.yml`, avec sa mise en forme et ses commentaires.
+- Une spécification avec des références à des fichiers locaux devient `openapi.zip`. Extrayez le ZIP, puis ouvrez son point d’entrée `openapi.json` dans votre outil OpenAPI. Les documents référencés sont normalisés en JSON sous `references/`, avec des références réécrites vers des chemins relatifs à l’archive. Les cycles et fragments JSON Pointer sont préservés. Les commentaires YAML et la mise en forme d’origine ne sont pas conservés dans les ZIP.
+
+Une référence explicite au fichier lui-même produit aussi un ZIP, même si un seul fichier source est chargé. Le téléchargement ne dépend ainsi ni du nom ni de l’emplacement d’origine. Les noms d’entrées ne contiennent aucun chemin source absolu ; leur ordre et leurs métadonnées sont déterministes.
+
+Le téléchargement contient les documents complets chargés par le graphe de références local, y compris les définitions, annotations et exemples non affichés. Les exemples externes, images Markdown et autres ressources ne sont pas téléchargés ou inclus. Les clés `$ref` littérales dans les exemples/extensions restent inchangées. Ce téléchargement ne valide ni les schémas ni les exemples.
+
+Avec `output = "api"`, le fichier se trouve à côté de `api/index.html`, sous les mêmes préfixes de version et de langue. Les versions Git utilisent les documents de leur instantané. Les modifications des spécifications et références mettent à jour le fichier lors des reconstructions de serve ; les anciens formats disparaissent de la sortie si le type de téléchargement change. Ces fichiers ne deviennent pas des pages de navigation, de recherche ou du sitemap. La sortie IA fournit un lien fondé sur `site_url`, ou sur `base_url` en son absence. L’action est masquée à l’impression.
+
+Build et doctor refusent les conflits avec les pages, fichiers statiques, ressources et feuilles CSS copiées. Une redirection ne peut pas occuper le chemin d’un téléchargement ni un chemin situé dessous. En cas d’échec, la compilation conserve la sortie publiée précédente, sauf avec `--clean`. Les thèmes peuvent utiliser `.api-download` et `.api-overview-toolbar`.
+
 ## Liens et navigation
 
 ```markdown

@@ -64,6 +64,9 @@ pub(crate) fn generated_link_problems(
             let href = decode_entities(&capture[1]);
             let (path, fragment) = split_target(&href);
             let output = local_output_path(path, source, base_url)?;
+            if inventory.generated_files.contains_key(Path::new(&output)) {
+                return None;
+            }
             let page = inventory
                 .pages
                 .values()

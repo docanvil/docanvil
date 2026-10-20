@@ -1326,9 +1326,11 @@ pub(super) fn overview(
     api: &Api,
     operations: &[(String, &Operation)],
     schemas: &[(String, Location, String)],
+    download: &super::download::Download,
 ) -> Result<Content> {
     let mut out = Content::default();
-    out.html.push_str("<article class=\"api-reference api-reference-overview\"><header class=\"api-page-header\"><span class=\"api-eyebrow\">API reference</span>");
+    let format = download.format();
+    out.html.push_str(&format!("<article class=\"api-reference api-reference-overview\"><header class=\"api-page-header\"><div class=\"api-overview-toolbar\"><span class=\"api-eyebrow\">API reference</span><a class=\"api-download\" href=\"{}\" download>Download OpenAPI <span>{format}</span></a></div>", html_escape(&download.name)));
     out.md(format!("# {}", inline(&api.title)));
     if let Some(description) = &api.description {
         out.md(description);

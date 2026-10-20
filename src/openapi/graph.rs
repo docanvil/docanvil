@@ -68,6 +68,7 @@ pub struct DocumentGraph {
     pub root: Location,
     pub version: Version,
     documents: BTreeMap<PathBuf, Value>,
+    sources: BTreeMap<PathBuf, String>,
     references: BTreeMap<Location, Reference>,
     schema_nodes: BTreeSet<Location>,
 }
@@ -103,7 +104,7 @@ impl DocumentGraph {
             file,
             pointer: String::new(),
         };
-        let value = parse(&root)?;
+        let (value, source) = parse(&root)?;
         let version = match value.get("openapi").and_then(Value::as_str) {
             Some(v) if valid_version(v, "3.0.") => Version::V3_0,
             Some(v) if valid_version(v, "3.1.") => Version::V3_1,
@@ -118,6 +119,7 @@ impl DocumentGraph {
             root: root.clone(),
             version,
             documents: BTreeMap::from([(root.file.clone(), value)]),
+            sources: BTreeMap::from([(root.file.clone(), source)]),
             references: BTreeMap::new(),
             schema_nodes: BTreeSet::new(),
         };
@@ -201,10 +203,11 @@ impl DocumentGraph {
                         file: target.file.clone(),
                         pointer: String::new(),
                     };
-                    let value = parse(&root).map_err(|e| {
+                    let (value, source) = parse(&root).map_err(|e| {
                         OpenApiError::at(&source, format!("cannot load {spelling:?}: {e}"))
                     })?;
                     graph.documents.insert(target.file.clone(), value);
+                    graph.sources.insert(target.file.clone(), source);
                 }
                 graph.value(&target).map_err(|_| {
                     OpenApiError::at(
@@ -249,6 +252,10 @@ impl DocumentGraph {
             .get(&location.file)
             .and_then(|v| v.pointer(&location.pointer))
             .ok_or_else(|| OpenApiError::at(location, "node not found"))
+    }
+
+    pub(super) fn source(&self, file: &Path) -> Option<&str> {
+        self.sources.get(file).map(String::as_str)
     }
 
     pub fn dependencies(&self) -> impl Iterator<Item = &Path> {
@@ -431,7 +438,7 @@ fn check_dialect(value: &Value, location: &Location) -> Result<(), OpenApiError>
     }
 }
 
-fn parse(root: &Location) -> Result<Value, OpenApiError> {
+fn parse(root: &Location) -> Result<(Value, String), OpenApiError> {
     use serde_saphyr::{DuplicateKeyPolicy, NonFiniteFloatPolicy};
     // A streaming limit also covers files growing after metadata is read.
     use std::io::Read;
@@ -444,7 +451,7 @@ fn parse(root: &Location) -> Result<Value, OpenApiError> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(OpenApiError::at(root, "document exceeds 16 MiB"));
     }
-    match root
+    let value = match root
         .file
         .extension()
         .and_then(|s| s.to_str())
@@ -471,7 +478,8 @@ fn parse(root: &Location) -> Result<Value, OpenApiError> {
             root,
             "expected a .json, .yaml or .yml file",
         )),
-    }
+    }?;
+    Ok((value, source))
 }
 
 // Reject duplicates in JSON as well as YAML rather than silently choosing an

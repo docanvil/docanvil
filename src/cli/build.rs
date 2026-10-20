@@ -232,6 +232,10 @@ pub(crate) fn assemble_sources(
     )?;
     if !config.openapi.is_empty() {
         crate::openapi::publish::attach_related_guides(inventory, &mut sources, &front_matters);
+        let asset_prefix = version.filter(|v| {
+            boundary.is_some() || config.version.git.working_tree.as_deref() == Some(v)
+        });
+        crate::openapi::download::validate_assets(inventory, project_root, asset_prefix, config)?;
     }
     Ok((sources, front_matters))
 }
@@ -292,6 +296,7 @@ pub(crate) fn scan_site(project_root: &Path, config: &Config) -> Result<Vec<Site
                 .unwrap_or(project_root),
         )?;
         exclude_drafts(&mut inventory, &front_matters, config, false);
+        crate::openapi::download::validate_assets(&inventory, project_root, None, config)?;
         sites.push((
             version,
             inventory,
@@ -1362,6 +1367,8 @@ fn build_site(
                 }
             }
 
+            crate::openapi::download::write(&ver_inventory, output_dir)?;
+            crate::openapi::download::validate_assets(&ver_inventory, project_root, None, config)?;
             if version_source.versioned_assets {
                 assets::copy_version_assets(version_project_root, &output_dir.join(version))?;
             }
@@ -1435,6 +1442,7 @@ fn build_site(
             }
             let merged_inv = PageInventory {
                 generated: HashMap::new(),
+                generated_files: Default::default(),
                 generated_nav: Default::default(),
                 operation_methods: Default::default(),
                 generation_warnings: Vec::new(),
@@ -1950,6 +1958,7 @@ fn build_site(
         Some(locale) => format!("{locale}/"),
         None => String::new(),
     };
+    crate::openapi::download::write(&inventory, output_dir)?;
     write_llms(output_dir, config, &llms_scopes, &llms_root, &llms_base)?;
 
     // Generate robots.txt and sitemap.xml for production builds

@@ -188,6 +188,14 @@ impl ComponentRegistry {
             .map_err(|e| tera_error_message(&e))
     }
 
+    /// Render structured, trusted native content through the same overridable
+    /// templates as authored components. Untrusted fields remain autoescaped.
+    pub(crate) fn render_native(&self, name: &str, context: &tera::Context) -> Result<String> {
+        self.tera
+            .render(&template_name(name), context)
+            .map_err(|e| Error::Render(tera_error_message(&e)))
+    }
+
     fn has_template(&self, name: &str) -> bool {
         let wanted = template_name(name);
         self.tera.get_template_names().any(|n| n == wanted)
@@ -617,6 +625,8 @@ mod tests {
         assert_eq!(
             crate::components::templates::builtin_names(),
             vec![
+                "api-operation",
+                "api-schema",
                 "buttons",
                 "cards",
                 "code-group",

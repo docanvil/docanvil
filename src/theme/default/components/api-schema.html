@@ -1,0 +1,21 @@
+{# api-schema — builtin API schema header
+   Variables:
+     attrs.title       schema name (h1)
+     attrs.type        type label for authored usage (optional)
+     attrs.deprecated  "true" shows the deprecation notice
+     type_html         safely rendered native type/reference (optional)
+     body              safely rendered schema description HTML
+     body_raw          original description Markdown
+   Generated schema pages use this automatically. Eject it to customise their header.
+   Authored usage: :::api-schema{title="Document" type="object"}
+#}
+{% set deprecated = attrs.deprecated | default(value="false") %}
+<header class="api-schema">
+  <div class="api-operation-meta">
+    <span class="api-eyebrow">Schema reference</span>
+    {% if type_html %}<div class="api-schema-kind">{{ type_html | safe }}</div>{% elif attrs.type %}<span class="api-schema-kind">{{ attrs.type }}</span>{% endif %}
+    {% if deprecated == "true" %}<span class="api-deprecated">Deprecated</span>{% endif %}
+  </div>
+  <h1 class="api-schema-title">{{ attrs.title }}</h1>
+  {% if body %}<div class="api-schema-description">{{ body | safe }}</div>{% endif %}
+</header>

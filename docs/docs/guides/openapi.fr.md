@@ -94,6 +94,36 @@ Pour ajouter une API sans exiger sa spécification dans les anciennes versions, 
 
 La spécification est partagée entre les langues activées. Les pages utilisent les préfixes habituels de version et de langue, sans traduction des descriptions. Les spécifications propres à chaque langue ne sont pas encore prises en charge.
 
+## Présentation des pages API
+
+Les pages générées reprennent les couleurs et les polices du thème. L’en-tête regroupe méthode, chemin, description et tags. Des cartes compactes présentent l’authentification et les serveurs, et chaque réponse dispose de son panneau. Les pages de schémas et de présentation partagent les styles de tableaux et de sections. Le contenu reste lisible sans JavaScript et à l’impression.
+
+Pour personnaliser l’en-tête des opérations :
+
+```sh
+docanvil component eject api-operation
+```
+
+Modifiez `theme/components/api-operation.html`. Le modèle reçoit `attrs.title`, `attrs.method`, `attrs.path`, `attrs.deprecated` (`"true"` ou `"false"`), `attrs.endpoint` (affichage du chemin sous le titre), le tableau `tags` et la description rendue dans `body`. Les valeurs simples sont échappées automatiquement ; conservez `{{ body | safe }}` pour la description. Cette personnalisation s’applique aux builds, à l’aperçu et au PDF. Les directives DocAnvil présentes dans une description de spécification restent du texte littéral.
+
+Le composant peut aussi servir dans un guide rédigé :
+
+````markdown
+:::api-operation{title="Lister les documents" method="GET" path="/documents"}
+Retourne les documents de votre espace de travail.
+:::
+````
+
+Les pages de schémas utilisent le composant `api-schema` pour le nom, le type et la description, avec un panneau de propriétés et des résumés de contraintes. Pour personnaliser leur en-tête :
+
+```sh
+docanvil component eject api-schema
+```
+
+`theme/components/api-schema.html` reçoit `attrs.title`, `attrs.deprecated`, le type ou la référence rendus dans `type_html` et la description rendue dans `body`. Conservez `type_html | safe` et `body | safe` pour afficher ces fragments. Dans un guide rédigé, utilisez `:::api-schema{title="Document" type="object"}` avec la description dans le corps. Les classes propres aux schémas sont `.api-schema`, `.api-schema-kind`, `.api-schema-definition` et `.api-schema-constraints`.
+
+Les classes CSS disponibles comprennent `.api-reference`, `.api-operation`, `.api-context-card`, `.api-media` et `.api-response`. Les variables `--api-header-bg`, `--api-header-border` et `--api-accent` contrôlent les surfaces et l’accent de l’en-tête. Les autres pages de documentation conservent leur présentation.
+
 ## Prise en charge initiale
 
 Les opérations affichent méthode, chemin, descriptions, authentification, serveurs, types et contraintes des paramètres, corps de requête, en-têtes de réponse et liens vers les schémas. Les exemples sont séparés des schémas. Des onglets permettent de choisir le type de contenu ; toutes les sections restent lisibles sans JavaScript et dans le PDF.

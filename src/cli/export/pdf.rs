@@ -527,6 +527,7 @@ fn prepare_pdf(
             .as_ref()
             .and_then(|s| s.snapshot.as_ref())
             .map(crate::git_versions::GitSnapshot::repository_root),
+        source_root,
     )?;
     for warning in &inventory.generation_warnings {
         crate::diagnostics::warn_openapi(warning);

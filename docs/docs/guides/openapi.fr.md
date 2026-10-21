@@ -8,7 +8,7 @@ DocAnvil peut générer une référence statique à partir d'une spécification 
 
 ## Explorer l’exemple
 
-Consultez [[example-api/index|l’exemple Documents API]] dans la documentation Master. Il présente quatre opérations, la pagination, l’authentification par jeton bearer, des exemples de requêtes et réponses, des erreurs réutilisables et un schéma récursif. Le serveur est fictif : aucune requête réelle n’est exécutée.
+Consultez [[example-api/index|l’exemple Documents API]] dans la documentation Master. Il présente quatre opérations, la pagination, les options d’authentification bearer/clé API, des exemples de requêtes et réponses, des erreurs réutilisables et un schéma récursif. Le serveur est fictif : aucune requête réelle n’est exécutée.
 
 Sa source est `docs/docs/_examples/documents-api.json` dans le dépôt DocAnvil. Notre configuration le génère sous `example-api` uniquement pour Master.
 
@@ -208,12 +208,16 @@ La vue d’ensemble regroupe les opérations par tag. Déclarez les `tags` à la
 
 ## Exemples cURL générés
 
-Le menu **Copy as cURL**, en haut à droite de l’en-tête de l’opération, copie la commande du type de contenu choisi pour un shell POSIX. Sans JavaScript ou accès au presse-papiers, ouvrez le menu pour sélectionner la commande manuellement. Elles utilisent le premier serveur effectif et les valeurs par défaut de ses variables, ainsi que la première option d’authentification. Les identifiants restent des valeurs de remplacement. Une URL de serveur relative ou absente utilise une origine fictive à remplacer.
+Le menu **Copy as cURL**, en haut à droite de l’en-tête, propose le serveur, l’option d’authentification, le type de contenu et l’exemple de corps. Choisissez les valeurs, puis **Copy cURL**. Les contrôles avec un seul choix restent masqués. **Show command** affiche la commande POSIX pour la vérifier ou la copier manuellement si le presse-papiers est indisponible.
+
+Les choix utilisent les métadonnées effectives, y compris les serveurs et l’authentification hérités, ainsi que les exemples référencés localement. Les variables du serveur utilisent leurs valeurs par défaut sans champ de modification. **No authentication** est proposé uniquement lorsqu’une option vide est déclarée, ou lorsque l’opération ne demande aucune authentification. Les schémas d’une même option sont combinés ; les portées OAuth/OpenID sont indiquées. Changer d’authentification retire les anciens arguments, clés de requête et cookies.
+
+Les identifiants restent des valeurs de remplacement. Aucune requête n’est exécutée, aucun jeton n’est obtenu ou stocké, et les choix ne sont pas conservés après rechargement. Les serveurs relatifs ou absents utilisent une origine fictive à remplacer. Les paramètres déjà présents dans l’URL du serveur sont préservés. Changer le type de contenu sélectionne un exemple valable pour ce type.
 
 Les paramètres obligatoires sont inclus ; les paramètres facultatifs le sont lorsqu’un exemple ou une valeur par défaut est disponible. Les valeurs proviennent des exemples directs ou nommés (y compris les références locales), puis de l’exemple ou de la valeur par défaut du schéma résolu. Les valeurs manquantes utilisent `REPLACE_…`. Les arguments sont protégés pour le shell ; les valeurs d’URL sont encodées, même avec `allowReserved`.
 
 La sérialisation couvre les valeurs simples et les tableaux/objets plats : `form`, `simple`, `label`, `matrix`, `deepObject` pour les objets avec `explode`, et les tableaux sans `explode` avec `spaceDelimited` ou `pipeDelimited`. Les valeurs imbriquées, les paramètres `content` et les autres styles demandent une adaptation manuelle indiquée sur la page.
 
-Les corps utilisent les exemples du type de contenu : JSON, texte littéral, formulaires URL-encodés et champs texte multipart pour les objets plats sans `encoding` personnalisé. Sinon, `--data-binary '@request-body'` lit un fichier à préparer. Les fichiers multipart et encodages personnalisés nécessitent des parties préparées et une frontière correspondante. Les exemples externes ne sont pas téléchargés ; aucun corps n’est synthétisé à partir des schémas.
+Les corps proposent l’exemple direct et chaque exemple nommé du type de contenu, y compris les objets Example référencés localement : JSON, texte littéral, formulaires URL-encodés et champs texte multipart pour les objets plats sans `encoding` personnalisé. Sinon, `--data-binary '@request-body'` lit un fichier à préparer. Les fichiers multipart et encodages personnalisés nécessitent des parties préparées et une frontière correspondante. Les exemples externes ne sont pas téléchargés ; aucun corps n’est synthétisé à partir des schémas.
 
-L’authentification Basic, bearer, OAuth 2, OpenID Connect et les clés API utilisent des valeurs à remplacer. Les schémas d’une même option sont combinés ; les autres mécanismes nécessitent une configuration manuelle. DocAnvil n’exécute aucune commande. Ces exemples restent accessibles sans JavaScript et dans les exports PDF et IA.
+L’authentification Basic, bearer, OAuth 2, OpenID Connect et les clés API utilisent des valeurs à remplacer. Les schémas d’une même option sont combinés ; les autres mécanismes nécessitent une configuration manuelle. DocAnvil n’exécute aucune commande. Sans JavaScript, les commandes de chaque exemple utilisent le premier serveur et la première option d’authentification ; les autres serveurs et instructions d’authentification sont listés pour adaptation manuelle. Les exports PDF et IA reprennent cette présentation statique. La page conserve chaque choix une seule fois, sans produire toutes les combinaisons serveur/authentification/exemple.

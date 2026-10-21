@@ -62,6 +62,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: cURL choice interaction tests
+        run: node --test tests/openapi_curl_ui.mjs
+
       - name: Shellcheck installer
         run: shellcheck install/install.sh
 

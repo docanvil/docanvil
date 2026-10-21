@@ -1294,8 +1294,9 @@ fn generated_curl_is_published_with_copy_controls_media_and_export_markdown() {
     assert!(header.contains("data-api-curl"));
     assert!(header.contains("<summary>Copy as cURL</summary>"));
     assert!(header.contains("data-api-curl-copy"));
-    assert!(html.contains("createpet-curl-command-0"));
-    assert!(html.contains("createpet-curl-command-1"));
+    assert!(header.contains("createpet-curl-preview"));
+    assert!(header.contains("data-api-curl-media"));
+    assert!(header.contains("data-api-curl-model"));
     assert!(html.contains("--data-raw"));
     assert!(html.contains("data-language=\"bash\""));
     assert!(html.contains("docanvil.js"));
@@ -1713,4 +1714,52 @@ fn redirects_cannot_claim_paths_beneath_download_files() {
     build_project(dir.path()).unwrap();
     assert!(dir.path().join("dist/api/openapi.json").is_file());
     assert!(!dir.path().join("dist/api/openapi.json/old.html").exists());
+}
+
+#[test]
+fn curl_choice_labels_and_payloads_remain_literal_in_header_data_and_exports() {
+    let dir = create_project(CONFIG, &[("index.md", "# Guide")]);
+    let mut input = spec();
+    input["servers"] = json!([
+        {"url":"https://prod.test/v1","description":"Production </script>"},
+        {"url":"https://sandbox.test/v1","description":"Sandbox"}
+    ]);
+    input["security"] = json!([{"bearerAuth":[]},{}]);
+    input["paths"]["/pets"]["post"]["requestBody"] = json!({"content":{
+        "application/json":{"examples":{
+            "draft":{"summary":"Draft </script>","value":{"text":"don't $(echo unsafe) [[missing]] </script>","status":"draft"}},
+            "published":{"value":{"status":"published"}}
+        }},
+        "text/plain":{"example":"@literal"}
+    }});
+    write(dir.path(), "docs/openapi.json", &input.to_string());
+    build_project_strict(dir.path()).unwrap();
+    let html = read_output(dir.path(), "api/operations/createpet.html");
+    let header = html
+        .split("<header class=\"api-operation ")
+        .nth(1)
+        .unwrap()
+        .split("</header>")
+        .next()
+        .unwrap();
+    for field in [
+        "server", "auth", "media", "example", "copy", "show", "fallback",
+    ] {
+        assert!(header.contains(&format!("data-api-curl-{field}")));
+    }
+    assert_eq!(header.matches("data-api-curl-copy").count(), 1);
+    assert!(header.contains("data-api-curl-model=\""));
+    assert!(!header.contains("</script>"));
+    assert!(header.contains("&#91;&#91;missing&#93;&#93;"));
+    let ai = read_output(dir.path(), "llms-full.txt");
+    assert!(ai.contains("draft"));
+    assert!(ai.contains("published"));
+    assert!(ai.contains("--data-raw '@literal'"));
+    let (diags, _) = doctor::run_checks(dir.path(), true);
+    assert!(
+        !diags
+            .iter()
+            .any(|d| matches!(d.check, "broken-wiki-link" | "broken-generated-link")),
+        "{diags:?}"
+    );
 }

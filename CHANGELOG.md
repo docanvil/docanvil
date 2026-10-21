@@ -13,6 +13,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Added
 
+- OpenAPI cURL controls now offer effective server, authentication, content-type and named request-body example choices, with command preview and manual-copy fallback. Credentials remain replacement values; no requests are executed or selections stored. Static examples remain available without JavaScript and in exports.
+
 - OpenAPI overview pages offer version-matched specification downloads: unchanged single-file JSON/YAML, or a portable ZIP with normalized JSON documents and rewritten local references. Downloads share locale/version scopes, update in serve and are checked against page/asset collisions by build and doctor.
 
 - Related guides on OpenAPI operation pages: declare `api_operations` in a guide’s front matter to link it from matching operations in the same version and locale. Links respect published titles/slugs, exclude drafts and appear in PDF/AI exports; build and doctor diagnose invalid associations.

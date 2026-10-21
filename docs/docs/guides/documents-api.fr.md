@@ -17,7 +17,7 @@ Ce parcours fictif montre comment un guide et une référence API générée se 
 
 ## Créer un document
 
-Ouvrez [[example-api/operations/createdocument|Create a document]] et consultez le corps de la requête. Fournissez un titre, un contenu Markdown et, au besoin, un état de publication. Le menu **Copy as cURL** propose une commande avec l’exemple fourni et un jeton à remplacer.
+Ouvrez [[example-api/operations/createdocument|Create a document]] et consultez le corps de la requête. Fournissez un titre, un contenu Markdown et, au besoin, un état de publication. Dans **Copy as cURL**, choisissez le serveur fictif de production ou de test, l’authentification bearer ou par clé API, et l’exemple JSON de brouillon ou de publication. **Show command** affiche le résultat ; **Copy cURL** le copie avec les identifiants à remplacer.
 
 Une réponse réussie porte le statut `201`. Son en-tête `Location` désigne le nouveau document. Conservez son identifiant pour les requêtes suivantes ; le [[example-api/schemas/document|schéma Document]] décrit les champs renvoyés.
 

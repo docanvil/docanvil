@@ -68,6 +68,7 @@ const codeLanguageIconBase = new URL('icons/devicon/', document.currentScript.sr
 
 // Copy controls live outside <pre>, keeping labels out of copied code.
 document.querySelectorAll('.content pre:not(.mermaid)').forEach(pre => {
+  if (pre.closest('[data-api-curl-preview]')) return;
   let figure = pre.parentElement;
   if (!figure.matches('figure.code-block')) {
     figure = document.createElement('figure');
@@ -634,54 +635,102 @@ document.querySelectorAll('.last-updated time[datetime]').forEach(time => {
 });
 
 // Header copy actions enhance commands that remain readable without JavaScript.
+function apiCurlQuote(value) {
+  return "'" + value.replace(/'/g, "'\\''") + "'";
+}
+function apiCurlCommand(data, serverIndex, authIndex, bodyIndex) {
+  const server = data.servers[serverIndex] || data.servers[0];
+  const auth = data.authentication[authIndex] || data.authentication[0];
+  const body = data.bodies[bodyIndex] || data.bodies[0];
+  const args = [...data.args, ...auth.args];
+  const cookies = [...data.cookies, ...auth.cookies];
+  if (cookies.length) args.push('--cookie ' + apiCurlQuote(cookies.join('; ')));
+  args.push(...body.args);
+  const queryStart = server.base.indexOf('?');
+  const base = queryStart < 0 ? server.base : server.base.slice(0, queryStart);
+  const existingQuery = queryStart < 0 ? '' : server.base.slice(queryStart + 1);
+  const query = [...data.query, ...auth.query];
+  if (existingQuery) query.unshift(existingQuery);
+  let url = base.replace(/\/+$/, '') + '/' + data.path.replace(/^\/+/, '');
+  if (query.length) url += '?' + query.join('&');
+  args.push('--url ' + apiCurlQuote(url));
+  return data.prefix + args.map(arg => ' \\\n  ' + arg).join('');
+}
+
 document.querySelectorAll('[data-api-curl]').forEach(dropdown => {
+  let data;
+  try { data = JSON.parse(dropdown.getAttribute('data-api-curl-model')); } catch (_) { return; }
+  if (!data?.servers?.length || !data.authentication?.length || !data.bodies?.length) return;
+  const get = name => dropdown.querySelector('[data-api-curl-' + name + ']');
   const summary = dropdown.querySelector('summary');
   const status = dropdown.querySelector('.api-curl-status');
-  const buttons = [];
-  dropdown.querySelectorAll('[data-api-curl-option]').forEach(option => {
-    const button = option.querySelector('[data-api-curl-copy]');
-    const command = option.querySelector('[data-api-curl-command]');
-    const pre = command?.querySelector('pre');
-    if (!button || !command || !pre || !navigator.clipboard?.writeText) return;
-    const text = pre.textContent.replace(/\n$/, '');
-    button.hidden = false;
-    command.hidden = true;
-    buttons.push(button);
-    button.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-        status.textContent = 'cURL copied. Replace placeholder values before running.';
-      } catch (_) {
-        command.hidden = false;
+  const controls = get('controls'), fallback = get('fallback');
+  const server = get('server'), auth = get('auth'), media = get('media'), example = get('example');
+  const exampleLabel = get('example-label'), copy = get('copy'), show = get('show');
+  const preview = get('preview'), code = get('preview-code'), notes = get('selected-notes');
+  if (![summary, status, controls, fallback, server, auth, media, example, exampleLabel, copy, show, preview, code, notes].every(Boolean)) return;
+  const canCopy = Boolean(navigator.clipboard?.writeText);
+  let revision = 0;
+  function showPreview(visible) {
+    preview.hidden = !visible;
+    show.setAttribute('aria-expanded', String(visible));
+    show.textContent = visible ? 'Hide command' : 'Show command';
+  }
+  function render() {
+    revision++;
+    code.textContent = apiCurlCommand(data, Number(server.value), Number(auth.value), Number(example.value));
+    notes.replaceChildren();
+    const selectedNotes = [...data.servers[Number(server.value)].notes,
+      ...data.authentication[Number(auth.value)].notes, ...data.bodies[Number(example.value)].notes];
+    selectedNotes.forEach(text => { const p = document.createElement('p'); p.textContent = text; notes.appendChild(p); });
+    status.textContent = canCopy ? '' : 'Clipboard unavailable. Select and copy the command below.';
+  }
+  function selectMedia() {
+    const previous = example.value;
+    example.replaceChildren();
+    data.bodies.forEach((body, index) => {
+      if (body.media !== media.value) return;
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = body.label;
+      example.appendChild(option);
+    });
+    if (Array.from(example.options).some(option => option.value === previous)) example.value = previous;
+    exampleLabel.hidden = example.options.length < 2;
+    render();
+  }
+  server.addEventListener('change', render);
+  auth.addEventListener('change', render);
+  example.addEventListener('change', render);
+  media.addEventListener('change', selectMedia);
+  show.addEventListener('click', () => showPreview(preview.hidden));
+  copy.addEventListener('click', async () => {
+    const currentRevision = revision;
+    const command = code.textContent;
+    try {
+      await navigator.clipboard.writeText(command);
+      if (revision === currentRevision) status.textContent = 'cURL copied. Replace placeholder values before running.';
+    } catch (_) {
+      if (revision === currentRevision) {
+        showPreview(true);
         status.textContent = 'Copy unavailable. Select and copy the command below.';
       }
-    });
+    }
   });
+  copy.hidden = !canCopy;
+  controls.hidden = false;
+  fallback.hidden = true;
+  selectMedia();
+  showPreview(!canCopy);
   dropdown.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && !event.defaultPrevented) {
       dropdown.open = false;
       summary.focus();
       event.preventDefault();
-      return;
     }
-    const index = buttons.indexOf(document.activeElement);
-    if (index < 0) return;
-    let next;
-    if (event.key === 'ArrowDown') next = (index + 1) % buttons.length;
-    else if (event.key === 'ArrowUp') next = (index - 1 + buttons.length) % buttons.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = buttons.length - 1;
-    else return;
-    event.preventDefault();
-    buttons[next].focus();
   });
-  document.addEventListener('click', event => {
-    if (!dropdown.contains(event.target)) dropdown.open = false;
-  });
+  document.addEventListener('click', event => { if (!dropdown.contains(event.target)) dropdown.open = false; });
   let wasOpen;
-  window.addEventListener('beforeprint', () => {
-    wasOpen = dropdown.open;
-    dropdown.open = true;
-  });
+  window.addEventListener('beforeprint', () => { wasOpen = dropdown.open; dropdown.open = true; });
   window.addEventListener('afterprint', () => { dropdown.open = wasOpen; });
 });

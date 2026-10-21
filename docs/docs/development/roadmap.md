@@ -6,7 +6,7 @@
 
 # Roadmap
 
-DocAnvil follows [Semantic Versioning](https://semver.org) and is stable at 1.x, so upgrades within 1.x won't break your site. Here's where things stand and where they're headed.
+DocAnvil follows [Semantic Versioning](https://semver.org) and is stable at 1.x, with new features generally additive and opt-in; review migration notes when upgrading custom templates. Here's where things stand and where they're headed.
 
 ## 1.1.x — Core Feature Enhancements
 
@@ -44,16 +44,19 @@ Fully backward compatible, and every feature is opt-in.
 
 ## 1.3.x — API Documentation
 
-OpenAPI reference generation is the next priority. V1.2 made authored guides and source examples more capable; generating API reference from a specification fills a new content gap.
+Static OpenAPI reference generation is implemented and merged, but **not yet released**. The next step is final release validation.
 
-- Static reference from local JSON or YAML specifications, targeting OpenAPI 3.0 and 3.1 with a documented support matrix
-- Operations, parameters, request bodies, responses, authentication, examples and linked schemas
-- Stable operation URLs, tag-based navigation, search and links from Markdown guides
-- Validation of guide-to-reference links and generated operation/schema anchors
-- Integration with themes, documentation versions, locale fallback, PDF and AI-readable outputs
-- Specification diagnostics in build and `docanvil doctor`, with strict-mode checks
+- Local OpenAPI 3.0/3.1 JSON/YAML specifications and local references, with a [documented support matrix](../guides/openapi.md#schema-support-matrix)
+- Operation and linked schema pages with parameters, request bodies, responses, authentication, constraints and examples
+- Stable URLs, specification-ordered tag navigation, HTTP method badges, search and generated-link/anchor validation
+- Related guides beside operations, scoped to the same documentation version and locale
+- Version-matched specification downloads: original single-file bytes or portable multi-file ZIPs
+- Static cURL examples with server, authentication, content-type and example choices, a command preview and credential placeholders; no request execution
+- Theme, Git-backed version, locale, PDF, sitemap and AI-output integration, with strict build/doctor diagnostics
 
-Start with local specifications and local references. Interactive requests, remote specifications and other API formats are follow-ups. Configuration and detailed support boundaries will be settled through a prototype. Features remain opt-in and backward compatible.
+Chrome demo and adjusted larger-spec reviews are recorded. Remaining acceptance work covers visual review of the final controls, Safari/Firefox, zoom/touch, slower-device performance, full larger-spec PDF export and final candidate checks.
+
+Interactive requests, remote specifications and additional API formats remain deferred. OpenAPI generation is opt-in. Custom templates must follow the [Tera 2 migration guidance](../guides/theming.md#migrating-custom-templates-to-tera-2).
 
 ## 1.4.x+ — Reliability and Documentation Quality
 

@@ -6,22 +6,23 @@ All notable changes to DocAnvil will be documented in this file.
 
 ### Changed
 
-- OpenAPI overview operation tables use the same HTTP-method lozenges and colours as sidebar navigation.
-
 - Page footers use equal-width previous/next links and tighter spacing around page metadata, navigation and credits.
-- Custom layout and component templates now use Tera 2. Replace Tera macros/imports with Tera components, remove `include … ignore missing`, and use bracket indexing (`items[0]`) instead of numeric dot access. Undefined nested values and some filters also have different behavior; see the theming migration notes. Markdown and DocAnvil's `:::component` syntax are unchanged.
+- Custom layout and component templates now use Tera 2. Replace Tera macros/imports with Tera components, remove `include … ignore missing`, and use bracket indexing (`items[0]`) instead of numeric dot access. Undefined nested values and some filters also have different behavior; see the [theming migration notes](docs/docs/guides/theming.md#migrating-custom-templates-to-tera-2). Markdown and DocAnvil's `:::component` syntax are unchanged.
 
 ### Added
 
-- OpenAPI cURL controls now offer effective server, authentication, content-type and named request-body example choices, with command preview and manual-copy fallback. Credentials remain replacement values; no requests are executed or selections stored. Static examples remain available without JavaScript and in exports.
-
-- OpenAPI overview pages offer version-matched specification downloads: unchanged single-file JSON/YAML, or a portable ZIP with normalized JSON documents and rewritten local references. Downloads share locale/version scopes, update in serve and are checked against page/asset collisions by build and doctor.
-
-- Related guides on OpenAPI operation pages: declare `api_operations` in a guide’s front matter to link it from matching operations in the same version and locale. Links respect published titles/slugs, exclude drafts and appear in PDF/AI exports; build and doctor diagnose invalid associations.
-
-- A “Copy as cURL” dropdown in OpenAPI operation headers, with request media variants, common parameter serialization, supplied request bodies and authentication placeholders. Commands are copyable and included in PDF and AI outputs.
-
+- OpenAPI cURL controls with server, authentication alternative, content-type and supplied body-example choices, a command preview and selection-specific notes. Common flat parameter serialization and credential placeholders are supported; static commands remain available without JavaScript and in PDF/AI outputs. Requests are never executed and external examples are never fetched (#149, #152).
+- Related guides beneath OpenAPI operation headers through `api_operations` front matter, scoped to the same version and locale, with strict diagnostics for invalid associations and links retained in PDF/AI outputs (#150).
+- Version-matched OpenAPI downloads: exact source bytes for single-document inputs, or deterministic ZIPs with an `openapi.json` entry point and portable rewritten local references for multi-file inputs. Download paths receive collision checks; external supporting assets are not bundled (#151).
+- Specification-ordered tag grouping and HTTP method badges in OpenAPI navigation and overview tables, with theme CSS hooks (#143, #146, #150).
+- Validation of generated API routes and heading fragments from wiki-links and ordinary Markdown links, plus source-located diagnostics for unsupported or cross-dialect schema features. Strict warning failures preserve the previous build output unless `--clean` is requested (#143, #144).
 - Initial native OpenAPI reference generation through `[[openapi]]`: local JSON/YAML specifications and references, readable operation/schema pages with field constraints, authentication, request/response examples, media-type tabs and collapsed source definitions. Integrates with navigation, search, version/locale URLs, PDF and AI outputs, specification edit links, dependency watching and build/doctor diagnostics. Live requests and full schema validation are deferred.
+
+### Fixed
+
+- Browser printing hides fixed web navigation and interactive Copy/editor controls, preventing content overlap; OpenAPI media headings use the correct hierarchy (#145).
+- Long schema names and schema-list links wrap on narrow screens.
+- Doctor validates current navigation against the working-tree version inventory when available, avoiding false missing-page warnings from older Git snapshots.
 
 ## [1.2.5] - 2026-10-16
 

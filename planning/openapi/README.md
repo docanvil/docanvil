@@ -2,7 +2,7 @@
 
 The first V1.3 implementation generates static API reference pages through normal build, serve, doctor and PDF workflows.
 
-Merged in [PR #139](https://github.com/docanvil/docanvil/pull/139) on 17 October 2026. For current progress, remaining acceptance work and the next-session handoff, start with the [V1.3 plan](../v1.3-priorities.md).
+The foundation merged in [PR #139](https://github.com/docanvil/docanvil/pull/139) on 17 October 2026. Follow-ups through PR #152 add presentation refinements, cURL choices, related guides and version-matched downloads. The feature scope is merged but unreleased. For current progress, remaining acceptance work and the next-session handoff, start with the [V1.3 plan](../v1.3-priorities.md).
 
 - [User guide and support boundaries](../../docs/docs/guides/openapi.md)
 - [Schema presentation matrix](../../docs/docs/guides/openapi.md#schema-support-matrix) and [regression inventory](foundation.md#schema-presentation-regression-coverage)

@@ -2,7 +2,7 @@
 
 This roadmap outlines where **DocAnvil**, a Markdown-first static documentation generator, has been and where it's headed.
 
-DocAnvil is **stable (1.x)** and used in production. Upgrades within 1.x are safe: new functionality is additive and opt-in, and existing sites keep building without changes.
+DocAnvil is **stable (1.x)** and used in production. New features are generally additive and opt-in. Review release migration notes for custom templates; 1.3 upgrades the template engine to Tera 2.
 
 > ⚠️ This roadmap is directional, not a promise. Priorities may shift based on feedback and real-world usage.
 
@@ -58,18 +58,21 @@ DocAnvil follows **Semantic Versioning (SemVer)**:
 
 ## 🎯 1.3 — API documentation
 
-**OpenAPI reference generation is the next priority.** V1.2 made authored documentation much more capable; the next missing workflow is publishing API reference alongside guides without maintaining endpoint documentation by hand.
+Static OpenAPI reference generation is implemented and merged, but **not yet released**. The next step is final release validation.
 
-- **OpenAPI-first static reference** from local JSON or YAML specifications, targeting OpenAPI 3.0 and 3.1 with an explicitly documented support matrix
-- Endpoint pages with parameters, request bodies, responses, authentication, examples and linked schemas
-- Stable operation URLs, tag-based navigation, search and links from Markdown guides
-- Validation of guide-to-reference links and generated operation/schema anchors
-- Integration with themes, Git-backed versions, localisation, PDF and `llms.txt` outputs
-- Actionable specification diagnostics in build and `docanvil doctor`, including strict-mode failures
+- Local OpenAPI 3.0/3.1 JSON/YAML specifications and local references, with a [documented support matrix](docs/docs/guides/openapi.md#schema-support-matrix)
+- Operation and linked schema pages with parameters, request bodies, responses, authentication, constraints and examples
+- Stable URLs, specification-ordered tag navigation, HTTP method badges, search and generated-link/anchor validation
+- Related guides beside operations, scoped to the same documentation version and locale
+- Version-matched specification downloads: original single-file bytes or portable multi-file ZIPs
+- Static cURL examples with server, authentication, content-type and example choices, a command preview and credential placeholders; no request execution
+- Theme, Git-backed version, locale, PDF, sitemap and AI-output integration, with strict build/doctor diagnostics
 
-Start with local specifications and local references. A hosted renderer or browser-only embed would not deliver the same search, export and versioning integration. An interactive request console, remote specifications and additional API formats are follow-ups, not requirements for the first release.
+Chrome demo and adjusted larger-spec reviews are recorded. Remaining acceptance work covers visual review of the final controls, Safari/Firefox, zoom/touch, slower-device performance, full larger-spec PDF export and final candidate checks.
 
-The [V1.2 review and next-version plan](planning/v1.3-priorities.md) records the gaps, proposed scope, acceptance criteria and decisions still to resolve. Features remain opt-in and backward compatible; this is a direction, not a release commitment.
+Interactive requests, remote specifications and additional API formats remain deferred. OpenAPI generation is opt-in. Custom templates must follow the [Tera 2 migration guidance](docs/docs/guides/theming.md#migrating-custom-templates-to-tera-2).
+
+The [V1.3 plan](planning/v1.3-priorities.md) tracks completed scope, evidence and remaining release checks.
 
 ---
 
@@ -78,7 +81,7 @@ The [V1.2 review and next-version plan](planning/v1.3-priorities.md) records the
 Prioritise these after the first API reference workflow, adjusting order based on usage:
 
 - Reproducible remote code sources: explicit refresh, persistent cache, integrity checks and offline builds
-- Broader internal link and heading-anchor validation, including generated API targets
+- Broader internal link and heading-anchor validation beyond the generated API targets covered in 1.3
 - Front-matter schema validation for teams with required metadata
 - Dependency tracking and measured build improvements for larger versioned sites; incremental builds only with correct invalidation
 - API reference refinements informed by real specifications and reader feedback

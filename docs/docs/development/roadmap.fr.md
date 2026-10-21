@@ -7,7 +7,7 @@
 ---
 # Feuille de route
 
-DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/) et est stable en 1.x : les mises à jour au sein de 1.x ne casseront pas votre site. Voici où en est le projet et vers quoi il se dirige.
+DocAnvil suit le [versionnage sémantique](https://semver.org/lang/fr/) et est stable en 1.x : les nouvelles fonctionnalités sont généralement additives et optionnelles ; consultez les notes de migration pour les templates personnalisés. Voici où en est le projet et vers quoi il se dirige.
 
 ## 1.1.x — Améliorations des fonctionnalités principales
 
@@ -45,16 +45,19 @@ Entièrement rétrocompatible, et chaque fonctionnalité est optionnelle.
 
 ## 1.3.x — Documentation API
 
-La génération de références OpenAPI est la prochaine priorité. V1.2 a enrichi les guides et les exemples issus du code ; produire une référence à partir d’une spécification comble un nouveau besoin documentaire.
+La référence OpenAPI statique est implémentée et fusionnée, mais **pas encore publiée**. La préparation de la version porte désormais sur la validation finale.
 
-- Référence statique à partir de spécifications JSON ou YAML locales, visant OpenAPI 3.0 et 3.1 avec une matrice de compatibilité documentée
-- Opérations, paramètres, corps de requête, réponses, authentification, exemples et schémas liés
-- URL stables des opérations, navigation par tags, recherche et liens depuis les guides Markdown
-- Validation des liens vers la référence et des ancres des opérations et schémas générés
-- Intégration aux thèmes, versions de documentation, repli linguistique, PDF et sorties adaptées aux IA
-- Diagnostics dans build et `docanvil doctor`, avec vérifications en mode strict
+- Spécifications locales JSON/YAML OpenAPI 3.0/3.1 et références locales, avec une [matrice de compatibilité documentée](../guides/openapi.md#schema-support-matrix)
+- Pages d’opérations et de schémas : paramètres, requêtes, réponses, authentification, contraintes et exemples
+- URL stables, navigation par tags dans l’ordre de la spécification, badges HTTP, recherche et validation des liens et ancres générés
+- Guides associés aux opérations, dans la même version et la même langue
+- Téléchargement de la spécification correspondant à la version sélectionnée : fichier source intact ou ZIP portable pour les références multi-fichiers
+- Exemples cURL avec choix du serveur, de l’authentification, du type de contenu et de l’exemple, aperçu et identifiants à remplacer ; aucune requête exécutée
+- Intégration aux thèmes, versions Git, langues, PDF, sitemap et sorties adaptées aux IA ; diagnostics stricts dans build et doctor
 
-Commencer par les spécifications et références locales. Les requêtes interactives, les spécifications distantes et les autres formats API viendront éventuellement ensuite. La configuration et les limites détaillées seront définies par un prototype. Les fonctionnalités restent optionnelles et rétrocompatibles.
+Les contrôles Chrome du petit exemple et d’une copie adaptée d’une grande spécification sont enregistrés. Restent la revue visuelle des derniers contrôles, Safari/Firefox, zoom et tactile, les performances sur appareil plus lent, l’export PDF complet du grand exemple et les vérifications finales de la version candidate.
+
+Les requêtes interactives, spécifications distantes et autres formats API restent reportés. La génération OpenAPI est optionnelle. Les templates personnalisés doivent suivre la [migration vers Tera 2](../guides/theming.md#migrating-custom-templates-to-tera-2).
 
 ## 1.4.x et plus — Fiabilité et qualité documentaire
 

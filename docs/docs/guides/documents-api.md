@@ -17,7 +17,7 @@ This fictional workflow demonstrates how a guide and generated API reference wor
 
 ## Create a document
 
-Open [[example-api/operations/createdocument|Create a document]] and review its request body. Supply a title, Markdown body and optional publication status. The **Copy as cURL** menu provides a command with the supplied example and a token to replace.
+Open [[example-api/operations/createdocument|Create a document]] and review its request body. Supply a title, Markdown body and optional publication status. In **Copy as cURL**, choose the fictional production or sandbox server, bearer or API-key authentication, and the draft or published JSON example. **Show command** previews the result; **Copy cURL** copies it with credentials to replace.
 
 A successful response has status `201`. Its `Location` header identifies the new document. Keep the document ID for subsequent requests; the [[example-api/schemas/document|Document schema]] describes the returned fields.
 

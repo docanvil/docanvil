@@ -536,423 +536,144 @@ fn security(api: &Api, requirements: &[Value], out: &mut Content) -> Result<()> 
     Ok(())
 }
 
-// Single quotes protect all specification text from shell expansion.
-fn shell_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-fn url_component(value: &str) -> String {
-    value
-        .bytes()
-        .map(|b| {
-            if b.is_ascii_alphanumeric() || b"-._~".contains(&b) {
-                (b as char).to_string()
-            } else {
-                format!("%{b:02X}")
-            }
-        })
-        .collect()
-}
-
-/// Serialize scalar and flat container values; nested values require author input.
-fn serialize_parameter(
-    name: &str,
-    value: &Value,
-    location: &str,
-    style: &str,
-    explode: bool,
-) -> Option<Vec<(String, String)>> {
-    let encode = |v: &Value| -> Option<String> {
-        if v.is_array() || v.is_object() {
-            return None;
-        }
-        let raw = v
-            .as_str()
-            .map(str::to_owned)
-            .unwrap_or_else(|| v.to_string());
-        Some(if location == "header" {
-            raw
-        } else {
-            url_component(&raw)
-        })
-    };
-    let name = if location == "header" {
-        name.to_owned()
-    } else {
-        url_component(name)
-    };
-    let array = match value.as_array() {
-        Some(items) => Some(items.iter().map(&encode).collect::<Option<Vec<_>>>()?),
-        None => None,
-    };
-    let object = match value.as_object() {
-        Some(items) => Some(
-            items
-                .iter()
-                .map(|(k, v)| {
-                    Some((
-                        if location == "header" {
-                            k.clone()
-                        } else {
-                            url_component(k)
-                        },
-                        encode(v)?,
-                    ))
-                })
-                .collect::<Option<Vec<_>>>()?,
-        ),
-        None => None,
-    };
-    let scalar = if array.is_none() && object.is_none() {
-        Some(encode(value)?)
-    } else {
-        None
-    };
-    let flat = |separator: &str, kv: &str| -> String {
-        if let Some(items) = &array {
-            items.join(separator)
-        } else if let Some(items) = &object {
-            items
-                .iter()
-                .map(|(k, v)| format!("{k}{kv}{v}"))
-                .collect::<Vec<_>>()
-                .join(separator)
-        } else {
-            scalar.clone().unwrap_or_default()
-        }
-    };
-    let one = |v| Some(vec![(name.clone(), v)]);
-    match (location, style) {
-        ("query" | "cookie", "form") if explode => {
-            if let Some(items) = array {
-                Some(items.into_iter().map(|v| (name.clone(), v)).collect())
-            } else if let Some(items) = object {
-                Some(items)
-            } else {
-                one(scalar.unwrap())
-            }
-        }
-        ("query" | "cookie", "form") => one(flat(",", ",")),
-        ("query", "spaceDelimited" | "pipeDelimited") if !explode && array.is_some() => one(flat(
-            if style == "spaceDelimited" {
-                "%20"
-            } else {
-                "|"
-            },
-            ",",
-        )),
-        ("query", "deepObject") if explode && object.is_some() => Some(
-            object
-                .unwrap()
-                .into_iter()
-                .map(|(k, v)| (format!("{name}%5B{k}%5D"), v))
-                .collect(),
-        ),
-        ("path" | "header", "simple") => one(flat(",", if explode { "=" } else { "," })),
-        ("path", "label") => one(format!(
-            ".{}",
-            flat(
-                if explode { "." } else { "," },
-                if explode { "=" } else { "," }
-            )
-        )),
-        ("path", "matrix") if explode && object.is_some() => one(object
-            .unwrap()
-            .into_iter()
-            .map(|(k, v)| format!(";{k}={v}"))
-            .collect::<String>()),
-        ("path", "matrix") if explode && array.is_some() => one(array
-            .unwrap()
-            .into_iter()
-            .map(|v| format!(";{name}={v}"))
-            .collect::<String>()),
-        ("path", "matrix") => one(format!(";{name}={}", flat(",", ","))),
-        _ => None,
-    }
-}
-
-fn request_example(api: &Api, object: &Value, source: &Location) -> Result<Option<Value>> {
-    if let Some(example) = object.get("example") {
-        return Ok(Some(example.clone()));
-    }
-    if let Some(examples) = object.get("examples").and_then(Value::as_object) {
-        for name in examples.keys() {
-            let example = resolve(api, &source.child("examples").child(name))?;
-            if let Some(value) = example.value.get("value") {
-                return Ok(Some(value.clone()));
-            }
-        }
-    }
-    Ok(None)
-}
-
 fn curl_examples(api: &Api, operation: &Operation, out: &mut Content, slug: &str) -> Result<()> {
+    let choices = super::curl::choices(api, operation)?;
     out.markdown.push_str("## cURL examples\n\n");
-    out.md("POSIX shell examples. Replace placeholder values and credentials before running. Uses the first server and first authentication option; optional parameters without examples are omitted. Bodies without a supplied example are read from a local file.");
-    let server = operation.servers.first();
-    let mut base = server
-        .and_then(|s| s.get("url"))
-        .and_then(Value::as_str)
-        .unwrap_or("https://api.example.com")
-        .to_owned();
-    if let Some(variables) = server
-        .and_then(|s| s.get("variables"))
-        .and_then(Value::as_object)
-    {
-        for (name, variable) in variables {
-            if let Some(default) = variable.get("default").and_then(Value::as_str) {
-                base = base.replace(&format!("{{{name}}}"), default);
-            }
-        }
+    let mut notes = Content::default();
+    for note in &choices.notes {
+        notes.md(inline(note));
     }
-    if !base.starts_with("https://") && !base.starts_with("http://") {
-        out.md("The server URL is relative. Replace the example origin with your API origin.");
-        base = format!("https://api.example.com/{}", base.trim_start_matches('/'));
-    }
-    let mut path = operation.path.clone();
-    let mut query = Vec::new();
-    let mut args = Vec::new();
-    let mut query_cookies = Vec::new();
-    for parameter in &operation.parameters {
-        let example = request_example(
-            api,
-            &parameter.definition.value,
-            &parameter.definition.source,
-        )?;
-        let schema = if parameter.definition.value.get("schema").is_some() {
-            Some(resolve(api, &parameter.definition.source.child("schema"))?.value)
+    out.markdown.push_str(&notes.markdown);
+    let model = serde_json::to_string(&choices).map_err(|e| Error::General(e.to_string()))?;
+    let attr = |value: &str| {
+        html_escape(value)
+            .replace('[', "&#91;")
+            .replace(']', "&#93;")
+    };
+    let id = format!("{slug}-curl-preview");
+    out.html.push_str(&format!("<details class=\"api-curl\" data-api-curl data-api-curl-model=\"{}\"><summary>Copy as cURL</summary><div class=\"api-curl-menu\"><div class=\"api-curl-controls\" data-api-curl-controls hidden>", attr(&model)));
+    out.html.push_str(&format!(
+        "<label{}>Server<select data-api-curl-server>",
+        if choices.servers.len() < 2 {
+            " hidden"
         } else {
-            None
-        };
-        let example = example.or_else(|| {
-            schema
-                .as_ref()
-                .and_then(|s| s.get("example").or_else(|| s.get("default")))
-                .cloned()
-        });
-        if !parameter.required && example.is_none() {
-            continue;
+            ""
         }
-        let value = example.unwrap_or_else(|| Value::String(format!("REPLACE_{}", parameter.name)));
-        let definition = &parameter.definition.value;
-        let default_style = if parameter.location == "query" || parameter.location == "cookie" {
-            "form"
-        } else {
-            "simple"
-        };
-        let style = definition
-            .get("style")
-            .and_then(Value::as_str)
-            .unwrap_or(default_style);
-        let explode = definition
-            .get("explode")
-            .and_then(Value::as_bool)
-            .unwrap_or(style == "form");
-        let serialized =
-            serialize_parameter(&parameter.name, &value, &parameter.location, style, explode);
-        let serialized = match serialized.filter(|_| definition.get("content").is_none()) {
-            None => {
-                out.md(format!("Parameter {} requires custom serialization. Replace its placeholder using the parameter's style, explode and content rules.", inline(&parameter.name)));
-                vec![(
-                    url_component(&parameter.name),
-                    "REPLACE_SERIALIZED_VALUE".into(),
-                )]
-            }
-            Some(serialized) => serialized,
-        };
-        match parameter.location.as_str() {
-            "path" => path = path.replace(&format!("{{{}}}", parameter.name), &serialized[0].1),
-            "query" => query.extend(
-                serialized
-                    .into_iter()
-                    .map(|(name, value)| format!("{name}={value}")),
-            ),
-            "header" => args.push(format!(
-                "--header {}",
-                shell_quote(&format!("{}: {}", parameter.name, serialized[0].1))
-            )),
-            "cookie" => query_cookies.extend(
-                serialized
-                    .into_iter()
-                    .map(|(name, value)| format!("{name}={value}")),
-            ),
-            _ => {}
-        }
-    }
-    if let Some(requirement) = operation.security.first().and_then(Value::as_object) {
-        for name in requirement.keys() {
-            let location = api
-                .graph
-                .root
-                .child("components")
-                .child("securitySchemes")
-                .child(name);
-            if api.graph.value(&location).is_err() {
-                continue;
-            }
-            let scheme = resolve(api, &location)?.value;
-            match text(&scheme, "type").as_str() {
-                "http" if text(&scheme, "scheme").eq_ignore_ascii_case("basic") => {
-                    args.push(format!("--user {}", shell_quote("USERNAME:PASSWORD")))
-                }
-                "http" if text(&scheme, "scheme").eq_ignore_ascii_case("bearer") => {
-                    args.push(format!(
-                        "--header {}",
-                        shell_quote("Authorization: Bearer REPLACE_TOKEN")
-                    ))
-                }
-                "oauth2" | "openIdConnect" => args.push(format!(
-                    "--header {}",
-                    shell_quote("Authorization: Bearer REPLACE_TOKEN")
-                )),
-                "apiKey" => {
-                    let key = text(&scheme, "name");
-                    match text(&scheme, "in").as_str() {
-                        "query" => query.push(format!("{}=REPLACE_API_KEY", url_component(&key))),
-                        "cookie" => query_cookies.push(format!("{key}=REPLACE_API_KEY")),
-                        "header" => args.push(format!(
-                            "--header {}",
-                            shell_quote(&format!("{key}: REPLACE_API_KEY"))
-                        )),
-                        _ => {}
-                    }
-                }
-                _ => out.md(format!(
-                    "Configure authentication for {} before running this example.",
-                    inline(name)
-                )),
-            }
-        }
-    }
-    if !query_cookies.is_empty() {
-        args.push(format!(
-            "--cookie {}",
-            shell_quote(&query_cookies.join("; "))
+    ));
+    for (index, server) in choices.servers.iter().enumerate() {
+        out.html.push_str(&format!(
+            "<option value=\"{index}\">{}</option>",
+            attr(&server.label)
         ));
     }
-    let mut url = format!("{}{}", base.trim_end_matches('/'), path);
-    if !query.is_empty() {
-        url.push(if url.contains('?') { '&' } else { '?' });
-        url.push_str(&query.join("&"));
+    out.html.push_str("</select></label>");
+    out.html.push_str(&format!(
+        "<label{}>Authentication<select data-api-curl-auth>",
+        if choices.authentication.len() < 2 {
+            " hidden"
+        } else {
+            ""
+        }
+    ));
+    for (index, auth) in choices.authentication.iter().enumerate() {
+        out.html.push_str(&format!(
+            "<option value=\"{index}\">{}</option>",
+            attr(&auth.label)
+        ));
     }
-    let mut variants = Vec::new();
-    if let Some(body) = &operation.request_body
-        && let Some(content) = body.value.get("content").and_then(Value::as_object)
+    out.html.push_str("</select></label>");
+    let media: Vec<_> = choices
+        .bodies
+        .iter()
+        .map(|b| &b.media)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    out.html.push_str(&format!(
+        "<label{}>Content type<select data-api-curl-media>",
+        if media.len() < 2 { " hidden" } else { "" }
+    ));
+    for kind in media {
+        out.html.push_str(&format!(
+            "<option value=\"{}\">{}</option>",
+            attr(kind),
+            attr(kind)
+        ));
+    }
+    out.html.push_str(
+        "</select></label><label data-api-curl-example-label>Example<select data-api-curl-example>",
+    );
+    for (index, body) in choices
+        .bodies
+        .iter()
+        .enumerate()
+        .filter(|(_, b)| b.media == choices.bodies[0].media)
     {
-        for (media_type, media) in content {
-            let mut body_args = args.clone();
-            let example =
-                request_example(api, media, &body.source.child("content").child(media_type))?;
-            let form = media_type == "application/x-www-form-urlencoded"
-                || media_type == "multipart/form-data";
-            if form
-                && media
-                    .get("encoding")
-                    .and_then(Value::as_object)
-                    .is_none_or(|e| e.is_empty())
-                && example
-                    .as_ref()
-                    .and_then(Value::as_object)
-                    .is_some_and(|o| {
-                        !o.is_empty() && o.values().all(|v| !v.is_array() && !v.is_object())
-                    })
-            {
-                let fields = example.as_ref().unwrap().as_object().unwrap();
-                if media_type == "application/x-www-form-urlencoded" {
-                    let payload = fields
-                        .iter()
-                        .map(|(k, v)| {
-                            format!(
-                                "{}={}",
-                                url_component(k),
-                                url_component(
-                                    &v.as_str()
-                                        .map(str::to_owned)
-                                        .unwrap_or_else(|| v.to_string())
-                                )
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("&");
-                    body_args.push(format!(
-                        "--header {}",
-                        shell_quote("Content-Type: application/x-www-form-urlencoded")
-                    ));
-                    body_args.push(format!("--data-raw {}", shell_quote(&payload)));
-                } else {
-                    for (key, value) in fields {
-                        let raw = value
-                            .as_str()
-                            .map(str::to_owned)
-                            .unwrap_or_else(|| value.to_string());
-                        body_args.push(format!(
-                            "--form-string {}",
-                            shell_quote(&format!("{key}={raw}"))
-                        ));
-                    }
-                }
-            } else {
-                let payload = if form {
-                    None
-                } else {
-                    example.and_then(|v| {
-                        if media_type.contains("json") {
-                            Some(v.to_string())
-                        } else {
-                            v.as_str().map(str::to_owned)
-                        }
-                    })
-                };
-                let content_type = if media_type == "multipart/form-data" {
-                    out.md("For multipart requests without a flat supplied example, prepare request-body with encoded parts and replace REPLACE_BOUNDARY with its boundary. Custom encoding and file parts must be prepared explicitly.");
-                    "multipart/form-data; boundary=REPLACE_BOUNDARY"
-                } else {
-                    media_type
-                };
-                body_args.push(format!(
-                    "--header {}",
-                    shell_quote(&format!("Content-Type: {content_type}"))
-                ));
-                body_args.push(format!(
-                    "{} {}",
-                    if payload.is_some() {
-                        "--data-raw"
-                    } else {
-                        "--data-binary"
-                    },
-                    shell_quote(payload.as_deref().unwrap_or("@request-body"))
-                ));
+        out.html.push_str(&format!(
+            "<option value=\"{index}\">{}</option>",
+            attr(&body.label)
+        ));
+    }
+    out.html.push_str(&format!("</select></label><div class=\"api-curl-actions\"><button type=\"button\" data-api-curl-copy>Copy cURL</button><button type=\"button\" data-api-curl-show aria-controls=\"{}\" aria-expanded=\"false\">Show command</button></div><div data-api-curl-selected-notes></div></div><p class=\"api-curl-status\" role=\"status\" aria-live=\"polite\"></p><div class=\"api-curl-command\" id=\"{}\" data-api-curl-preview hidden><pre data-api-curl-preview-code></pre></div><div data-api-curl-fallback>",attr(&id),attr(&id)));
+    let mut fallback = Content::default();
+    fallback.md("Without JavaScript, commands below use the first server and authentication option. Other available servers and authentication options are listed for manual adjustment.");
+    if choices.servers.len() > 1 {
+        fallback.md("**Available servers**");
+        for server in &choices.servers {
+            fallback.md(format!("- {}", inline(&server.label)));
+        }
+    }
+    if choices.authentication.len() > 1 {
+        fallback.md("**Authentication alternatives**");
+        for auth in &choices.authentication {
+            fallback.md(format!("- {}", inline(&auth.label)));
+            let mut flags = auth.args.clone();
+            flags.extend(auth.query.iter().map(|q| format!("Query: {q}")));
+            flags.extend(auth.cookies.iter().map(|c| format!("Cookie: {c}")));
+            if !flags.is_empty() {
+                fallback.md(fenced_shell(&flags.join("\n")));
             }
-            variants.push((media_type.clone(), body_args));
+            for note in &auth.notes {
+                fallback.md(inline(note));
+            }
         }
     }
-    if variants.is_empty() {
-        variants.push(("Request".into(), args));
+    for note in &choices.servers[0].notes {
+        fallback.md(inline(note));
     }
-    let notes = std::mem::take(&mut out.html);
-    out.html.push_str("<details class=\"api-curl\" data-api-curl><summary>Copy as cURL</summary><div class=\"api-curl-menu\">");
-    for (index, (label, args)) in variants.into_iter().enumerate() {
-        let mut command = format!(
-            "curl --globoff --request {}",
-            shell_quote(&operation.method.to_uppercase())
-        );
-        for arg in args {
-            command.push_str(&format!(" \\\n  {arg}"));
+    if choices.authentication.len() == 1 {
+        for note in &choices.authentication[0].notes {
+            fallback.md(inline(note));
         }
-        command.push_str(&format!(" \\\n  --url {}", shell_quote(&url)));
-        let fence =
-            "`".repeat(3.max(command.split(|c| c != '`').map(str::len).max().unwrap_or(0) + 1));
-        let mut panel = Content::default();
-        panel.md(format!("{fence}bash\n{command}\n{fence}"));
-        out.markdown
-            .push_str(&format!("### {}\n\n{}", inline(&label), panel.markdown));
-        let id = format!("{slug}-curl-command-{index}");
-        out.html.push_str(&format!("<div class=\"api-curl-option\" data-api-curl-option><button type=\"button\" data-api-curl-copy aria-controls=\"{}\" hidden>Copy {}</button><div class=\"api-curl-command\" id=\"{}\" data-api-curl-command><p>{}</p>{}</div></div>", html_escape(&id), html_escape(&label), html_escape(&id), html_escape(&label), panel.html));
     }
-    out.html.push_str("<p class=\"api-curl-status\" role=\"status\" aria-live=\"polite\"></p><div class=\"api-curl-notes\">");
-    out.html.push_str(&notes);
+    for (index, body) in choices.bodies.iter().enumerate() {
+        let title = format!("{} — {}", body.media, body.label);
+        fallback
+            .markdown
+            .push_str(&format!("### {}\n\n", inline(&title)));
+        fallback.html.push_str(&format!(
+            "<p class=\"api-curl-example-title\">{}</p>",
+            attr(&title)
+        ));
+        for note in &body.notes {
+            fallback.md(inline(note));
+        }
+        fallback.md(fenced_shell(&choices.command(0, 0, index)));
+    }
+    // The static representation is shared by no-JavaScript readers and exports.
+    out.markdown.push_str(&fallback.markdown);
+    out.html
+        .push_str(&fallback.html.replace('[', "&#91;").replace(']', "&#93;"));
+    out.html.push_str("</div><div class=\"api-curl-notes\">");
+    out.html
+        .push_str(&notes.html.replace('[', "&#91;").replace(']', "&#93;"));
     out.html.push_str("</div></div></details>");
     Ok(())
+}
+
+fn fenced_shell(command: &str) -> String {
+    let fence = "`".repeat(3.max(command.split(|c| c != '`').map(str::len).max().unwrap_or(0) + 1));
+    format!("{fence}bash\n{command}\n{fence}")
 }
 
 fn examples(
@@ -1477,6 +1198,7 @@ pub(super) fn tag_groups(api: &Api) -> Result<Vec<(&str, Option<&str>)>> {
 
 #[cfg(test)]
 mod curl_tests {
+    use super::super::curl::{serialize_parameter, shell_quote};
     use super::*;
 
     #[test]

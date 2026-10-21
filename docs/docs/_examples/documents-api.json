@@ -5,8 +5,8 @@
     "version": "1.0.0",
     "description": "A fictional API for a small document library. Explore operations, request examples and reusable schemas alongside the DocAnvil guides.\n\nThis specification is a documentation example; the server URL does not host a running API."
   },
-  "servers": [{"url": "https://api.example.test/v1", "description": "Fictional example server"}],
-  "security": [{"bearerAuth": []}],
+  "servers": [{"url": "https://api.example.test/v1", "description": "Fictional production server"}, {"url": "https://sandbox.example.test/v1", "description": "Fictional sandbox server"}],
+  "security": [{"bearerAuth": []}, {"apiKeyAuth": []}],
   "tags": [{"name": "Documents", "description": "Browse and maintain documents."}],
   "paths": {
     "/documents": {
@@ -30,7 +30,7 @@
         "summary": "Create a document",
         "description": "Create a new document from a title and Markdown body. New documents default to **draft** status.",
         "tags": ["Documents"],
-        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateDocument"}, "example": {"title": "Getting started", "body": "# Welcome\n\nYour first document.", "status": "draft"}}, "application/yaml": {"schema": {"$ref": "#/components/schemas/CreateDocument"}, "example": "title: Getting started\nbody: '# Welcome'\nstatus: draft"}}},
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CreateDocument"}, "examples": {"draft": {"summary": "Draft document", "value": {"title": "Getting started", "body": "# Welcome\n\nYour first document.", "status": "draft"}}, "published": {"summary": "Published document", "value": {"title": "Release notes", "body": "# Version notes", "status": "published"}}}}, "application/yaml": {"schema": {"$ref": "#/components/schemas/CreateDocument"}, "example": "title: Getting started\nbody: '# Welcome'\nstatus: draft"}}},
         "responses": {
           "201": {"description": "The document was created.", "headers": {"Location": {"description": "URL of the new document.", "schema": {"type": "string"}}}, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Document"}}}},
           "400": {"description": "The request did not pass validation.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"code": "invalid_request", "message": "A title is required."}}}},
@@ -65,7 +65,7 @@
     }
   },
   "components": {
-    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "description": "Send a bearer token in the Authorization header."}},
+    "securitySchemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "description": "Send a bearer token in the Authorization header."}, "apiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-Key", "description": "An alternative fictional API key."}},
     "responses": {
       "Unauthorized": {"description": "The bearer token is missing or invalid.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"code": "unauthorized", "message": "Provide a valid bearer token."}}}},
       "NotFound": {"description": "No document exists with that identifier.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}, "example": {"code": "not_found", "message": "Document not found."}}}}

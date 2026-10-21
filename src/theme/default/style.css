@@ -2260,11 +2260,17 @@ body.nav-open .mobile-nav-icon-close {
 .api-operation-toolbar .api-operation-meta { margin-bottom: 0; }
 .api-curl { position: relative; flex-shrink: 0; margin-inline-start: auto; font-size: .85rem; }
 .api-curl > summary { cursor: pointer; padding: .45rem .7rem; border: 1px solid var(--color-border); border-radius: .45rem; background: var(--color-bg); color: var(--color-text); font-weight: 600; }
-.api-curl > summary:focus-visible, .api-curl-option > button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.api-curl > summary:focus-visible, .api-curl-actions button:focus-visible, .api-curl-controls select:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .api-curl-menu { position: absolute; inset-inline-end: 0; top: calc(100% + .4rem); z-index: 20; width: min(26rem, calc(100vw - 4rem)); max-height: 65vh; overflow: auto; padding: .5rem; border: 1px solid var(--color-border); border-radius: .6rem; background: var(--color-bg); box-shadow: 0 .5rem 1.5rem #0002; color: var(--color-text); }
-.api-curl-option > button { display: block; width: 100%; padding: .65rem; text-align: start; border: 0; border-radius: .3rem; background: transparent; color: inherit; cursor: pointer; font: inherit; overflow-wrap: anywhere; }
-.api-curl-option > button:hover { background: var(--color-bg-secondary); }
-.api-curl-option > button[hidden], .api-curl-command[hidden] { display: none; }
+.api-curl-controls { display: grid; gap: .65rem; padding: .35rem; }
+.api-curl-controls label { display: grid; gap: .3rem; font-size: .8rem; font-weight: 600; min-width: 0; }
+.api-curl-controls select { width: 100%; min-width: 0; font: inherit; font-weight: 400; color: var(--color-text); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: .3rem; padding: .45rem; }
+.api-curl-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.api-curl-actions button { padding: .5rem .65rem; border: 1px solid var(--color-border); border-radius: .35rem; background: var(--color-bg-secondary); color: var(--color-text); cursor: pointer; font: inherit; }
+.api-curl-actions button:hover { border-color: var(--color-primary); }
+.api-curl-controls[hidden], .api-curl-controls label[hidden], .api-curl-actions button[hidden], [data-api-curl-fallback][hidden], .api-curl-command[hidden] { display: none; }
+.api-curl-command pre { font-family: var(--font-mono); font-size: .75rem; padding: .65rem; border-radius: .3rem; background: var(--color-bg-secondary); color: var(--color-text); }
+.content .api-curl-example-title { margin: .7rem .35rem .35rem; font-size: .8rem; font-weight: 600; }
 .api-curl-command { min-width: 0; }
 .api-curl-command pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .api-curl-status:empty { display: none; }
@@ -2278,9 +2284,9 @@ body.nav-open .mobile-nav-icon-close {
   .api-operation-toolbar { display: block; }
   .api-reference-operation .api-operation { break-inside: auto; }
   .api-curl { margin: 1rem 0; }
-  .api-curl > summary, .api-curl-option > button, .api-curl-status { display: none !important; }
+  .api-curl > summary, .api-curl-controls, [data-api-curl-preview], .api-curl-status { display: none !important; }
   .api-curl-menu { position: static; width: auto; max-height: none; overflow: visible; box-shadow: none; }
-  .api-curl-command[hidden] { display: block !important; }
+  [data-api-curl-fallback][hidden] { display: block !important; }
 }
 
 

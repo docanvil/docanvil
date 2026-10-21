@@ -4,6 +4,8 @@ All notable changes to DocAnvil will be documented in this file.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-21
+
 ### Changed
 
 - Page footers use equal-width previous/next links and tighter spacing around page metadata, navigation and credits.

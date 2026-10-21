@@ -39,12 +39,12 @@ en = "English"
 fr = "Français"
 
 [version]
-current = "v1.2.5"
+current = "v1.3.0"
 enabled = ["master"]
 
 [version.git]
-# Earlier release docs have incomplete translations; keep strict builds on v1.2.
-tag_patterns = ["v1.2.*"]
+# Earlier release docs have incomplete translations; include releases from v1.2 onward.
+tag_patterns = ["v1.2.*", "v1.3.*"]
 working_tree = "master"
 
 [version.display_names]
@@ -60,4 +60,4 @@ author = "The DocAnvil Team"
 [[openapi]]
 spec = "_examples/documents-api.json"
 output = "example-api"
-versions = ["master"]
+versions = ["master", "v1.3.0"]
